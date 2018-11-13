@@ -53,7 +53,8 @@ CHECKBOX_TOGGLES = ["accelerometer",
                     "devicemotion",
                     "reachability",
                     "allow_upload_over_cellular_data",
-                    "use_anonymized_hashing",]
+                    "use_anonymized_hashing",
+                    "use_gps_fuzzing", ]
 
 TIMER_VALUES = ["accelerometer_off_duration_seconds",
                 "accelerometer_on_duration_seconds",

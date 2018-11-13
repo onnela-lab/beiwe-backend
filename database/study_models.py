@@ -190,6 +190,7 @@ class DeviceSettings(AbstractModel):
     bluetooth = models.BooleanField(default=False)
     power_state = models.BooleanField(default=True)
     use_anonymized_hashing = models.BooleanField(default=True)
+    use_gps_fuzzing = models.BooleanField(default=False)
 
     # Whether iOS-specific data streams are turned on
     proximity = models.BooleanField(default=False)
