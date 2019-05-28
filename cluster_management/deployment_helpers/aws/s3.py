@@ -11,7 +11,17 @@ def s3_create_bucket(bucket_name):
         kwargs = {'CreateBucketConfiguration': {'LocationConstraint': GLOBAL_CONFIGURATION["AWS_REGION"]}}
     s3_client = create_s3_client()
     s3_client.create_bucket(ACL='private', Bucket=bucket_name, **kwargs)
-    
+    # Add default encryption of data.
+    s3_client.put_bucket_encryption(Bucket=bucket_name,
+                                    ServerSideEncryptionConfiguration={
+                                        'Rules': [
+                                            { 'ApplyServerSideEncryptionByDefault': {
+                                                'SSEAlgorithm': 'aws:kms',
+                                                }
+                                            },
+                                        ]
+                                    })
+
 def check_bucket_name_available(bucket_name):
     s3_resource = create_s3_resource()
     return s3_resource.Bucket(bucket_name) not in s3_resource.buckets.all()
