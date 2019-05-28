@@ -25,7 +25,7 @@ def _get_resource(client_type):
     )
 
 def create_ec2_client():
-    return _get_client("ec2")
+    return _get_client('ec2')
 
 def create_eb_client():
     return _get_client('elasticbeanstalk')
@@ -37,25 +37,15 @@ def create_rds_client():
     return _get_client('rds')
 
 def create_s3_client():
-    return boto3.client(
-            "s3",
-            aws_access_key_id=AWS_CREDENTIIALS["AWS_ACCESS_KEY_ID"],
-            aws_secret_access_key=AWS_CREDENTIIALS["AWS_SECRET_ACCESS_KEY"],
-            region_name=GLOBAL_CONFIGURATION["AWS_REGION"],
-    )
-    
+    return _get_client('s3')
+
 
 ## Resources.
 def create_ec2_resource():
-    return _get_resource("ec2")
+    return _get_resource('ec2')
 
 def create_iam_resource():
-    return _get_resource("iam")
+    return _get_resource('iam')
 
 def create_s3_resource():
-    return boto3.resource(
-            "s3",
-            aws_access_key_id=AWS_CREDENTIIALS["AWS_ACCESS_KEY_ID"],
-            aws_secret_access_key=AWS_CREDENTIIALS["AWS_SECRET_ACCESS_KEY"],
-            region_name=GLOBAL_CONFIGURATION["AWS_REGION"],
-    )
+    return _get_resource('s3')

@@ -42,12 +42,12 @@ def get_manager_public_ip(eb_environment_name):
 def get_manager_instance_by_eb_environment_name(eb_environment_name):
     """ Get a manager dictionary of the currently running manager server. """
     managers = get_instances_by_name(PROCESSING_MANAGER_NAME % eb_environment_name)
-    
+
     if len(managers) > 1:
         msg = "Discovered multiple manager servers. This configuration is not supported and should be corrected."
         log.error(msg)
         raise Exception(msg)
-    
+
     if managers:
         return managers[0]
     else:
@@ -69,15 +69,15 @@ def get_instances_by_name(instance_name):
                  'Values': ['running']},
             ]
     )['Reservations']
-    
+
     # need to concatenate all instances from every "reservation", whatever that is.
     instances = []
     for reservation in reservations:
         instances.extend(reservation['Instances'])
-    
+
     if not instances:
         log.error("Could not find any instances matching the name '%s'" % instance_name)
-        
+
     return instances
 
 ####################################################################################################
@@ -136,7 +136,7 @@ def get_or_create_rabbit_mq_security_group(eb_environment_name):
         )
         open_tcp_port(sec_grp['GroupId'], 22)
         return get_security_group_by_id(sec_grp['GroupId'])
-    
+
 ####################################################################################################
 #################################### Instance Creation #############################################
 ####################################################################################################
@@ -147,16 +147,17 @@ def create_server(eb_environment_name, aws_server_type, security_groups=None):
         security_groups = []
     if not isinstance(security_groups, list):
         raise Exception("security_groups must be a list, received '%s'" % type(security_groups))
-    
+
     ebs_parameters = {
         'DeviceName': '/dev/sda1',  # boot drive...
         'Ebs': {
             'DeleteOnTermination': True,
+            'Encrypted': True,
             'VolumeSize': 8,
         # gigabytes, No storage is required on any ubuntu machines, 8 is default
             'VolumeType': 'gp2'}  # SSD...
     }
-    
+
     instance = ec2_client.run_instances(
             ImageId=get_most_recent_ubuntu()['ImageId'],
             MinCount=1,
@@ -181,7 +182,7 @@ def create_server(eb_environment_name, aws_server_type, security_groups=None):
             #           },
             # IamInstanceProfile={'Arn': 'string',
             #                    'Name': 'string'},
-            
+
             # NetworkInterfaces=[ {
             #         'AssociatePublicIpAddress': True|False,
             #         'DeleteOnTermination': True|False,
@@ -231,9 +232,9 @@ def create_processing_control_server(eb_environment_name, aws_server_type):
     server is that the controller needs to allow connections from the processors. """
 
     get_rds_security_groups_by_eb_name(eb_environment_name)["instance_sec_grp"]['GroupId']
-    
+
     # TODO: functions that terminate all worker and all manager servers for an environment
-    
+
     manager_info = get_manager_instance_by_eb_environment_name(eb_environment_name)
     if manager_info is not None:
         if manager_info['InstanceType'] == aws_server_type:
@@ -245,17 +246,17 @@ def create_processing_control_server(eb_environment_name, aws_server_type):
         log.error(msg)
         sleep(0.1)  # sometimes log has problems if you don't give it a second, the error messages above are critical
         raise Exception(msg)
-    
+
     rabbit_mq_sec_grp_id = get_or_create_rabbit_mq_security_group(eb_environment_name)['GroupId']
     instance_sec_grp_id = get_rds_security_groups_by_eb_name(eb_environment_name)["instance_sec_grp"]['GroupId']
-    
+
     try:
         open_tcp_port(instance_sec_grp_id, 22)
     except ClientError:
         # we need to open the ssh port for future worker servers, but it blows up with duplicate
         # if a user ever creates two managers during the life of the environment.
         pass
-    
+
     instance_info = create_server(eb_environment_name, aws_server_type,
                                   security_groups=[rabbit_mq_sec_grp_id, instance_sec_grp_id])
     instance_resource = create_ec2_resource().Instance(instance_info["InstanceId"])
