@@ -11,6 +11,13 @@ def s3_create_bucket(bucket_name):
         kwargs = {'CreateBucketConfiguration': {'LocationConstraint': GLOBAL_CONFIGURATION["AWS_REGION"]}}
     s3_client = create_s3_client()
     s3_client.create_bucket(ACL='private', Bucket=bucket_name, **kwargs)
+
+def s3_encrypt_bucket(bucket_name):
+    '''
+    Set the policy for the given bucket to enable encryption of data at rest.
+    '''
+    s3_client = create_s3_client()
+
     # Add default encryption of data.
     s3_client.put_bucket_encryption(Bucket=bucket_name,
                                     ServerSideEncryptionConfiguration={
@@ -35,5 +42,6 @@ def create_data_bucket(eb_environment_name):
         log.info("checking availability of bucket name '%s'" % name)
         if check_bucket_name_available(name):
             s3_create_bucket(name)
+            s3_encrypt_bucket(name)
             return name
     raise Exception("Was not able to construct a bucket name that is not in use.")

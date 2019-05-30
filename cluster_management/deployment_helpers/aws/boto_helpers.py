@@ -39,6 +39,8 @@ def create_rds_client():
 def create_s3_client():
     return _get_client('s3')
 
+def create_sts_client():
+    return _get_client('sts')
 
 ## Resources.
 def create_ec2_resource():
