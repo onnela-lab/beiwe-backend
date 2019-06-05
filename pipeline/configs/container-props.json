@@ -3,6 +3,6 @@
   "memory": 2000,
   "command": [
     "/bin/bash",
-    "Pipeline/utils/runner.sh"
+    "Beiwe-Analysis/Pipeline/utils/runner.sh"
   ]
 }
