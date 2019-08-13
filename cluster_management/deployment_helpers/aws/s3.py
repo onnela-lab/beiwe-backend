@@ -28,6 +28,34 @@ def s3_encrypt_bucket(bucket_name):
                                             },
                                         ]
                                     })
+def s3_require_tls(bucket_name):
+    '''
+    This enforces encryption of data in transit for any calls.
+    '''
+    
+    s3_client = create_s3_client()
+
+    # Policy that enforces the use of TLS/SSL for all actions.
+    bucket_policy = {
+        'Version': '2012-10-17',
+        'Id': 'Policy1565726245376',
+        'Statement': [
+            {
+                'Sid': 'Stmt1565726242462',
+                'Effect': 'Deny',
+                'Principal': '*',
+                'Action': '*',
+                'Resource': 'arn:aws:s3:::{}/*'.format(bucket_name),
+                'Condition': {
+                    'Bool': {
+                        'aws:SecureTransport': 'false'
+                    }
+                }
+            }
+        ]
+    }
+
+    s3_client.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(bucket_policy))
 
 def check_bucket_name_available(bucket_name):
     s3_resource = create_s3_resource()
@@ -43,5 +71,6 @@ def create_data_bucket(eb_environment_name):
         if check_bucket_name_available(name):
             s3_create_bucket(name)
             s3_encrypt_bucket(name)
+            s3_require_tls(name)
             return name
     raise Exception("Was not able to construct a bucket name that is not in use.")
