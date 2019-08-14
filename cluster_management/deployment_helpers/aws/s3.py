@@ -28,11 +28,12 @@ def s3_encrypt_bucket(bucket_name):
                                             },
                                         ]
                                     })
+                                    
 def s3_require_tls(bucket_name):
     '''
     This enforces encryption of data in transit for any calls.
     '''
-    
+
     s3_client = create_s3_client()
 
     # Policy that enforces the use of TLS/SSL for all actions.
