@@ -1,3 +1,4 @@
+import json
 from deployment_helpers.aws.boto_helpers import create_s3_client, create_s3_resource
 from deployment_helpers.constants import get_global_config
 from deployment_helpers.general_utils import random_alphanumeric_string, log
@@ -28,7 +29,7 @@ def s3_encrypt_bucket(bucket_name):
                                             },
                                         ]
                                     })
-                                    
+
 def s3_require_tls(bucket_name):
     '''
     This enforces encryption of data in transit for any calls.
