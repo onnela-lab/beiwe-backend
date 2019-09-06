@@ -53,6 +53,15 @@ def unflatten_consent_sections(consent_sections_dict):
     return dict(refactored_consent_sections)
 
 
+def get_session_researcher_study_ids():
+    """ Returns the appropriate study ids based on whether a user is a study or site admin """
+    session_researcher = get_session_researcher()
+    if session_researcher.site_admin:
+        return Study.objects.exclude(deleted=True).values_list("id", flat=True)
+    else:
+        return session_researcher.study_relations.values_list("study_id", flat=True)
+
+
 ####################################################################################################
 ######################################## Pages #####################################################
 ####################################################################################################
@@ -60,18 +69,13 @@ def unflatten_consent_sections(consent_sections_dict):
 @system_admin_pages.route('/manage_researchers', methods=['GET'])
 @authenticate_site_admin
 def manage_researchers():
-    session_researcher = get_session_researcher()
-    if session_researcher.site_admin:
-        study_ids = Study.objects.exclude(deleted=True).values_list("id", flat=True)
-    else:
-        study_ids = session_researcher.study_relations.values_list("study_id", flat=True)
-
     researcher_list = []
     # get the study names that each user has access to, but only those that the current admin  also
     # has access to.
     for researcher in get_administerable_researchers():
         allowed_studies = Study.get_all_studies_by_name().filter(
-            study_relations__researcher=researcher, study_relations__study__in=study_ids,
+            study_relations__researcher=researcher,
+            study_relations__study__in=get_session_researcher_study_ids(),
         ).values_list('name', flat=True)
         researcher_list.append((researcher.as_native_python(), list(allowed_studies)))
 
@@ -86,15 +90,31 @@ def manage_researchers():
 @system_admin_pages.route('/edit_researcher/<string:researcher_pk>', methods=['GET', 'POST'])
 @authenticate_site_admin
 def edit_researcher(researcher_pk):
+    session_researcher = get_session_researcher()
     edit_researcher = Researcher.objects.get(pk=researcher_pk)
-    is_session_researcher = edit_researcher.username == get_session_researcher().username,
+
+    # site admins can edit study admins, but not other site admins.
+    # (users do not edit their own passwords on this page.)
+    editable_password = (
+            not edit_researcher.username == get_session_researcher().username
+            and not edit_researcher.site_admin
+    )
+
+    # if the user is not a site admin add study admin check.
+    if not session_researcher.site_admin:
+        editable_password = editable_password and not edit_researcher.is_study_admin()
+
+    # get the overlap of studies visible to both the session user and the
+    current_visible_studies = Study.get_all_studies_by_name().filter(
+        study_relations__researcher=edit_researcher, id__in=get_session_researcher_study_ids()
+    )
     return render_template(
         'edit_researcher.html',
         admin=edit_researcher,
-        current_studies=Study.get_all_studies_by_name().filter(study_relations__researcher=edit_researcher),
+        current_studies=current_visible_studies,
         all_studies=get_administerable_studies(),
         allowed_studies=get_researcher_allowed_studies(),
-        is_session_researcher=is_session_researcher,
+        editable_password=editable_password,
         is_admin=researcher_is_an_admin(),
         redirect_url='/edit_researcher/{:s}'.format(researcher_pk),
     )
