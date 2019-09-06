@@ -60,14 +60,20 @@ def unflatten_consent_sections(consent_sections_dict):
 @system_admin_pages.route('/manage_researchers', methods=['GET'])
 @authenticate_site_admin
 def manage_researchers():
+    session_researcher = get_session_researcher()
+    if session_researcher.site_admin:
+        study_ids = Study.objects.exclude(deleted=True).values_list("id", flat=True)
+    else:
+        study_ids = session_researcher.study_relations.values_list("study_id", flat=True)
+
     researcher_list = []
-    # get the study names that each user has access to
+    # get the study names that each user has access to, but only those that the current admin  also
+    # has access to.
     for researcher in get_administerable_researchers():
-        allowed_studies = list(
-            Study.get_all_studies_by_name()
-                .filter(study_relations__researcher=researcher).values_list('name', flat=True)
-        )
-        researcher_list.append((researcher.as_native_python(), allowed_studies))
+        allowed_studies = Study.get_all_studies_by_name().filter(
+            study_relations__researcher=researcher, study_relations__study__in=study_ids,
+        ).values_list('name', flat=True)
+        researcher_list.append((researcher.as_native_python(), list(allowed_studies)))
 
     return render_template(
         'manage_researchers.html',
