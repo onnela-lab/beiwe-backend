@@ -53,3 +53,20 @@ td.custom-field-value span.custom-field-edit-link {
 td.custom-field-value:hover span.custom-field-edit-link {
     visibility: visible;
 }
+
+.padding-vert-20 {
+	/*padding-bottom: 30px;*/
+	/*margin: 50px;*/
+    /* margin-top: 30px*/
+    padding-top: 20px;
+    padding-bottom: 20px;
+    /*ma: 20px*/
+    /*margin-top: -20px;*/
+    /*margin-bottom: -10px;*/
+}
+.margin-fix-10 {
+	margin-top: -10px;
+}
+.margin-fix-16 {
+	margin-top: -16px;
+}

@@ -82,7 +82,10 @@ def assert_admin(study_id):
         return abort(403)
 
 
-def assert_researcher_under_admin(researcher):
+def assert_researcher_under_admin(researcher, study=None):
+    """ Asserts that the researcher provided is allowed to be edited by the session user.
+        If study is provided then the admin test is strictly for that study, otherwise it checks
+        for admin status anywhere. """
     session_researcher = get_session_researcher()
     if session_researcher.site_admin:
         return
@@ -91,7 +94,12 @@ def assert_researcher_under_admin(researcher):
         flash("This user is a site administrator, action rejected.", "danger")
         return abort(403)
 
-    if researcher.study_relations.filter(relationship=ResearcherRole.study_admin).exists():
+
+    kwargs = dict(relationship=ResearcherRole.study_admin)
+    if study is not None:
+        kwargs['study'] = study
+
+    if researcher.study_relations.filter(**kwargs).exists():
         flash("This user is a study administrator, action rejected.", "danger")
         return abort(403)
 
