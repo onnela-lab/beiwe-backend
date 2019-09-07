@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from flask import abort, Blueprint, redirect, request
 from flask.templating import render_template
 
@@ -21,9 +22,13 @@ def add_researcher_to_study():
     researcher_id = request.values['researcher_id']
     study_id = request.values['study_id']
     assert_admin(study_id)
-    StudyRelation.objects.get_or_create(
-        study_id=study_id, researcher_id=researcher_id, relationship=ResearcherRole.researcher
-    )
+    try:
+        StudyRelation.objects.get_or_create(
+            study_id=study_id, researcher_id=researcher_id, relationship=ResearcherRole.researcher
+        )
+    except ValidationError:
+        # handle case of the study id + researcher already existing
+        pass
 
     # This gets called by both edit_researcher and edit_study, so the POST request
     # must contain which URL it came from.
@@ -40,7 +45,7 @@ def remove_researcher_from_study():
     except Researcher.DoesNotExist:
         return abort(404)
     assert_admin(study_id)
-    assert_researcher_under_admin(researcher)
+    assert_researcher_under_admin(researcher, study_id)
     StudyRelation.objects.filter(study_id=study_id, researcher_id=researcher_id).delete()
     return redirect(request.values['redirect_url'])
 

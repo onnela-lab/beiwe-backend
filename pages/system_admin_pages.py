@@ -5,12 +5,12 @@ from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
 from flask import (abort, Blueprint, flash, redirect, render_template, request)
 
-from config.constants import CHECKBOX_TOGGLES, TIMER_VALUES
+from config.constants import CHECKBOX_TOGGLES, TIMER_VALUES, ResearcherRole
 from database.study_models import Study, StudyField
-from database.user_models import Researcher
+from database.user_models import Researcher, StudyRelation
 from libs.admin_authentication import (authenticate_researcher_study_access,
     authenticate_site_admin, get_researcher_allowed_studies, get_session_researcher,
-    researcher_is_an_admin)
+    researcher_is_an_admin, assert_researcher_under_admin, assert_admin, strictly_site_admin)
 from libs.copy_study import copy_existing_study_if_asked_to
 from libs.http_utils import checkbox_to_boolean, string_to_int
 
@@ -108,6 +108,24 @@ def edit_researcher(researcher_pk):
     current_visible_studies = Study.get_all_studies_by_name().filter(
         study_relations__researcher=edit_researcher, id__in=get_session_researcher_study_ids()
     )
+
+    # get the edit user's relationships to the visible studies.
+    if edit_researcher.site_admin:
+        study_relationship = ["Site Admin" for _ in range(current_visible_studies.count())]
+    else:
+        study_mapping = dict(
+            StudyRelation.objects.filter(
+                researcher=edit_researcher).values_list("study_id", "relationship")
+        )
+        # handle case of no study mapping.  Shouldn't happen.
+        study_relationship = [
+            study_mapping.get(study.id, "None").replace("_", " ").title()
+            for study in current_visible_studies
+        ]
+
+    # study_relationship will always be the same size as current_visible_studies
+    current_visible_studies = zip(study_relationship, current_visible_studies)
+
     return render_template(
         'edit_researcher.html',
         admin=edit_researcher,
@@ -117,7 +135,38 @@ def edit_researcher(researcher_pk):
         editable_password=editable_password,
         is_admin=researcher_is_an_admin(),
         redirect_url='/edit_researcher/{:s}'.format(researcher_pk),
+        session_researcher=session_researcher,
     )
+
+
+@system_admin_pages.route('/elevate_researcher', methods=['POST'])
+@authenticate_site_admin
+def elevate_researcher_to_study_admin():
+    researcher_pk = request.values.get("researcher_id")
+    study_pk = request.values.get("study_id")
+    assert_admin(study_pk)
+    edit_researcher = Researcher.objects.get(pk=researcher_pk)
+    study = Study.objects.get(pk=study_pk)
+    assert_researcher_under_admin(edit_researcher, study)
+    StudyRelation.objects.filter(
+        researcher=edit_researcher,
+        study=study,
+    ).update(relationship=ResearcherRole.study_admin)
+    return redirect('/edit_researcher/{:s}'.format(researcher_pk))
+
+
+@system_admin_pages.route('/demote_researcher', methods=['POST'])
+@strictly_site_admin
+def demote_study_admin():
+    researcher_pk = request.values.get("researcher_id")
+    study_pk = request.values.get("study_id")
+    assert_admin(study_pk)
+    # assert_researcher_under_admin() would fail here...
+    StudyRelation.objects.filter(
+        researcher=Researcher.objects.get(pk=researcher_pk),
+        study=Study.objects.get(pk=study_pk),
+    ).update(relationship=ResearcherRole.researcher)
+    return redirect('/edit_researcher/{:s}'.format(researcher_pk))
 
 
 @system_admin_pages.route('/create_new_researcher', methods=['GET', 'POST'])
