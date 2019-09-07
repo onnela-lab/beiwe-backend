@@ -163,8 +163,6 @@ class Researcher(AbstractPasswordUser):
     access_key_secret = models.CharField(max_length=44, validators=[url_safe_base_64_validator], blank=True)
     access_key_secret_salt = models.CharField(max_length=24, validators=[url_safe_base_64_validator], blank=True)
 
-    # studies = models.ManyToManyField('Study', related_name='researchers')
-
     @classmethod
     def create_with_password(cls, username, password, **kwargs):
         """
