@@ -1,12 +1,11 @@
+from config.constants import ResearcherRole
 from config.settings import DOMAIN_NAME
-
 from database.study_models import Study
-from database.user_models import Researcher
-from libs.sentry import make_error_sentry
+from database.user_models import Researcher, StudyRelation
 
 # This component of pipeline is part of the Beiwe server, the correct import is 'from pipeline.xyz...'
 from pipeline.boto_helpers import get_boto_client
-from pipeline.configuration_getters import get_generic_config, get_eb_config
+from pipeline.configuration_getters import get_eb_config, get_generic_config
 
 
 def refresh_data_access_credentials(freq, ssm_client=None, webserver=False):
@@ -32,6 +31,11 @@ def refresh_data_access_credentials(freq, ssm_client=None, webserver=False):
     # data via the DAA.
     for study in Study.objects.all():
         study.researchers.add(mock_researcher)
+        StudyRelation.objects.get_or_create(
+            study=study,
+            researcher=mock_researcher,
+            relationship=ResearcherRole.researcher
+        )
     
     # Reset the credentials. This ensures that they aren't stale.
     access_key, secret_key = mock_researcher.reset_access_credentials()
