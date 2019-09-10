@@ -197,16 +197,20 @@ class Researcher(AbstractPasswordUser):
         return researcher.validate_password(compare_me)
 
     @classmethod
-    def get_all_researchers_by_username(cls):
-        """
-        Sort the un-deleted Researchers a-z by username, ignoring case.
-        """
-        return (cls.objects
-                .filter(deleted=False)
+    def filter_alphabetical(self, *args, **kwargs):
+        """ Sort the Researchers a-z by username ignoring case, exclude special user types. """
+        return (
+            Researcher.objects
                 .annotate(username_lower=Func(F('username'), function='LOWER'))
                 .order_by('username_lower')
                 .exclude(username__contains="BATCH USER").exclude(username__contains="AWS LAMBDA")
-                )
+                .filter(*args, **kwargs)
+        )
+
+    @classmethod
+    def get_all_researchers_by_username(cls):
+        """ Gen the un-deleted Researchers a-z by username, ignoring case."""
+        return cls.filter_alphabetical(deleted=False)
 
     def get_administered_researchers(self):
         studies = self.study_relations.filter(
@@ -271,7 +275,7 @@ class Researcher(AbstractPasswordUser):
         return self.study_relations.filter(
             relationship=ResearcherRole.study_admin,
             study_id=study_id,
-        )
+        ).exists()
 
 class StudyRelation(AbstractModel):
     """

@@ -37,14 +37,14 @@
             </div>
 
             <div class="col-md-2 margin-fix-16">
-              {% if session_researcher.site_admin and not admin.site_admin and not relationship == "Study Admin"%}
+              {% if not admin.site_admin and not relationship == "Study Admin"%}
                 <form action="/elevate_researcher" method="post">
                   <input type="hidden" name="study_id" value="{{ study.id }}"/>
                   <input type="hidden" name="researcher_id" value="{{ admin.id }}"/>
                   <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
                   <button class="btn btn-link">Elevate to Study Admin</button>
                 </form>
-              {% elif session_researcher.site_admin and relationship == "Study Admin" and admin != session_researcher%}
+              {% elif relationship == "Study Admin" and admin != session_researcher %}
                 <form action="/demote_researcher" method="post">
                   <input type="hidden" name="study_id" value="{{ study.id }}"/>
                   <input type="hidden" name="researcher_id" value="{{ admin.id }}"/>
