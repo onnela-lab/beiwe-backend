@@ -1,4 +1,5 @@
 from __future__ import print_function
+
 import json
 from collections import defaultdict
 
@@ -6,12 +7,12 @@ from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
 from flask import (abort, Blueprint, flash, redirect, render_template, request)
 
-from config.constants import CHECKBOX_TOGGLES, TIMER_VALUES, ResearcherRole
+from config.constants import CHECKBOX_TOGGLES, ResearcherRole, TIMER_VALUES
 from database.study_models import Study, StudyField
 from database.user_models import Researcher, StudyRelation
-from libs.admin_authentication import (authenticate_researcher_study_access,
-    authenticate_site_admin, get_researcher_allowed_studies, get_session_researcher,
-    researcher_is_an_admin, assert_researcher_under_admin, assert_admin, strictly_site_admin)
+from libs.admin_authentication import (assert_admin, assert_researcher_under_admin,
+    authenticate_admin, authenticate_researcher_study_access, get_researcher_allowed_studies,
+    get_session_researcher, researcher_is_an_admin)
 from libs.copy_study import copy_existing_study_if_asked_to
 from libs.http_utils import checkbox_to_boolean, string_to_int
 
@@ -68,7 +69,7 @@ def get_session_researcher_study_ids():
 ####################################################################################################
 
 @system_admin_pages.route('/manage_researchers', methods=['GET'])
-@authenticate_site_admin
+@authenticate_admin
 def manage_researchers():
     researcher_list = []
     # get the study names that each user has access to, but only those that the current admin  also
@@ -89,7 +90,7 @@ def manage_researchers():
 
 
 @system_admin_pages.route('/edit_researcher/<string:researcher_pk>', methods=['GET', 'POST'])
-@authenticate_site_admin
+@authenticate_admin
 def edit_researcher(researcher_pk):
     session_researcher = get_session_researcher()
     edit_researcher = Researcher.objects.get(pk=researcher_pk)
@@ -109,6 +110,8 @@ def edit_researcher(researcher_pk):
     current_visible_studies = Study.get_all_studies_by_name().filter(
         study_relations__researcher=edit_researcher, id__in=get_session_researcher_study_ids()
     )
+
+
 
     # get the edit user's relationships to the visible studies.
     if edit_researcher.site_admin:
@@ -141,7 +144,7 @@ def edit_researcher(researcher_pk):
 
 
 @system_admin_pages.route('/elevate_researcher', methods=['POST'])
-@authenticate_site_admin
+@authenticate_admin
 def elevate_researcher_to_study_admin():
     researcher_pk = request.values.get("researcher_id")
     study_pk = request.values.get("study_id")
@@ -158,7 +161,7 @@ def elevate_researcher_to_study_admin():
 
 
 @system_admin_pages.route('/demote_researcher', methods=['POST'])
-@strictly_site_admin
+@authenticate_admin
 def demote_study_admin():
     researcher_pk = request.values.get("researcher_id")
     study_pk = request.values.get("study_id")
@@ -174,7 +177,7 @@ def demote_study_admin():
 
 
 @system_admin_pages.route('/create_new_researcher', methods=['GET', 'POST'])
-@authenticate_site_admin
+@authenticate_admin
 def create_new_researcher():
     if request.method == 'GET':
         return render_template(
@@ -199,7 +202,7 @@ def create_new_researcher():
 
 
 @system_admin_pages.route('/manage_studies', methods=['GET'])
-@authenticate_site_admin
+@authenticate_admin
 def manage_studies():
     return render_template(
         'manage_studies.html',
@@ -210,7 +213,7 @@ def manage_studies():
 
 
 @system_admin_pages.route('/edit_study/<string:study_id>', methods=['GET'])
-@authenticate_site_admin
+@authenticate_admin
 def edit_study(study_id=None):
     # get the data points for display for all researchers in this study
     query = Researcher.filter_alphabetical(study_relations__study_id=study_id).values_list(
@@ -292,7 +295,7 @@ def delete_field(study_id=None):
 
 
 @system_admin_pages.route('/create_study', methods=['GET', 'POST'])
-@authenticate_site_admin
+@authenticate_admin
 def create_study():
     # ONLY THE SITE ADMIN CAN CREATE NEW STUDIES.
     if not get_session_researcher().site_admin:
@@ -325,7 +328,7 @@ def create_study():
 
 
 @system_admin_pages.route('/delete_study/<string:study_id>', methods=['POST'])
-@authenticate_site_admin
+@authenticate_admin
 def delete_study(study_id=None):
     """ This functionality has been disabled pending testing and feature change."""
     # ONLY THE SITE ADMIN CAN DELETE A STUDY.

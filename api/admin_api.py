@@ -7,7 +7,7 @@ from config.settings import DOMAIN_NAME, DOWNLOADABLE_APK_URL, IS_STAGING
 from database.study_models import Study
 from database.user_models import Researcher, StudyRelation
 from libs.admin_authentication import (assert_admin, assert_researcher_under_admin,
-    authenticate_researcher_login, authenticate_site_admin, get_researcher_allowed_studies,
+    authenticate_researcher_login, authenticate_admin, get_researcher_allowed_studies,
     get_session_researcher, researcher_is_an_admin)
 from libs.security import check_password_requirements
 
@@ -17,7 +17,7 @@ admin_api = Blueprint('admin_api', __name__)
 
 
 @admin_api.route('/add_researcher_to_study', methods=['POST'])
-@authenticate_site_admin
+@authenticate_admin
 def add_researcher_to_study():
     researcher_id = request.values['researcher_id']
     study_id = request.values['study_id']
@@ -36,7 +36,7 @@ def add_researcher_to_study():
 
 
 @admin_api.route('/remove_researcher_from_study', methods=['POST'])
-@authenticate_site_admin
+@authenticate_admin
 def remove_researcher_from_study():
     researcher_id = request.values['researcher_id']
     study_id = request.values['study_id']
@@ -51,7 +51,7 @@ def remove_researcher_from_study():
 
 
 @admin_api.route('/delete_researcher/<string:researcher_id>', methods=['GET', 'POST'])
-@authenticate_site_admin
+@authenticate_admin
 def delete_researcher(researcher_id):
     # only site admins can delete researchers from the system.
     session_researcher = get_session_researcher()
@@ -69,7 +69,7 @@ def delete_researcher(researcher_id):
 
 
 @admin_api.route('/set_researcher_password', methods=['POST'])
-@authenticate_site_admin
+@authenticate_admin
 def set_researcher_password():
     researcher = Researcher.objects.get(pk=request.form.get('researcher_id', None))
     assert_researcher_under_admin(researcher)
@@ -80,7 +80,7 @@ def set_researcher_password():
 
 
 @admin_api.route('/rename_study/<string:study_id>', methods=['POST'])
-@authenticate_site_admin
+@authenticate_admin
 def rename_study(study_id=None):
     study = Study.objects.get(pk=study_id)
     assert_admin(study_id)

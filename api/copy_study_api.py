@@ -1,7 +1,7 @@
 from json import dumps, loads
 from flask import Blueprint, flash, redirect, request, Response
 
-from libs.admin_authentication import authenticate_site_admin
+from libs.admin_authentication import authenticate_admin
 from libs.copy_study import add_new_surveys, allowed_filename, update_device_settings
 from database.study_models import Study
 
@@ -16,7 +16,7 @@ copy_study_api = Blueprint('copy_study_api', __name__)
 
 
 @copy_study_api.route('/export_study_settings_file/<string:study_id>', methods=['GET'])
-@authenticate_site_admin
+@authenticate_admin
 def export_study_settings_file(study_id):
     study = Study.objects.get(pk=study_id)
     filename = study.name.replace(' ', '_') + "_surveys_and_settings.json"
@@ -36,7 +36,7 @@ def export_study_settings_file(study_id):
 
 
 @copy_study_api.route('/import_study_settings_file/<string:study_id>', methods=['POST'])
-@authenticate_site_admin
+@authenticate_admin
 def import_study_settings_file(study_id):
     study = Study.objects.get(pk=study_id)
     file = request.files['upload']
