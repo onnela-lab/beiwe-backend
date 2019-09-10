@@ -24,39 +24,62 @@
         This is a production study. Researchers will only be able to download processed data output from the Data Analysis Pipeline.
     {% endif %}
     
-    <div class="col-md-12">
-        <div class="row">
-            <h2>Authorized researchers on this study</h2>
-            <div class="list-group">
-                {% if not study.get_researchers() %}
-                    <p><i>No researchers are authorized to view or edit this study.</i></p>
-                {% else %}
-                    {% for researcher in study.get_researchers()|sort(case_sensitive=False, attribute='username') %}
-                        <div class="list-group-item">
-                            <form action="/remove_researcher_from_study" method="post">
-                                <div class="form-inline">
-                                    <b>{{ researcher.username }}</b>
-                                    <div class="pull-right" style="margin-top: -6px">
-                                        <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                                        <input type="hidden" name="researcher_id" value="{{ researcher.id }}"/>
-                                        <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                                        <button class="btn btn-link remove_researcher_from_study_button">Remove authorization</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    {% endfor %}
+  <div class="col-md-12">
+    <div class="row">
+      <h2>Authorized researchers on this study</h2>
+      <div class="list-group">
+        {% if not study.get_researchers() %}
+          <p><i>No researchers are authorized to view or edit this study.</i></p>
+        {% else %}
+          {% for researcher_id, researcher_username, relationship, edit_researcher_is_site_admin in listed_researchers %}
+            <div class="list-group-item padding-vert-20">
+              <div class="col-md-2 margin-fix-10">
+                {{ relationship }}
+              </div>
+              <div class="col-md-6 margin-fix-10">
+                <b>{{ researcher_username }}</b>
+              </div>
+              <div class="col-md-2 margin-fix-16">
+                {% if not edit_researcher_is_site_admin and not relationship == "Study Admin" and researcher_id != session_researcher.id %}
+                  <form action="/remove_researcher_from_study" method="post">
+                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                    <button class="btn btn-link">Remove authorization</button>
+                  </form>
                 {% endif %}
+              </div>
+
+              <div class="col-md-2 margin-fix-16">
+                {% if not edit_researcher_is_site_admin and not relationship == "Study Admin"%}
+                  <form action="/elevate_researcher" method="post">
+                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                    <button class="btn btn-link">Elevate to Study Admin</button>
+                  </form>
+                {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
+                  <form action="/demote_researcher" method="post">
+                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                    <button class="btn btn-link">Demote to Researcher</button>
+                  </form>
+                {% endif %}
+              </div>
             </div>
-        </div>
+          {% endfor %}
+        {% endif %}
+      </div>
     </div>
+
 
     <div class="row">
       <h5>Authorize an additional researcher on this study:</h5>
         <form action="/add_researcher_to_study" method="post">
           <div class="form-inline">
             <select class="form-control" name="researcher_id">
-              {% for researcher in all_researchers %}
+              {% for researcher in administerable_researchers %}
                 <option value="{{ researcher.id }}">{{ researcher.username }}</option>
               {% endfor %}
             </select>

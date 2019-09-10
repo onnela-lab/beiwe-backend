@@ -1,3 +1,4 @@
+from __future__ import print_function
 import json
 from collections import defaultdict
 
@@ -152,7 +153,8 @@ def elevate_researcher_to_study_admin():
         researcher=edit_researcher,
         study=study,
     ).update(relationship=ResearcherRole.study_admin)
-    return redirect('/edit_researcher/{:s}'.format(researcher_pk))
+    redirect_url = request.values.get("redirect_url", None) or '/edit_researcher/{:s}'.format(researcher_pk)
+    return redirect(redirect_url)
 
 
 @system_admin_pages.route('/demote_researcher', methods=['POST'])
@@ -166,7 +168,9 @@ def demote_study_admin():
         researcher=Researcher.objects.get(pk=researcher_pk),
         study=Study.objects.get(pk=study_pk),
     ).update(relationship=ResearcherRole.researcher)
-    return redirect('/edit_researcher/{:s}'.format(researcher_pk))
+
+    redirect_url = request.values.get("redirect_url", None) or '/edit_researcher/{:s}'.format(researcher_pk)
+    return redirect(redirect_url)
 
 
 @system_admin_pages.route('/create_new_researcher', methods=['GET', 'POST'])
@@ -208,13 +212,30 @@ def manage_studies():
 @system_admin_pages.route('/edit_study/<string:study_id>', methods=['GET'])
 @authenticate_site_admin
 def edit_study(study_id=None):
+    # get the data points for display for all researchers in this study
+    query = Researcher.filter_alphabetical(study_relations__study_id=study_id).values_list(
+        "id", "username", "study_relations__relationship", "site_admin"
+    )
+
+    # transform raw query data as needed
+    listed_researchers = []
+    for pk, username, relationship, site_admin in query:
+        listed_researchers.append((
+            pk,
+            username,
+            "Site Admin" if site_admin else relationship.replace("_", " ").title(),
+            site_admin
+        ))
+
     return render_template(
         'edit_study.html',
         study=Study.objects.get(pk=study_id),
-        all_researchers=get_administerable_researchers(),
+        administerable_researchers=get_administerable_researchers(),
         allowed_studies=get_researcher_allowed_studies(),
+        listed_researchers=listed_researchers,
         is_admin=researcher_is_an_admin(),
         redirect_url='/edit_study/{:s}'.format(study_id),
+        session_researcher=get_session_researcher(),
     )
 
 

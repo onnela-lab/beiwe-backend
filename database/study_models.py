@@ -89,6 +89,13 @@ class Study(AbstractModel):
     def get_researchers(self):
         return Researcher.objects.filter(study_relations__study=self)
 
+    def get_researchers_by_name(self):
+        return (
+            Researcher.objects.filter(study_relations__study=self)
+                .annotate(name_lower=Func(F('username'), function='LOWER'))
+                .order_by('name_lower')
+                .exclude(username__icontains="BATCH USER").exclude(username__icontains="AWS LAMBDA")
+        )
     # We override the as_native_python function to not include the encryption key.
     def as_native_python(self, remove_timestamps=True, remove_encryption_key=True):
         ret = super(Study, self).as_native_python(remove_timestamps=remove_timestamps)
