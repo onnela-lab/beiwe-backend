@@ -223,14 +223,23 @@ def authenticate_site_admin(some_function):
             return redirect("/")
 
         researcher = get_session_researcher()
+        # test that researcher is an admin somewhere
         if not researcher.site_admin:
             if not researcher.study_relations.filter(relationship=ResearcherRole.study_admin):
                 return abort(403)
 
-        # redirect if a study id is not present and real.
-        # TODO: why do we do this?
+        # fail if there is a study_id in the kwargs and it either does not exist or
+        # the user is not an admin
         if 'study_id' in kwargs:
-            if not Study.objects.filter(pk=kwargs['study_id']).exists():
+            study_id = kwargs['study_id']
+            if (
+                    not Study.objects.filter(pk=study_id).exists() or
+                    not StudyRelation.objects.filter(
+                        researcher=researcher,
+                        study_id=study_id,
+                        relationship=ResearcherRole.study_admin
+                    ).exists()
+            ):
                 return redirect("/")
 
         return some_function(*args, **kwargs)
