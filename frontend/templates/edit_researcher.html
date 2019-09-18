@@ -1,111 +1,118 @@
 {% extends "base.html" %}
 
-{% block title %}Edit Researcher {{ admin.username }}{% endblock %}
+{% block title %}Edit Researcher {{ edit_researcher.username }}{% endblock %}
 
 {% block content %}
 
-  <h3>Researcher {{ admin.username }}</h3>
+  <h3>Researcher {{ edit_researcher.username }}</h3>
 
   <br>
 
-  <div class="col-md-12">
-    <div class="row">
-      <h4>Authorized studies</h4>
-      <div class="list-group">
-        {% if not current_studies %}
-          <p><i>This researcher is not authorized on any studies.</i></p>
-        {% endif %}
+  <div class="row">
 
-        {% for relationship, study in current_studies %}
+    <table class="list-group table-striped" width="100%">
+      {% if not current_studies %}
+        <p><i>This researcher is not authorized on any studies.</i></p>
+      {% endif %}
 
-          <div class="list-group-item padding-vert-20">
-            <div class="col-md-2 margin-fix-10">
-              {{ relationship }}
-            </div>
-            <div class="col-md-6 margin-fix-10">
-              <b>{{ study.name }}</b>
-            </div>
-            <div class="col-md-2 margin-fix-16">
-              {% if not admin.site_admin and not relationship == "Study Admin" and admin != session_researcher%}
-                <form action="/remove_researcher_from_study" method="post">
-                  <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                  <input type="hidden" name="researcher_id" value="{{ admin.id }}"/>
-                  <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                  <button class="btn btn-link">Remove authorization</button>
-                </form>
-              {% endif %}
-            </div>
+      <tr>
+        <td class="padding-vert-10"> <h4> Authorized studies</h4> </td>
+        <td class="padding-vert-10"> <h4> Researcher Type</h4> </td>
+        <td class="padding-vert-10"> <h4 class="pull-right" style="padding-right:10px"> Actions</h4> </td>
+        <td class="padding-vert-10"> {# retain line coloring #}</td>
+      </tr>
 
-            <div class="col-md-2 margin-fix-16">
-              {% if not admin.site_admin and not relationship == "Study Admin"%}
-                <form action="/elevate_researcher" method="post">
-                  <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                  <input type="hidden" name="researcher_id" value="{{ admin.id }}"/>
-                  <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                  <button class="btn btn-link">Elevate to Study Admin</button>
-                </form>
-              {% elif relationship == "Study Admin" and admin != session_researcher %}
-                <form action="/demote_researcher" method="post">
-                  <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                  <input type="hidden" name="researcher_id" value="{{ admin.id }}"/>
-                  <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                  <button class="btn btn-link">Demote to Researcher</button>
-                </form>
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
+      {% for relationship, study in current_studies %}
+        <tr>
+          <td class="padding-vert-10">
+            <b>{{ study.name }}</b>
+          </td>
+          <td class="padding-vert-10">
+            {{ relationship }}
+          </td>
+          <td class="padding-vert-10">
+            {% if not is_self and not edit_researcher.site_admin and not relationship == "Study Admin" %}
+              <form action="/remove_researcher_from_study" method="post">
+                <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
+                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                <button class="btn btn-link">Remove authorization</button>
+              </form>
+            {% endif %}
+          </td>
+
+          <td class="padding-vert-10">
+            {% if not is_self and not edit_researcher.site_admin and relationship != "Study Admin" %}
+              <form action="/elevate_researcher" method="post">
+                <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
+                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                <button class="btn btn-link">Elevate to Study Admin</button>
+              </form>
+            {% endif %}
+            {% if not is_self and not edit_researcher.site_admin and relationship == "Study Admin" %}
+              <form action="/demote_researcher" method="post">
+                <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
+                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                <button class="btn btn-link">Demote to Researcher</button>
+              </form>
+            {% endif %}
+
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="row padding-vert-20">
+    <h5>Authorize this researcher on an additional study:</h5>
+    <form action="/add_researcher_to_study" method="post">
+      <div class="form-inline">
+        <select class="form-control" name="study_id">
+          {% for study in all_studies %}
+            <option value="{{ study.id }}">{{ study.name }}</option>
+          {% endfor %}
+        </select>
+        <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
+        <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+        <button type="submit" class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
       </div>
-    </div>
+    </form>
+  </div>
 
-    <div class="row padding-vert-20">
-      <h5>Authorize this researcher on an additional study:</h5>
-        <form action="/add_researcher_to_study" method="post">
-          <div class="form-inline">
-            <select class="form-control" name="study_id">
-              {% for study in all_studies %}
-                <option value="{{ study.id }}">{{ study.name }}</option>
-              {% endfor %}
-            </select>
-            <input type="hidden" name="researcher_id" value="{{ admin.id }}"/>
-            <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-            <button type="submit" class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
-          </div>
-        </form>
-    </div>
+  <br><br><br><br>
 
-    <br><br><br><br>
-
-    {% if editable_password %}
+  {% if editable_password %}
     <div class="row">
       <h4>Reset Password</h4>
-        <div class="well">
-          <b>Passwords require all of the following:</b>
-            <ul class="list">
-              <li class="list-item">at least one lower case letter</li>
-              <li class="list-item">at least one upper case letter</li>
-              <li class="list-item">at least one numeric character</li>
-              <li class="list-item">at least one special character (! @ # $ % ^ [ ] etc.)</li>
-            </ul>
+      <div class="well">
+        <b>Passwords require all of the following:</b>
+        <ul class="list">
+          <li class="list-item">at least one lower case letter</li>
+          <li class="list-item">at least one upper case letter</li>
+          <li class="list-item">at least one numeric character</li>
+          <li class="list-item">at least one special character (! @ # $ % ^ [ ] etc.)</li>
+        </ul>
+      </div>
+      <form action="/set_researcher_password" method="post">
+        <div class="form-inline">
+          <input type="text" name="password" class="form-control">
+          <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}">
+          <input type="submit" class="btn btn-warning" value="Reset Password">
         </div>
-        <form action="/set_researcher_password" method="post">
-          <div class="form-inline">
-            <input type="text" name="password" class="form-control">
-            <input type="hidden" name="researcher_id" value="{{ admin.id }}">
-            <input type="submit" class="btn btn-warning" value="Reset Password">
-          </div>
-        </form>
+      </form>
     </div>
     <br><br><br><br>
+  {% endif %}
+
+  <div class="row">
+    <a href="/manage_researchers" class="btn btn-success"><span class="glyphicon glyphicon-arrow-left"></span>&nbsp;Back to all researchers</a>
+
+    {% if session_researcher.site_admin and not edit_researcher.site_admin and not is_self %}
+      <a href="/delete_researcher/{{ edit_researcher.id }}" class="btn btn-danger pull-right" onclick="return confirm('Are you certain you want to delete {{ edit_researcher._id }}?  This cannot be undone.')"><span class="glyphicon glyphicon-trash"></span>&nbsp;Delete Researcher {{ edit_researcher._id }}</a>
     {% endif %}
-
-    <div class="row">
-      <a href="/manage_researchers" class="btn btn-success"><span class="glyphicon glyphicon-arrow-left"></span>&nbsp;Back to all researchers</a>
-
-      {% if not is_session_researcher %}
-        <a href="/delete_researcher/{{ admin.id }}" class="btn btn-danger pull-right" onclick="return confirm('Are you certain you want to delete {{ admin._id }}?  This cannot be undone.')"><span class="glyphicon glyphicon-trash"></span>&nbsp;Delete {{ admin._id }}</a>
-      {% endif %}
-    </div>
+  </div>
   </div>
 
 {% endblock %}
