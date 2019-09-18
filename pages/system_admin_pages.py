@@ -22,7 +22,7 @@ system_admin_pages = Blueprint('system_admin_pages', __name__)
 ###################################### Helpers #####################################################
 ####################################################################################################
 
-def get_administerable_studies():
+def get_administerable_studies_by_name():
     """ Site admins see all studies, study admins see only studies they are admins on. """
     researcher_admin = get_session_researcher()
     if researcher_admin.site_admin:
@@ -61,7 +61,7 @@ def get_session_researcher_study_ids():
     if session_researcher.site_admin:
         return Study.objects.exclude(deleted=True).values_list("id", flat=True)
     else:
-        return session_researcher.study_relations.values_list("study_id", flat=True)
+        return session_researcher.study_relations.filter(study__deleted=False).values_list("study__id", flat=True)
 
 
 ####################################################################################################
@@ -71,13 +71,14 @@ def get_session_researcher_study_ids():
 @system_admin_pages.route('/manage_researchers', methods=['GET'])
 @authenticate_admin
 def manage_researchers():
-    researcher_list = []
     # get the study names that each user has access to, but only those that the current admin  also
     # has access to.
+    session_ids = get_session_researcher_study_ids()
+    researcher_list = []
     for researcher in get_administerable_researchers():
         allowed_studies = Study.get_all_studies_by_name().filter(
             study_relations__researcher=researcher,
-            study_relations__study__in=get_session_researcher_study_ids(),
+            study_relations__study__in=session_ids,
         ).values_list('name', flat=True)
         researcher_list.append((researcher.as_native_python(), list(allowed_studies)))
 
@@ -102,44 +103,40 @@ def edit_researcher(researcher_pk):
             and not edit_researcher.site_admin
     )
 
-    # if the user is not a site admin add study admin check.
+    # if the session researcher is not a site admin then we need to restrict password editing
+    # to only researchers that are not study_admins anywhere.
     if not session_researcher.site_admin:
         editable_password = editable_password and not edit_researcher.is_study_admin()
 
-    # get the overlap of studies visible to both the session user and the
-    current_visible_studies = Study.get_all_studies_by_name().filter(
-        study_relations__researcher=edit_researcher, id__in=get_session_researcher_study_ids()
-    )
-
-
-
-    # get the edit user's relationships to the visible studies.
+    # get the edit_researcher's relationships to the visible studies, it is a list of tuples.
+    valid_studies = get_administerable_studies_by_name()
     if edit_researcher.site_admin:
-        study_relationship = ["Site Admin" for _ in range(current_visible_studies.count())]
+        administerable_studies = [("Site Admin",study)  for study in valid_studies]
     else:
-        study_mapping = dict(
-            StudyRelation.objects.filter(
-                researcher=edit_researcher).values_list("study_id", "relationship")
+        study_relationship_map = dict(
+            edit_researcher.study_relations.filter(study__in=valid_studies).values_list("study_id", "relationship")
         )
-        # handle case of no study mapping.  Shouldn't happen.
-        study_relationship = [
-            study_mapping.get(study.id, "None").replace("_", " ").title()
-            for study in current_visible_studies
-        ]
-
-    # study_relationship will always be the same size as current_visible_studies
-    current_visible_studies = zip(study_relationship, current_visible_studies)
+        # set up a properly ordered list of the studies that are relevant for the current combination
+        # of researcher to edit and the current session researcher.
+        administerable_studies = []
+        for study in valid_studies:
+            if study.id in study_relationship_map:
+                # the relationship needs to be made legible
+                administerable_studies.append(
+                    (study_relationship_map[study.id].replace("_", " ").title(), study)
+                )
 
     return render_template(
         'edit_researcher.html',
-        admin=edit_researcher,
-        current_studies=current_visible_studies,
-        all_studies=get_administerable_studies(),
+        edit_researcher=edit_researcher,
+        current_studies=administerable_studies,
+        all_studies=get_administerable_studies_by_name(),  # this is all the studies administerable by the user
         allowed_studies=get_researcher_allowed_studies(),
         editable_password=editable_password,
         is_admin=researcher_is_an_admin(),
         redirect_url='/edit_researcher/{:s}'.format(researcher_pk),
         session_researcher=session_researcher,
+        is_self=edit_researcher.id==session_researcher.id,
     )
 
 
@@ -206,7 +203,7 @@ def create_new_researcher():
 def manage_studies():
     return render_template(
         'manage_studies.html',
-        studies=json.dumps([study.as_native_python() for study in get_administerable_studies()]),
+        studies=json.dumps([study.as_native_python() for study in get_administerable_studies_by_name()]),
         allowed_studies=get_researcher_allowed_studies(),
         is_admin=researcher_is_an_admin()
     )

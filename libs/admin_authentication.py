@@ -79,6 +79,7 @@ def assert_admin(study_id):
     """ This function will throw a 403 forbidden error and stop execution. """
     session_researcher = get_session_researcher()
     if not session_researcher.site_admin and not session_researcher.check_study_admin(study_id):
+        flash("This user does not have admin privilages on this study.", "danger")
         return abort(403)
 
 
@@ -93,7 +94,6 @@ def assert_researcher_under_admin(researcher, study=None):
     if researcher.site_admin:
         flash("This user is a site administrator, action rejected.", "danger")
         return abort(403)
-
 
     kwargs = dict(relationship=ResearcherRole.study_admin)
     if study is not None:
@@ -222,25 +222,22 @@ def authenticate_admin(some_function):
         if not is_logged_in():
             return redirect("/")
 
-        researcher = get_session_researcher()
-        # test that researcher is an admin somewhere
-        if not researcher.site_admin:
-            if not researcher.study_relations.filter(relationship=ResearcherRole.study_admin):
+        session_researcher = get_session_researcher()
+        # if researcher is not a site admin assert that they are a study admin somewhere, then test
+        # the special case of a the study id, if it is present.
+        if not session_researcher.site_admin:
+            if not session_researcher.study_relations.filter(relationship=ResearcherRole.study_admin):
                 return abort(403)
 
-        # fail if there is a study_id in the kwargs and it either does not exist or
-        # the user is not an admin
-        if 'study_id' in kwargs:
-            study_id = kwargs['study_id']
-            if (
-                    not Study.objects.filter(pk=study_id).exists() or
-                    not StudyRelation.objects.filter(
-                        researcher=researcher,
-                        study_id=study_id,
-                        relationship=ResearcherRole.study_admin
-                    ).exists()
-            ):
-                return redirect("/")
+            # fail if there is a study_id and it either does not exist or the researcher is not an
+            # admin on that study.
+            if 'study_id' in kwargs:
+                if not StudyRelation.objects.filter(
+                            researcher=session_researcher,
+                            study_id=kwargs['study_id'],
+                            relationship=ResearcherRole.study_admin
+                ).exists():
+                    return abort(403)
 
         return some_function(*args, **kwargs)
 

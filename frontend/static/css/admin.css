@@ -55,14 +55,12 @@ td.custom-field-value:hover span.custom-field-edit-link {
 }
 
 .padding-vert-20 {
-	/*padding-bottom: 30px;*/
-	/*margin: 50px;*/
-    /* margin-top: 30px*/
     padding-top: 20px;
     padding-bottom: 20px;
-    /*ma: 20px*/
-    /*margin-top: -20px;*/
-    /*margin-bottom: -10px;*/
+}
+.padding-vert-10 {
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 .margin-fix-10 {
 	margin-top: -10px;
