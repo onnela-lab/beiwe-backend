@@ -54,17 +54,11 @@ td.custom-field-value:hover span.custom-field-edit-link {
     visibility: visible;
 }
 
-.padding-vert-20 {
-    padding-top: 20px;
-    padding-bottom: 20px;
+.no-padding {
+    padding: 0px;
+    border: 0px;
 }
-.padding-vert-10 {
-    padding-top: 10px;
-    padding-bottom: 10px;
-}
-.margin-fix-10 {
-	margin-top: -10px;
-}
-.margin-fix-16 {
-	margin-top: -16px;
+
+.oneline {
+    display: inline-block;
 }
