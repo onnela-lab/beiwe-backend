@@ -30,7 +30,6 @@ def refresh_data_access_credentials(freq, ssm_client=None, webserver=False):
     # Ensure that the Researcher is attached to all Studies. This allows them to access all
     # data via the DAA.
     for study in Study.objects.all():
-        study.researchers.add(mock_researcher)
         StudyRelation.objects.get_or_create(
             study=study,
             researcher=mock_researcher,
