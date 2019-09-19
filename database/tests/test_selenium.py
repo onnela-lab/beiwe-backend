@@ -143,7 +143,7 @@ class TestRoutes(FlaskTest):
                 continue
 
             response = self.determine_errors()
-            self.assertEquals(response, '200')
+            self.assertEqual(response, '200')
 
     def determine_errors(self):
 

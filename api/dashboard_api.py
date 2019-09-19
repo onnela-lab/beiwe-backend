@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import json
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
@@ -289,7 +287,7 @@ def parse_processed_data(study_id, participant_objects, data_stream):
         list_of_dicts_data = []
         if pipeline_chunks is not None:
             for chunk in pipeline_chunks:
-                if data_stream in chunk.keys() and "day" in chunk.keys() and chunk[data_stream] != "NA":
+                if data_stream in chunk and "day" in chunk and chunk[data_stream] != "NA":
                     time_bin = datetime.strptime(chunk["day"].encode("utf-8"), REDUCED_API_TIME_FORMAT).date()
                     data_exists = True
                     if first:
@@ -325,7 +323,7 @@ def parse_patient_processed_data(study_id, participant):
     all_data = []
     if pipeline_chunks is not None:
         for chunk in pipeline_chunks:
-            if "day" in chunk.keys():
+            if "day" in chunk:
                 time_bin = datetime.strptime(chunk["day"].encode("utf-8"), REDUCED_API_TIME_FORMAT).date()
                 if first:
                     first_day = time_bin
@@ -336,7 +334,7 @@ def parse_patient_processed_data(study_id, participant):
                         first_day = time_bin
                     elif (time_bin - last_day).days > 0:
                         last_day = time_bin
-                for stream_key in chunk.keys():
+                for stream_key in chunk:
                     if stream_key in processed_data_stream_dict and chunk[stream_key] != "NA":
                         if chunk[stream_key].encode("utf-8").find(".") == -1:
                             processed_data = int(chunk[stream_key])
