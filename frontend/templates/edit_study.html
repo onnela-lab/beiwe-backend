@@ -9,73 +9,80 @@
 
 {% block content %}
 
-  <ol class="breadcrumb">
-    <li>
-      <a href="/manage_studies">Manage Studies</a>
-    </li>
-    <li class="active">
-      {{ study.name }}
-    </li>
-  </ol>
-    
-  {% if study.is_test %}
-    This is a test study. Researchers will be able to download raw data and processed data output from the Data Analysis Pipeline.
-  {% else %}
-    This is a production study. Researchers will only be able to download processed data output from the Data Analysis Pipeline.
-  {% endif %}
+  <div class="row">
+    <ol class="breadcrumb">
+      <li>
+        <a href="/manage_studies">Manage Studies</a>
+      </li>
+      <li class="active">
+        {{ study.name }}
+      </li>
+    </ol>
 
-  <h2>Authorized researchers on this study</h2>
-  <table class="list-group table-striped" width="100%">
-    {% if not study.get_researchers() %}
-      <p><i>No researchers are authorized to view or edit this study.</i></p>
+    {% if study.is_test %}
+      This is a test study. Researchers will be able to download raw data and processed data output from the Data Analysis Pipeline.
     {% else %}
-      <tr>
-        <td class="padding-vert-10"> <h4> User Type</h4> </td>
-        <td class="padding-vert-10"> <h4> Researcher Username</h4> </td>
-        <td class="padding-vert-10"> <h4 class="pull-right" style="padding-right:10px"> Actions</h4> </td>
-        <td class="padding-vert-10"> {# retain line coloring #}</td>
-      </tr>
-
-      {% for researcher_id, researcher_username, relationship, edit_researcher_is_site_admin in listed_researchers %}
-        <tr class="">
-          <td class="padding-vert-10">
-            {{ relationship }}
-          </td>
-          <td class="padding-vert-10">
-            <b>{{ researcher_username }}</b>
-          </td>
-          <td class="padding-vert-10">
-            {% if not edit_researcher_is_site_admin and not relationship == "Study Admin" and researcher_id != session_researcher.id %}
-              <form action="/remove_researcher_from_study" method="post">
-                <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                <button class="btn btn-link">Remove authorization</button>
-              </form>
-            {% endif %}
-          </td>
-
-          <td class="padding-vert-10">
-            {% if not edit_researcher_is_site_admin and not relationship == "Study Admin"%}
-              <form action="/elevate_researcher" method="post">
-                <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                <button class="btn btn-link">Elevate to Study Admin</button>
-              </form>
-            {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
-              <form action="/demote_researcher" method="post">
-                <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                <button class="btn btn-link">Demote to Researcher</button>
-              </form>
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
+      This is a production study. Researchers will only be able to download processed data output from the Data Analysis Pipeline.
     {% endif %}
-  </table>
+
+    <h2>Authorized researchers on this study</h2>
+    <table class="list-group table table-striped" width="100%">
+      {% if not study.get_researchers() %}
+        <p><i>No researchers are authorized to view or edit this study.</i></p>
+      {% else %}
+        <tr>
+          <th>Researcher Username</th>
+          <th>Permissions/Role</th>
+          <th>Actions</th>
+        </tr>
+
+        {% for researcher_id, researcher_username, relationship, edit_researcher_is_site_admin in listed_researchers %}
+          <tr>
+            <td>
+              <b>{{ researcher_username }}</b>
+            </td>
+            <td>
+              {{ relationship }} &nbsp;&nbsp;
+              {% if not edit_researcher_is_site_admin and not relationship == "Study Admin"%}
+                <form action="/elevate_researcher" class="oneline" method="post">
+                  <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                  <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                  <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                  <button class="btn btn-link no-padding">
+                    (Elevate to Study Admin
+                    <span class="glyphicon glyphicon-arrow-up"></span>)
+                  </button>
+                </form>
+              {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
+                <form action="/demote_researcher" class="oneline" method="post">
+                  <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                  <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                  <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                  <button class="btn btn-link no-padding">
+                    (Demote to Researcher
+                    <span class="glyphicon glyphicon-arrow-down"></span>)
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+            <td>
+              {% if not edit_researcher_is_site_admin and not relationship == "Study Admin" and researcher_id != session_researcher.id %}
+                <form action="/remove_researcher_from_study" method="post">
+                  <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                  <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                  <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                  <button class="btn btn-link no-padding">
+                    <span class="glyphicon glyphicon-remove"></span>
+                    Remove from study
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      {% endif %}
+    </table>
+  </div>
 
   <div class="row">
     <h5>Authorize an additional researcher on this study:</h5>
