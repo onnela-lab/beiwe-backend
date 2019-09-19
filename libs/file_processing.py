@@ -4,10 +4,11 @@ from collections import defaultdict, deque
 from datetime import datetime
 from multiprocessing.pool import ThreadPool
 
-from cronutils.error_handler import ErrorHandler
-
 # noinspection PyUnresolvedReferences
 from config import load_django
+
+from cronutils.error_handler import ErrorHandler
+
 from config.constants import (ACCELEROMETER, ANDROID_LOG_FILE, API_TIME_FORMAT, CALL_LOG,
     CHUNK_TIMESLICE_QUANTUM, CHUNKABLE_FILES, CHUNKS_FOLDER, CONCURRENT_NETWORK_OPS,
     DATA_PROCESSING_NO_ERROR_STRING, FILE_PROCESS_PAGE_SIZE, IDENTIFIERS, IOS_LOG_FILE,
@@ -90,7 +91,7 @@ def do_process_user_file_chunks(count, error_handler, skip_count, participant):
     was not actually expected to be used by researchers, but is apparently quite useful.
 
     Any errors are themselves concatenated using the passed in error handler.
-    
+
     In a single call to this function, count files will be processed, starting from file number
     skip_count. The first skip_count files are expected to be files that have previously errored
     in file processing.
@@ -105,10 +106,10 @@ def do_process_user_file_chunks(count, error_handler, skip_count, participant):
 
     # A Django query with a slice (e.g. .all()[x:y]) makes a LIMIT query, so it
     # only gets from the database those FTPs that are in the slice.
-    print participant.as_native_python()
-    print len(participant.files_to_process.exclude(deleted=True).all())
-    print count
-    print skip_count
+    print(participant.as_native_python())
+    print(len(participant.files_to_process.exclude(deleted=True).all()))
+    print(count)
+    print(skip_count)
 
     files_to_process = participant.files_to_process.exclude(deleted=True).all()
 
@@ -185,7 +186,7 @@ def upload_binified_data(binified_data, error_handler, survey_id_dict):
     failed_ftps = set([])
     ftps_to_retire = set([])
     upload_these = []
-    for data_bin, (data_rows_deque, ftp_deque) in binified_data.iteritems():
+    for data_bin, (data_rows_deque, ftp_deque) in binified_data.items():
         # print 3
         with error_handler:
             try:
@@ -209,7 +210,7 @@ def upload_binified_data(binified_data, error_handler, survey_id_dict):
                     except OldBotoImportThatNeedsFixingError as e:
                         # print 9
                         # The following check is correct for boto version 2.38.0
-                        if "The specified key does not exist." == e.message:
+                        if "The specified key does not exist." == str(e):
                             # This error can only occur if the processing gets actually interrupted and
                             # data files fail to upload after DB entries are created.
                             # Encountered this condition 11pm feb 7 2016, cause unknown, there was
@@ -392,7 +393,7 @@ def binify_csv_rows(rows_list, study_id, user_id, data_type, header):
 def append_binified_csvs(old_binified_rows, new_binified_rows, file_to_process):
     """ Appends binified rows to an existing binified row data structure.
         Should be in-place. """
-    for data_bin, rows in new_binified_rows.iteritems():
+    for data_bin, rows in new_binified_rows.items():
         old_binified_rows[data_bin][0].extend(rows)  # Add data rows
         old_binified_rows[data_bin][1].append(file_to_process['id'])  # Add ftp
 
@@ -403,7 +404,7 @@ def process_csv_data(data):
         catches csv files with known problems and runs the correct logic.
         Returns None If the csv has no data in it. """
     participant = data['ftp']['participant']
-    
+
     if participant.os_type == Participant.ANDROID_API:
         # Do fixes for Android
         if data["data_type"] == ANDROID_LOG_FILE:
@@ -618,9 +619,9 @@ def batch_retrieve_for_processing(ftp_as_object):
     """ Used for mapping an s3_retrieve function. """
     # Convert the ftp object to a dict so we can use __getattr__
     ftp = ftp_as_object.as_dict()
-    
+
     data_type = file_path_to_data_type(ftp['s3_file_path'])
-    
+
     # Create a dictionary to populate and return
     ret = {
         'ftp': ftp,

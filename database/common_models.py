@@ -154,7 +154,7 @@ class AbstractModel(models.Model):
     def update(self, **kwargs):
         """ Convenience method on database instance objects to update the database using a dictionary.
             (exists to make porting from mongodb easier) """
-        for attr, value in kwargs.iteritems():
+        for attr, value in kwargs.items():
             setattr(self, attr, value)
         self.save()
     

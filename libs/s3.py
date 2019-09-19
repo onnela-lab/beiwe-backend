@@ -68,7 +68,7 @@ def s3_list_versions(prefix, allow_multiple_matches=False):
     versions = []
     for page in page_iterator:
         # versions are not guaranteed, usually this means the file was deleted and only has deletion markers.
-        if 'Versions' not in page.keys():
+        if 'Versions' not in page:
             continue
 
         for s3_version in page['Versions']:
@@ -89,7 +89,7 @@ def _do_list_files(bucket_name, prefix, as_generator=False):
     else:
         items = []
         for page in page_iterator:
-            if 'Contents' in page.keys():
+            if 'Contents' in page:
                 for item in page['Contents']:
                     items.append(item['Key'].strip("/"))
         return items
@@ -97,7 +97,7 @@ def _do_list_files(bucket_name, prefix, as_generator=False):
 
 def _do_list_files_generator(page_iterator):
     for page in page_iterator:
-        if 'Contents' not in page.keys():
+        if 'Contents' not in page:
             return
         for item in page['Contents']:
             yield item['Key'].strip("/")

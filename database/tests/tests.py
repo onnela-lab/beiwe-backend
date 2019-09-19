@@ -371,8 +371,8 @@ def compare_dictionaries(reference, comparee, ignore=None):
     if ignore is None:
         ignore = []
     
-    b = set((x, y) for x, y in comparee.iteritems() if x not in ignore)
-    a = set((x, y) for x, y in reference.iteritems() if x not in ignore)
+    b = set((x, y) for x, y in comparee.items() if x not in ignore)
+    a = set((x, y) for x, y in reference.items() if x not in ignore)
     differences_a = a - b
     differences_b = b - a
     

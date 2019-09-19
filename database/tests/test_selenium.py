@@ -130,7 +130,7 @@ class TestRoutes(FlaskTest):
 
         for rule in app2.url_map.iter_rules():
             str_rule = str(rule)
-            self.assertIn(str_rule, ADMIN_PAGES.keys())
+            self.assertIn(str_rule, ADMIN_PAGES)
 
             if ADMIN_PAGES[str_rule]['method'] == 'get':
                 self.selenium.get("localhost:54321" + str_rule)

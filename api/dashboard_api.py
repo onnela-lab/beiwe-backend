@@ -124,7 +124,7 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
                 ]) for participant in participant_objects
             )
             # check if there is data to display
-            data_exists = len([data for patient in byte_streams.keys() for data in byte_streams[patient] if data is not None]) > 0
+            data_exists = len([data for patient in byte_streams for data in byte_streams[patient] if data is not None]) > 0
     else:
         start, end = extract_date_args_from_request()
         first_day, last_day, stream_data = parse_processed_data(study_id, participant_objects, data_stream)
@@ -140,7 +140,7 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
             )
             # check if there is data to display
             data_exists = len(
-                [data for patient in byte_streams.keys() for data in byte_streams[patient] if data is not None]) > 0
+                [data for patient in byte_streams for data in byte_streams[patient] if data is not None]) > 0
 
     # ---------------------------------- base case if there is no data ------------------------------------------
     if first_day is None or (not data_exists and past_url == ""):
@@ -217,7 +217,7 @@ def get_data_for_dashboard_patient_display(study_id, patient_id):
         processed_byte_streams = OrderedDict(
             (stream, [
                 get_bytes_patient_processed_match(all_data, date, stream) for date in unique_dates
-            ]) for stream in processed_data_stream_dict.keys()
+            ]) for stream in processed_data_stream_dict
         )
     if chunks:
         byte_streams = OrderedDict(
@@ -238,7 +238,7 @@ def get_data_for_dashboard_patient_display(study_id, patient_id):
         processed_byte_streams = OrderedDict(
             (stream, [
                 None for date in unique_dates
-            ]) for stream in processed_data_stream_dict.keys()
+            ]) for stream in processed_data_stream_dict
         )
         byte_streams.update(processed_byte_streams)
     # -------------------------  edge case if no data has been entered -----------------------------------

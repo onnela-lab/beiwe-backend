@@ -94,7 +94,7 @@ def patient_fields(study_id, patient_id=None):
         )
 
     fields = list(study.fields.values_list('field_name', flat=True))
-    for key, value in request.values.iteritems():
+    for key, value in request.values.items():
         if key in fields:
             pfv, created = ParticipantFieldValue.objects.get_or_create(participant=patient, field=StudyField.objects.get(study=study, field_name=key))
             pfv.value = value

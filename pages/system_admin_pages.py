@@ -48,7 +48,7 @@ def unflatten_consent_sections(consent_sections_dict):
     # we need to transform it into a nested structure like this:
     # { 'label': {'text':'text content',  'more':'more content' }
     refactored_consent_sections = defaultdict(dict)
-    for key, content in consent_sections_dict.iteritems():
+    for key, content in consent_sections_dict.items():
         _, label, content_type = key.split(".")
         # print _, label, content_type
         refactored_consent_sections[label][content_type] = content
@@ -329,7 +329,7 @@ def create_study():
         flash('Successfully created study {}.'.format(name), 'success')
         return redirect('/device_settings/{:d}'.format(study.pk))
     except ValidationError as ve:
-        for field, message in ve.message_dict.iteritems():
+        for field, message in ve.message_dict.items():
             flash('{}: {}'.format(field, message[0]), 'danger')
         return redirect('/create_study')
 
@@ -369,8 +369,8 @@ def device_settings(study_id=None):
         abort(403)
         
     settings = study.get_study_device_settings()
-    params = {k:v for k,v in request.values.iteritems() if not k.startswith("consent_section")}
-    consent_sections = {k: v for k, v in request.values.iteritems() if k.startswith("consent_section")}
+    params = {k:v for k,v in request.values.items() if not k.startswith("consent_section")}
+    consent_sections = {k: v for k, v in request.values.items() if k.startswith("consent_section")}
     params = checkbox_to_boolean(CHECKBOX_TOGGLES, params)
     params = string_to_int(TIMER_VALUES, params)
     # the ios consent sections are a json field but the frontend returns something weird,

@@ -20,7 +20,7 @@ def duplicate_chunk_path_severity(chunk_path):
         for chunk in ChunksRegistry(chunk_path=chunk_path):
             collisions[key].add(chunk[key])
 
-    for key, collision in collisions.iteritems():
+    for key, collision in collisions.items():
         if len(collision) > 1:
             print collisions
             raise Exception("encountered bad duplicate chunk requiring manual purge.")

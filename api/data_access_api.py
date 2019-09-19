@@ -411,7 +411,7 @@ def handle_database_query(study_id, query, registry=None):
         # Get all chunks whose path and hash are both in the registry
         possible_registered_chunks = (
             chunks
-            .filter(chunk_path__in=registry, chunk_hash__in=registry.itervalues())
+            .filter(chunk_path__in=registry, chunk_hash__in=registry.values())
             .values('pk', 'chunk_path', 'chunk_hash')
         )
         
@@ -462,7 +462,7 @@ def data_pipeline_upload():
 
     # block extra keys
     errors = []
-    for key in request.values.iterkeys():
+    for key in request.values.keys():
         if key not in VALID_PIPELINE_POST_PARAMS:
             errors.append('encountered invalid parameter: "%s"' % key)
     
