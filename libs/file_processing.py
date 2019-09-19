@@ -4,11 +4,11 @@ from collections import defaultdict, deque
 from datetime import datetime
 from multiprocessing.pool import ThreadPool
 
-# noinspection PyUnresolvedReferences
-from config import load_django
-
+from boto.exception import S3ResponseError
 from cronutils.error_handler import ErrorHandler
 
+# noinspection PyUnresolvedReferences
+from config import load_django
 from config.constants import (ACCELEROMETER, ANDROID_LOG_FILE, API_TIME_FORMAT, CALL_LOG,
     CHUNK_TIMESLICE_QUANTUM, CHUNKABLE_FILES, CHUNKS_FOLDER, CONCURRENT_NETWORK_OPS,
     DATA_PROCESSING_NO_ERROR_STRING, FILE_PROCESS_PAGE_SIZE, IDENTIFIERS, IOS_LOG_FILE,
@@ -19,7 +19,6 @@ from database.user_models import Participant
 from libs.s3 import s3_retrieve, s3_upload
 
 
-class OldBotoImportThatNeedsFixingError(Exception): pass
 class EverythingWentFine(Exception): pass
 class ProcessingOverlapError(Exception): pass
 
@@ -207,10 +206,10 @@ def upload_binified_data(binified_data, error_handler, survey_id_dict):
                         # print chunk_path
                         s3_file_data = s3_retrieve(chunk_path, study_id, raw_path=True)
                         # print "finished s3 retrieve"
-                    except OldBotoImportThatNeedsFixingError as e:
+                    except S3ResponseError as e:
                         # print 9
                         # The following check is correct for boto version 2.38.0
-                        if "The specified key does not exist." == str(e):
+                        if "The specified key does not exist." == e.message:
                             # This error can only occur if the processing gets actually interrupted and
                             # data files fail to upload after DB entries are created.
                             # Encountered this condition 11pm feb 7 2016, cause unknown, there was
@@ -576,7 +575,6 @@ def construct_csv_string(header, rows_list):
         ret += "\n" + row
     return ret
 
-
 def construct_utf_safe_csv_string(header, rows_list):
     """ Takes a header list and a csv and returns a single string of a csv.
         Poor memory performances, but handles unicode errors.  :D :D :D """
@@ -684,7 +682,6 @@ def batch_upload(upload):
         ret['traceback'] = traceback.format_exc(e)
         ret['exception'] = e
     return ret
-
 
 """ Exceptions """
 class HeaderMismatchException(Exception): pass
