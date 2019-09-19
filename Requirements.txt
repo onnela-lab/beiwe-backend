@@ -1,5 +1,5 @@
 # core libraries
-Django==1.11.18
+Django==1.11.23
 Flask==1.0.2
 # todo: update this version, it is ancient, need to test to confirm no real api changes to s3
 
