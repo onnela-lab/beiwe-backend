@@ -9,148 +9,151 @@
 
 {% block content %}
 
-    <ol class="breadcrumb">
-        <li>
-            <a href="/manage_studies">Manage Studies</a>
-        </li>
-        <li class="active">
-            {{ study.name }}
-        </li>
-    </ol>
+  <ol class="breadcrumb">
+    <li>
+      <a href="/manage_studies">Manage Studies</a>
+    </li>
+    <li class="active">
+      {{ study.name }}
+    </li>
+  </ol>
     
-    {% if study.is_test %}
-        This is a test study. Researchers will be able to download raw data and processed data output from the Data Analysis Pipeline.
+  {% if study.is_test %}
+    This is a test study. Researchers will be able to download raw data and processed data output from the Data Analysis Pipeline.
+  {% else %}
+    This is a production study. Researchers will only be able to download processed data output from the Data Analysis Pipeline.
+  {% endif %}
+
+  <h2>Authorized researchers on this study</h2>
+  <table class="list-group table-striped" width="100%">
+    {% if not study.get_researchers() %}
+      <p><i>No researchers are authorized to view or edit this study.</i></p>
     {% else %}
-        This is a production study. Researchers will only be able to download processed data output from the Data Analysis Pipeline.
+      <tr>
+        <td class="padding-vert-10"> <h4> User Type</h4> </td>
+        <td class="padding-vert-10"> <h4> Researcher Username</h4> </td>
+        <td class="padding-vert-10"> <h4 class="pull-right" style="padding-right:10px"> Actions</h4> </td>
+        <td class="padding-vert-10"> {# retain line coloring #}</td>
+      </tr>
+
+      {% for researcher_id, researcher_username, relationship, edit_researcher_is_site_admin in listed_researchers %}
+        <tr class="">
+          <td class="padding-vert-10">
+            {{ relationship }}
+          </td>
+          <td class="padding-vert-10">
+            <b>{{ researcher_username }}</b>
+          </td>
+          <td class="padding-vert-10">
+            {% if not edit_researcher_is_site_admin and not relationship == "Study Admin" and researcher_id != session_researcher.id %}
+              <form action="/remove_researcher_from_study" method="post">
+                <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                <button class="btn btn-link">Remove authorization</button>
+              </form>
+            {% endif %}
+          </td>
+
+          <td class="padding-vert-10">
+            {% if not edit_researcher_is_site_admin and not relationship == "Study Admin"%}
+              <form action="/elevate_researcher" method="post">
+                <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                <button class="btn btn-link">Elevate to Study Admin</button>
+              </form>
+            {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
+              <form action="/demote_researcher" method="post">
+                <input type="hidden" name="study_id" value="{{ study.id }}"/>
+                <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
+                <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+                <button class="btn btn-link">Demote to Researcher</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
     {% endif %}
-    
-  <div class="col-md-12">
-    <div class="row">
-      <h2>Authorized researchers on this study</h2>
-      <div class="list-group">
-        {% if not study.get_researchers() %}
-          <p><i>No researchers are authorized to view or edit this study.</i></p>
-        {% else %}
-          {% for researcher_id, researcher_username, relationship, edit_researcher_is_site_admin in listed_researchers %}
-            <div class="list-group-item padding-vert-20">
-              <div class="col-md-2 margin-fix-10">
-                {{ relationship }}
-              </div>
-              <div class="col-md-6 margin-fix-10">
-                <b>{{ researcher_username }}</b>
-              </div>
-              <div class="col-md-2 margin-fix-16">
-                {% if not edit_researcher_is_site_admin and not relationship == "Study Admin" and researcher_id != session_researcher.id %}
-                  <form action="/remove_researcher_from_study" method="post">
-                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                    <button class="btn btn-link">Remove authorization</button>
-                  </form>
-                {% endif %}
-              </div>
+  </table>
 
-              <div class="col-md-2 margin-fix-16">
-                {% if not edit_researcher_is_site_admin and not relationship == "Study Admin"%}
-                  <form action="/elevate_researcher" method="post">
-                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                    <button class="btn btn-link">Elevate to Study Admin</button>
-                  </form>
-                {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
-                  <form action="/demote_researcher" method="post">
-                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                    <button class="btn btn-link">Demote to Researcher</button>
-                  </form>
-                {% endif %}
-              </div>
-            </div>
+  <div class="row">
+    <h5>Authorize an additional researcher on this study:</h5>
+    <form action="/add_researcher_to_study" method="post">
+      <div class="form-inline">
+        <select class="form-control" name="researcher_id">
+          {% for researcher in administerable_researchers %}
+            <option value="{{ researcher.id }}">{{ researcher.username }}</option>
           {% endfor %}
-        {% endif %}
+        </select>
+        <input type="hidden" name="study_id" value="{{ study.id }}"/>
+        <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+        <button type="submit" class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
       </div>
-    </div>
-
-
-    <div class="row">
-      <h5>Authorize an additional researcher on this study:</h5>
-        <form action="/add_researcher_to_study" method="post">
-          <div class="form-inline">
-            <select class="form-control" name="researcher_id">
-              {% for researcher in administerable_researchers %}
-                <option value="{{ researcher.id }}">{{ researcher.username }}</option>
-              {% endfor %}
-            </select>
-            <input type="hidden" name="study_id" value="{{ study.id }}"/>
-            <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-            <button type="submit" class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
-          </div>
-        </form>
-    </div>
-
-    <br><br><br>
-
-    <div class="row">
-      <h2>App settings</h2>
-        <a href="/device_settings/{{ study.id }}">Edit the types of data this study collects and the wording that study participants see in the app</a>
-    </div>
-
-    <br><br><br>
-
-    <div class="row">
-      <h2>Rename study</h2>
-        <form action="/rename_study/{{ study.id }}" method="post">
-          <div class="col-md-10">
-            <input type="text" name="new_study_name" value="{{ study['name'] }}" class="form-control">
-          </div>
-          <div class="col-md-2">
-            <button class="btn btn-warning" type="submit">Update Name</button>
-          </div>
-        </form>
-    </div>
-
-    <br><br><br>
-
-    <div class="row">
-      <h2>Export/Import study settings</h2>
-        <div class="col-md-6">
-          <h4>Export {{ study['name'] }}'s App Settings and Surveys</h4>
-            <p>Download a JSON file that contains {{ study['name'] }}'s App Settings (which data streams are turned on, what the timer durations and frequencies are, and what text appears in the app) and copies of all Surveys (including schedules, questions, and skip logic) and Audio Surveys (including schedules and voice recording prompts).</p>
-            <a class="btn btn-success" href="/export_study_settings_file/{{ study.id }}">Export study settings JSON file</a>
-        </div>
-        <div class="col-md-6">
-          <h4>Import another study's App Settings and/or Surveys into {{ study['name'] }}</h4>
-            <form action="/import_study_settings_file/{{ study.id }}" method="post" enctype="multipart/form-data">
-              <input type="file" name="upload" id="file_upload_selector">
-              <div class="checkbox">
-                <label>
-                  <input type="checkbox" name="device_settings" value="true" checked>
-                  Overwrite {{ study['name'] }}'s App Settings with the App Settings in the file you upload
-                </label>
-              </div>
-              <div class="checkbox">
-                <label>
-                  <input type="checkbox" name="surveys" value="true" checked>
-                  Add new Surveys and Audio Surveys to {{ study['name'] }} that are copies of all the Surveys and Audio Surveys in the file you upload
-                </label>
-              </div>
-              <button type="submit" id="file_upload_button" class="btn btn-warning" disabled="disabled">Import study settings file</button>
-            </form>
-        </div>
-    </div>
-
-    <br><br><br>
-
-    <div class="row">
-      <h2>Delete study</h2>
-        <a class="btn btn-danger" onclick="confirm_delete_study('{{ study.name|replace("'", "")|replace('"', "") }}', '{{ study.id }}')">
-          <span class="glyphicon glyphicon-trash"></span>&nbsp;Delete study</a>
-    </div>
-
-    <br><br><br><br>
-
+    </form>
   </div>
+
+  <br><br><br>
+
+  <div class="row">
+    <h2>App settings</h2>
+    <a href="/device_settings/{{ study.id }}">Edit the types of data this study collects and the wording that study participants see in the app</a>
+  </div>
+
+  <br><br><br>
+
+  <div class="row">
+    <h2>Rename study</h2>
+    <form action="/rename_study/{{ study.id }}" method="post">
+      <div class="col-md-10">
+        <input type="text" name="new_study_name" value="{{ study['name'] }}" class="form-control">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-warning" type="submit">Update Name</button>
+      </div>
+    </form>
+  </div>
+
+  <br><br><br>
+
+  <div class="row">
+    <h2>Export/Import study settings</h2>
+    <div class="col-md-6">
+      <h4>Export {{ study['name'] }}'s App Settings and Surveys</h4>
+      <p>Download a JSON file that contains {{ study['name'] }}'s App Settings (which data streams are turned on, what the timer durations and frequencies are, and what text appears in the app) and copies of all Surveys (including schedules, questions, and skip logic) and Audio Surveys (including schedules and voice recording prompts).</p>
+      <a class="btn btn-success" href="/export_study_settings_file/{{ study.id }}">Export study settings JSON file</a>
+    </div>
+    <div class="col-md-6">
+      <h4>Import another study's App Settings and/or Surveys into {{ study['name'] }}</h4>
+      <form action="/import_study_settings_file/{{ study.id }}" method="post" enctype="multipart/form-data">
+        <input type="file" name="upload" id="file_upload_selector">
+        <div class="checkbox">
+          <label>
+            <input type="checkbox" name="device_settings" value="true" checked>
+            Overwrite {{ study['name'] }}'s App Settings with the App Settings in the file you upload
+          </label>
+        </div>
+        <div class="checkbox">
+          <label>
+            <input type="checkbox" name="surveys" value="true" checked>
+            Add new Surveys and Audio Surveys to {{ study['name'] }} that are copies of all the Surveys and Audio Surveys in the file you upload
+          </label>
+        </div>
+        <button type="submit" id="file_upload_button" class="btn btn-warning" disabled="disabled">Import study settings file</button>
+      </form>
+    </div>
+  </div>
+
+  <br><br><br>
+
+  <div class="row">
+    <h2>Delete study</h2>
+    <a class="btn btn-danger" onclick="confirm_delete_study('{{ study.name|replace("'", "")|replace('"', "") }}', '{{ study.id }}')">
+      <span class="glyphicon glyphicon-trash"></span>&nbsp;Delete study</a>
+  </div>
+
+  <br><br><br><br>
+
+  </tr>
 
 {% endblock %}
