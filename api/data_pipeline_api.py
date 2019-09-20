@@ -35,6 +35,6 @@ def run_manual_code(study_id):
     
     if error_sentry.errors:
         flash('An unknown error occurred when trying to run this task.', category='danger')
-        print error_sentry
+        print(error_sentry)
     
     return redirect('/data-pipeline/{:s}'.format(study_id))

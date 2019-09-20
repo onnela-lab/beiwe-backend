@@ -45,24 +45,24 @@ def make_pipeline_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY
             raise TypeError("tags must be a list, received %s" % type(tags))
         values['tags'] = json.dumps(tags)
     
-    print "sending request, this could take some time."
+    print("sending request, this could take some time.")
     # print values
     try:
         req = urllib2.Request(url, urllib.urlencode(values))
         response = urllib2.urlopen(req)
     except Exception as e:
-        print "\n\nERROR\n\n"
+        print("\n\nERROR\n\n")
         pprint(vars(e))
-        print "\n\n"
+        print("\n\n")
         return e
 
     return_data = response.read()
     
-    print "writing file to the_downloaded_data.zip"
+    print("writing file to the_downloaded_data.zip")
     with open("the_downloaded_data.zip", "w") as f:
         f.write(return_data)
     
-    print "Operations complete."
+    print("Operations complete.")
 
 
 def upload_pipeline_file(study_id, file_path, name_of_file_in_future_downloaded_zip,
@@ -85,8 +85,8 @@ def upload_pipeline_file(study_id, file_path, name_of_file_in_future_downloaded_
         )
     
     if r.status_code != 200:
-        print r.status_code
-        print r._content
+        print(r.status_code)
+        print(r._content)
         
     return r
     

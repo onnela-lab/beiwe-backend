@@ -10,7 +10,7 @@ class TestFileFail(unittest.TestCase):
         class FileObj(StringIO):
 
             def close(self):
-                print 'in file close'
+                print('in file close')
                 global RESULT
                 RESULT = True
 

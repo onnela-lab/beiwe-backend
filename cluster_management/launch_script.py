@@ -282,14 +282,14 @@ def do_fail_if_bad_environment_name(name):
 
 def prompt_for_new_eb_environment_name(with_prompt=True):
     if with_prompt:
-        print ENVIRONMENT_NAME_RESTRICTIONS
+        print(ENVIRONMENT_NAME_RESTRICTIONS)
     name = raw_input()
     do_fail_if_bad_environment_name(name)
     return name
 
 
 def prompt_for_extant_eb_environment_name():
-    print EXTANT_ENVIRONMENT_PROMPT
+    print(EXTANT_ENVIRONMENT_PROMPT)
     name = raw_input()
     environment_exists = check_if_eb_environment_exists(name)
     if not environment_exists:
@@ -303,18 +303,18 @@ def prompt_for_extant_eb_environment_name():
 ####################################################################################################
 
 def do_setup_eb_update():
-    print "\n", DO_SETUP_EB_UPDATE_OPEN
+    print("\n", DO_SETUP_EB_UPDATE_OPEN)
     
     files = sorted([f for f in os.listdir(STAGED_FILES) if f.lower().endswith(".zip")])
     
     if not files:
-        print "Could not find any zip files in " + STAGED_FILES
+        print("Could not find any zip files in " + STAGED_FILES)
         EXIT(1)
     
-    print "Enter the version of the codebase do you want to use:"
+    print("Enter the version of the codebase do you want to use:")
     for i, file_name in enumerate(files):
-        print "[%s]: %s" % (i + 1, file_name)
-    print "(press CTL-C to cancel)\n"
+        print("[%s]: %s" % (i + 1, file_name))
+    print("(press CTL-C to cancel)\n")
     try:
         index = int(raw_input("$ "))
     except Exception:
@@ -333,13 +333,12 @@ def do_setup_eb_update():
     do_zip_reduction(file_name, STAGED_FILES, output_file_name)
     log.info("Done processing %s." % file_name)
     log.info("The new file %s has been placed in %s" % (output_file_name, STAGED_FILES))
-    print(
-    "You can now provide Elastic Beanstalk with %s to run an automated deployment of the new code." % output_file_name)
+    print("You can now provide Elastic Beanstalk with %s to run an automated deployment of the new code." % output_file_name)
     EXIT(0)
 
 
 def do_create_environment():
-    print DO_CREATE_ENVIRONMENT
+    print(DO_CREATE_ENVIRONMENT)
     name = prompt_for_new_eb_environment_name(with_prompt=False)
     do_fail_if_bad_environment_name(name)
     do_fail_if_environment_exists(name)
@@ -351,7 +350,7 @@ def do_create_environment():
 
 
 def do_help_setup_new_environment():
-    print HELP_SETUP_NEW_ENVIRONMENT
+    print(HELP_SETUP_NEW_ENVIRONMENT)
     name = prompt_for_new_eb_environment_name()
     do_fail_if_bad_environment_name(name)
     do_fail_if_environment_exists(name)
@@ -370,16 +369,16 @@ def do_help_setup_new_environment():
     with open(processing_server_settings_fp, 'w') as f:
         json.dump(reference_data_processing_server_configuration(), f, indent=1)
     
-    print "Environment specific files have been created at %s and %s." % (
+    print("Environment specific files have been created at %s and %s." % (
         relpath(beiwe_environment_fp),
         relpath(processing_server_settings_fp),
-    )
+    ))
     
     # Note: we actually cannot generate RDS credentials until we have a server, this is because
     # the hostname cannot exist until the server exists.
-    print """After filling in the required contents of these newly created files you will be able
+    print("""After filling in the required contents of these newly created files you will be able
     to run the -create-environment command.  Note that several more credentials files will be
-    generated as part of that process. """
+    generated as part of that process. """)
     
 
 def do_create_manager():
@@ -480,12 +479,12 @@ def do_fix_health_checks():
     name = prompt_for_extant_eb_environment_name()
     do_fail_if_environment_does_not_exist(name)
     try:
-        print "Setting environment to ignore health checks"
+        print("Setting environment to ignore health checks")
         fix_deploy(name)
     except Exception as e:
         log.error("unable to run command due to the following error:\n %s" % e)
         raise
-    print "Success."
+    print("Success.")
     
 
 ####################################################################################################
@@ -584,6 +583,6 @@ if __name__ == "__main__":
         EXIT(0)
     
     if arguments.purge_instance_profiles:
-        print purge_command_blurb, "\n\n\n"
+        print(purge_command_blurb, "\n\n\n")
         iam_purge_instance_profiles()
         EXIT(0)

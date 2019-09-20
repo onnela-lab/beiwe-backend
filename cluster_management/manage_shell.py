@@ -8,7 +8,7 @@ from deployment_helpers.aws.rds import *
 from deployment_helpers.aws.security_groups import *
 from deployment_helpers.aws.s3 import *
 
-print ""
+print("")
 log.info("validating AWS credentials and global configuration...")
 # validate the global configuration file
 if not all((are_aws_credentials_present(), is_global_configuration_valid())):

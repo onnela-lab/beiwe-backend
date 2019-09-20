@@ -56,16 +56,16 @@ def pause_if_error(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            print "=============================================="
+            print("==============================================")
             if isinstance(e, AssertionError):
                 pprint(e)
-                print "=============================================="
+                print("==============================================")
                 input()
                 raise
 
             traceback.print_exc()
-            print "=============================================="
-            print "Press enter to exit"
+            print("==============================================")
+            print("Press enter to exit")
             input()
             raise
 

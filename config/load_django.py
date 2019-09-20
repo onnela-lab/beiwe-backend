@@ -17,4 +17,4 @@ try:
 
     django.setup()
 except Exception as e:
-    print "Not-critical exception:", e
+    print("Not-critical exception:", e)

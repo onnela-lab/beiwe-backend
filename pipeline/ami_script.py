@@ -80,7 +80,7 @@ def run():
             if tries > 300:
                 raise
             else:
-                print "waiting on unencrypted ami..."
+                print("waiting on unencrypted ami...")
             sleep(1)
         else:
             break
