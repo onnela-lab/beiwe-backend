@@ -1,7 +1,5 @@
 # This script is tested to have identical output and be compatible with Python 2.7 and 3.6.
 # (It really should be compatible with any version of Python 3.)
-from __future__ import print_function
-
 import base64
 import csv
 import hashlib

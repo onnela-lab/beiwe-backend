@@ -2,8 +2,6 @@
 A script for creating a setup to run AWS Batch jobs: a compute environment, a job queue and a
 job definition to use as a template for actual jobs.
 """
-from __future__ import print_function
-
 import json
 import os.path
 from pprint import pprint

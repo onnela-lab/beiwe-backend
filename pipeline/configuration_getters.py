@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import json
 import os
 from os.path import join as path_join, abspath

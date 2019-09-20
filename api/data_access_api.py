@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from multiprocessing.pool import ThreadPool
 from zipfile import ZipFile, ZIP_STORED
 
