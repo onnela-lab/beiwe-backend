@@ -108,28 +108,37 @@ def edit_researcher(researcher_pk):
     if not session_researcher.site_admin:
         editable_password = editable_password and not edit_researcher.is_study_admin()
 
-    # get the edit_researcher's relationships to the visible studies, it is a list of tuples.
-    valid_studies = get_administerable_studies_by_name()
+    # edit_study_info is a list of tuples of (study relationship, whether that study is editable by
+    # the current session admin, and the study itself.)
+    visible_studies = Study.get_researcher_studies_by_name(session_researcher)
     if edit_researcher.site_admin:
-        administerable_studies = [("Site Admin",study)  for study in valid_studies]
+        # if the session admin is a site admin then we can skip the complex logic
+        edit_study_info = [("Site Admin", True, study) for study in visible_studies]
     else:
-        study_relationship_map = dict(
-            edit_researcher.study_relations.filter(study__in=valid_studies).values_list("study_id", "relationship")
-        )
-        # set up a properly ordered list of the studies that are relevant for the current combination
-        # of researcher to edit and the current session researcher.
-        administerable_studies = []
-        for study in valid_studies:
-            if study.id in study_relationship_map:
-                # the relationship needs to be made legible
-                administerable_studies.append(
-                    (study_relationship_map[study.id].replace("_", " ").title(), study)
-                )
+        # When the session admin is just a study admin then we need to determine if the study that
+        # the session admin can see is also one they are an admin on so we can display buttons.
+        administerable_studies = set(get_administerable_studies_by_name().values_list("pk", flat=True))
+
+        # We need the overlap of the edit_researcher studies with the studies visible to the session
+        # admin, and we need those relationships for display purposes on the page.
+        edit_study_relationship_map = {
+            study_id: relationship.replace("_", " ").title()
+            for study_id, relationship in edit_researcher.study_relations.filter(study__in=visible_studies).values_list("study_id", "relationship")
+        }
+
+        # get the relevant studies, populate with relationship, editability, and the study.
+        edit_study_info = []
+        for study in visible_studies.filter(pk__in=edit_study_relationship_map.keys()):
+            edit_study_info.append((
+                edit_study_relationship_map[study.id],
+                study.id in administerable_studies,
+                study,
+            ))
 
     return render_template(
         'edit_researcher.html',
         edit_researcher=edit_researcher,
-        current_studies=administerable_studies,
+        edit_study_info=edit_study_info,
         all_studies=get_administerable_studies_by_name(),  # this is all the studies administerable by the user
         allowed_studies=get_researcher_allowed_studies(),
         editable_password=editable_password,
