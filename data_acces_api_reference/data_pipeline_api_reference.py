@@ -1,4 +1,4 @@
-import json, urllib, urllib2, requests
+import json, urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse, requests
 
 # Comment out the following import to disable the credentials file.
 try:
@@ -48,8 +48,8 @@ def make_pipeline_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY
     print("sending request, this could take some time.")
     # print values
     try:
-        req = urllib2.Request(url, urllib.urlencode(values))
-        response = urllib2.urlopen(req)
+        req = urllib.request.Request(url, urllib.parse.urlencode(values))
+        response = urllib.request.urlopen(req)
     except Exception as e:
         print("\n\nERROR\n\n")
         pprint(vars(e))
