@@ -336,10 +336,8 @@ def create_study():
 @system_admin_pages.route('/delete_study/<string:study_id>', methods=['POST'])
 @authenticate_admin
 def delete_study(study_id=None):
-    """ This functionality has been disabled pending testing and feature change."""
-    # ONLY THE SITE ADMIN CAN DELETE A STUDY.
-    if not get_session_researcher().site_admin:
-        return abort(403)
+    # Site admins and study admins can delete studies.
+    assert_admin(study_id)
 
     if request.form.get('confirmation', 'false') == 'true':
         study = Study.objects.get(pk=study_id)
