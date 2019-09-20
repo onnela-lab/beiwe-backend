@@ -76,11 +76,14 @@ def get_session_researcher():
 
 
 def assert_admin(study_id):
-    """ This function will throw a 403 forbidden error and stop execution. """
+    """ This function will throw a 403 forbidden error and stop execution.  Note that the abort
+        directly raises the 403 error, if we don't hit that return True. """
     session_researcher = get_session_researcher()
     if not session_researcher.site_admin and not session_researcher.check_study_admin(study_id):
         flash("This user does not have admin privilages on this study.", "danger")
         return abort(403)
+    # allow usage in if statements
+    return True
 
 
 def assert_researcher_under_admin(researcher, study=None):
@@ -226,7 +229,7 @@ def authenticate_admin(some_function):
         # if researcher is not a site admin assert that they are a study admin somewhere, then test
         # the special case of a the study id, if it is present.
         if not session_researcher.site_admin:
-            if not session_researcher.study_relations.filter(relationship=ResearcherRole.study_admin):
+            if not session_researcher.study_relations.filter(relationship=ResearcherRole.study_admin).exists():
                 return abort(403)
 
             # fail if there is a study_id and it either does not exist or the researcher is not an
@@ -242,39 +245,6 @@ def authenticate_admin(some_function):
         return some_function(*args, **kwargs)
 
     return authenticate_and_call
-
-
-# this is not used anywhere
-# def strictly_site_admin(some_function):
-#     """ Authenticate site admin, checks whether a user is a system admin before allowing access
-#         to pages marked with this decorator.  If a study_id variable is supplied as a keyword
-#         argument, the decorator will automatically grab the ObjectId in place of the string provided
-#         in a route.
-#
-#         NOTE: if you are using this function along with the authenticate_researcher_study_access decorator
-#         you must place this decorator below it, otherwise behavior is undefined and probably causes a
-#         500 error inside the authenticate_researcher_study_access decorator. """
-#
-#     @functools.wraps(some_function)
-#     def authenticate_and_call(*args, **kwargs):
-#         # Check for regular login requirement
-#         if not is_logged_in():
-#             return redirect("/")
-#
-#         researcher = get_session_researcher()
-#         if not researcher.site_admin:
-#             return redirect("/")
-#
-#
-#         # # redirect if a study id is not present and real.
-#         # # TODO: why do we do this?
-#         # if 'study_id' in kwargs:
-#         #     if not Study.objects.filter(pk=kwargs['study_id']).exists():
-#         #         return redirect("/")
-#
-#         return some_function(*args, **kwargs)
-#
-#     return authenticate_and_call
 
 
 def researcher_is_an_admin():
