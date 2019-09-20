@@ -283,14 +283,14 @@ def do_fail_if_bad_environment_name(name):
 def prompt_for_new_eb_environment_name(with_prompt=True):
     if with_prompt:
         print(ENVIRONMENT_NAME_RESTRICTIONS)
-    name = raw_input()
+    name = input()
     do_fail_if_bad_environment_name(name)
     return name
 
 
 def prompt_for_extant_eb_environment_name():
     print(EXTANT_ENVIRONMENT_PROMPT)
-    name = raw_input()
+    name = input()
     environment_exists = check_if_eb_environment_exists(name)
     if not environment_exists:
         log.error("There is no environment with the name %s" % environment_exists)
@@ -316,7 +316,7 @@ def do_setup_eb_update():
         print("[%s]: %s" % (i + 1, file_name))
     print("(press CTL-C to cancel)\n")
     try:
-        index = int(raw_input("$ "))
+        index = int(input("$ "))
     except Exception:
         log.error("Could not parse input.")
         EXIT(1)
