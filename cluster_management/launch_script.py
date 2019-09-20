@@ -305,8 +305,7 @@ def prompt_for_extant_eb_environment_name():
 def do_setup_eb_update():
     print "\n", DO_SETUP_EB_UPDATE_OPEN
     
-    files = [f for f in os.listdir(STAGED_FILES) if f.lower().endswith(".zip")]
-    files.sort()
+    files = sorted([f for f in os.listdir(STAGED_FILES) if f.lower().endswith(".zip")])
     
     if not files:
         print "Could not find any zip files in " + STAGED_FILES

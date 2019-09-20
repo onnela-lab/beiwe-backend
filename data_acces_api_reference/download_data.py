@@ -100,7 +100,7 @@ def make_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_id
         data_list = []
         profile_list = []
         chunk_size = 2**16
-        while 1:
+        while True:
             a = datetime.now()
             data = response.read(chunk_size)
             if not data:

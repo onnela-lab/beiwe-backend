@@ -425,11 +425,10 @@ def get_unique_dates(start, end, first_day, last_day, chunks=None):
     first_date_data_entry = None
     last_date_data_entry = None
     if chunks:
-        all_dates = list(
+        all_dates = sorted(
             chunk["time_bin"].date() for chunk in chunks if chunk["time_bin"].date() >= first_day
             # must be >= first day bc there are some point for 1970 that get filtered out bc obv are garbage
         )
-        all_dates.sort()
 
         # create a list of all of the valid days in this study
         first_date_data_entry = all_dates[0]
