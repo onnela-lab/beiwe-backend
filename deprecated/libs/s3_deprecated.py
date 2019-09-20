@@ -1,5 +1,5 @@
 from _ssl import SSLError
-from httplib import IncompleteRead
+from http.client import IncompleteRead
 
 from boto import connect_s3
 from boto.s3.connection import OrdinaryCallingFormat

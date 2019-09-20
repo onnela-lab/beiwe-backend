@@ -1,4 +1,4 @@
-import urllib, urllib2, StringIO, zipfile, json
+import urllib, urllib2, io, zipfile, json
 from datetime import datetime
 from os import path
 # Comment out the following import to disable the credentials file.
@@ -120,7 +120,7 @@ def make_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_id
     
     print "Data received.  Unpacking and overwriting any updated files into", path.abspath('.')
     
-    z = zipfile.ZipFile(StringIO.StringIO(return_data))
+    z = zipfile.ZipFile(io.StringIO(return_data))
     z.extractall()
     
     with open("registry") as f:

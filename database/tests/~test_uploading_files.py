@@ -1,5 +1,5 @@
 from flask import Flask, Request, request
-from StringIO import StringIO
+from io import StringIO
 import unittest
 
 RESULT = False
