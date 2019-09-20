@@ -268,6 +268,10 @@ class Researcher(AbstractPasswordUser):
     def get_researcher_study_relations(self):
         return self.study_relations.filter(relationship=ResearcherRole.researcher)
 
+    def get_researcher_studies_by_name(self):
+        from database.models import Study
+        return Study.get_researcher_studies_by_name(self)
+
     def is_study_admin(self):
         return self.get_admin_study_relations().exists()
 

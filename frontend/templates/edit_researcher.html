@@ -19,20 +19,20 @@
         <th>Actions</th>
       </tr>
 
-      {% if not current_studies %}
+      {% if not edit_study_info %}
         <tr>
           <td colspan="3"><i>This researcher is not authorized on any studies.</i></td>
         </tr>
       {% endif %}
 
-      {% for relationship, study in current_studies %}
+      {% for relationship, is_administrator_of, study in edit_study_info %}
         <tr>
           <td>
             <b>{{ study.name }}</b>
           </td>
           <td>
             {{ relationship }} &nbsp;&nbsp;
-            {% if not is_self and not edit_researcher.site_admin and relationship != "Study Admin" %}
+            {% if is_administrator_of and not is_self and not edit_researcher.site_admin and relationship != "Study Admin" %}
               <form action="/elevate_researcher" class="oneline" method="post">
                 <input type="hidden" name="study_id" value="{{ study.id }}"/>
                 <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
@@ -42,7 +42,7 @@
                     <span class="glyphicon glyphicon-arrow-up"></span>)
                 </button>
               </form>
-            {% elif not is_self and not edit_researcher.site_admin and relationship == "Study Admin" %}
+            {% elif is_administrator_of and not is_self and not edit_researcher.site_admin and relationship == "Study Admin" %}
               <form action="/demote_researcher" class="oneline" method="post">
                 <input type="hidden" name="study_id" value="{{ study.id }}"/>
                 <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
@@ -55,7 +55,7 @@
             {% endif %}
           </td>
           <td>
-            {% if not is_self and not edit_researcher.site_admin and not relationship == "Study Admin" %}
+            {% if not is_administrator_of and is_self and not edit_researcher.site_admin and not relationship == "Study Admin" %}
               <form action="/remove_researcher_from_study" method="post">
                 <input type="hidden" name="study_id" value="{{ study.id }}"/>
                 <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>

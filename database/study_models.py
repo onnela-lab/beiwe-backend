@@ -28,7 +28,7 @@ class Study(AbstractModel):
                                  help_text='ID used for naming S3 files')
 
     is_test = models.BooleanField(default=True)
-    
+
     @classmethod
     def create_with_object_id(cls, **kwargs):
         """
@@ -51,14 +51,10 @@ class Study(AbstractModel):
 
     @classmethod
     def _get_administered_studies_by_name(cls, researcher):
-        return (
-            cls.objects.filter(
+        return cls.get_all_studies_by_name().filter(
                 study_relations__researcher=researcher,
                 study_relations__relationship=ResearcherRole.study_admin,
-            ).annotate(name_lower=Func(F('name'), function='LOWER'))
-                .order_by('name_lower')
-        )
-
+            )
 
     def get_surveys_for_study(self, requesting_os):
         survey_json_list = []
@@ -89,6 +85,10 @@ class Study(AbstractModel):
     def get_researchers(self):
         return Researcher.objects.filter(study_relations__study=self)
 
+    @classmethod
+    def get_researcher_studies_by_name(cls, researcher):
+        return cls.get_all_studies_by_name().filter(study_relations__researcher=researcher)
+
     def get_researchers_by_name(self):
         return (
             Researcher.objects.filter(study_relations__study=self)
@@ -96,6 +96,7 @@ class Study(AbstractModel):
                 .order_by('name_lower')
                 .exclude(username__icontains="BATCH USER").exclude(username__icontains="AWS LAMBDA")
         )
+
     # We override the as_native_python function to not include the encryption key.
     def as_native_python(self, remove_timestamps=True, remove_encryption_key=True):
         ret = super(Study, self).as_native_python(remove_timestamps=remove_timestamps)
