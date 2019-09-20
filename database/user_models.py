@@ -94,7 +94,7 @@ class Participant(AbstractPasswordUser):
         # Ensure that a unique patient_id is generated. If it is not after
         # twenty tries, raise an error.
         patient_id = generate_easy_alphanumeric_string()
-        for _ in xrange(20):
+        for _ in range(20):
             if not cls.objects.filter(patient_id=patient_id).exists():
                 # If patient_id does not exist in the database already
                 break

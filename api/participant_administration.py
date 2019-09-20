@@ -96,7 +96,7 @@ def csv_generator(study_id, number_of_new_patients):
     filewriter = writer(si)
     filewriter.writerow(['Patient ID', "Registration password"])
     study_object_id = Study.objects.filter(pk=study_id).values_list('object_id', flat=True).get()
-    for _ in xrange(number_of_new_patients):
+    for _ in range(number_of_new_patients):
         patient_id, password = Participant.create_with_password(study_id=study_id)
         # Creates an empty file on s3 indicating that this user exists
         s3_upload(patient_id, "", study_object_id)

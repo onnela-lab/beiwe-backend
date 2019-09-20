@@ -49,8 +49,8 @@ class AbstractModel(models.Model):
         should be avoided.
         """
         
-        for _ in xrange(10):
-            object_id = ''.join(random_choice(OBJECT_ID_ALLOWED_CHARS) for _ in xrange(24))
+        for _ in range(10):
+            object_id = ''.join(random_choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(24))
             if not cls.objects.filter(**{field_name: object_id}).exists():
                 break
         else:

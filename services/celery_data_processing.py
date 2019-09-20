@@ -69,7 +69,7 @@ def safe_queue_user(*args, **kwargs):
     In case there is an error with enqueuing the process, retry it several times until
     it works.
     """
-    for i in xrange(10):
+    for i in range(10):
         try:
             return queue_user.apply_async(*args, **kwargs)
         except OperationalError:
