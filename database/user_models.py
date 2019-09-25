@@ -31,11 +31,11 @@ class AbstractPasswordUser(AbstractModel):
         """
         raise NotImplementedError
 
-    def set_password(self, password):
+    def set_password(self, password: str):
         """
         Sets the instance's password hash to match the hash of the provided string.
         """
-        password_hash, salt = self.generate_hash_and_salt(password)
+        password_hash, salt = self.generate_hash_and_salt(password.encode())
         self.password = password_hash
         self.salt = salt
         self.save()
@@ -52,7 +52,7 @@ class AbstractPasswordUser(AbstractModel):
         """
         Checks if the input matches the instance's password hash.
         """
-        return compare_password(compare_me, self.salt, self.password)
+        return compare_password(compare_me.encode(), self.salt.encode(), self.password.encode())
 
     class Meta:
         abstract = True
@@ -232,7 +232,7 @@ class Researcher(AbstractPasswordUser):
         from database.models import Study
         return Study._get_administered_studies_by_name(self)
 
-    def generate_hash_and_salt(self, password):
+    def generate_hash_and_salt(self, password: bytes):
         return generate_hash_and_salt(password)
 
     def elevate_to_site_admin(self):
@@ -247,20 +247,20 @@ class Researcher(AbstractPasswordUser):
     def validate_access_credentials(self, proposed_secret_key):
         """ Returns True/False if the provided secret key is correct for this user."""
         return compare_password(
-            proposed_secret_key,
-            self.access_key_secret_salt,
-            self.access_key_secret
+            proposed_secret_key.encode(),
+            self.access_key_secret_salt.encode(),
+            self.access_key_secret.encode(),
         )
 
-    def reset_access_credentials(self):
+    def reset_access_credentials(self) -> (str, str):
         access_key = generate_random_string()[:64]
         secret_key = generate_random_string()[:64]
         secret_hash, secret_salt = generate_hash_and_salt(secret_key)
-        self.access_key_id = access_key
-        self.access_key_secret = secret_hash
-        self.access_key_secret_salt = secret_salt
+        self.access_key_id = access_key.decode()
+        self.access_key_secret = secret_hash.decode()
+        self.access_key_secret_salt = secret_salt.decode()
         self.save()
-        return access_key, secret_key
+        return access_key.decode(), secret_key.decode()
 
     def get_admin_study_relations(self):
         return self.study_relations.filter(relationship=ResearcherRole.study_admin)

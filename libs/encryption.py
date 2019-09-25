@@ -1,4 +1,5 @@
-import json, traceback
+import json
+import traceback
 from os import urandom
 
 from Crypto.Cipher import AES
@@ -7,19 +8,20 @@ from flask import request
 
 from config.constants import ASYMMETRIC_KEY_LENGTH
 from config.settings import IS_STAGING
-from database.profiling_models import DecryptionKeyError, EncryptionErrorMetadata, LineEncryptionError
+from database.profiling_models import (DecryptionKeyError, EncryptionErrorMetadata,
+    LineEncryptionError)
 from database.study_models import Study
 from libs.logging import log_error
-from security import decode_base64, encode_base64, PaddingException
+from .security import decode_base64, encode_base64, PaddingException
 
 
 class DecryptionKeyInvalidError(Exception): pass
 class HandledError(Exception): pass
 class InvalidIV(Exception): pass
 class InvalidData(Exception): pass
-class DefinitelyInvalidFile(Exception):pass
+class DefinitelyInvalidFile(Exception): pass
 
-# The private keys are stored server-side (S3), and the public key is sent to the android device.
+# The private keys are stored server-side (S3), and the public key is sent to the device.
 
 ################################################################################
 ################################# RSA ##########################################
@@ -56,18 +58,19 @@ def encrypt_for_server(input_string, study_object_id):
     Encrypts config using the ENCRYPTION_KEY, prepends the generated initialization vector.
     Use this function on an entire file (as a string).
     """
-
-    encryption_key = Study.objects.get(object_id=study_object_id).encryption_key
+    encryption_key = Study.objects.get(object_id=study_object_id).encryption_key.encode()
     iv = urandom(16)
-    return iv + AES.new( encryption_key, AES.MODE_CFB, segment_size=8, IV=iv ).encrypt( input_string )
+    return iv + AES.new(encryption_key, AES.MODE_CFB, segment_size=8, IV=iv ).encrypt(input_string)
 
 
-def decrypt_server(data, study_object_id):
+def decrypt_server(data: bytes, study_object_id: str):
     """ Decrypts config encrypted by the encrypt_for_server function."""
-    encryption_key = Study.objects.filter(object_id=study_object_id).values_list('encryption_key', flat=True).get()
+    encryption_key = Study.objects.filter(
+        object_id=study_object_id
+    ).values_list('encryption_key', flat=True).get().encode()
     iv = data[:16]
     data = data[16:]
-    return AES.new( encryption_key, AES.MODE_CFB, segment_size=8, IV=iv ).decrypt( data )
+    return AES.new(encryption_key, AES.MODE_CFB, segment_size=8, IV=iv).decrypt(data)
 
 
 ########################### User/Device Decryption #############################
@@ -79,7 +82,6 @@ def decrypt_device_file(patient_id, original_data, private_key, user):
     
     def create_line_error_db_entry(error_type):
         # declaring this inside decrypt device file to access its function-global variables
-        # TODO @Eli consider enabling this on prod as well
         if IS_STAGING:
             LineEncryptionError.objects.create(
                 type=error_type,
@@ -116,21 +118,21 @@ def decrypt_device_file(patient_id, original_data, private_key, user):
         decoded_key = decode_base64(file_data[0].encode("utf-8"))
     except (TypeError, IndexError, PaddingException) as e:
         create_decryption_key_error(traceback.format_exc())
-        raise DecryptionKeyInvalidError("invalid decryption key. %s" % e.message)
+        raise DecryptionKeyInvalidError("invalid decryption key. %s" % e)
     
     try:
-        decrypted_key = decode_base64(private_key.decrypt( decoded_key ) )
+        decrypted_key = decode_base64(private_key.decrypt(decoded_key))
     except (TypeError, IndexError, PaddingException) as e:
         create_decryption_key_error(traceback.format_exc())
-        raise DecryptionKeyInvalidError("invalid decryption key. %s" % e.message)
-    
-    
+        raise DecryptionKeyInvalidError("invalid decryption key. %s" % e)
+
     for i, line in enumerate(file_data):
-        #we need to skip the first line (the decryption key), but need real index values in i
-        if i==0: continue
+        # we need to skip the first line (the decryption key), but need real index values in i
+        if i == 0:
+            continue
         
         if line is None:
-            #this case causes weird behavior inside decrypt_device_line, so we test for it instead.
+            # this case causes weird behavior inside decrypt_device_line, so we test for it instead.
             error_count += 1
             create_line_error_db_entry(LineEncryptionError.LINE_IS_NONE)
             error_types.append(LineEncryptionError.LINE_IS_NONE)
@@ -161,7 +163,7 @@ def decrypt_device_file(patient_id, original_data, private_key, user):
                 continue
 
             ################### skip these errors ##############################
-            if "unpack" in e.message:
+            if "unpack" in e:
                 error_message += "malformed line of config, dropping it and continuing."
                 log_error(e, error_message)
                 create_line_error_db_entry(LineEncryptionError.MALFORMED_CONFIG)
@@ -172,7 +174,7 @@ def decrypt_device_file(patient_id, original_data, private_key, user):
                 # implies an interrupted write operation (or read)
                 continue
                 
-            if "Input strings must be a multiple of 16 in length" in e.message:
+            if "Input strings must be a multiple of 16 in length" in e:
                 error_message += "Line was of incorrect length, dropping it and continuing."
                 log_error(e, error_message)
                 create_line_error_db_entry(LineEncryptionError.INVALID_LENGTH)
@@ -197,17 +199,17 @@ def decrypt_device_file(patient_id, original_data, private_key, user):
                 continue
                 
             ##################### flip out on these errors #####################
-            if 'AES key' in e.message:
+            if 'AES key' in e:
                 error_message += "AES key has bad length."
                 create_line_error_db_entry(LineEncryptionError.AES_KEY_BAD_LENGTH)
                 error_types.append(LineEncryptionError.AES_KEY_BAD_LENGTH)
                 bad_lines.append(line)
-            elif 'IV must be' in e.message:
+            elif 'IV must be' in e:
                 error_message += "iv has bad length."
                 create_line_error_db_entry(LineEncryptionError.IV_BAD_LENGTH)
                 error_types.append(LineEncryptionError.IV_BAD_LENGTH)
                 bad_lines.append(line)
-            elif 'Incorrect padding' in e.message:
+            elif 'Incorrect padding' in e:
                 error_message += "base64 padding error, config is truncated."
                 create_line_error_db_entry(LineEncryptionError.MP4_PADDING)
                 error_types.append(LineEncryptionError.MP4_PADDING)
@@ -217,7 +219,8 @@ def decrypt_device_file(patient_id, original_data, private_key, user):
                 #  broken base64 conversion in the app
                 #  some unanticipated error in the file upload
             else:
-                raise #If none of the above errors happened, raise the error.
+                # If none of the above errors happened, raise the error raw
+                raise
             raise HandledError(error_message)
             # if any of them did happen, raise a HandledError to cease execution.
     
@@ -257,16 +260,18 @@ def decrypt_device_line(patient_id, key, data):
         else: len_key = len(key)
         # these print statements cause problems in getting encryption errors because the print
         # statement will print to an ascii formatted log file on the server, which causes
-        # ascii encoding error.  Enable them for debugging only.
+        # ascii encoding error.  Enable them for debugging only. (leave uncommented for Sentry.)
         # print("length iv: %s, length data: %s, length key: %s" % (len_iv, len_data, len_key))
         # print('%s %s %s' % (patient_id, key, data))
         raise
-    return remove_PKCS5_padding( decrypted )
+    return remove_PKCS5_padding(decrypted)
+
 
 ################################################################################
+
 
 def remove_PKCS5_padding(data):
     """ Unpacks encrypted config from the device that was encypted using the
         PKCS5 padding scheme (which is the ordinal value of the last byte). """
-    #This can raise an indexerror when data is empty, but that is not expected behavior.
-    return  data[0: -ord( data[-1] ) ]
+    # This can raise an indexerror when data is empty, but that is not expected behavior.
+    return data[0: -ord(data[-1]) ]

@@ -3,18 +3,17 @@ import random
 import string
 from datetime import datetime
 
-import pytz
 from django.db import models
 from django.utils import timezone
-from django.utils.timezone import localtime
 from django_extensions.db.fields.json import JSONField
 
-from config.constants import (ALL_DATA_STREAMS, CHUNK_TIMESLICE_QUANTUM, CHUNKABLE_FILES,
+from config.constants import (CHUNK_TIMESLICE_QUANTUM, CHUNKABLE_FILES,
     PIPELINE_FOLDER)
 from database.models import AbstractModel
 from database.study_models import Study
 from database.validators import LengthValidator
-from libs.security import chunk_hash, low_memory_chunk_hash
+from libs.s3 import s3_retrieve
+from libs.security import chunk_hash
 
 
 class FileProcessingLockedError(Exception): pass
@@ -62,6 +61,9 @@ class ChunkRegistry(AbstractModel):
 
     file_size = models.IntegerField(null=True, default=None)
 
+    def s3_retrieve(self):
+        return s3_retrieve(self.chunk_path, self.study.object_id)
+
     @classmethod
     def register_chunked_data(cls, data_type, time_bin, chunk_path, file_contents, study_id,
                               participant_id, survey_id=None):
@@ -69,7 +71,7 @@ class ChunkRegistry(AbstractModel):
         if data_type not in CHUNKABLE_FILES:
             raise UnchunkableDataTypeError
 
-        chunk_hash_str = chunk_hash(file_contents)
+        chunk_hash_str = chunk_hash(file_contents).decode()
         
         time_bin = int(time_bin) * CHUNK_TIMESLICE_QUANTUM
         time_bin = timezone.make_aware(datetime.utcfromtimestamp(time_bin), timezone.utc)
@@ -137,10 +139,6 @@ class ChunkRegistry(AbstractModel):
 
     def update_chunk_hash(self, data_to_hash):
         self.chunk_hash = chunk_hash(data_to_hash)
-        self.save()
-
-    def low_memory_update_chunk_hash(self, list_data_to_hash):
-        self.chunk_hash = low_memory_chunk_hash(list_data_to_hash)
         self.save()
 
     @classmethod
@@ -258,7 +256,7 @@ class PipelineUpload(AbstractModel):
             raise InvalidUploadParameterError("\n".join(errors))
 
         created_on = timezone.now()
-        file_hash = low_memory_chunk_hash(file_object.read())
+        file_hash = chunk_hash(file_object.read())
         file_object.seek(0)
 
         s3_path = "%s/%s/%s/%s/%s" % (
