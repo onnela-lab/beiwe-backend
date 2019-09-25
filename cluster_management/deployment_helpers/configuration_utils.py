@@ -56,7 +56,7 @@ def _simple_validate_required(getter_func, file_path, appropriate_keys, display_
     
     # check for invalid values and keyserrors
     error_free = True
-    for k, v in json_config.iteritems():
+    for k, v in json_config.items():
         if k not in appropriate_keys:
             log.error("a key '%s' is present in %s, but was not expected." % (k, display_name))
             error_free = False
@@ -149,7 +149,7 @@ def validate_beiwe_environment_config(eb_environment_name):
         "SENTRY_JAVASCRIPT_DSN": beiwe_variables.get('SENTRY_JAVASCRIPT_DSN', ''),
     }
     
-    for name, dsn in sentry_dsns.iteritems():
+    for name, dsn in sentry_dsns.items():
         if ensure_nonempty_string(dsn, name, errors, beiwe_variables_name):
             if not DSN_REGEX.match(dsn):
                 errors.append('({}) Invalid DSN: {}'.format(beiwe_variables_name, dsn))
@@ -219,7 +219,7 @@ def create_finalized_configuration(eb_environment_name):
 def create_processing_server_configuration_file(eb_environment_name):
     list_to_write = ['import os']
     
-    for key, value in get_finalized_environment_variables(eb_environment_name).iteritems():
+    for key, value in get_finalized_environment_variables(eb_environment_name).items():
         next_line = "os.environ['{key}'] = '{value}'".format(key=key.upper(), value=value)
         list_to_write.append(next_line)
     string_to_write = '\n'.join(list_to_write) + '\n'

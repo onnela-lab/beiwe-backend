@@ -42,7 +42,7 @@ def construct_eb_environment_variables(eb_environment_name):
         log.error(e)
         raise
     # This needs to be a comma separated list of environment variables declared as "var=value"
-    env_var_string = ",".join(["%s=%s" % (k, v) for k, v in environment_variables.iteritems()])
+    env_var_string = ",".join(["%s=%s" % (k, v) for k, v in environment_variables.items()])
     
     generated_configuration_details = {
         "ServiceRole": get_or_create_eb_service_role()['RoleName'],
