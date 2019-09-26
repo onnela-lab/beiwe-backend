@@ -110,7 +110,7 @@ def edit_researcher(researcher_pk):
 
     # edit_study_info is a list of tuples of (study relationship, whether that study is editable by
     # the current session admin, and the study itself.)
-    visible_studies = Study.get_researcher_studies_by_name(session_researcher)
+    visible_studies = session_researcher.get_visible_studies_by_name()
     if edit_researcher.site_admin:
         # if the session admin is a site admin then we can skip the complex logic
         edit_study_info = [("Site Admin", True, study) for study in visible_studies]
@@ -214,7 +214,8 @@ def manage_studies():
         'manage_studies.html',
         studies=json.dumps([study.as_native_python() for study in get_administerable_studies_by_name()]),
         allowed_studies=get_researcher_allowed_studies(),
-        is_admin=researcher_is_an_admin()
+        is_admin=researcher_is_an_admin(),
+        session_researcher=get_session_researcher(),
     )
 
 
