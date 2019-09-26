@@ -272,6 +272,13 @@ class Researcher(AbstractPasswordUser):
         from database.models import Study
         return Study.get_researcher_studies_by_name(self)
 
+    def get_visible_studies_by_name(self):
+        if self.site_admin:
+            from database.models import Study
+            return Study.get_all_studies_by_name()
+        else:
+            return self.get_researcher_studies_by_name()
+
     def is_study_admin(self):
         return self.get_admin_study_relations().exists()
 

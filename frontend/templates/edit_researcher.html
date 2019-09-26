@@ -55,7 +55,7 @@
             {% endif %}
           </td>
           <td>
-            {% if not is_administrator_of and is_self and not edit_researcher.site_admin and not relationship == "Study Admin" %}
+            {% if is_administrator_of and not is_self and not edit_researcher.site_admin and not relationship == "Study Admin" %}
               <form action="/remove_researcher_from_study" method="post">
                 <input type="hidden" name="study_id" value="{{ study.id }}"/>
                 <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
