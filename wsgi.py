@@ -6,8 +6,7 @@ sys.stdout = sys.stderr
 
 # On this branch there is no content
 
-# if sys.version_info > (3, 0):
-if False:
+if sys.version_info > (3, 0):
     # Only run codebase if python 3 is detected
     from app import app as application
 else:
