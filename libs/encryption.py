@@ -27,21 +27,24 @@ class DefinitelyInvalidFile(Exception): pass
 ################################# RSA ##########################################
 ################################################################################
 
-def generate_key_pairing():
+
+def generate_key_pairing() -> (bytes, bytes):
     """Generates a public-private key pairing, returns tuple (public, private)"""
     private_key = RSA.generate(ASYMMETRIC_KEY_LENGTH)
     public_key = private_key.publickey()
     return public_key.exportKey(), private_key.exportKey()
 
-def prepare_X509_key_for_java( exported_key ):
+
+def prepare_X509_key_for_java(exported_key):
     # This may actually be a PKCS8 Key specification.
     """ Removes all extraneous config (new lines and labels from a formatted key string,
     because this is how Java likes its key files to be formatted.
     (Y'know, not in accordance with the specification.  Because Java. """
-    return "".join( exported_key.split('\n')[1:-1] )
+    return "".join(exported_key.split('\n')[1:-1])
 
-def import_RSA_key( key ):
-    return RSA.importKey( key )
+
+def import_RSA_key(key):
+    return RSA.importKey(key)
 
 # This function is only for use in debugging.
 # def encrypt_rsa(blob, private_key):
@@ -49,9 +52,11 @@ def import_RSA_key( key ):
 #     """ 'blob of text' can be either a long or a string, we will use strings.
 #         The second parameter must be entered... but it is ignored.  Really."""
 
+
 ################################################################################
 ################################# AES ##########################################
 ################################################################################
+
 
 def encrypt_for_server(input_string, study_object_id):
     """
