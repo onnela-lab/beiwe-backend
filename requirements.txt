@@ -9,7 +9,7 @@ raven[flask]>=6.8.0
 cronutils>=0.2.1
 
 # server requirement
-psycopg2=2.8.3
+psycopg2==2.8.3
 
 # Keep these dependencies up to date
 boto3
