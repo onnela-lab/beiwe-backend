@@ -4,7 +4,7 @@ from datetime import datetime
 import jinja2
 from flask import Flask, redirect, render_template
 from raven.contrib.flask import Sentry
-from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import load_django
 
