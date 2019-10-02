@@ -40,6 +40,9 @@ def create_batch_client():
     return _get_client('batch')
 
 def create_s3_client():
+    return _get_client('s3')
+
+def create_s3_client():
     return boto3.client(
             "s3",
             aws_access_key_id=AWS_CREDENTIIALS["AWS_ACCESS_KEY_ID"],
