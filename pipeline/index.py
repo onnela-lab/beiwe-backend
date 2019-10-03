@@ -33,7 +33,8 @@ def refresh_data_access_credentials(freq, ssm_client=None, webserver=False):
         StudyRelation.objects.get_or_create(
             study=study,
             researcher=mock_researcher,
-            relationship=ResearcherRole.researcher
+            relationship=ResearcherRole.researcher,
+            is_batch_user=True,
         )
     
     # Reset the credentials. This ensures that they aren't stale.

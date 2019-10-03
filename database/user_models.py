@@ -163,6 +163,8 @@ class Researcher(AbstractPasswordUser):
     access_key_secret = models.CharField(max_length=44, validators=[url_safe_base_64_validator], blank=True)
     access_key_secret_salt = models.CharField(max_length=24, validators=[url_safe_base_64_validator], blank=True)
 
+    is_batch_user = models.BooleanField(default=False)
+
     @classmethod
     def create_with_password(cls, username, password, **kwargs):
         """

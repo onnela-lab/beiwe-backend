@@ -1,111 +1,23 @@
-from multiprocessing.pool import ThreadPool
-from zipfile import ZipFile, ZIP_STORED
-
 from datetime import datetime
-from flask import Blueprint, request, abort, json, Response
+from multiprocessing.pool import ThreadPool
+from zipfile import ZIP_STORED, ZipFile
 
-from config import load_django
+from flask import abort, Blueprint, json, request, Response
 
-from config.constants import (API_TIME_FORMAT, VOICE_RECORDING, ALL_DATA_STREAMS,
-    SURVEY_ANSWERS, SURVEY_TIMINGS, IMAGE_FILE)
-from database.models import is_object_id
-from database.data_access_models import ChunkRegistry, PipelineRegistry
+from config.constants import (ALL_DATA_STREAMS, API_TIME_FORMAT, IMAGE_FILE, SURVEY_ANSWERS,
+    SURVEY_TIMINGS, VOICE_RECORDING)
+from database.data_access_models import (ChunkRegistry, InvalidUploadParameterError,
+    PipelineRegistry, PipelineUpload, PipelineUploadTags)
 from database.study_models import Study
-from database.user_models import Participant, Researcher, StudyRelation
+from database.user_models import Participant, StudyRelation
+from libs.data_access_authentication import (data_access_determine_chunked_data_study_access,
+    data_access_determine_study_access, data_access_get_and_validate_researcher,
+    data_access_get_and_validate_study)
 from libs.s3 import s3_retrieve, s3_upload
 from libs.streaming_bytes_io import StreamingBytesIO
 
-from database.data_access_models import PipelineUpload, InvalidUploadParameterError, \
-    PipelineUploadTags
-
-# Data Notes
-# The call log has the timestamp column as the 3rd column instead of the first.
-# The Wifi and Identifiers have timestamp in the file name.
-# The debug log has many lines without timestamps.
-
 data_access_api = Blueprint('data_access_api', __name__)
 
-#########################################################################################
-
-def get_and_validate_study_id(chunked_download=False):
-    """
-    Checks for a valid study object id or primary key.
-    If neither is given, a 400 (bad request) error is raised.
-    Study object id malformed (not 24 characters) causes 400 error.
-    Study object id otherwise invalid causes 400 error.
-    Study does not exist in our database causes 404 error.
-    """
-    study = _get_study_or_abort_404(request.values.get('study_id', None),
-                                    request.values.get('study_pk', None))
-
-    try:
-        # FIXME: this is an unsafe solution to identifying the exception to the raw data access rule
-        # for the batch user tasks. Update the researcher model to have a special flag.
-        r = Researcher.objects.get(access_key_id=request.values["access_key"])
-        override_for_batch = r.username.startswith("BATCH USER")
-    except Researcher.DoesNotExist:
-        override_for_batch = False
-        
-    if not override_for_batch and not study.is_test and chunked_download:
-        # You're only allowed to download chunked data from test studies
-        print("study '%s' does not allow raw data download." % study.name)
-        return abort(404)
-    else:
-        return study
-
-
-def _get_study_or_abort_404(study_object_id, study_pk):
-    if study_object_id:
-        # If the ID is incorrectly sized, we return a 400
-        if not is_object_id(study_object_id):
-            print("Received invalid length objectid as study_id in the data access API.")
-            return abort(400)
-        # If no Study with the given ID exists, we return a 404
-        try:
-            study = Study.objects.get(object_id=study_object_id)
-        except Study.DoesNotExist:
-            print("study '%s' does not exist." % study_object_id)
-            return abort(404)
-        else:
-            return study
-    elif study_pk:
-        # If no Study with the given ID exists, we return a 404
-        try:
-            study = Study.objects.get(pk=study_pk)
-        except Study.DoesNotExist:
-            print("study '%s' does not exist." % study_pk)
-            return abort(404)
-        else:
-            return study
-    else:
-        return abort(400)
-
-
-def get_and_validate_researcher(study):
-    """
-    Finds researcher based on the secret key provided.
-    Returns 403 if researcher doesn't exist, is not credentialed on the study, or if
-    the secret key does not match.
-    """
-    
-    access_key_id = request.values["access_key"]
-    access_secret = request.values["secret_key"]
-    
-    try:
-        researcher = Researcher.objects.get(access_key_id=access_key_id)
-    except Researcher.DoesNotExist:
-        return abort(403)  # access key DNE
-    
-    if not StudyRelation.objects.filter(study_id=study.pk, researcher=researcher).exists():
-        return abort(403)  # researcher is not credentialed for this study
-    
-    if not researcher.validate_access_credentials(access_secret):
-        return abort(403)  # incorrect secret key
-    
-    return researcher
-
-
-#########################################################################################
 
 @data_access_api.route("/get-studies/v1", methods=['POST', "GET"])
 def get_studies():
@@ -116,44 +28,23 @@ def get_studies():
     request body.
     :return: string: JSON-dumped dict {object_id: name}
     """
-    
-    # Get the access keys
-    access_key = request.values["access_key"]
-    access_secret = request.values["secret_key"]
-    
-    try:
-        researcher = Researcher.objects.get(access_key_id=access_key)
-    except Researcher.DoesNotExist:
-        return abort(403)
-    
-    if not researcher.validate_access_credentials(access_secret):
-        return abort(403)  # incorrect secret key
-
+    # function does not use decorator, all validation is included in function call below.
+    researcher = data_access_get_and_validate_researcher()
     return json.dumps(
         dict(StudyRelation.objects.filter(researcher=researcher).values_list("study__object_id", "study__name"))
     )
 
 
 @data_access_api.route("/get-users/v1", methods=['POST', "GET"])
+@data_access_determine_study_access
 def get_users_in_study():
-
-    study_object_id = request.values.get("study_id", "")
-    # if not is_object_id(study_object_id):
-    if not is_object_id(study_object_id):
-        print("provided object id '%s' is not an object id" % study_object_id)
-        return abort(404)
-    
-    try:
-        study = Study.objects.get(object_id=study_object_id)
-    except Study.DoesNotExist:
-        print("study '%s' does not exist" % study_object_id)
-        return abort(404)
-    
-    get_and_validate_researcher(study)
+    # the study is already validated in the decorator
+    study = data_access_get_and_validate_study()
     return json.dumps(list(study.participants.values_list('patient_id', flat=True)))
 
 
 @data_access_api.route("/get-data/v1", methods=['POST', "GET"])
+@data_access_determine_chunked_data_study_access
 def get_data():
     """ Required: access key, access secret, study_id
     JSON blobs: data streams, users - default to all
@@ -165,18 +56,14 @@ def get_data():
         (Flask automatically returns a 400 response if a parameter is accessed
         but does not exist in request.values() )
     Returns a zip file of all data files found by the query. """
-    
-    # uncomment the following line when doing a reindex
-    # return abort(503)
-    
-    study = get_and_validate_study_id(chunked_download=True)
-    get_and_validate_researcher(study)
 
     query = {}
     determine_data_streams_for_db_query(query)  # select data streams
     determine_users_for_db_query(query)  # select users
     determine_time_range_for_db_query(query)  # construct time ranges
-    
+
+    # the study is already validated in the decorator
+    study = data_access_get_and_validate_study()
     # Do query (this is actually a generator)
     if "registry" in request.values:
         get_these_files = handle_database_query(study.pk, query, registry=parse_registry(request.values["registry"]))
@@ -434,30 +321,12 @@ VALID_PIPELINE_POST_PARAMS.append("secret_key")
 
 # before reenabling, audio filenames on s3 were incorrectly enforced to have millisecond
 # precision, remove trailing zeros this does not affect data downloading because those file times
-    #  are generated from the chunk registry
+# are generated from the chunk registry.
+
+
 @data_access_api.route("/pipeline-upload/v1", methods=['POST', 'GET'])
+@data_access_determine_study_access
 def data_pipeline_upload():
-    #Cases: invalid access creds
-    access_key = request.values["access_key"]
-    access_secret = request.values["secret_key"]
-
-    if not Researcher.objects.filter(access_key_id=access_key).exists():
-        return abort(403) # access key DNE
-    researcher = Researcher.objects.get(access_key_id=access_key)
-    if not researcher.validate_access_credentials(access_secret):
-        return abort(403)  # incorrect secret key
-    # case: invalid study
-    study_id = request.values["study_id"]
-
-    if not Study.objects.filter(object_id=study_id).exists():
-        return abort(404)
-
-    study_obj = Study.objects.get(object_id=study_id)
-
-    # case: study not authorized for user
-    if not study_obj.get_researchers().filter(id=researcher.id).exists():
-        return abort(403)
-
     # block extra keys
     errors = []
     for key in request.values.keys():
@@ -489,26 +358,9 @@ def data_pipeline_upload():
 
 
 @data_access_api.route("/pipeline-json-upload/v1", methods=['POST'])
+@data_access_determine_study_access
 def json_pipeline_upload():
-    access_key = request.values["access_key"]
-    access_secret = request.values["secret_key"]
-
-    if not Researcher.objects.filter(access_key_id=access_key).exists():
-        return abort(403)  # access key DNE
-    researcher = Researcher.objects.get(access_key_id=access_key)
-    if not researcher.validate_access_credentials(access_secret):
-        return abort(403)  # incorrect secret key
-
-    # case: invalid study
-    study_id = request.values["study_id"]
-    if not Study.objects.filter(object_id=study_id).exists():
-        return abort(404)
-
-    study_obj = Study.objects.get(object_id=study_id)
-    # case: study not authorized for user
-    if not study_obj.get_researchers().filter(id=researcher.id).exists():
-        return abort(403)
-
+    study_obj = data_access_get_and_validate_study()
     json_data = request.values.get("summary_output", None)
     file_name = request.values.get("file_name", None)
     patient_id = request.values.get("patient_id", None)
@@ -539,9 +391,10 @@ def json_pipeline_upload():
 
 
 @data_access_api.route("/get-pipeline/v1", methods=["GET", "POST"])
+@data_access_determine_study_access
 def pipeline_data_download():
-    study_obj = get_and_validate_study_id(chunked_download=False)
-    get_and_validate_researcher(study_obj)
+    # access already checked in decorator
+    study_obj = data_access_get_and_validate_study()
 
     # the following two cases are for difference in content wrapping between the CLI script and
     # the download page.
@@ -562,7 +415,8 @@ def pipeline_data_download():
             mimetype="zip",
             headers={'Content-Disposition': 'attachment; filename="data.zip"'}
     )
-    
+
+
 #TODO: This is a trivial rewrite of the other zip generator function for minor differences. refactor when you get to django.
 def zip_generator_for_pipeline(files_list):
     pool = ThreadPool(3)
