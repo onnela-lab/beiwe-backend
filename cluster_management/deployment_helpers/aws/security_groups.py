@@ -19,8 +19,8 @@ def get_security_group_by_id(sec_grp_id):
         return create_ec2_client().describe_security_groups(GroupIds=[sec_grp_id])['SecurityGroups'][0]
     except ClientError as e:
         # Boto3 throws unimportable errors.
-        if "Invalid id:" in e.message:
-            log.debug(e.message)
+        if "Invalid id:" in str(e):
+            log.debug(str(e))
             raise InvalidSecurityGroupIdException(sec_grp_id)
         raise
 
@@ -30,8 +30,8 @@ def get_security_group_by_name(sec_grp_name):
         return create_ec2_client().describe_security_groups(GroupNames=[sec_grp_name])['SecurityGroups'][0]
     except ClientError as e:
         # Boto3 throws unimportable errors.
-        if "InvalidGroup.NotFound" in e.message:
-            log.debug(e.message)
+        if "InvalidGroup.NotFound" in str(e):
+            log.debug(str(e))
             raise InvalidSecurityGroupNameException(sec_grp_name)
         raise
 

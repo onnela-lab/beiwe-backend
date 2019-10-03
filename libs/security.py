@@ -60,7 +60,7 @@ def decode_base64(data: bytes) -> bytes:
     try:
         return base64.urlsafe_b64decode(data)
     except TypeError as e:
-        if "Incorrect padding" == e.message:
+        if "Incorrect padding" == str(e):
             raise PaddingException()
         raise
 

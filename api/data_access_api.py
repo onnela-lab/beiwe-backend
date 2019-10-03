@@ -330,7 +330,7 @@ def str_to_datetime(time_string):
     try:
         return datetime.strptime(time_string, API_TIME_FORMAT)
     except ValueError as e:
-        if "does not match format" in e.message:
+        if "does not match format" in str(e):
             return abort(400)
 
 
@@ -470,7 +470,7 @@ def data_pipeline_upload():
     try:
         creation_args, tags = PipelineUpload.get_creation_arguments(request.values, request.files['file'])
     except InvalidUploadParameterError as e:
-        return Response(e.message, 400)
+        return Response(str(e), 400)
     s3_upload(
             creation_args['s3_path'],
             request.files['file'].read(),

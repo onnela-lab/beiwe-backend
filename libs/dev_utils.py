@@ -4,19 +4,30 @@ from inspect import getframeinfo, stack
 from os.path import relpath
 from time import perf_counter
 
+PROJECT_PATH = __file__.rsplit("/", 2)[0]
 
-def return_type_wrapper(some_function):
+
+def print_type(display_value=True, **kwargs):
+    if display_value:
+        for k, v in kwargs.items():
+            print(f"TYPE INFO -- {k}: {v}, {type(v)}")
+    else:
+        for k, v in kwargs.items():
+            print(f"TYPE INFO -- {k}: {type(v)}")
+
+
+def print_return_types(some_function):
     """ Decorator for functions (pages) that require a login, redirect to login page on failure. """
     @functools.wraps(some_function)
     def wrapper(*args, **kwargs):
+        name = getframeinfo(stack()[1][0]).filename.strip(PROJECT_PATH) + ": " + some_function.__name__
         rets = some_function(*args, **kwargs)
-        name = __file__ + ": " + some_function.__name__
-
         if isinstance(rets, tuple):
             types = ", ".join(str(type(t)) for t in rets)
-            print(f"{name} -> ({types})")
+            print(f"return types - {name} -> ({types})")
         else:
-            print(f"{name} -> {type(rets)}")
+            print(f"return type - {name} -> {type(rets)}")
+        return rets
 
     return wrapper
 
