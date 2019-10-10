@@ -4,7 +4,6 @@ from collections import defaultdict, deque
 from datetime import datetime
 from multiprocessing.pool import ThreadPool
 
-from boto.exception import S3ResponseError
 from cronutils.error_handler import ErrorHandler
 
 # noinspection PyUnresolvedReferences
@@ -19,6 +18,7 @@ from database.user_models import Participant
 from libs.s3 import s3_retrieve, s3_upload
 
 
+class OldBotoImportThatNeedsFixingError(Exception): pass
 class EverythingWentFine(Exception): pass
 class ProcessingOverlapError(Exception): pass
 
@@ -206,7 +206,7 @@ def upload_binified_data(binified_data, error_handler, survey_id_dict):
                         # print chunk_path
                         s3_file_data = s3_retrieve(chunk_path, study_id, raw_path=True)
                         # print "finished s3 retrieve"
-                    except S3ResponseError as e:
+                    except OldBotoImportThatNeedsFixingError as e:
                         # print 9
                         # The following check is correct for boto version 2.38.0
                         if "The specified key does not exist." == e.message:
