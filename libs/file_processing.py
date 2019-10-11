@@ -576,6 +576,7 @@ def construct_csv_string(header, rows_list):
         ret += "\n" + row
     return ret
 
+
 def construct_utf_safe_csv_string(header, rows_list):
     """ Takes a header list and a csv and returns a single string of a csv.
         Poor memory performances, but handles unicode errors.  :D :D :D """
@@ -683,6 +684,7 @@ def batch_upload(upload):
         ret['traceback'] = traceback.format_exc(e)
         ret['exception'] = e
     return ret
+
 
 """ Exceptions """
 class HeaderMismatchException(Exception): pass
