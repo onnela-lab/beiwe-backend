@@ -1,0 +1,129 @@
+/* used by data stream dashboard html page*/
+
+.date_bar{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 10px;
+    /*margin-top: 10px;*/
+}
+
+.color_range_min{
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.color_range_max{
+    margin-bottom: 5px;
+}
+
+.choose-stream{
+    float: right;
+}
+
+.filters{
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+}
+
+.well{
+    margin-right: 10px;
+}
+
+.invalid_input{
+    color: red;
+    font-size: 12px;
+}
+
+.panel-group{
+    margin-top: 20px;
+}
+
+.panel-heading{
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-between;
+}
+
+.edit-settings{
+    margin-right: 10px;
+    height: 40px;
+}
+
+.radio-buttons{
+    font-weight: normal;
+}
+
+.filter-bar{
+    font-size: 14px;
+    color: black;
+    background-color: white;
+}
+
+.add-flag{
+    margin-top: 10px;
+}
+
+.gradient{
+    background: rgba(67, 170, 54, 1);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(67, 170, 54, .35) 35%, rgba(67, 170, 54, 1) 100%);
+}
+
+.filter-flag-item{
+    margin-bottom: 5px;
+}
+
+.flag-toolbar{
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+    flex-wrap: wrap;
+}
+
+.save_settings{
+    height: 40px;
+    align-self: flex-end;
+    margin-bottom: 20px;
+}
+
+.button_bar{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.choose_participant{
+    float: right;
+}
+
+.btn{
+    height: 35px;
+}
+
+.choose-date{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: flex-end;
+    margin-bottom: 0px;
+}
+
+/* used by dashboard.html page*/
+.dashboard-options{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+}
+
+.list-group{
+    width: 500px;
+}
+
+/* used by patient and data stream dashboard html pages */
+
+.bytes{
+    text-align: right;
+}

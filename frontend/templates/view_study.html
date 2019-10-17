@@ -162,12 +162,15 @@
           <p><a href="/data-pipeline/{{ study.id }}">View the data pipeline information for this study</a></p>
         </div>
 
-      {% if system_admin == True %}
         <div class="row">
           <h3>Custom Fields</h3>
           <p><a href="/study_fields/{{ study['id'] }}">View the custom fields available for this study</a></p>
         </div>
-      {% endif %}
+
+        <div class="row">
+          <h3>Study Dashboard</h3>
+          <p><a href="/dashboard/{{ study['id'] }}">View the Dashboard for this study</a></p>
+        </div>
 
       </div>
     </div>

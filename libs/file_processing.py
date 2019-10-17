@@ -1,22 +1,21 @@
 import gc
+import traceback
 from collections import defaultdict, deque
+from datetime import datetime
 from multiprocessing.pool import ThreadPool
-from traceback import format_exc
 
 from boto.exception import S3ResponseError
 from cronutils.error_handler import ErrorHandler
-from datetime import datetime
 
 # noinspection PyUnresolvedReferences
 from config import load_django
-from config.constants import (ANDROID_LOG_FILE, UPLOAD_FILE_TYPE_MAPPING, API_TIME_FORMAT,
-    IDENTIFIERS,
-    WIFI, CALL_LOG, CHUNK_TIMESLICE_QUANTUM, FILE_PROCESS_PAGE_SIZE, SURVEY_TIMINGS, ACCELEROMETER,
-    SURVEY_DATA_FILES, CONCURRENT_NETWORK_OPS, CHUNKS_FOLDER, CHUNKABLE_FILES,
-    DATA_PROCESSING_NO_ERROR_STRING, IOS_LOG_FILE)
+from config.constants import (ACCELEROMETER, ANDROID_LOG_FILE, API_TIME_FORMAT, CALL_LOG,
+    CHUNK_TIMESLICE_QUANTUM, CHUNKABLE_FILES, CHUNKS_FOLDER, CONCURRENT_NETWORK_OPS,
+    DATA_PROCESSING_NO_ERROR_STRING, FILE_PROCESS_PAGE_SIZE, IDENTIFIERS, IOS_LOG_FILE,
+    SURVEY_DATA_FILES, SURVEY_TIMINGS, UPLOAD_FILE_TYPE_MAPPING, WIFI)
 from database.data_access_models import ChunkRegistry, FileProcessLock, FileToProcess
-from database.user_models import Participant
 from database.study_models import Survey
+from database.user_models import Participant
 from libs.s3 import s3_retrieve, s3_upload
 
 
@@ -50,7 +49,7 @@ def process_file_chunks():
         for participant in participants:
             while True:
                 previous_number_bad_files = number_bad_files
-                starting_length = participant.files_to_process.count()
+                starting_length = participant.files_to_process.exclude(deleted=True).count()
 
                 print("%s processing %s, %s files remaining" % (datetime.now(), participant.patient_id, starting_length))
 
@@ -63,7 +62,7 @@ def process_file_chunks():
                 )
 
                 # If no files were processed, quit processing
-                if (participant.files_to_process.count() == starting_length
+                if (participant.files_to_process.exclude(deleted=True).count() == starting_length
                         and previous_number_bad_files == number_bad_files):
                     # Cases:
                     #   every file broke, might as well fail here, and would cause infinite loop otherwise.
@@ -91,7 +90,7 @@ def do_process_user_file_chunks(count, error_handler, skip_count, participant):
     was not actually expected to be used by researchers, but is apparently quite useful.
 
     Any errors are themselves concatenated using the passed in error handler.
-    
+
     In a single call to this function, count files will be processed, starting from file number
     skip_count. The first skip_count files are expected to be files that have previously errored
     in file processing.
@@ -106,12 +105,15 @@ def do_process_user_file_chunks(count, error_handler, skip_count, participant):
 
     # A Django query with a slice (e.g. .all()[x:y]) makes a LIMIT query, so it
     # only gets from the database those FTPs that are in the slice.
-    print participant.as_native_python()
-    print len(participant.files_to_process.all())
-    print count
-    print skip_count
+    print(participant.as_native_python())
+    print(len(participant.files_to_process.exclude(deleted=True).all()))
+    print(count)
+    print(skip_count)
+
+    files_to_process = participant.files_to_process.exclude(deleted=True).all()
+
     for data in pool.map(batch_retrieve_for_processing,
-                         participant.files_to_process.all()[skip_count:count+skip_count],
+                         files_to_process[skip_count:count+skip_count],
                          chunksize=1):
         with error_handler:
             # If we encountered any errors in retrieving the files for processing, they have been
@@ -154,6 +156,7 @@ def do_process_user_file_chunks(count, error_handler, skip_count, participant):
                     data['ftp']['s3_file_path'],
                     data['ftp']['study'].pk,
                     data['ftp']['participant'].pk,
+                    data['file_contents'],
                 )
                 # print "2b"
                 ftps_to_remove.add(data['ftp']['id'])
@@ -182,7 +185,7 @@ def upload_binified_data(binified_data, error_handler, survey_id_dict):
     failed_ftps = set([])
     ftps_to_retire = set([])
     upload_these = []
-    for data_bin, (data_rows_deque, ftp_deque) in binified_data.iteritems():
+    for data_bin, (data_rows_deque, ftp_deque) in binified_data.items():
         # print 3
         with error_handler:
             try:
@@ -389,7 +392,7 @@ def binify_csv_rows(rows_list, study_id, user_id, data_type, header):
 def append_binified_csvs(old_binified_rows, new_binified_rows, file_to_process):
     """ Appends binified rows to an existing binified row data structure.
         Should be in-place. """
-    for data_bin, rows in new_binified_rows.iteritems():
+    for data_bin, rows in new_binified_rows.items():
         old_binified_rows[data_bin][0].extend(rows)  # Add data rows
         old_binified_rows[data_bin][1].append(file_to_process['id'])  # Add ftp
 
@@ -400,7 +403,7 @@ def process_csv_data(data):
         catches csv files with known problems and runs the correct logic.
         Returns None If the csv has no data in it. """
     participant = data['ftp']['participant']
-    
+
     if participant.os_type == Participant.ANDROID_API:
         # Do fixes for Android
         if data["data_type"] == ANDROID_LOG_FILE:
@@ -462,6 +465,7 @@ def fix_survey_timings(header, rows_list, file_path):
     header_list.insert( 2, "survey id" )
     return ",".join(header_list)
 
+
 def fix_call_log_csv(header, rows_list):
     """ The call log has poorly ordered columns, the first column should always be
         the timestamp, it has it in column 3.
@@ -472,10 +476,12 @@ def fix_call_log_csv(header, rows_list):
     header_list.insert(0, header_list.pop(2))
     return ",".join(header_list)
 
+
 def fix_identifier_csv(header, rows_list, file_name):
     """ The identifiers file has its timestamp in the file name. """
     time_stamp = file_name.rsplit("_", 1)[-1][:-4] + "000"
     return insert_timestamp_single_row_csv(header, rows_list, time_stamp)
+
 
 def fix_wifi_csv(header, rows_list, file_name):
     """ Fixing wifi requires inserting the same timestamp on EVERY ROW.
@@ -485,6 +491,7 @@ def fix_wifi_csv(header, rows_list, file_name):
         row = row.insert(0, time_stamp)
     if rows_list:rows_list.pop(-1)  #remove last row (encountered an empty wifi log on sunday may 8 2016)
     return "timestamp," + header
+
 
 def fix_app_log_file(file_contents, file_path):
     """ The log file is less of a csv than it is a time enumerated list of
@@ -503,8 +510,9 @@ def fix_app_log_file(file_contents, file_path):
         except ValueError as e:
             if ("bluetooth Failure" == row[:17] or
                 "our not-quite-race-condition" == row[:28] or
-                "accelSensorManager" in row[:18] or #this actually covers 2 cases
-                "a sessionactivity tried to clear the" == row[:36] ):
+                "accelSensorManager" in row[:18] or  # this actually covers 2 cases
+                "a sessionactivity tried to clear the" == row[:36]
+            ):
                 #Just drop matches to the above lines
                 continue
             else:
@@ -515,6 +523,7 @@ def fix_app_log_file(file_contents, file_path):
     return "timestamp, event\n" + "\n".join(",".join(row) for row in new_rows)
 
 """###################################### CSV Utils ##################################"""
+
 
 def insert_timestamp_single_row_csv(header, rows_list, time_stamp):
     """ Inserts the timestamp field into the header of a csv, inserts the timestamp
@@ -592,9 +601,11 @@ def construct_utf_safe_csv_string(header, rows_list):
         ret += u"\n" + row
     return ret.encode('utf')
 
+
 def clean_java_timecode(java_time_code_string):
     """ converts millisecond time (string) to an integer normal unix time. """
     return int(java_time_code_string[:10])
+
 
 def unix_time_to_string(unix_time):
     return datetime.utcfromtimestamp(unix_time).strftime( API_TIME_FORMAT )
@@ -607,28 +618,28 @@ def batch_retrieve_for_processing(ftp_as_object):
     """ Used for mapping an s3_retrieve function. """
     # Convert the ftp object to a dict so we can use __getattr__
     ftp = ftp_as_object.as_dict()
-    
+
     data_type = file_path_to_data_type(ftp['s3_file_path'])
-    
+
     # Create a dictionary to populate and return
-    ret = {'ftp': ftp,
-           "data_type": data_type,
-           'exception': None,
-           "file_contents": "",
-           "traceback": None}
-    if data_type in CHUNKABLE_FILES:
-        ret['chunkable'] = True
-        # Try to retrieve the file contents. If any errors are raised, store them to be raised by the parent function
-        try:
-            print(ftp['s3_file_path'] + "\ngetting data...")
-            ret['file_contents'] = s3_retrieve(ftp['s3_file_path'], ftp["study"].object_id, raw_path=True)
-        except Exception as e:
-            ret['traceback'] = format_exc(e)
-            ret['exception'] = e
-    else:
-        # We don't do anything with unchunkable data.
-        ret['chunkable'] = False
-        ret['file_contents'] = ""
+    ret = {
+        'ftp': ftp,
+        "data_type": data_type,
+        'exception': None,
+        "file_contents": "",
+        "traceback": None,
+        'chunkable': data_type in CHUNKABLE_FILES,
+    }
+
+    # Try to retrieve the file contents. If any errors are raised, store them to be raised by the
+    # parent function
+    try:
+        print(ftp['s3_file_path'] + "\ngetting data...")
+        ret['file_contents'] = s3_retrieve(ftp['s3_file_path'], ftp["study"].object_id, raw_path=True)
+    except Exception as e:
+        traceback.print_exc()  # may as well print
+        ret['traceback'] = traceback.format_exc(e)
+        ret['exception'] = e
     return ret
 
 
@@ -647,7 +658,8 @@ def batch_upload(upload):
         print("data uploaded!", chunk_path)
         if isinstance(chunk, ChunkRegistry):
             # If the contents are being appended to an existing ChunkRegistry object
-            chunk.low_memory_update_chunk_hash(new_contents)
+            chunk.file_size = len(new_contents)
+            chunk.low_memory_update_chunk_hash(new_contents)  # this saves
         else:
             # If a new ChunkRegistry object is being created
             # Convert the ID's used in the S3 file names into primary keys for making ChunkRegistry FKs
@@ -666,7 +678,8 @@ def batch_upload(upload):
                 survey_pk,
             )
     except Exception as e:
-        ret['traceback'] = format_exc(e)
+        traceback.print_exc()
+        ret['traceback'] = traceback.format_exc(e)
         ret['exception'] = e
     return ret
 

@@ -19,7 +19,6 @@ alias p="nano ~/.profile; source ~/.profile"
 alias pup="cp $HOME/beiwe-backend/miscellaneous/bash_profile.sh ~/.profile; source ~/.profile"
 
 #File Sizes
-alias mongosize="ll -h /mnt/" #prints out the contents with file sizes of the mongodb folder
 alias duu="sudo adu -d 1 -ha | sort -h"
 
 #Swap
@@ -78,8 +77,6 @@ alias processing-restart="processing-stop; processing-start"
 #Logs
 alias log='nano +1000000000 /var/log/apache2/error.log' #open log, go to end
 alias logt='tail -f /var/log/apache2/error.log | cut -d " " -f 4,10-' #tail follow apache log
-alias logm='nano +1000000000 /var/log/mongodb/mongodb.log' #open mongo log, go to end
-alias logmt='tail -f /var/log/mongodb/mongodb.log' #tail follow mongo log
 alias logc='nano +1000000000 /var/log/celery/celeryd.err'
 alias logct='tail -f /var/log/celery/celeryd.err'
 
@@ -88,7 +85,6 @@ alias uplog='up;logt'
 
 #Configuration files
 alias conf='sudo nano $HOME/beiwe-backend/config/settings.py'
-alias monconf='sudo nano /etc/mongodb.conf'
 
 #Services configuration files
 alias boot="sudo sysv-rc-conf"

@@ -3,7 +3,7 @@ from re import sub
 
 from flask import Blueprint, flash, redirect, request, Response
 
-from libs.admin_authentication import authenticate_admin_study_access
+from libs.admin_authentication import authenticate_researcher_study_access
 from libs.s3 import s3_upload, create_client_key_pair
 from libs.streaming_bytes_io import StreamingBytesIO
 from database.study_models import Study
@@ -13,7 +13,7 @@ participant_administration = Blueprint('participant_administration', __name__)
 
 
 @participant_administration.route('/reset_participant_password', methods=["POST"])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def reset_participant_password():
     """ Takes a patient ID and resets its password. Returns the new random password."""
     patient_id = request.values['patient_id']
@@ -30,7 +30,7 @@ def reset_participant_password():
 
 
 @participant_administration.route('/reset_device', methods=["POST"])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def reset_device():
     """
     Resets a participant's device. The participant will not be able to connect until they
@@ -51,8 +51,8 @@ def reset_device():
 
 
 @participant_administration.route('/create_new_patient', methods=["POST"])
-@authenticate_admin_study_access
-def create_new_patient():
+@authenticate_researcher_study_access
+def create_new_participant():
     """
     Creates a new user, generates a password and keys, pushes data to s3 and user database, adds
     user to the study they are supposed to be attached to and returns a string containing
@@ -64,7 +64,7 @@ def create_new_patient():
 
     # Create an empty file on S3 indicating that this user exists
     study_object_id = Study.objects.filter(pk=study_id).values_list('object_id', flat=True).get()
-    s3_upload(patient_id, "", study_object_id)
+    s3_upload(patient_id, b"", study_object_id)
     create_client_key_pair(patient_id, study_object_id)
 
     response_string = 'Created a new patient\npatient_id: {:s}\npassword: {:s}'.format(patient_id, password)
@@ -74,7 +74,7 @@ def create_new_patient():
 
 
 @participant_administration.route('/create_many_patients/<string:study_id>', methods=["POST"])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def create_many_patients(study_id=None):
     """ Creates a number of new users at once for a study.  Generates a password and keys for
     each one, pushes data to S3 and the user database, adds users to the study they're supposed
@@ -96,7 +96,7 @@ def csv_generator(study_id, number_of_new_patients):
     filewriter = writer(si)
     filewriter.writerow(['Patient ID', "Registration password"])
     study_object_id = Study.objects.filter(pk=study_id).values_list('object_id', flat=True).get()
-    for _ in xrange(number_of_new_patients):
+    for _ in range(number_of_new_patients):
         patient_id, password = Participant.create_with_password(study_id=study_id)
         # Creates an empty file on s3 indicating that this user exists
         s3_upload(patient_id, "", study_object_id)

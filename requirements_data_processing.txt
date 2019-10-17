@@ -1,0 +1,4 @@
+# data processing
+celery==4.3.0
+supervisor
+

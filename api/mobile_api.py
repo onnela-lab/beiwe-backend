@@ -2,22 +2,21 @@ import calendar
 import time
 
 from django.utils import timezone
-from flask import Blueprint, request, abort, render_template, json
+from flask import abort, Blueprint, json, render_template, request
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import BadRequestKeyError
 
 from config.constants import ALLOWED_EXTENSIONS, DEVICE_IDENTIFIERS_HEADER
 from database.data_access_models import FileToProcess
-from database.profiling_models import UploadTracking, DecryptionKeyError
+from database.profiling_models import DecryptionKeyError, UploadTracking
 from database.user_models import Participant
-from libs.android_error_reporting import send_android_error_report
-from libs.encryption import decrypt_device_file, HandledError, DecryptionKeyInvalidError
+from libs.encryption import decrypt_device_file, DecryptionKeyInvalidError, HandledError
 from libs.http_utils import determine_os_api
 from libs.logging import log_error
-from libs.s3 import s3_upload, get_client_public_key_string, get_client_private_key
+from libs.s3 import get_client_private_key, get_client_public_key_string, s3_upload
 from libs.sentry import make_sentry_client
 from libs.user_authentication import (authenticate_user, authenticate_user_registration,
-    authenticate_user_ignore_password)
+    minimal_validation)
 
 ################################################################################
 ############################# GLOBALS... #######################################
@@ -40,7 +39,7 @@ mobile_api = Blueprint('mobile_api', __name__)
 @mobile_api.route('/upload', methods=['POST'])
 @mobile_api.route('/upload/ios/', methods=['GET', 'POST'])
 @determine_os_api
-@authenticate_user_ignore_password
+@minimal_validation
 def upload(OS_API=""):
     """ Entry point to upload GPS, Accelerometer, Audio, PowerState, Calls Log, Texts Log,
     Survey Response, and debugging files to s3.
@@ -72,6 +71,13 @@ def upload(OS_API=""):
     encrypted (see encryption specification) and properly converted to Base64 encoded text,
     as a request parameter entitled "file".
     Provide the file name in a request parameter entitled "file_name". """
+
+    # Handle these corner cases first because they requires no database input.
+    # Crash logs are from truly ancient versions of the android codebase
+    file_name = request.values['file_name']
+    if file_name[:6] == "rList-" or "crashlog" in file_name.lower():
+        return render_template('blank.html'), 200
+
     patient_id = request.values['patient_id']
     user = Participant.objects.get(patient_id=patient_id)
 
@@ -80,24 +86,22 @@ def upload(OS_API=""):
     # iOS sends the file as a multipart upload (so ends up in request.files)
     # if neither is found, consider the "body" of the post the file
     # ("body" post is not currently used by any client, only here for completeness)
+    # TODO: the asserts below are for runtime testing that assumptions are correct.  They can be removed after all upload modes have definitely been tested
     if "file" in request.files:
         uploaded_file = request.files['file']
+        assert isinstance(uploaded_file, FileStorage), ('if "file" in request.files', type(uploaded_file))
     elif "file" in request.values:
         uploaded_file = request.values['file']
+        assert isinstance(uploaded_file, bytes), ('elif "file" in request.values', type(uploaded_file))
     else:
         uploaded_file = request.data
+        assert isinstance(uploaded_file, bytes), ('else', type(uploaded_file))
     
     if isinstance(uploaded_file, FileStorage):
         uploaded_file = uploaded_file.read()
+        assert isinstance(uploaded_file, bytes), ("filestorage.read()", type(uploaded_file))
 
-    file_name = request.values['file_name']
-    # print "uploaded file name:", file_name, len(uploaded_file)
-    if "crashlog" in file_name.lower():
-        send_android_error_report(patient_id, uploaded_file)
-        return render_template('blank.html'), 200
-
-    if file_name[:6] == "rList-":
-        return render_template('blank.html'), 200
+    # print("uploaded file name:", file_name, len(uploaded_file))
     
     client_private_key = get_client_private_key(patient_id, user.study.object_id)
     try:
@@ -107,10 +111,14 @@ def upload(OS_API=""):
         # to log it correctly and return 200 OK to get the device to delete the file.
         # We do not want emails on these types of errors, so we use log_error explicitly.
         print("the following error was handled:")
-        log_error(e, "%s; %s; %s" % (patient_id, file_name, e.message))
+        log_error(e, "%s; %s; %s" % (patient_id, file_name, e))
+        # TODO: remove raise statement after testing
+        raise
         return render_template('blank.html'), 200
-    #This is what the decryption failure mode SHOULD be, but we are still identifying the decryption bug
+
     except DecryptionKeyInvalidError:
+        # when the decryption key is invalid the file is lost.  Nothing we can do.
+        # record the event, send the device a 200 so it can clear out the file.
         tags = {
             "participant": patient_id,
             "operating system": "ios" if "ios" in request.path.lower() else "android",
@@ -118,7 +126,8 @@ def upload(OS_API=""):
             "file_name": file_name,
         }
         make_sentry_client('eb', tags).captureMessage("DecryptionKeyInvalidError")
-        
+        # TODO: remove raise statement after testing
+        raise
         return render_template('blank.html'), 200
 
     # print "decryption success:", file_name
@@ -133,6 +142,7 @@ def upload(OS_API=""):
             participant=user,
         )
         return render_template('blank.html'), 200
+
     else:
         error_message ="an upload has failed " + patient_id + ", " + file_name + ", "
         if not uploaded_file:
@@ -230,7 +240,7 @@ def register_user(OS_API=""):
     file_contents = (DEVICE_IDENTIFIERS_HEADER + "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" %
                      (patient_id, mac_address, phone_number, device_id, device_os,
                       os_version, product, brand, hardware_id, manufacturer, model,
-                      beiwe_version))
+                      beiwe_version)).encode()
     # print(file_contents + "\n")
     s3_upload(file_name, file_contents, study_id)
     FileToProcess.append_file_for_processing(file_name, user.study.object_id, participant=user)

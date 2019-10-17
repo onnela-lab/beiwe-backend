@@ -17,10 +17,17 @@
             <ul class="nav navbar-nav navbar-left">
                 {# If the current admin is authorized to view more than one study, give them a drop-down menu to switch studies #}
                 <li ng-if="navBarStudies.length > 1" class="dropdown" role="presentation">
+                  {% if page_location %}
                     <a class="dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-                      View study
+                      {{ study.name }}
                     <span class="caret"></span>
                     </a>
+                  {% else %}
+                    <a class="dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                      View Study
+                    <span class="caret"></span>
+                    </a>
+                  {% endif %}
                     {# The dropdown menu is an AngularJS app that's searchable/filterable #}
                     <ul id="searchableStudyList" class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenu1">
                         {# Search/filter input field #}
@@ -32,16 +39,30 @@
                         {# Filtered list of studies #}
                         <li ng-repeat="study in navBarStudies | filter:{name: searchText}">
                             <a href="/view_study/{% raw %}{{ study.id }}{% endraw %}">{% raw %}{{ study.name }}{% endraw %}</a></li>
-                        </li>
                     </ul>
                 </li>
                 {# If the current admin is authorized to view only one study, give them a "Home" button to view that study #}
                 <li ng-if="navBarStudies.length <= 1" role="presentation"><a href="/choose_study">Home</a></li>
+                {% if page_location == 'study_landing' %}
+                    <li class='active' role="presentation"><a href="/view_study/{{ study_id }}">View Study</a></li>
+                    <li role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
+                {% elif page_location == 'dashboard_landing' %}
+                    <li role="presentation"><a href="/view_study/{{ study_id }}">View Study</a></li>
+                    <li class='active' role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
+                {% elif page_location == 'dashboard_patient' %}
+                    <li role="presentation"><a href="/view_study/{{ study_id }}">View Study</a></li>
+                    <li role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
+                    <li class='active' role="presentation"><a href="">{{ patient_id }}</a></li>
+                {% elif page_location == 'dashboard_data' %}
+                    <li role="presentation"><a href="/view_study/{{ study_id }}">View Study</a></li>
+                    <li role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
+                    <li class='active' role="presentation"><a href="">{{ data_stream }}</a></li>
+                {% endif %}
             </ul>
 
             <ul class="nav navbar-nav navbar-right">
                 {# Give the System Admin an extra link here to manage researchers #}
-                {% if system_admin %}
+                {% if is_admin %}
                     <li role="presentation"><a href="/manage_researchers">Manage Researchers</a></li>
                     <li role="presentation"><a href="/manage_studies">Manage Studies</a></li>
                 {% endif %}

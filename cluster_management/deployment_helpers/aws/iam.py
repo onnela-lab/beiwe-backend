@@ -72,25 +72,25 @@ def iam_purge_instance_profiles():
         iam_client.delete_instance_profile(InstanceProfileName=EB_INSTANCE_PROFILE_ROLE)
         print("Deleted", EB_INSTANCE_PROFILE_ROLE)
     except Exception as e:
-        print e
+        print(e)
     
     try:
         iam_client.delete_instance_profile(InstanceProfileName=EB_INSTANCE_PROFILE_NAME)
         print("Deleted", EB_INSTANCE_PROFILE_NAME)
     except Exception as e:
-        print e
+        print(e)
     
     try:
         iam_client.delete_role(RoleName=EB_INSTANCE_PROFILE_ROLE)
         print("Deleted", EB_INSTANCE_PROFILE_ROLE)
     except Exception as e:
-        print e
+        print(e)
     
     try:
         iam_client.delete_role(RoleName=EB_SERVICE_ROLE)
         print("Deleted", EB_SERVICE_ROLE)
     except Exception as e:
-        print e
+        print(e)
     
    
 def get_or_create_s3_access_policy(s3_bucket_name):

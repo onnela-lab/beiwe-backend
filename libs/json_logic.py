@@ -6,8 +6,8 @@ from config.constants import (COMPARATORS, NUMERIC_COMPARATORS, NUMERIC_QUESTION
 class InvalidLogicError(Exception): pass #this is the super class, it should not show up in any validation check
 
 class NonExistantUUIDReference(InvalidLogicError): pass #the uuid referenced does not exist
-class InvalidOperator(InvalidLogicError): pass #the comparoter provided is not a valid comparitor
-class InvalidNumeric(InvalidLogicError): pass #the value provided (by the admin) to compare against is not numeric
+class InvalidOperator(InvalidLogicError): pass #the comparator provided is not a valid comparator
+class InvalidNumeric(InvalidLogicError): pass #the value provided (by the researcher) to compare against is not numeric
 class NumericPointerInvalid(InvalidLogicError): pass #the answer pointed to should be of a numeric answer type but isn't
 class QuestionReferenceOutOfOrder(InvalidLogicError): pass #this question references a question that comes after it
 class EmptyLogicObject(InvalidLogicError): pass #this question has an empty logic object

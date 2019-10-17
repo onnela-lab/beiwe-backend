@@ -1,4 +1,4 @@
-import urllib, urllib2, StringIO, zipfile, json
+import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse, io, zipfile, json
 from datetime import datetime
 from os import path
 # Comment out the following import to disable the credentials file.
@@ -85,11 +85,11 @@ def make_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_id
     else:
         old_registry = {}
     
-    print "sending request, this could take some time."
+    print("sending request, this could take some time.")
     # print values
     
-    req = urllib2.Request(url, urllib.urlencode(values))
-    response = urllib2.urlopen(req)
+    req = urllib.request.Request(url, urllib.parse.urlencode(values))
+    response = urllib.request.urlopen(req)
     
     if DEBUG == False:
         return_data = response.read()
@@ -100,27 +100,27 @@ def make_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_id
         data_list = []
         profile_list = []
         chunk_size = 2**16
-        while 1:
+        while True:
             a = datetime.now()
             data = response.read(chunk_size)
             if not data:
-                print "done, average of %s MB/s" % (sum(profile_list) / len(profile_list))
-                print "download took %s seconds." % (datetime.now() - z).total_seconds()
+                print("done, average of %s MB/s" % (sum(profile_list) / len(profile_list)))
+                print("download took %s seconds." % (datetime.now() - z).total_seconds())
                 break
             data_list.append(data)
             b = datetime.now()
             total = (len(data_list) * chunk_size / 1024. / 1024.)
             speed = (chunk_size / 1024. / 1024.) / (b - a).total_seconds()
             profile_list.append(speed)
-            print "%s MB downloaded @ %s MB/s" % (total, speed)
+            print("%s MB downloaded @ %s MB/s" % (total, speed))
         
         return_data = "".join(data_list)
         del data_list
         gc.collect()
     
-    print "Data received.  Unpacking and overwriting any updated files into", path.abspath('.')
+    print("Data received.  Unpacking and overwriting any updated files into", path.abspath('.'))
     
-    z = zipfile.ZipFile(StringIO.StringIO(return_data))
+    z = zipfile.ZipFile(io.StringIO(return_data))
     z.extractall()
     
     with open("registry") as f:
@@ -131,7 +131,7 @@ def make_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_id
     with open("master_registry", "w") as f:
         json.dump(old_registry, f)
     path.os.remove("registry")
-    print "Operations complete."
+    print("Operations complete.")
     # Uncomment the following line to have the function return a list of newly updated files.
     # return [name.filename for name in z.filelist if name.filename != "registry"]
 
@@ -143,8 +143,8 @@ def get_users_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY):
               'secret_key':secret_key,
               'study_id':study_id}
     
-    req = urllib2.Request(url, urllib.urlencode(values))
-    response = urllib2.urlopen(req)
+    req = urllib.request.Request(url, urllib.parse.urlencode(values))
+    response = urllib.request.urlopen(req)
     return json.loads(response.read())
 
 
@@ -154,6 +154,6 @@ def get_studies_request(access_key=ACCESS_KEY, secret_key=SECRET_KEY):
     values = {'access_key':access_key,
               'secret_key':secret_key}
     
-    req = urllib2.Request(url, urllib.urlencode(values))
-    response = urllib2.urlopen(req)
+    req = urllib.request.Request(url, urllib.parse.urlencode(values))
+    response = urllib.request.urlopen(req)
     return json.loads(response.read())

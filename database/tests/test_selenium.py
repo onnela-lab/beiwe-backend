@@ -56,16 +56,16 @@ def pause_if_error(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            print "=============================================="
+            print("==============================================")
             if isinstance(e, AssertionError):
                 pprint(e)
-                print "=============================================="
+                print("==============================================")
                 input()
                 raise
 
             traceback.print_exc()
-            print "=============================================="
-            print "Press enter to exit"
+            print("==============================================")
+            print("Press enter to exit")
             input()
             raise
 
@@ -130,7 +130,7 @@ class TestRoutes(FlaskTest):
 
         for rule in app2.url_map.iter_rules():
             str_rule = str(rule)
-            self.assertIn(str_rule, ADMIN_PAGES.keys())
+            self.assertIn(str_rule, ADMIN_PAGES)
 
             if ADMIN_PAGES[str_rule]['method'] == 'get':
                 self.selenium.get("localhost:54321" + str_rule)
@@ -143,7 +143,7 @@ class TestRoutes(FlaskTest):
                 continue
 
             response = self.determine_errors()
-            self.assertEquals(response, '200')
+            self.assertEqual(response, '200')
 
     def determine_errors(self):
 

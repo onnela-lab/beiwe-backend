@@ -1,4 +1,4 @@
 # boto3 and botocore are used for interfacing with AWS via command line
 # boto3 should stay up-to-date, because that will ensure that changes to the AWS API don't break everything
 boto3
-botocore==1.8.11
+botocore

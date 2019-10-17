@@ -1,7 +1,6 @@
 from multiprocessing.pool import ThreadPool
 from zipfile import ZipFile, ZIP_STORED
 
-from boto.utils import JSONDecodeError
 from datetime import datetime
 from flask import Blueprint, request, abort, json, Response
 
@@ -10,13 +9,14 @@ from config import load_django
 from config.constants import (API_TIME_FORMAT, VOICE_RECORDING, ALL_DATA_STREAMS,
     SURVEY_ANSWERS, SURVEY_TIMINGS, IMAGE_FILE)
 from database.models import is_object_id
-from database.data_access_models import ChunkRegistry
+from database.data_access_models import ChunkRegistry, PipelineRegistry
 from database.study_models import Study
-from database.user_models import Participant, Researcher
+from database.user_models import Participant, Researcher, StudyRelation
 from libs.s3 import s3_retrieve, s3_upload
 from libs.streaming_bytes_io import StreamingBytesIO
 
-from database.data_access_models import PipelineUpload, InvalidUploadParameterError, PipelineUploadTags
+from database.data_access_models import PipelineUpload, InvalidUploadParameterError, \
+    PipelineUploadTags
 
 # Data Notes
 # The call log has the timestamp column as the 3rd column instead of the first.
@@ -37,8 +37,18 @@ def get_and_validate_study_id(chunked_download=False):
     """
     study = _get_study_or_abort_404(request.values.get('study_id', None),
                                     request.values.get('study_pk', None))
-    if not study.is_test and chunked_download:
+
+    try:
+        # FIXME: this is an unsafe solution to identifying the exception to the raw data access rule
+        # for the batch user tasks. Update the researcher model to have a special flag.
+        r = Researcher.objects.get(access_key_id=request.values["access_key"])
+        override_for_batch = r.username.startswith("BATCH USER")
+    except Researcher.DoesNotExist:
+        override_for_batch = False
+
+    if not override_for_batch and not study.is_test and chunked_download:
         # You're only allowed to download chunked data from test studies
+        print("study '%s' does not allow raw data download." % study.name)
         return abort(404)
     else:
         return study
@@ -54,6 +64,7 @@ def _get_study_or_abort_404(study_object_id, study_pk):
         try:
             study = Study.objects.get(object_id=study_object_id)
         except Study.DoesNotExist:
+            print("study '%s' does not exist." % study_object_id)
             return abort(404)
         else:
             return study
@@ -62,6 +73,7 @@ def _get_study_or_abort_404(study_object_id, study_pk):
         try:
             study = Study.objects.get(pk=study_pk)
         except Study.DoesNotExist:
+            print("study '%s' does not exist." % study_pk)
             return abort(404)
         else:
             return study
@@ -75,21 +87,21 @@ def get_and_validate_researcher(study):
     Returns 403 if researcher doesn't exist, is not credentialed on the study, or if
     the secret key does not match.
     """
-    
+
     access_key_id = request.values["access_key"]
     access_secret = request.values["secret_key"]
-    
+
     try:
         researcher = Researcher.objects.get(access_key_id=access_key_id)
     except Researcher.DoesNotExist:
         return abort(403)  # access key DNE
-    
-    if not researcher.studies.filter(pk=study.pk).exists():
+
+    if not StudyRelation.objects.filter(study_id=study.pk, researcher=researcher).exists():
         return abort(403)  # researcher is not credentialed for this study
-    
+
     if not researcher.validate_access_credentials(access_secret):
         return abort(403)  # incorrect secret key
-    
+
     return researcher
 
 
@@ -104,20 +116,22 @@ def get_studies():
     request body.
     :return: string: JSON-dumped dict {object_id: name}
     """
-    
+
     # Get the access keys
     access_key = request.values["access_key"]
     access_secret = request.values["secret_key"]
-    
+
     try:
         researcher = Researcher.objects.get(access_key_id=access_key)
     except Researcher.DoesNotExist:
         return abort(403)
-    
+
     if not researcher.validate_access_credentials(access_secret):
         return abort(403)  # incorrect secret key
-    
-    return json.dumps(dict(researcher.studies.values_list('object_id', 'name')))
+
+    return json.dumps(
+        dict(StudyRelation.objects.filter(researcher=researcher).values_list("study__object_id", "study__name"))
+    )
 
 
 @data_access_api.route("/get-users/v1", methods=['POST', "GET"])
@@ -126,13 +140,15 @@ def get_users_in_study():
     study_object_id = request.values.get("study_id", "")
     # if not is_object_id(study_object_id):
     if not is_object_id(study_object_id):
+        print("provided object id '%s' is not an object id" % study_object_id)
         return abort(404)
-    
+
     try:
         study = Study.objects.get(object_id=study_object_id)
     except Study.DoesNotExist:
+        print("study '%s' does not exist" % study_object_id)
         return abort(404)
-    
+
     get_and_validate_researcher(study)
     return json.dumps(list(study.participants.values_list('patient_id', flat=True)))
 
@@ -149,24 +165,24 @@ def get_data():
         (Flask automatically returns a 400 response if a parameter is accessed
         but does not exist in request.values() )
     Returns a zip file of all data files found by the query. """
-    
+
     # uncomment the following line when doing a reindex
     # return abort(503)
-    
+
     study = get_and_validate_study_id(chunked_download=True)
     get_and_validate_researcher(study)
-    
+
     query = {}
     determine_data_streams_for_db_query(query)  # select data streams
     determine_users_for_db_query(query)  # select users
     determine_time_range_for_db_query(query)  # construct time ranges
-    
+
     # Do query (this is actually a generator)
     if "registry" in request.values:
         get_these_files = handle_database_query(study.pk, query, registry=parse_registry(request.values["registry"]))
     else:
         get_these_files = handle_database_query(study.pk, query, registry=None)
-    
+
     # If the request is from the web form we need to indicate that it is an attachment,
     # and don't want to create a registry file.
     # Oddly, it is the presence of  mimetype=zip that causes the streaming response to actually stream.
@@ -190,7 +206,7 @@ def zip_generator(files_list, construct_registry=False):
     """ Pulls in data from S3 in a multithreaded network operation, constructs a zip file of that
     data. This is a generator, advantage is it starts returning data (file by file, but wrapped
     in zip compression) almost immediately. """
-    
+
     processed_files = set()
     duplicate_files = set()
     pool = ThreadPool(3)
@@ -198,7 +214,7 @@ def zip_generator(files_list, construct_registry=False):
     # to be overloaded, and provides more-or-less the maximum data download speed.  This was tested
     # on an m4.large instance (dual core, 8GB of ram).
     file_registry = {}
-    
+
     zip_output = StreamingBytesIO()
     zip_input = ZipFile(zip_output, mode="w", compression=ZIP_STORED, allowZip64=True)
     # random_id = generate_random_string()[:32]
@@ -230,14 +246,14 @@ def zip_generator(files_list, construct_registry=False):
             yield x  # yield the (compressed) file information
             del x
             zip_output.empty()
-        
+
         if construct_registry:
             zip_input.writestr("registry", json.dumps(file_registry))
-        
+
         # close, then yield all remaining data in the zip.
         zip_input.close()
         yield zip_output.getvalue()
-    
+
     except None:
         # The try-except-finally block is here to guarantee the Threadpool is closed and terminated.
         # we don't handle any errors, we just re-raise any error that shows up.
@@ -277,7 +293,7 @@ def determine_file_name(chunk):
         return "%s/%s/%s/%s.%s" % (chunk["participant__patient_id"], chunk["data_type"],
                                    chunk["chunk_path"].rsplit("/", 2)[1], # this is the survey id
                                    str(chunk["time_bin"]).replace(":", "_"), extension)
-    
+
     elif chunk["data_type"] == IMAGE_FILE:
         # add the survey_id from the file path.
         return "%s/%s/%s/%s/%s" % (
@@ -287,13 +303,13 @@ def determine_file_name(chunk):
             chunk["chunk_path"].rsplit("/", 2)[1], # this is the instance of the user taking a survey
             chunk["chunk_path"].rsplit("/", 1)[1]
         )
-    
+
     elif chunk["data_type"] == SURVEY_TIMINGS:
         # add the survey_id from the database entry.
         return "%s/%s/%s/%s.%s" % (chunk["participant__patient_id"], chunk["data_type"],
                                    chunk["survey__object_id"],  # this is the survey id
                                    str(chunk["time_bin"]).replace(":", "_"), extension)
-    
+
     elif chunk["data_type"] == VOICE_RECORDING:
         # Due to a bug that was not noticed until July 2016 audio surveys did not have the survey id
         # that they were associated with.  Later versions of the app (legacy update 1 and Android 6)
@@ -303,7 +319,7 @@ def determine_file_name(chunk):
             return "%s/%s/%s/%s.%s" % (chunk["participant__patient_id"], chunk["data_type"],
                                        chunk["chunk_path"].rsplit("/", 2)[1],  # this is the survey id
                                        str(chunk["time_bin"]).replace(":", "_"), extension)
-    
+
     # all other files have this form:
     return "%s/%s/%s.%s" % (chunk['participant__patient_id'], chunk["data_type"],
                             str(chunk["time_bin"]).replace(":", "_"), extension)
@@ -339,11 +355,12 @@ def determine_data_streams_for_db_query(query):
         # the CLI script and the download page.
         try:
             query['data_types'] = json.loads(request.values['data_streams'])
-        except JSONDecodeError:
+        except ValueError:
             query['data_types'] = request.form.getlist('data_streams')
-        
+
         for data_stream in query['data_types']:
             if data_stream not in ALL_DATA_STREAMS:
+                print("data stream '%s' is invalid" % data_stream)
                 return abort(404)
 
 
@@ -355,11 +372,12 @@ def determine_users_for_db_query(query):
     if 'user_ids' in request.values:
         try:
             query['user_ids'] = [user for user in json.loads(request.values['user_ids'])]
-        except JSONDecodeError:
+        except ValueError:
             query['user_ids'] = request.form.getlist('user_ids')
-        
+
         # Ensure that all user IDs are patient_ids of actual Participants
         if not Participant.objects.filter(patient_id__in=query['user_ids']).count() == len(query['user_ids']):
+            print("invalid user ids: %s" % query['user_ids'])
             return abort(404)
 
 
@@ -382,25 +400,25 @@ def handle_database_query(study_id, query, registry=None):
                     "participant__patient_id", "study_id", "survey_id", "survey__object_id"]
 
     chunks = ChunkRegistry.get_chunks_time_range(study_id, **query)
-    
+
     if not registry:
         return chunks.values(*chunk_fields)
-    
+
     # If there is a registry, we need to filter the chunks
     else:
         # Get all chunks whose path and hash are both in the registry
         possible_registered_chunks = (
             chunks
-            .filter(chunk_path__in=registry, chunk_hash__in=registry.itervalues())
+            .filter(chunk_path__in=registry, chunk_hash__in=registry.values())
             .values('pk', 'chunk_path', 'chunk_hash')
         )
-        
+
         # determine those chunks that we do not want present in the download
         # (get a list of pks that have hashes that don't match the database)
         registered_chunk_pks = [
             c['pk'] for c in possible_registered_chunks if registry[c['chunk_path']] == c['chunk_hash']
         ]
-        
+
         # add the exclude and return the queryset
         unregistered_chunks = chunks.exclude(pk__in=registered_chunk_pks)
         return unregistered_chunks.values(*chunk_fields)
@@ -427,7 +445,7 @@ def data_pipeline_upload():
         return abort(403) # access key DNE
     researcher = Researcher.objects.get(access_key_id=access_key)
     if not researcher.validate_access_credentials(access_secret):
-        return abort( 403 )  # incorrect secret key
+        return abort(403)  # incorrect secret key
     # case: invalid study
     study_id = request.values["study_id"]
 
@@ -442,13 +460,13 @@ def data_pipeline_upload():
 
     # block extra keys
     errors = []
-    for key in request.values.iterkeys():
+    for key in request.values.keys():
         if key not in VALID_PIPELINE_POST_PARAMS:
             errors.append('encountered invalid parameter: "%s"' % key)
-    
+
     if errors:
         return Response("\n".join(errors), 400)
-        
+
     try:
         creation_args, tags = PipelineUpload.get_creation_arguments(request.values, request.files['file'])
     except InvalidUploadParameterError as e:
@@ -470,31 +488,81 @@ def data_pipeline_upload():
     return Response("SUCCESS", status=200)
 
 
+@data_access_api.route("/pipeline-json-upload/v1", methods=['POST'])
+def json_pipeline_upload():
+    access_key = request.values["access_key"]
+    access_secret = request.values["secret_key"]
+
+    if not Researcher.objects.filter(access_key_id=access_key).exists():
+        return abort(403)  # access key DNE
+    researcher = Researcher.objects.get(access_key_id=access_key)
+    if not researcher.validate_access_credentials(access_secret):
+        return abort(403)  # incorrect secret key
+
+    # case: invalid study
+    study_id = request.values["study_id"]
+    if not Study.objects.filter(object_id=study_id).exists():
+        return abort(404)
+
+    study_obj = Study.objects.get(object_id=study_id)
+    # case: study not authorized for user
+    if not study_obj.get_researchers().filter(id=researcher.id).exists():
+        return abort(403)
+
+    json_data = request.values.get("summary_output", None)
+    file_name = request.values.get("file_name", None)
+    patient_id = request.values.get("patient_id", None)
+    participant_id = Participant.objects.get(patient_id=patient_id).id
+
+    if json_data is None:
+        raise Exception("json_data")
+    if file_name is None:
+        raise Exception("summary_type")
+    if patient_id is None:
+        raise Exception("patient_id")
+    if participant_id is None:
+        raise Exception("participant_id")
+
+    if "gps_summaries" in file_name:
+        summary_type = "gps_summary"
+    elif "powerstate_summary" in file_name:
+        summary_type = "powerstate_summary"
+    elif "text_summary" in file_name:
+        summary_type = "text_summary"
+    elif "call_summary" in file_name:
+        summary_type = "call_summary"
+    else:
+        summary_type = file_name
+
+    PipelineRegistry.register_pipeline_data(study_obj, participant_id, json_data, summary_type)
+    return Response("SUCCESS", status=200)
+
+
 @data_access_api.route("/get-pipeline/v1", methods=["GET", "POST"])
 def pipeline_data_download():
     study_obj = get_and_validate_study_id(chunked_download=False)
     get_and_validate_researcher(study_obj)
-    
+
     # the following two cases are for difference in content wrapping between the CLI script and
     # the download page.
     if 'tags' in request.values:
         try:
             tags = json.loads(request.values['tags'])
-        except JSONDecodeError:
+        except ValueError:
             tags = request.form.getlist('tags')
 
         query = PipelineUpload.objects.filter(study__id=study_obj.id, tags__tag__in=tags)
-        
+
     else:
         query = PipelineUpload.objects.filter(study__id=study_obj.id)
-    
+
     ####################################
     return Response(
             zip_generator_for_pipeline(query),
             mimetype="zip",
             headers={'Content-Disposition': 'attachment; filename="data.zip"'}
     )
-    
+
 #TODO: This is a trivial rewrite of the other zip generator function for minor differences. refactor when you get to django.
 def zip_generator_for_pipeline(files_list):
     pool = ThreadPool(3)

@@ -1,16 +1,12 @@
-import json
-
-from flask import Blueprint, flash, Markup, redirect, render_template, request, \
-    session, abort
-
-from libs import admin_authentication
-from libs.admin_authentication import authenticate_admin_login,\
-    authenticate_admin_study_access, get_admins_allowed_studies, get_admins_allowed_studies_as_query_set,\
-    admin_is_system_admin
-from libs.security import check_password_requirements
+from flask import abort, Blueprint, flash, Markup, redirect, render_template, request, session
 
 from database.study_models import Study, StudyField
-from database.user_models import Researcher, Participant, ParticipantFieldValue
+from database.user_models import Participant, ParticipantFieldValue, Researcher
+from libs import admin_authentication
+from libs.admin_authentication import (authenticate_researcher_login,
+    authenticate_researcher_study_access, get_researcher_allowed_studies,
+    get_researcher_allowed_studies_as_query_set, researcher_is_an_admin, SESSION_NAME)
+from libs.security import check_password_requirements
 
 admin_pages = Blueprint('admin_pages', __name__)
 
@@ -18,9 +14,9 @@ admin_pages = Blueprint('admin_pages', __name__)
 
 
 @admin_pages.route('/choose_study', methods=['GET'])
-@authenticate_admin_login
+@authenticate_researcher_login
 def choose_study():
-    allowed_studies = get_admins_allowed_studies_as_query_set()
+    allowed_studies = get_researcher_allowed_studies_as_query_set()
 
     # If the admin is authorized to view exactly 1 study, redirect to that study
     if allowed_studies.count() == 1:
@@ -32,12 +28,12 @@ def choose_study():
         'choose_study.html',
         studies=allowed_studies_json,
         allowed_studies=allowed_studies_json,
-        system_admin=admin_is_system_admin()
+        is_admin=researcher_is_an_admin()
     )
 
 
 @admin_pages.route('/view_study/<string:study_id>', methods=['GET'])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def view_study(study_id=None):
     study = Study.objects.get(pk=study_id)
     tracking_survey_ids = study.get_survey_ids_and_object_ids_for_study('tracking_survey')
@@ -56,27 +52,29 @@ def view_study(study_id=None):
         audio_survey_ids=audio_survey_ids,
         image_survey_ids=image_survey_ids,
         tracking_survey_ids=tracking_survey_ids,
-        allowed_studies=get_admins_allowed_studies(),
-        system_admin=admin_is_system_admin(),
+        allowed_studies=get_researcher_allowed_studies(),
+        is_admin=researcher_is_an_admin(),
         study_fields=study_fields,
+        page_location='study_landing',
+        study_id=study_id,
     )
 
 
 @admin_pages.route('/data-pipeline/<string:study_id>', methods=['GET'])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def view_study_data_pipeline(study_id=None):
     study = Study.objects.get(pk=study_id)
 
     return render_template(
         'data-pipeline.html',
         study=study,
-        allowed_studies=get_admins_allowed_studies(),
-        system_admin=admin_is_system_admin(),
+        allowed_studies=get_researcher_allowed_studies(),
+        is_admin=researcher_is_an_admin(),
     )
 
 
 @admin_pages.route('/view_study/<string:study_id>/patient_fields/<string:patient_id>', methods=['GET', 'POST'])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def patient_fields(study_id, patient_id=None):
     try:
         patient = Participant.objects.get(pk=patient_id)
@@ -91,12 +89,12 @@ def patient_fields(study_id, patient_id=None):
             fields=study.fields.all(),
             study=study,
             patient=patient,
-            allowed_studies=get_admins_allowed_studies(),
-            system_admin=admin_is_system_admin(),
+            allowed_studies=get_researcher_allowed_studies(),
+            is_admin=researcher_is_an_admin(),
         )
 
     fields = list(study.fields.values_list('field_name', flat=True))
-    for key, value in request.values.iteritems():
+    for key, value in request.values.items():
         if key in fields:
             pfv, created = ParticipantFieldValue.objects.get_or_create(participant=patient, field=StudyField.objects.get(study=study, field_name=key))
             pfv.value = value
@@ -118,7 +116,7 @@ def render_login_page():
 
 @admin_pages.route("/logout")
 def logout():
-    admin_authentication.logout_loggedin_admin()
+    admin_authentication.logout_researcher()
     return redirect("/")
 
 
@@ -129,7 +127,7 @@ def login():
         username = request.values["username"]
         password = request.values["password"]
         if Researcher.check_password(username, password):
-            admin_authentication.log_in_admin(username)
+            admin_authentication.log_in_researcher(username)
             return redirect("/choose_study")
         else:
             flash("Incorrect username & password combination; try again.", 'danger')
@@ -138,17 +136,17 @@ def login():
 
 
 @admin_pages.route('/manage_credentials')
-@authenticate_admin_login
+@authenticate_researcher_login
 def manage_credentials():
     return render_template('manage_credentials.html',
-                           allowed_studies=get_admins_allowed_studies(),
-                           system_admin=admin_is_system_admin())
+                           allowed_studies=get_researcher_allowed_studies(),
+                           is_admin=researcher_is_an_admin())
 
 
 @admin_pages.route('/reset_admin_password', methods=['POST'])
-@authenticate_admin_login
+@authenticate_researcher_login
 def reset_admin_password():
-    username = session['admin_username']
+    username = session[SESSION_NAME]
     current_password = request.values['current_password']
     new_password = request.values['new_password']
     confirm_new_password = request.values['confirm_new_password']
@@ -166,9 +164,9 @@ def reset_admin_password():
 
 
 @admin_pages.route('/reset_download_api_credentials', methods=['POST'])
-@authenticate_admin_login
+@authenticate_researcher_login
 def reset_download_api_credentials():
-    researcher = Researcher.objects.get(username=session['admin_username'])
+    researcher = Researcher.objects.get(username=session[SESSION_NAME])
     access_key, secret_key = researcher.reset_access_credentials()
     msg = """<h3>Your Data-Download API access credentials have been reset!</h3>
         <p>Your new <b>Access Key</b> is:

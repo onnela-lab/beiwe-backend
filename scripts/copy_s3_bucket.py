@@ -20,7 +20,7 @@ new_bucket = connection_new.get_bucket(new_bucket_name)
 
 
 def batch_download_upload(file_path_on_old_s3_bucket):
-    print file_path_on_old_s3_bucket
+    print(file_path_on_old_s3_bucket)
     data = Key(old_bucket, file_path_on_old_s3_bucket).read()
     new_bucket.new_key(file_path_on_old_s3_bucket).set_contents_from_string(data)
 

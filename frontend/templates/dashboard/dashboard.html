@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Study Dashboard{% endblock %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
+{% endblock %}
+
+{% block content %}
+
+    <h1 class="h2"> {{ study.name }} Study Dashboard </h1>
+    <h5 class="h5">Number of Participants: {{ participants|length }}</h5>
+    <br>
+    <p> Choose a participant or data stream to view the Dashboard. </p>
+
+  <div class="dashboard-options">
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item h5">Participant Data</li>
+      {% for i in range(participants|length) %}
+        <li class="list-group-item">
+          <a href="{{ study_id }}/patient/{{participants[i]}}">{{participants[i]}}</a>
+        </li>
+      {%  endfor %}
+    </ul>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item h5">Data Stream</li>
+      {% for stream in data_stream_dict.keys()|sort() %}
+        <li class="list-group-item">
+          <a href="{{ study_id }}/data_stream/{{stream}}">{{  data_stream_dict[stream]}}</a>
+        </li>
+      {%  endfor %}
+    </ul>
+  </div>
+
+{% endblock %}
+

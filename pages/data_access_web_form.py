@@ -5,19 +5,19 @@ from flask import Blueprint, flash, Markup, render_template, session
 from config.constants import ALL_DATA_STREAMS
 from database.data_access_models import PipelineUploadTags
 from database.user_models import Participant, Researcher
-
-from libs.admin_authentication import (get_admins_allowed_studies_as_query_set,
-    authenticate_admin_login, get_admins_allowed_studies, admin_is_system_admin)
+from libs.admin_authentication import (authenticate_researcher_login,
+    get_researcher_allowed_studies, get_researcher_allowed_studies_as_query_set,
+    researcher_is_an_admin, SESSION_NAME)
 
 data_access_web_form = Blueprint('data_access_web_form', __name__)
 
 
 @data_access_web_form.route("/data_access_web_form", methods=['GET'])
-@authenticate_admin_login
+@authenticate_researcher_login
 def data_api_web_form_page():
-    researcher = Researcher.objects.get(username=session['admin_username'])
+    researcher = Researcher.objects.get(username=session[SESSION_NAME])
     warn_researcher_if_hasnt_yet_generated_access_key(researcher)
-    allowed_studies = get_admins_allowed_studies_as_query_set()
+    allowed_studies = get_researcher_allowed_studies_as_query_set()
     # dict of {study ids : list of user ids}
     users_by_study = {
         study.pk: [user.patient_id for user in study.participants.all()]
@@ -25,10 +25,10 @@ def data_api_web_form_page():
     }
     return render_template(
         "data_api_web_form.html",
-        allowed_studies=get_admins_allowed_studies(),
+        allowed_studies=get_researcher_allowed_studies(),
         users_by_study=json.dumps(users_by_study),
         ALL_DATA_STREAMS=ALL_DATA_STREAMS,
-        system_admin=admin_is_system_admin()
+        is_admin=researcher_is_an_admin()
     )
 
 
@@ -41,11 +41,11 @@ def warn_researcher_if_hasnt_yet_generated_access_key(researcher):
 
 
 @data_access_web_form.route("/pipeline_access_web_form", methods=['GET'])
-@authenticate_admin_login
+@authenticate_researcher_login
 def pipeline_download_page():
-    researcher = Researcher.objects.get(username=session['admin_username'])
+    researcher = Researcher.objects.get(username=session[SESSION_NAME])
     warn_researcher_if_hasnt_yet_generated_access_key(researcher)
-    iteratable_studies = get_admins_allowed_studies(as_json=False)
+    iteratable_studies = get_researcher_allowed_studies(as_json=False)
     # dict of {study ids : list of user ids}
 
     users_by_study = {str(study['id']):
@@ -63,11 +63,11 @@ def pipeline_download_page():
 
     return render_template(
             "data_pipeline_web_form.html",
-            allowed_studies=get_admins_allowed_studies(),
-            downloadable_studies=get_admins_allowed_studies(),
+            allowed_studies=get_researcher_allowed_studies(),
+            downloadable_studies=get_researcher_allowed_studies(),
             users_by_study=users_by_study,
             tags_by_study=json.dumps(tags_by_study),
-            system_admin=admin_is_system_admin()
+            is_admin=researcher_is_an_admin()
     )
 
 

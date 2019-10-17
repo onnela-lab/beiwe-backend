@@ -81,13 +81,13 @@ pipeline_warning = \
 "the Data Pipeline feature of Beiwe.)"
 
 if os.getenv("S3_ACCESS_CREDENTIALS_USER") and not os.getenv("BEIWE_SERVER_AWS_ACCESS_KEY_ID"):
-    print pipeline_warning
-    print old_credentials_warning % ("S3_ACCESS_CREDENTIALS_USER", "BEIWE_SERVER_AWS_ACCESS_KEY_ID")
+    print(pipeline_warning)
+    print(old_credentials_warning % ("S3_ACCESS_CREDENTIALS_USER", "BEIWE_SERVER_AWS_ACCESS_KEY_ID"))
     
 
 if os.getenv("S3_ACCESS_CREDENTIALS_KEY") and not os.getenv("BEIWE_SERVER_AWS_SECRET_ACCESS_KEY"):
-    print pipeline_warning
-    print old_credentials_warning % ("S3_ACCESS_CREDENTIALS_KEY", "BEIWE_SERVER_AWS_SECRET_ACCESS_KEY")
+    print(pipeline_warning)
+    print(old_credentials_warning % ("S3_ACCESS_CREDENTIALS_KEY", "BEIWE_SERVER_AWS_SECRET_ACCESS_KEY"))
 
 #
 # print a useful error and cease execution if any required environment variables showed up.

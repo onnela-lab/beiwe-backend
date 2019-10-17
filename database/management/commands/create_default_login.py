@@ -8,4 +8,4 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         new_researcher = Researcher.create_with_password("admin", "admin")
-        new_researcher.elevate_to_admin()
+        new_researcher.elevate_to_site_admin()

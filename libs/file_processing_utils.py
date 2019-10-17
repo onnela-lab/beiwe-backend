@@ -151,7 +151,7 @@ def count_study_chunks():
     # The file paths start with CHUNKED_DATA/[24-digit object ID]
     study_prefixes = [f[:38] for f in chunked_file_paths]
     study_prefix_to_id = {study_prefix: study_prefix.split("/")[-2] for study_prefix in study_prefixes}
-    study_prefix_to_name = {study_prefix: Study.objects.get(object_id=study_object_id).name for study_prefix, study_object_id in study_prefix_to_id.iteritems()}
+    study_prefix_to_name = {study_prefix: Study.objects.get(object_id=study_object_id).name for study_prefix, study_object_id in study_prefix_to_id.items()}
     print(study_prefix_to_name)
     study_count = {study_prefix_to_name[study_prefix]: len([f for f in chunked_file_paths if f[:38] == study_prefix]) for study_prefix in study_prefixes}
     return study_count

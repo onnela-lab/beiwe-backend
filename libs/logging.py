@@ -10,11 +10,11 @@ from config.settings import SYSADMIN_EMAILS
 
 def log_and_email_500_error(e, log_message=None, emails=SYSADMIN_EMAILS):
     """ Prints in the server logs (defaults to Apache if not specified), does NOT stop execution.
-    Note the error.message value is actually the subject line of the email, the "log_message"
+    Note the error message value is actually the subject line of the email, the "log_message"
     variable is a passed in as the "message" variable into the log_error function and appears as
     part of the email and log statement. """
     try:
-        subject = "Beiwe Error: %s" % e.message
+        subject = "Beiwe Error: %s" % e
         message = log_error(e, log_message, reraise=True)
         _send_email(E500_EMAIL_ADDRESS, emails, message, subject)
         

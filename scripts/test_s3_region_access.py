@@ -30,7 +30,7 @@ for region in regions:
 
     try:
         conn.list_buckets()
-        print "S3 exists in region:",region
+        print("S3 exists in region:",region)
     except Exception as e:
-        print e
-        print region,"had an error"
+        print(e)
+        print(region,"had an error")

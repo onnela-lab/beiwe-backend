@@ -1,6 +1,6 @@
 from flask import abort, Blueprint, make_response, request, redirect, json
 
-from libs.admin_authentication import authenticate_admin_study_access
+from libs.admin_authentication import authenticate_researcher_study_access
 from libs.json_logic import do_validate_survey
 from database.study_models import Survey
 
@@ -12,14 +12,14 @@ survey_api = Blueprint('survey_api', __name__)
 
 
 @survey_api.route('/create_survey/<string:study_id>/<string:survey_type>', methods=['GET', 'POST'])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def create_survey(study_id=None, survey_type='tracking_survey'):
     new_survey = Survey.create_with_settings(study_id=study_id, survey_type=survey_type)
-    return redirect('edit_survey/{:d}'.format(new_survey.id))
+    return redirect('/edit_survey/{:d}'.format(new_survey.id))
 
 
 @survey_api.route('/delete_survey/<string:survey_id>', methods=['GET', 'POST'])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def delete_survey(survey_id=None):
     try:
         survey = Survey.objects.get(pk=survey_id)
@@ -36,7 +36,7 @@ def delete_survey(survey_id=None):
 
 
 @survey_api.route('/update_survey/<string:survey_id>', methods=['GET', 'POST'])
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def update_survey(survey_id=None):
     try:
         survey = Survey.objects.get(pk=survey_id)
@@ -46,8 +46,20 @@ def update_survey(survey_id=None):
     # BUG: There is an unknown situation where the frontend sends a string requiring an extra
     # deserialization operation, causing 'content' to be a string containing a json string
     # containing a json list, instead of just a string containing a json list.
-    content = recursive_survey_content_json_decode(request.values['content'])
-    content = make_slider_min_max_values_strings(content)
+    # print(request.values.get('content', ''))
+    json_content = request.values.get('content')
+    content = None
+
+    # Weird corner case: the Image survey does not have any content associated with it. Therefore,
+    # when you try and make a post request to save any settings you have, it gives you a 500 error
+    # because the request.values.get('content') returns a json item of "". The recursive_survey_content_json_decode
+    # function is not able to decode 2 double quotations marks. This is why retrieving the json_content from the post
+    # request is put outside of the decode statement. HOWEVER, evaluating json_content == "" returns false, since the
+    # LITERAL value of the json_content is 2 quotation marks, NOT an empty string. Thus, we need to compare the
+    # json_content to a string of 2 quotation marks (ie. '""')
+    if json_content != '""':
+        content = recursive_survey_content_json_decode(json_content)
+        content = make_slider_min_max_values_strings(content)
     
     if survey.survey_type == Survey.TRACKING_SURVEY:
         errors = do_validate_survey(content)

@@ -7,12 +7,20 @@
             <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
         </li>
         <li class="active">
-            Edit which Custom Fields are on this study
+            {% if readonly %}
+                View which Custom Fields are on this study
+            {% else %}
+                Edit which Custom Fields are on this study
+            {% endif %}
         </li>
     </ol>
 
     <div class="row">
-        <h2>Edit which Custom Fields are on this study</h2>
+        {% if readonly %}
+            <h2>View which Custom Fields are on this study</h2>
+        {% else %}
+            <h2>Edit which Custom Fields are on this study</h2>
+        {% endif %}
     </div>
 
     <div class="row form-horizontal">
@@ -20,7 +28,9 @@
             <thead>
                 <tr>
                     <th>Custom Field</th>
-                    <th>Remove Custom Field</th>
+                    {% if not readonly %}
+                        <th>Remove Custom Field</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -29,17 +39,21 @@
                     <td>
                         {{ field.field_name }}
                     </td>
-                    <td>
-                        <form>
-                        <input type="hidden" name="study_id" value="{{ study.id }}">
-                        <input type="hidden" name="field" value="{{ field.field_name }}">
-                        <button onclick="confirm_delete_custom_field('{{ field.field_name|replace("'", "")|replace('"', "") }}', '{{ field.id }}', '{{ study.id }}')" class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span> Remove Custom Field</button>
-                        </form>
-                    </td>
+                    {% if not readonly %}
+                        <td>
+                            <form>
+                            <input type="hidden" name="study_id" value="{{ study.id }}">
+                            <input type="hidden" name="field" value="{{ field.field_name }}">
+                            <button onclick="confirm_delete_custom_field('{{ field.field_name|replace("'", "")|replace('"', "") }}', '{{ field.id }}', '{{ study.id }}')" class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span> Remove Custom Field</button>
+                            </form>
+                        </td>
+                    {% endif %}
                 </tr>
             {% endfor %}
             </tbody>
         </table>
+
+        {% if not readonly %}
         <br>
         <form action="/study_fields/{{ study.id }}" method="POST">
             <input type="hidden" name="study_id" value="{{ study.id }}">
@@ -47,6 +61,7 @@
             <input type="text" class="form-control" name="new_field" />
             <button type="submit" class="btn btn-success"><span class="glyphicon glyphicon-plus"></span> Add New Custom Field</button>
         </form>
+        {% endif %}
 
     </div>
 

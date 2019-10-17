@@ -1,10 +1,11 @@
 from django.db import models
-from django.db.models import Func, F
+from django.db.models import F, Func
 
+from config.constants import ResearcherRole
 from database.models import AbstractModel
-from database.validators import url_safe_base_64_validator, id_validator, standard_base_64_validator
-from libs.security import (generate_easy_alphanumeric_string, compare_password,
-    generate_user_hash_and_salt, device_hash, generate_hash_and_salt, generate_random_string)
+from database.validators import id_validator, standard_base_64_validator, url_safe_base_64_validator
+from libs.security import (compare_password, device_hash, generate_easy_alphanumeric_string,
+    generate_hash_and_salt, generate_random_string, generate_user_hash_and_salt)
 
 
 class AbstractPasswordUser(AbstractModel):
@@ -30,11 +31,11 @@ class AbstractPasswordUser(AbstractModel):
         """
         raise NotImplementedError
 
-    def set_password(self, password):
+    def set_password(self, password: str):
         """
         Sets the instance's password hash to match the hash of the provided string.
         """
-        password_hash, salt = self.generate_hash_and_salt(password)
+        password_hash, salt = self.generate_hash_and_salt(password.encode())
         self.password = password_hash
         self.salt = salt
         self.save()
@@ -51,7 +52,7 @@ class AbstractPasswordUser(AbstractModel):
         """
         Checks if the input matches the instance's password hash.
         """
-        return compare_password(compare_me, self.salt, self.password)
+        return compare_password(compare_me.encode(), self.salt.encode(), self.password.encode())
 
     class Meta:
         abstract = True
@@ -93,7 +94,7 @@ class Participant(AbstractPasswordUser):
         # Ensure that a unique patient_id is generated. If it is not after
         # twenty tries, raise an error.
         patient_id = generate_easy_alphanumeric_string()
-        for _ in xrange(20):
+        for _ in range(20):
             if not cls.objects.filter(patient_id=patient_id).exists():
                 # If patient_id does not exist in the database already
                 break
@@ -156,13 +157,13 @@ class Researcher(AbstractPasswordUser):
     """
 
     username = models.CharField(max_length=32, unique=True, help_text='User-chosen username, stored in plain text')
-    admin = models.BooleanField(default=False, help_text='Whether the researcher is also an admin')
+    site_admin = models.BooleanField(default=False, help_text='Whether the researcher is also an admin')
 
     access_key_id = models.CharField(max_length=64, validators=[standard_base_64_validator], unique=True, null=True, blank=True)
     access_key_secret = models.CharField(max_length=44, validators=[url_safe_base_64_validator], blank=True)
     access_key_secret_salt = models.CharField(max_length=24, validators=[url_safe_base_64_validator], blank=True)
 
-    studies = models.ManyToManyField('Study', related_name='researchers')
+    is_batch_user = models.BooleanField(default=False)
 
     @classmethod
     def create_with_password(cls, username, password, **kwargs):
@@ -198,36 +199,118 @@ class Researcher(AbstractPasswordUser):
         return researcher.validate_password(compare_me)
 
     @classmethod
+    def filter_alphabetical(self, *args, **kwargs):
+        """ Sort the Researchers a-z by username ignoring case, exclude special user types. """
+        return (
+            Researcher.objects
+                .annotate(username_lower=Func(F('username'), function='LOWER'))
+                .order_by('username_lower')
+                .exclude(username__contains="BATCH USER").exclude(username__contains="AWS LAMBDA")
+                .filter(*args, **kwargs)
+        )
+
+    @classmethod
     def get_all_researchers_by_username(cls):
-        """
-        Sort the un-deleted Researchers a-z by username, ignoring case.
-        """
-        return (cls.objects
+        """ Gen the un-deleted Researchers a-z by username, ignoring case."""
+        return cls.filter_alphabetical(deleted=False)
+
+    def get_administered_researchers(self):
+        studies = self.study_relations.filter(
+            relationship=ResearcherRole.study_admin).values_list("study_id", flat=True)
+        researchers = StudyRelation.objects.filter(
+            study_id__in=studies).values_list("researcher_id", flat=True).distinct()
+        return Researcher.objects.filter(id__in=researchers)
+
+    def get_administered_researchers_by_username(self):
+        return (
+            self.get_administered_researchers()
                 .filter(deleted=False)
                 .annotate(username_lower=Func(F('username'), function='LOWER'))
-                .order_by('username_lower'))
+                .order_by('username_lower')
+                .exclude(username__contains="BATCH USER").exclude(username__contains="AWS LAMBDA")
+        )
 
-    def generate_hash_and_salt(self, password):
+    def get_administered_studies_by_name(self):
+        from database.models import Study
+        return Study._get_administered_studies_by_name(self)
+
+    def generate_hash_and_salt(self, password: bytes):
         return generate_hash_and_salt(password)
 
-    def elevate_to_admin(self):
-        self.admin = True
+    def elevate_to_site_admin(self):
+        self.site_admin = True
         self.save()
+
+    def elevate_to_study_admin(self, study):
+        study_relation = StudyRelation.objects.get(researcher=self, study=study)
+        study_relation.relationship = ResearcherRole.study_admin
+        study_relation.save()
 
     def validate_access_credentials(self, proposed_secret_key):
         """ Returns True/False if the provided secret key is correct for this user."""
         return compare_password(
-            proposed_secret_key,
-            self.access_key_secret_salt,
-            self.access_key_secret
+            proposed_secret_key.encode(),
+            self.access_key_secret_salt.encode(),
+            self.access_key_secret.encode(),
         )
 
-    def reset_access_credentials(self):
+    def reset_access_credentials(self) -> (str, str):
         access_key = generate_random_string()[:64]
         secret_key = generate_random_string()[:64]
         secret_hash, secret_salt = generate_hash_and_salt(secret_key)
-        self.access_key_id = access_key
-        self.access_key_secret = secret_hash
-        self.access_key_secret_salt = secret_salt
+        self.access_key_id = access_key.decode()
+        self.access_key_secret = secret_hash.decode()
+        self.access_key_secret_salt = secret_salt.decode()
         self.save()
-        return access_key, secret_key
+        return access_key.decode(), secret_key.decode()
+
+    def get_admin_study_relations(self):
+        return self.study_relations.filter(relationship=ResearcherRole.study_admin)
+
+    def get_researcher_study_relations(self):
+        return self.study_relations.filter(relationship=ResearcherRole.researcher)
+
+    def get_researcher_studies_by_name(self):
+        from database.models import Study
+        return Study.get_researcher_studies_by_name(self)
+
+    def get_visible_studies_by_name(self):
+        if self.site_admin:
+            from database.models import Study
+            return Study.get_all_studies_by_name()
+        else:
+            return self.get_researcher_studies_by_name()
+
+    def is_study_admin(self):
+        return self.get_admin_study_relations().exists()
+
+    def check_study_admin(self, study_id):
+        return self.study_relations.filter(
+            relationship=ResearcherRole.study_admin,
+            study_id=study_id,
+        ).exists()
+
+class StudyRelation(AbstractModel):
+    """
+    This is the through-model for defining the relationship between a researcher and a study.
+    There are these relatioships:
+        site admin
+        study admin
+        researcher
+    """
+    study = models.ForeignKey(
+        'Study', on_delete=models.PROTECT, related_name='study_relations', null=False, db_index=True
+    )
+    researcher = models.ForeignKey(
+        'Researcher', on_delete=models.PROTECT, related_name='study_relations', null=False, db_index=True
+    )
+    relationship = models.CharField(max_length=32, null=False, blank=False, db_index=True)
+
+    class Meta:
+        unique_together = ["study", "researcher"]
+
+    def __str__(self):
+        return "%s is a %s in %s" % (self.researcher.username,
+                                     self.relationship.replace("_", " ").title(),
+                                     self.study.name)
+

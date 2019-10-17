@@ -21,9 +21,6 @@ def get_configs_folder():
 def get_aws_object_names_file():
     return path_join(get_configs_folder(), 'aws-object-names.json')
 
-
-cached_domain = None
-
 #
 # Configuration getters and validator
 #
@@ -36,9 +33,9 @@ generic_config_components = [
     "instance_profile",
     "comp_env_name",
     "comp_env_role",
-    "queue_name", # used in creating a job
-    "job_defn_name", # used in creating a job
-    "job_name", # used in creating a job
+    "queue_name",  # used in creating a job
+    "job_defn_name",  # used in creating a job
+    "job_name",  # used in creating a job
     "access_key_ssm_name",
     "secret_key_ssm_name",
     "security_group",
@@ -83,14 +80,6 @@ def _validate_and_get_configs(config_list, config_file_path):
         if setting in os.environ:
             config_data[setting] = os.environ[setting]
 
-    global cached_domain
-    if cached_domain is None:
-        prompt = "Provide the domain that your Beiwe deployment will uses. " \
-                 "Example: 'studies.beiwe-studies.net' (do not include a protocol)" \
-                 "\n\n$ "
-        cached_domain = raw_input(prompt)
-
-    config_data["server_url"] = cached_domain
     config_data["region_name"] = get_current_region()
 
     # if there are any missing settings, fail with helpful error message
@@ -111,6 +100,14 @@ def _load_json_file(file_path):
 
 
 def get_current_region():
-    full_region = check_output(["ec2-metadata", "--availability-zone"]).strip()
-    # full_region is of the form "placement: us-east-1a"
-    return full_region.split(" ")[1][:-1]
+    try:
+        try:
+            # AWS linux: full_region is of the form "placement: us-east-1a"
+            full_region = check_output(["ec2-metadata", "--availability-zone"]).strip()
+            return full_region.split(" ")[1][:-1]
+        except Exception:
+            # on ubuntu: sudo apt-get -y install cloud-utils, and the executable doesn't have a dash.
+            # return is of the form "us-east-1b" possibly with whitespace.
+            return check_output(["ec2metadata", "--availability-zone"]).strip()[:-1]
+    except OSError:
+        raise Exception("get_current_region can only be called on an amazon server with ec2metadata/ec2-metadata installed")

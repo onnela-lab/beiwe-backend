@@ -302,7 +302,7 @@
                 <textarea name="survey_submit_success_toast_text" id="survey_submit_success_toast_text" class="form-control" rows="3" cols="120" {{ "disabled" if readonly }}>{{settings['survey_submit_success_toast_text']}}</textarea>
             </div>
             {% for section, section_title in { "welcome": "Welcome", "data_gathering": "Data Gathering", "privacy": "Privacy", "time_commitment": "Time Commitment",
-                "study_survey": "Study Survey", "study_tasks": "Study Tasks", "withdrawing": "Withdrawing" }.iteritems() %}
+                "study_survey": "Study Survey", "study_tasks": "Study Tasks", "withdrawing": "Withdrawing" }.items() %}
                 <div class="form-group">
                     <label for="{{section}}_summary">iOS consent {{section_title}} text:</label>
                     <textarea name="consent_sections.{{section}}.text" id="{{section}}_summary" class="form-control" rows="4" cols="120" {{ "disabled" if readonly }}>{{settings['consent_sections'][section]['text']}}</textarea>

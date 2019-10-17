@@ -9,7 +9,7 @@ from database.user_models import Participant
 ####################################################################################################
 
 
-def authenticate_user_ignore_password(some_function):
+def minimal_validation(some_function):
     @functools.wraps(some_function)
     def authenticate_and_call(*args, **kwargs):
         is_ios = kwargs["OS_API"] == Participant.IOS_API
@@ -38,9 +38,9 @@ def validate_post_ignore_password(is_ios):
     # if not participant.validate_password(request.values['password']):
     #     return False
     # Only execute if it is an android device
-    if not is_ios and not participant.device_id == request.values['device_id']:
-        print "device_id is wrong"
-        return False
+    # if not is_ios and not participant.device_id == request.values['device_id']:
+    #     print "device_id is wrong"
+    #     return False
     return True
 
 ####################################################################################################

@@ -1,22 +1,16 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import json
 
 from django.db import models
 from django.db.models import F, Func
 from django.utils import timezone
 
-from config.study_constants import (
-    ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT, DEFAULT_CONSENT_SECTIONS_JSON,
-    SURVEY_SUBMIT_SUCCESS_TOAST_TEXT, AUDIO_SURVEY_SETTINGS, IMAGE_SURVEY_SETTINGS
-)
+from config.constants import ResearcherRole
+from config.study_constants import (ABOUT_PAGE_TEXT, AUDIO_SURVEY_SETTINGS, CONSENT_FORM_TEXT,
+    DEFAULT_CONSENT_SECTIONS_JSON, IMAGE_SURVEY_SETTINGS, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
+from database.models import AbstractModel, JSONTextField
 from database.user_models import Researcher
-from database.validators import (
-    LengthValidator
-)
-
-from database.models import JSONTextField, AbstractModel
+from database.validators import LengthValidator
 
 
 class Study(AbstractModel):
@@ -32,7 +26,7 @@ class Study(AbstractModel):
                                  help_text='ID used for naming S3 files')
 
     is_test = models.BooleanField(default=True)
-    
+
     @classmethod
     def create_with_object_id(cls, **kwargs):
         """
@@ -52,6 +46,13 @@ class Study(AbstractModel):
                 .filter(deleted=False)
                 .annotate(name_lower=Func(F('name'), function='LOWER'))
                 .order_by('name_lower'))
+
+    @classmethod
+    def _get_administered_studies_by_name(cls, researcher):
+        return cls.get_all_studies_by_name().filter(
+                study_relations__researcher=researcher,
+                study_relations__relationship=ResearcherRole.study_admin,
+            )
 
     def get_surveys_for_study(self, requesting_os):
         survey_json_list = []
@@ -80,7 +81,19 @@ class Study(AbstractModel):
         return self.device_settings
 
     def get_researchers(self):
-        return Researcher.objects.filter(studies=self)
+        return Researcher.objects.filter(study_relations__study=self)
+
+    @classmethod
+    def get_researcher_studies_by_name(cls, researcher):
+        return cls.get_all_studies_by_name().filter(study_relations__researcher=researcher)
+
+    def get_researchers_by_name(self):
+        return (
+            Researcher.objects.filter(study_relations__study=self)
+                .annotate(name_lower=Func(F('username'), function='LOWER'))
+                .order_by('name_lower')
+                .exclude(username__icontains="BATCH USER").exclude(username__icontains="AWS LAMBDA")
+        )
 
     # We override the as_native_python function to not include the encryption key.
     def as_native_python(self, remove_timestamps=True, remove_encryption_key=True):
@@ -246,3 +259,63 @@ class DeviceSettings(AbstractModel):
     consent_sections = JSONTextField(default=DEFAULT_CONSENT_SECTIONS_JSON)
 
     study = models.OneToOneField('Study', on_delete=models.PROTECT, related_name='device_settings')
+
+
+class DashboardColorSetting(AbstractModel):
+    """ Database model, details of color settings point at this model. """
+    data_type = models.CharField(max_length=32)
+    study = models.ForeignKey("Study", on_delete=models.PROTECT, related_name="dashboard_colors")
+
+    class Meta:
+        # only one of these color settings per-study-per-data type
+        unique_together = (("data_type", "study"),)
+
+    def get_dashboard_color_settings(self):
+        # return a (json serializable) dict of a dict of the gradient and a list of dicts for
+        # the inflection points.
+
+        # Safely/gracefully access the gradient's one-to-one field.
+        try:
+            gradient = {
+                "color_range_min": self.gradient.color_range_min,
+                "color_range_max": self.gradient.color_range_max,
+            }
+        except DashboardGradient.DoesNotExist:
+            gradient = {}
+
+        return {
+            "gradient": gradient,
+            "inflections": list(self.inflections.values("operator", "inflection_point")),
+        }
+
+    def gradient_exists(self):
+        try:
+            if self.gradient:
+                return True
+        except DashboardGradient.DoesNotExist:
+            # this means that the dashboard gradieint does not exist in the database
+            return False
+
+
+class DashboardGradient(AbstractModel):
+    # It should be the case that there is only one gradient per DashboardColorSettings
+    dashboard_color_setting = models.OneToOneField(
+        DashboardColorSetting, on_delete=models.PROTECT, related_name="gradient", unique=True,
+    )
+
+    # By setting both of these to 0 the frontend will automatically use tha biggest and smallest
+    # values on the current page.
+    color_range_min = models.IntegerField(default=0)
+    color_range_max = models.IntegerField(default=0)
+
+
+class DashboardInflection(AbstractModel):
+    # an inflection corresponds to a flag value that has an operator to display a "flag" on the dashboard front end
+    dashboard_color_setting = models.ForeignKey(
+        DashboardColorSetting, on_delete=models.PROTECT, related_name="inflections"
+    )
+
+    # these are a mathematical operator and a numerical "inflection point"
+    # no default for the operator, default of 0 is safe.
+    operator = models.CharField(max_length=1)
+    inflection_point = models.IntegerField(default=0)

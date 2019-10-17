@@ -42,8 +42,10 @@
     
     <br><br>
     
-    <div class="row">
-        <a href="/create_study" class="btn btn-success">Create new study</a>
-    </div>
+    {% if session_researcher.site_admin %}
+        <div class="row">
+            <a href="/create_study" class="btn btn-success">Create new study</a>
+        </div>
+    {% endif %}
 
 {% endblock %}

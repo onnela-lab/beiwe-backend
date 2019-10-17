@@ -38,6 +38,7 @@ elif os.environ['DJANGO_DB_ENV'] == "remote":
             'PASSWORD': os.environ['RDS_PASSWORD'],
             'HOST': os.environ['RDS_HOSTNAME'],
             'CONN_MAX_AGE': None,
+            'OPTIONS': {'sslmode': 'require'},
         },
     }
 else:

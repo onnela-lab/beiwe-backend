@@ -35,29 +35,33 @@ function getDayOfWeek() {
 function get_survey_settings() {
     var trigger_on_first_download = document.getElementById('trigger_on_first_download').checked;
     if (trackingSurvey) {
+        var make_survey_always_available = document.getElementById('always_available').checked;
         return {
             'trigger_on_first_download': trigger_on_first_download,
             'randomize': scope.surveyBuilder.randomize,
             'randomize_with_memory': scope.surveyBuilder.randomizeWithMemory,
-            'number_of_random_questions': scope.surveyBuilder.numberOfRandomQuestions
+            'number_of_random_questions': scope.surveyBuilder.numberOfRandomQuestions,
+            'always_available' : make_survey_always_available
         };
     } else if (audioSurvey) {
+        var make_survey_always_available = document.getElementById('always_available').checked;
         var audioSurveyType = $("[name='audio_survey_type']:checked").val();
         ret = {'trigger_on_first_download': trigger_on_first_download,
-                'audio_survey_type': audioSurveyType };
+                'audio_survey_type': audioSurveyType,
+                'always_available' : make_survey_always_available};
         if (audioSurveyType == 'raw') { ret['sample_rate'] = parseInt($('#raw_options').val()); }
         if (audioSurveyType == 'compressed') { ret['bit_rate'] = parseInt($('#compressed_options').val()); }
         return ret;
     } else {
-        var make_image_survey_always_available = document.getElementById('always_available').checked;
+        var make_survey_always_available = document.getElementById('always_available').checked;
         ret = {'trigger_on_first_download': trigger_on_first_download,
-                'always_available': make_image_survey_always_available };
+                'always_available': make_survey_always_available };
         return ret;
-    };
+    }
 }
 
 function end(domainName) {
-    var content = "";
+    var content = '';
     if (trackingSurvey) {
         content = scope.surveyBuilder.questions;
         scope.surveyBuilder.errors = null;  // Reset errors
@@ -115,7 +119,7 @@ function createJsonSurveyObject() {
         hour_of_day: getHour(),
         questions: angular.element($("body")).scope().surveyBuilder.questions,
         survey_id: survey_id_string
-    }
+    };
     // If it's a weekly survey, add the day of the week to ask the survey
     if (getDayOfWeek() != null) {
         surveyObject.day_of_week = getDayOfWeek();

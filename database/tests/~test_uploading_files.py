@@ -1,5 +1,5 @@
 from flask import Flask, Request, request
-from StringIO import StringIO
+from io import StringIO
 import unittest
 
 RESULT = False
@@ -10,7 +10,7 @@ class TestFileFail(unittest.TestCase):
         class FileObj(StringIO):
 
             def close(self):
-                print 'in file close'
+                print('in file close')
                 global RESULT
                 RESULT = True
 

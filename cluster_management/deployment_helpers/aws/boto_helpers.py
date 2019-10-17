@@ -36,6 +36,12 @@ def create_iam_client():
 def create_rds_client():
     return _get_client('rds')
 
+def create_batch_client():
+    return _get_client('batch')
+
+def create_s3_client():
+    return _get_client('s3')
+
 def create_s3_client():
     return _get_client('s3')
 

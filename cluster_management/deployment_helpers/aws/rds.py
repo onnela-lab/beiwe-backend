@@ -45,9 +45,9 @@ def generate_valid_postgres_credentials():
         # 1 to 63 alphanumeric characters, begin with a letter
         "RDS_DB_NAME": random_alphanumeric_starting_with_letter(63)
     }
-    print "database username:", credentials['RDS_USERNAME']
-    print "database password:", credentials['RDS_PASSWORD']
-    print "database name:", credentials['RDS_DB_NAME']
+    print("database username:", credentials['RDS_USERNAME'])
+    print("database password:", credentials['RDS_PASSWORD'])
+    print("database name:", credentials['RDS_DB_NAME'])
     return credentials
 
 

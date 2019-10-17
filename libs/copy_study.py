@@ -34,11 +34,11 @@ def update_device_settings(new_device_settings, study, filename):
     serialization of the consent_sections parameter. """
     if request.form.get('device_settings', 'false') == 'true':
         # Don't copy the PK to the device settings to be updated
-        if 'id' in new_device_settings.keys():
+        if 'id' in new_device_settings:
             new_device_settings.pop('id')
-        if '_id' in new_device_settings.keys():
+        if '_id' in new_device_settings:
             new_device_settings.pop('_id')
-        if 'created_on' in new_device_settings.keys():
+        if 'created_on' in new_device_settings:
             new_device_settings.pop('created_on')
         
         # ah, it looks like the bug we had was that you can just send dictionary directly
@@ -63,7 +63,7 @@ def add_new_surveys(new_survey_settings, study, filename):
             # Don't copy unique fields to the new Survey object
             unique_fields = ['id', 'object_id', '_id']
             for field in unique_fields:
-                if field in survey_settings.keys():
+                if field in survey_settings:
                     survey_settings.pop(field)
 
             survey_settings['content'] = json.dumps(survey_settings['content'])

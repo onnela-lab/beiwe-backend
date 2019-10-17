@@ -2,9 +2,8 @@ from flask import abort, Blueprint, render_template
 
 from config.settings import DOMAIN_NAME
 from database.study_models import Survey
-from libs.admin_authentication import authenticate_admin_study_access,\
-    get_admins_allowed_studies, admin_is_system_admin
-
+from libs.admin_authentication import (authenticate_researcher_study_access,
+    get_researcher_allowed_studies, researcher_is_an_admin)
 
 survey_designer = Blueprint('survey_designer', __name__)
 
@@ -13,7 +12,7 @@ survey_designer = Blueprint('survey_designer', __name__)
 
 
 @survey_designer.route('/edit_survey/<string:survey_id>')
-@authenticate_admin_study_access
+@authenticate_researcher_study_access
 def render_edit_survey(survey_id=None):
     try:
         survey = Survey.objects.get(pk=survey_id)
@@ -26,7 +25,7 @@ def render_edit_survey(survey_id=None):
         'edit_survey.html',
         survey=survey.as_native_python(),
         study=study,
-        allowed_studies=get_admins_allowed_studies(),
-        system_admin=admin_is_system_admin(),
+        allowed_studies=get_researcher_allowed_studies(),
+        is_admin=researcher_is_an_admin(),
         domain_name=DOMAIN_NAME,  # used in a Javascript alert, see survey-editor.js
     )

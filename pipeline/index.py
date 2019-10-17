@@ -1,12 +1,11 @@
+from config.constants import ResearcherRole
 from config.settings import DOMAIN_NAME
-
 from database.study_models import Study
-from database.user_models import Researcher
-from libs.sentry import make_error_sentry
+from database.user_models import Researcher, StudyRelation
 
 # This component of pipeline is part of the Beiwe server, the correct import is 'from pipeline.xyz...'
 from pipeline.boto_helpers import get_boto_client
-from pipeline.configuration_getters import get_generic_config, get_eb_config
+from pipeline.configuration_getters import get_eb_config, get_generic_config
 
 
 def refresh_data_access_credentials(freq, ssm_client=None, webserver=False):
@@ -31,7 +30,12 @@ def refresh_data_access_credentials(freq, ssm_client=None, webserver=False):
     # Ensure that the Researcher is attached to all Studies. This allows them to access all
     # data via the DAA.
     for study in Study.objects.all():
-        study.researchers.add(mock_researcher)
+        StudyRelation.objects.get_or_create(
+            study=study,
+            researcher=mock_researcher,
+            relationship=ResearcherRole.researcher,
+            is_batch_user=True,
+        )
     
     # Reset the credentials. This ensures that they aren't stale.
     access_key, secret_key = mock_researcher.reset_access_credentials()
@@ -40,8 +44,6 @@ def refresh_data_access_credentials(freq, ssm_client=None, webserver=False):
         generic_config = get_generic_config()
     else:
         generic_config = get_eb_config()
-        generic_config["server_url"] = DOMAIN_NAME
-
 
     # Append the frequency to the SSM (AWS Systems Manager) names. This ensures that the
     # different frequency jobs' keys do not overwrite each other.
@@ -65,15 +67,16 @@ def refresh_data_access_credentials(freq, ssm_client=None, webserver=False):
     )
 
 
-def create_one_job(freq, object_id, client=None, webserver=False):
+def create_one_job(freq, study, patient_id, client=None, webserver=False):
     """
     Create an AWS batch job
     The aws_object_names and client parameters are optional. They are provided in case
     that this function is run as part of a loop, to avoid an unnecessarily large number of
     file operations or API calls.
     :param freq: string e.g. 'daily', 'manually'
-    :param object_id: string representing the Study object_id e.g. '56325d8297013e33a2e57736'
-    :param client: a credentialled boto3 client or None
+    :param a Study database object
+    :param a string of a patient id
+    :param client: a credentialed boto3 client or None
     
     config needs are the following: job_name, job_defn_name, queue_name
     """
@@ -83,7 +86,6 @@ def create_one_job(freq, object_id, client=None, webserver=False):
         aws_object_names = get_generic_config()
     else:
         aws_object_names = get_eb_config()
-        aws_object_names["server_url"] = DOMAIN_NAME
 
     # requires region_name be defined.
     if client is None:
@@ -97,55 +99,65 @@ def create_one_job(freq, object_id, client=None, webserver=False):
             'environment': [
                 {
                     'name': 'study_object_id',
-                    'value': str(object_id),
-                },
-                {
+                    'value': str(study.object_id),
+                }, {
                     'name': 'study_name',
-                    'value': Study.objects.get(object_id=object_id).name,
-                },
-                {
+                    'value': Study.objects.get(object_id=study.object_id).name,
+                }, {
                     'name': 'FREQ',
                     'value': freq,
-                },
+                }, {
+                    'name': 'patient_id',
+                    'value': patient_id,
+                },{
+                    'name': 'server_url',
+                    'value': DOMAIN_NAME,
+                }
+
             ],
         },
     )
 
 
-def create_all_jobs(freq):
-    """
-    Create one AWS batch job for each Study object
-    :param freq: string e.g. 'daily', 'monthly'
-    """
-    
-    # TODO: Boto3 version 1.4.8 has AWS Batch Array Jobs, which are extremely useful for the
-    # task this function performs. We should switch to using them.
-    
-    # Get new data access credentials for the user
-    # aws_object_names = get_aws_object_names()
-    refresh_data_access_credentials(freq)
-    
-    # TODO: If there are issues with servers not getting spun up in time, make this a
-    # ThreadPool with random spacing over the course of 5-10 minutes.
-    error_sentry = make_error_sentry("data", tags={"pipeline_frequency": freq})
-    for study in Study.objects.filter(deleted=False):
-        with error_sentry:
-            # For each study, create a job
-            object_id = study.object_id
-            create_one_job(freq, object_id)
+# TODO: these are not currently used at all except in a cron job.  Pipeline is being converted (for now)
+# to be per-patient, not per-study.  The reason for this is because there is too much data
+# to download per study, and the concept of calling different code for monthly, weekly etc.
+# appears to have been discarded.  Currently only manual runs work.
+
+# def create_all_jobs(freq):
+#     """
+#     Create one AWS batch job for each Study object
+#     :param freq: string e.g. 'daily', 'monthly'
+#     """
+#
+#     # TODO: Boto3 version 1.4.8 has AWS Batch Array Jobs, which are extremely useful for the
+#     # task this function performs. We should switch to using them.
+#
+#     # Get new data access credentials for the user
+#     # aws_object_names = get_aws_object_names()
+#     refresh_data_access_credentials(freq)
+#
+#     # TODO: If there are issues with servers not getting spun up in time, make this a
+#     # ThreadPool with random spacing over the course of 5-10 minutes.
+#     error_sentry = make_error_sentry("data", tags={"pipeline_frequency": freq})
+#     for study in Study.objects.filter(deleted=False):
+#         with error_sentry:
+#             # For each study, create a job
+#             object_id = study.object_id
+#             create_one_job(freq, object_id)
 
 
-def hourly():
-    create_all_jobs('hourly')
-
-
-def daily():
-    create_all_jobs('daily')
-
-
-def weekly():
-    create_all_jobs('weekly')
-
-
-def monthly():
-    create_all_jobs('monthly')
+# def hourly():
+#     create_all_jobs('hourly')
+#
+#
+# def daily():
+#     create_all_jobs('daily')
+#
+#
+# def weekly():
+#     create_all_jobs('weekly')
+#
+#
+# def monthly():
+#     create_all_jobs('monthly')

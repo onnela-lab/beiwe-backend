@@ -69,7 +69,7 @@ def safe_queue_user(*args, **kwargs):
     In case there is an error with enqueuing the process, retry it several times until
     it works.
     """
-    for i in xrange(10):
+    for i in range(10):
         try:
             return queue_user.apply_async(*args, **kwargs)
         except OperationalError:
@@ -190,7 +190,7 @@ def celery_process_file_chunks(participant_id):
     
     while True:
         previous_number_bad_files = number_bad_files
-        starting_length = participant.files_to_process.count()
+        starting_length = participant.files_to_process.exclude(deleted=True).count()
         
         log.append("%s processing %s, %s files remaining" % (datetime.now(), participant.patient_id, starting_length))
         number_bad_files += do_process_user_file_chunks(
@@ -201,7 +201,7 @@ def celery_process_file_chunks(participant_id):
         )
         
         # If no files were processed, quit processing
-        if participant.files_to_process.count() == starting_length:
+        if participant.files_to_process.exclude(deleted=True).count() == starting_length:
             if previous_number_bad_files == number_bad_files:
                 # Cases:
                 #   every file broke, blow up. (would cause infinite loop otherwise)

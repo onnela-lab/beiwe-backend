@@ -9,8 +9,9 @@ from time import sleep
 import boto3
 from botocore.exceptions import ClientError
 
-from script_helpers import set_default_region
-from configuration_getters import get_configs_folder, get_aws_object_names
+from .script_helpers import set_default_region
+from .configuration_getters import get_configs_folder, get_aws_object_names
+
 
 def run():
     """
@@ -80,7 +81,7 @@ def run():
             if tries > 300:
                 raise
             else:
-                print "waiting on unencrypted ami..."
+                print("waiting on unencrypted ami...")
             sleep(1)
         else:
             break

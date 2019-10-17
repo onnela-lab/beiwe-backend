@@ -34,3 +34,6 @@ IS_STAGING = getenv("IS_STAGING") or "PRODUCTION"
 
 # S3 region (not all regions have S3, so this value may need to be specified)
 S3_REGION_NAME = getenv("S3_REGION_NAME", "us-east-1")
+
+# Location of the downloadable Android APK file that'll be served from /download
+DOWNLOADABLE_APK_URL = getenv("DOWNLOADABLE_APK_URL", "https://s3.amazonaws.com/beiwe-app-backups/release/Beiwe-2.4.1-onnelaLabServer-release.apk")
