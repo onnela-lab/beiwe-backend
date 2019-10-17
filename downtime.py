@@ -32,13 +32,18 @@ def e404(e):
     return render_template("downtime.html"), 404
 
 
-
 @app.route('/upload', methods=['POST', "GET"])
 @app.route('/upload/ios/', methods=['GET', 'POST'])
+@app.route('/register_user', methods=['GET', 'POST'])
+@app.route('/register_user/ios/', methods=['GET', 'POST'])
+@app.route('/set_password', methods=['GET', 'POST'])
+@app.route('/set_password/ios/', methods=['GET', 'POST'])
+@app.route('/download_surveys', methods=['GET', 'POST'])
+@app.route('/download_surveys/ios/', methods=['GET', 'POST'])
 def fake_upload_endpoint():
     """
-    The upload endpoint is absolutely critical.  Without this 500 error study participants apps
-    will think they have uploaded files and that it is okay to delete them.
+    These endpoints have return code based behavior and therefore require a 500 error to "work"
+    correctly.
     """
     return abort(500)
 
