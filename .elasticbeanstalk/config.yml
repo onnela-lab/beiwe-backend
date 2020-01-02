@@ -8,7 +8,7 @@ branch-defaults:
 global:
   application_name: Beiwe Cluster
   default_ec2_keyname: actually_beiwe_key_pair
-  default_platform: 64bit Amazon Linux 2018.03 v2.7.0 running Python 2.7
+  default_platform: 64bit Amazon Linux 2018.03 v2.9.4 running Python 2.7
   default_region: us-east-1
   profile: eb-cli
   sc: git
