@@ -33,7 +33,7 @@
             "autoscaling:TerminateInstanceInAutoScalingGroup",
             "ecs:DescribeClusters",
             "ecs:DescribeContainerInstances",
-            "ecs:DescribeTaskDefinitions",
+            "ecs:DescribeTaskDefinition",
             "ecs:DescribeTasks",
             "ecs:ListClusters",
             "ecs:ListContainerInstances",
@@ -54,7 +54,8 @@
             "logs:PutLogEvents",
             "logs:DescribeLogGroups",
             "iam:GetInstanceProfile",
-            "iam:PassRole"
+            "iam:PassRole",
+            "iam:CreateServiceLinkedRole"
         ],
         "Resource": "*"
     }]
