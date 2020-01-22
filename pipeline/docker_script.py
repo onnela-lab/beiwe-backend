@@ -79,7 +79,7 @@ def run():
     # Push the docker file to our new repository
     # FIXME: using get-login is not ideal because it puts the password in process lists
     ecr_login = subprocess.check_output(['aws', 'ecr', 'get-login', '--no-include-email'])
-    ecr_login_as_list = ['sudo'] + ecr_login.strip('\n').decode("utf-8").split(' ')
+    ecr_login_as_list = ['sudo'] + ecr_login.decode("utf-8").strip('\n').split(' ')
     subprocess.check_call(ecr_login_as_list)
     subprocess.check_call(['sudo', 'docker', 'push', repo_uri])
     print('Docker pushed')
