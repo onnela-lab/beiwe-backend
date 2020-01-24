@@ -1,6 +1,6 @@
 {
   "InstanceType": "c5.xlarge",
-  "ImageName": "amzn-ami-2017.09.d-amazon-ecs-optimized",
+  "ImageName": "amzn-ami-2018.03.20200115-amazon-ecs-optimized",
   "MinCount": 1,
   "MaxCount": 1,
   "BlockDeviceMappings": [{
