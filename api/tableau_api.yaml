@@ -1,0 +1,270 @@
+openapi: 3.0.3
+info:
+  title: Beiwe Tableau API
+  description: >-
+    This spec details the interface for the Beiwe Tableau API. You can view this with any OpenAPI viewer (like
+    [Swagger Editor](https://editor.swagger.io)). For more information about how individual values are calculated, visit
+    the [Beiwe Summary Statitics Wiki](https://github.com/onnela-lab/beiwe/wiki/Summary-Statistics).
+  termsOfService: 'https://beiwe.org/'  # Todo
+  contact:
+    email: todo@beiwe.org
+  license:
+    name: BSD 3-Clause License
+    url: 'https://opensource.org/licenses/BSD-3-Clause'
+  version: 0.1.0
+externalDocs:
+  description: Find out more about Beiwe
+  url: 'https://beiwe.org/'
+servers:
+  - url: 'https://studies.beiwe.org/api/v0'  # Todo: upgrade this to v1 when released
+
+components:
+  parameters:
+    participant_id:
+      description: Participant ID
+      in: path
+      name: participant_id
+      required: true
+      schema:
+        type: string
+    study_id:
+      description: Study ID
+      in: path
+      name: study_id
+      required: true
+      schema:
+        type: string
+  responses:
+    400:
+      content:
+        application/json:
+          schema:
+            properties:
+              errors:
+                items:
+                  example: Some descriptive error.
+                  type: string
+                type: array
+            type: object
+      description: Invalid request
+    404:
+      description: Resource not found or access is denied (these two cases are not differentiated for security purposes)
+  schemas:
+    data_point:
+      properties:
+        # Identifiers
+        participant_id:
+          description: Participant ID
+          example: ba86o7ad
+          type: string
+        study_id:
+          description: Study ID
+          example: pJyc2utlNJauNeMVTB94mG7g
+          type: string
+        
+        # GPS
+        distance_diameter:
+          # MaxDiam_km
+          description: Largest distance between any two places visited (meters)
+          type: number
+        distance_from_home:
+          # MaxHomeDist_km
+          description: Maximum distance from home (meters)
+          type: number
+        distance_travelled:
+          # DistTravelled_km
+          description: Distance travelled (meters)
+          type: number
+        flight_distance_average:
+          # AvgFlightLen_km
+          description: Average distance of straight line movement (meters)
+          type: number
+        flight_distance_standard_deviation:
+          # StdFlightLen_km
+          description: Standard deviation of straight line movement (meters)
+          type: number
+        flight_duration_average:
+          # AvgFlightDur_min
+          description: Average duration of straight line movement (minutes)
+          type: number
+        flight_duration_standard_deviation:
+          # StdFlightDur_min
+          description: Standard deviation of straight line movement (minutes)
+          type: number
+        gps_data_missing_duration:
+          description: Duration of GPS data missing (minutes)
+          type: integer
+        home_duration:
+          # Hometime_hrs
+          description: Duration of time spent at home (hours)
+          type: number
+        physical_circadian_rhythm:
+          description: Continuous measurement of routine in the interval [0, 1] where 1 is a complete break from routine
+          type: number
+        physical_circadian_rhythm_stratified:
+          description: Same as physical_circadian_rhythm but calculated separately for weekdays and weekends
+          type: number
+        radius_of_gyration:
+          # RoG_km
+          description: Radius of gyration (meters)
+          type: number
+        significant_location_count:
+          description: Number of significant locations visited
+          type: integer
+        significant_location_entroy:
+          description: Entropy measure based on the proportion of time spent at significant locations
+          type: string
+        stationary_fraction:
+          description: Fraction of day spent stationary  # Todo: units
+          type: string
+        
+        # Texts
+        text_incoming_count:
+          # incoming_texts
+          description: Number of incoming texts
+          type: integer
+        text_incoming_degree:
+          # text_indegree
+          description: Number of unique incoming texts
+          type: integer
+        text_incoming_length:
+          # incoming_textlengths
+          description: Number of characters in incoming texts
+          type: integer
+        text_incoming_responsiveness:
+          description: Mean time before sending a text after a text is received (hours)
+          type: integer
+        text_outgoing_count:
+          # outgoing_texts
+          description: Number of outgoing texts
+          type: integer
+        text_outgoing_degree:
+          # text_outdegree
+          description: Number of unique outgoing texts
+          type: integer
+        text_outgoing_length:
+          # outgoing_textlengths
+          description: Number of characters in outgoing texts
+          type: integer
+        text_reciprocity:
+          # reciprocity
+          description: Sum of incoming and outgoing texts that are not reciprocated
+          type: integer
+        
+        # Calls
+        call_incoming_count:
+          # incoming_calls
+          description: Number of incoming calls
+          type: integer
+        call_incoming_degree:
+          # call_indegree
+          description: Number of unique incoming calls
+          type: integer
+        call_incoming_duration:
+          # incoming_calllengths
+          description: Duration of incoming calls (minutes)
+          type: integer
+        call_incoming_responsiveness:
+          # responsiveness
+          description: Mean time before initiating a call after receiving a call (hours)
+          type: integer
+        call_outgoing_count:
+          # outgoing_calls
+          description: Number of outgoing calls
+          type: integer
+        call_outgoing_degree:
+          # call_outdegree
+          description: Number of unique outgoing calls
+          type: integer
+        call_outgoing_duration:
+          # outgoing_calllengths
+          description: Duration of outgoing calls (minutes)
+          type: integer
+        
+        # Accelerometer
+        acceleration_direction:
+          description: >-
+            A normalized vector (x, y, z) estimating the direction in which the phone is accelerating with respect to
+            the phone's frame of reference
+          type: string
+        accelerometer_coverage_fraction:
+          description: >-
+            Fraction of a participant's follow-up time during which accelerometer measurements have been recorded
+          type: string
+        accelerometer_signal_variability:
+          description: Sample variance of consecutive accelerometer measurements
+          type: string  # Todo
+        accelerometer_univariate_summaries:
+          description: >-
+            A univariate summary representing the three axes of accelerometer measurements (meters per second squared)
+          type: number
+        device_proximity:
+          description: A binary classification corresponding to whether the phone is "on-person" or "off-person"
+          type: boolean
+        
+        # Power state
+        total_power_events:
+          description: Number of discrete periods that the phone has been connected to a power supply
+          type: integer
+        total_screen_events:
+          description: Number of times the screen has been turned on
+          type: integer
+        total_unlock_events:
+          description: Number of times the phone has been unlocked
+          type: integer
+        
+        # Multiple domains
+        awake_onset_time:
+          description: Most likely time for that day's waking onset  # Todo: UTC or local
+          format: time
+          type: string
+        sleep_duration:
+          description: Duration of sleep time as calculated by sleep_onset_time and awake_onset_time  # Todo: units
+          type: integer
+        sleep_onset_time:
+          description: Most likely time for that day's sleeping onset  # Todo: UTC or local
+          format: time
+          type: string
+
+paths:
+  '/studies/{study_id}/daily-data':
+    get:
+      description: Returns a list of daily data points for all participants in the study
+      operationId: get_study_daily_data
+      parameters:
+        - $ref: '#/components/parameters/study_id'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/data_point'
+                type: array
+          description: List of daily data for a study
+        400:
+          $ref: '#/components/responses/400'
+        404:
+          $ref: '#/components/responses/404'
+      summary: Get daily data for a study
+  '/studies/{study_id}/participants/{participant_id}/daily-data':
+    get:
+      description: Returns a list of daily data points for a single participant in the study
+      operationId: get_study_participant_daily_data
+      parameters:
+        - $ref: '#/components/parameters/participant_id'
+        - $ref: '#/components/parameters/study_id'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/data_point'
+                type: array
+          description: List of daily data for a participant in a study
+        400:
+          $ref: '#/components/responses/400'
+        404:
+          $ref: '#/components/responses/404'
+      summary: Get daily data for a participant in a study
