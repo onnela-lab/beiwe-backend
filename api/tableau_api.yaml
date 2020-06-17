@@ -1,10 +1,13 @@
 openapi: 3.0.3
 info:
   title: Beiwe Tableau API
-  description: >-
+  description: >
     This spec details the interface for the Beiwe Tableau API. You can view this with any OpenAPI viewer (like
     [Swagger Editor](https://editor.swagger.io)). For more information about how individual values are calculated, visit
     the [Beiwe Summary Statitics Wiki](https://github.com/onnela-lab/beiwe/wiki/Summary-Statistics).
+    
+    
+    Note: This API and specification is currently in active development and is subject to change without notice.
   termsOfService: 'https://beiwe.org/'  # Todo
   contact:
     email: todo@beiwe.org
@@ -20,6 +23,52 @@ servers:
 
 components:
   parameters:
+    filter_date_end:
+      description: End date (inclusive) for results to retrieve
+      in: query
+      name: end_date
+      schema:
+        format: date
+        type: string
+    filter_date_start:
+      description: Start date (inclusive) for results to retrieve
+      in: query
+      name: start_date
+      schema:
+        format: date
+        type: string
+    filter_fields:
+      description: Comma-separated list of fields to include in results (by default, all fields are included)
+      in: query
+      name: fields
+      schema:
+        type: string
+    filter_limit:
+      description: Maximum number of results to retrieve
+      in: query
+      name: limit
+      schema:
+        type: integer
+    filter_order_by:
+      description: Field to sort results by
+      in: query
+      name: order_by
+      schema:
+        default: date
+        enum:  # Todo: any other fields to support?
+          - date
+          - participant_id
+        type: string
+    filter_order_direction:
+      description: Whether order_by should be sorted ascending or descending
+      in: query
+      name: order_direction
+      schema:
+        default: ascending
+        enum:
+          - ascending
+          - descending
+        type: string
     participant_id:
       description: Participant ID
       in: path
@@ -66,38 +115,38 @@ components:
         distance_diameter:
           # MaxDiam_km
           description: Largest distance between any two places visited (meters)
-          type: number
+          type: integer
         distance_from_home:
           # MaxHomeDist_km
           description: Maximum distance from home (meters)
-          type: number
+          type: integer
         distance_travelled:
           # DistTravelled_km
           description: Distance travelled (meters)
-          type: number
+          type: integer
         flight_distance_average:
           # AvgFlightLen_km
           description: Average distance of straight line movement (meters)
-          type: number
+          type: integer
         flight_distance_standard_deviation:
           # StdFlightLen_km
           description: Standard deviation of straight line movement (meters)
-          type: number
+          type: integer
         flight_duration_average:
           # AvgFlightDur_min
           description: Average duration of straight line movement (minutes)
-          type: number
+          type: integer
         flight_duration_standard_deviation:
           # StdFlightDur_min
           description: Standard deviation of straight line movement (minutes)
-          type: number
+          type: integer
         gps_data_missing_duration:
           description: Duration of GPS data missing (minutes)
           type: integer
         home_duration:
           # Hometime_hrs
           description: Duration of time spent at home (hours)
-          type: number
+          type: integer
         physical_circadian_rhythm:
           description: Continuous measurement of routine in the interval [0, 1] where 1 is a complete break from routine
           type: number
@@ -107,7 +156,7 @@ components:
         radius_of_gyration:
           # RoG_km
           description: Radius of gyration (meters)
-          type: number
+          type: integer
         significant_location_count:
           description: Number of significant locations visited
           type: integer
@@ -183,19 +232,19 @@ components:
         
         # Accelerometer
         acceleration_direction:
-          description: >-
+          description: >
             A normalized vector (x, y, z) estimating the direction in which the phone is accelerating with respect to
             the phone's frame of reference
           type: string
         accelerometer_coverage_fraction:
-          description: >-
+          description: >
             Fraction of a participant's follow-up time during which accelerometer measurements have been recorded
           type: string
         accelerometer_signal_variability:
           description: Sample variance of consecutive accelerometer measurements
           type: string  # Todo
         accelerometer_univariate_summaries:
-          description: >-
+          description: >
             A univariate summary representing the three axes of accelerometer measurements (meters per second squared)
           type: number
         device_proximity:
@@ -233,6 +282,12 @@ paths:
       operationId: get_study_daily_data
       parameters:
         - $ref: '#/components/parameters/study_id'
+        - $ref: '#/components/parameters/filter_date_end'
+        - $ref: '#/components/parameters/filter_date_start'
+        - $ref: '#/components/parameters/filter_fields'
+        - $ref: '#/components/parameters/filter_limit'
+        - $ref: '#/components/parameters/filter_order_by'
+        - $ref: '#/components/parameters/filter_order_direction'
       responses:
         200:
           content:
@@ -254,6 +309,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/participant_id'
         - $ref: '#/components/parameters/study_id'
+        - $ref: '#/components/parameters/filter_date_end'
+        - $ref: '#/components/parameters/filter_date_start'
+        - $ref: '#/components/parameters/filter_fields'
+        - $ref: '#/components/parameters/filter_limit'
+        - $ref: '#/components/parameters/filter_order_by'
+        - $ref: '#/components/parameters/filter_order_direction'
       responses:
         200:
           content:
