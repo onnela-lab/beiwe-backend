@@ -64,7 +64,7 @@ components:
       in: query
       name: order_direction
       schema:
-        default: ascending
+        default: descending
         enum:
           - ascending
           - descending
