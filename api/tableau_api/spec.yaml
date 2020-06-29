@@ -276,7 +276,7 @@ components:
           type: string
 
 paths:
-  '/studies/{study_id}/daily-data':
+  '/studies/{study_id}/summary-statistics/daily':
     get:
       description: Returns a list of daily data points for all participants in the study
       operationId: get_study_daily_data
@@ -302,7 +302,7 @@ paths:
         404:
           $ref: '#/components/responses/404'
       summary: Get daily data for a study
-  '/studies/{study_id}/participants/{participant_id}/daily-data':
+  '/studies/{study_id}/participants/{participant_id}/summary-statistics/daily':
     get:
       description: Returns a list of daily data points for a single participant in the study
       operationId: get_study_participant_daily_data
