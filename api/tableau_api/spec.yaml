@@ -70,14 +70,14 @@ components:
           - descending
         type: string
     participant_id:
-      description: Participant ID
+      description: 8-character participant patient id
       in: path
       name: participant_id
       required: true
       schema:
         type: string
     study_id:
-      description: Study ID
+      description: 24-character study id
       in: path
       name: study_id
       required: true
@@ -103,11 +103,11 @@ components:
       properties:
         # Identifiers
         participant_id:
-          description: Participant ID
+          description: Participant id
           example: ba86o7ad
           type: string
         study_id:
-          description: Study ID
+          description: Study id
           example: pJyc2utlNJauNeMVTB94mG7g
           type: string
         
