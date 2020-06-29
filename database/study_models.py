@@ -20,7 +20,7 @@ class Study(AbstractModel):
     encryption_key = models.CharField(max_length=32, validators=[LengthValidator(32)],
                                       help_text='Key used for encrypting the study data')
     object_id = models.CharField(max_length=24, unique=True, validators=[LengthValidator(24)],
-                                 help_text='ID used for naming S3 files')
+                                 help_text='Permanent UUID attached to this study')
 
     is_test = models.BooleanField(default=True)
     timezone = TimeZoneField(default="America/New_York", help_text='Timezone of the study')
