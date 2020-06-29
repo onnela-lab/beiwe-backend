@@ -48,5 +48,9 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     path = '/api/v0/studies/<string:study_id>/summary-statistics/daily'
 
     def get(self, study_id):
-        # Todo (CD): Implement this
+        # Todo (CD): Implement SummaryStatisticDaily database model
+        # Todo (CD): Implement this logic
         return 'ok'
+
+
+# Todo (CD): Implement SummaryStatisticDailyParticipantView
