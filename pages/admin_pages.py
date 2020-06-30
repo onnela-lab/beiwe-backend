@@ -149,6 +149,7 @@ def login():
 @admin_pages.route('/manage_credentials')
 @authenticate_researcher_login
 def manage_credentials():
+    # Todo (CD): Create a section for managing API keys
     return render_template('manage_credentials.html',
                            allowed_studies=get_researcher_allowed_studies(),
                            is_admin=researcher_is_an_admin())
