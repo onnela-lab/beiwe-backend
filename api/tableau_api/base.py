@@ -16,7 +16,7 @@ class PermissionDenied(Exception): pass
 
 class AuthenticationForm(forms.Form):
     """
-    Form for fetching
+    Form for fetching request headers
     """
     def __init__(self, *args, **kwargs):
         """
@@ -35,7 +35,7 @@ class TableauApiView(MethodView):
     """
     CREDENTIALS_NOT_VALID_ERROR_MESSAGE = 'Credentials not valid'
     
-    def check_permissions(self, *args, study_id=None, participant_id=None, **kwargs):
+    def check_permissions(self, *args, study_id=None, **kwargs):
         """
         Authenticate API key and check permissions for access to a study/participant data.
         """

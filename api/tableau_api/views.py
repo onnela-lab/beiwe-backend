@@ -11,6 +11,3 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         # Todo (CD): Implement SummaryStatisticDaily database model
         # Todo (CD): Implement this logic
         return 'ok'
-
-
-# Todo (CD): Implement SummaryStatisticDailyParticipantView
