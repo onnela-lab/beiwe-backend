@@ -23,6 +23,20 @@ servers:
 
 components:
   parameters:
+    access_key_id:
+      description: Access key id for Tableau API access
+      in: header
+      name: X-Access-Key-Id
+      required: true
+      schema:
+        format: string
+    access_key_secret:
+      description: Access key secret for Tableau API access
+      in: header
+      name: X-Access-Key-Secret
+      required: true
+      schema:
+        format: string
     filter_date_end:
       description: End date (inclusive) for results to retrieve
       in: query
@@ -281,6 +295,8 @@ paths:
       description: Returns a list of daily data points for all participants in the study
       operationId: get_study_daily_data
       parameters:
+        - $ref: '#/components/parameters/access_key_id'
+        - $ref: '#/components/parameters/access_key_secret'
         - $ref: '#/components/parameters/study_id'
         - $ref: '#/components/parameters/filter_date_end'
         - $ref: '#/components/parameters/filter_date_start'
@@ -307,8 +323,10 @@ paths:
       description: Returns a list of daily data points for a single participant in the study
       operationId: get_study_participant_daily_data
       parameters:
-        - $ref: '#/components/parameters/participant_id'
+        - $ref: '#/components/parameters/access_key_id'
+        - $ref: '#/components/parameters/access_key_secret'
         - $ref: '#/components/parameters/study_id'
+        - $ref: '#/components/parameters/participant_id'
         - $ref: '#/components/parameters/filter_date_end'
         - $ref: '#/components/parameters/filter_date_start'
         - $ref: '#/components/parameters/filter_fields'
