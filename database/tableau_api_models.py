@@ -4,7 +4,8 @@ from .study_models import Study
 from .user_models import Participant
 
 
-class SchemaTableauAPI(AbstractModel):
+
+class SummaryStatisticDaily(AbstractModel):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     study = models.ForeignKey(Study, on_delete=models.CASCADE)
     date = models.DateField()
