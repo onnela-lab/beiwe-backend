@@ -51,7 +51,7 @@ class AbstractModel(models.Model):
                 break
         else:
             raise ObjectIdError("Could not generate unique id for %s." % cls.__name__)
-        
+        print (object_id)
         return object_id
     
     @classmethod
