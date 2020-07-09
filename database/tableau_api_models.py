@@ -22,7 +22,7 @@ class SummaryStatisticDaily(AbstractModel):
     physical_circadian_rhythm_stratified = models.FloatField()
     radius_of_gyration = models.IntegerField()
     significant_location_count = models.IntegerField()
-    significant_location_entroy = models.IntegerField()
+    significant_location_entropy = models.IntegerField()
     stationary_fraction = models.TextField()
     text_incoming_count = models.IntegerField()
     text_incoming_degree = models.IntegerField()
