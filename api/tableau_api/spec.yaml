@@ -194,7 +194,7 @@ components:
         significant_location_count:
           description: Number of significant locations visited
           type: integer
-        significant_location_entroy:
+        significant_location_entropy:
           description: Entropy measure based on the proportion of time spent at significant locations
           type: string
         stationary_fraction:
