@@ -12,12 +12,6 @@ from django.forms.models import model_to_dict
 from django.core.serializers import json
 
 
-class CleanSerializer(json.Serializer):
-    #  https://stackoverflow.com/questions/5453237/override-django-object-serializer-to-get-rid-of-specified-model
-    def get_dump_object(self, obj):
-        return self._current
-
-
 class DatabaseQueryFailed(Exception):
     status_code = 400
 
@@ -35,20 +29,21 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     def get(self, study_id):
         request.values = dict(request.values)
         request.values['study_id'] = study_id
-        errors, query = validate_query(**request.values)
+        errors, query = _validate_and_coerce_query(**request.values)
         if errors:
             return errors
         queryset = self._query_database(**query)
         json_serializer = CleanSerializer()
-        json_serializer.serialize(queryset, fields=query['fields'])
-        data = json_serializer.getvalue()  # possibly useful to optimize to write to a file directly/stream?
+        json_serializer.serialize(queryset, fields=query.get('fields', None))
+        data = json_serializer.getvalue()
         return data
 
-    def _query_database(self, study_id, end_date=None, start_date=None, limit=None, ordered_by='date',
+    @staticmethod
+    def _query_database(study_id, end_date=None, start_date=None, limit=None, ordered_by='date',
                         order_direction='descending', participant_ids=None, fields=None):
         """
         study_id : int
-        end_date/start_date : date object
+        end_date/start_date : date object or None
         limit: int
         ordered_by : string drawn from the list of fields
         order_direction: string, either ascending/descending
@@ -69,6 +64,11 @@ class SummaryStatisticDailyStudyView(TableauApiView):
             queryset = queryset[:int(limit)]  # consider edge cases + queryset limit
         return queryset
 
+
+class CleanSerializer(json.Serializer):
+    #  https://stackoverflow.com/questions/5453237/override-django-object-serializer-to-get-rid-of-specified-model
+    def get_dump_object(self, obj):
+        return self._current
 
 
 field_names = ["participant",
@@ -115,41 +115,54 @@ field_names = ["participant",
                "awake_onset_time",
                "sleep_duration",
                "sleep_onset_time"]
-# TODO, error messages, sensible defaults?
+# TODO, error messages
+
+
 class ApiQueryForm(forms.Form):
     study_id = forms.ModelChoiceField(queryset=Study.objects.all(),
                                       required=True)
     # overwritten to clean to a string
 
-    end_date = forms.DateField(required=False)
+    end_date = forms.DateField(required=False,
+                               error_messages={'invalid': "end date could not be interpreted as a date"})
 
-    start_date = forms.DateField(required=False)
+    start_date = forms.DateField(required=False,
+                                 error_messages={'invalid': "start date could not be interpreted as a date"})
 
-    limit = forms.IntegerField(required=False)
+    limit = forms.IntegerField(required=False,
+                               error_messages={'invalid': "limit could not be interpreted as an integer value"})
 
     ordered_by = forms.ChoiceField(choices=[(f, f) for f in field_names],
-                                   required=False)
+                                   required=False,
+                                   error_messages={'invalid_choice': "%(value)s is not a field that can be used "
+                                                                     "to sort the output"})
 
     order_direction = forms.ChoiceField(choices=[('ascending', 'ascending'), ('descending', 'descending')],
-                                        required=False)
+                                        required=False,
+                                        error_messages={'invalid_choice': "If provided, the order_direction parameter "
+                                                                          "should contain either the value 'ascending' "
+                                                                          "or 'descending'"})
 
     participant_ids = forms.ModelMultipleChoiceField(queryset=Participant.objects.all(),
-                                                     required=False)
+                                                     required=False,
+                                                     error_messages={'invalid_choice': '%(value)s is not a valid '
+                                                                                       'patient id'})
 
     fields = forms.MultipleChoiceField(choices=[(f, f) for f in field_names],
-                                       required=False)
+                                       required=False,
+                                       error_messages={'invalid_choice': '%(value)s is not a valid field'})
 
     def clean_study_id(self):
         data = self.cleaned_data['study_id']
         return data.object_id
 
     def clean_participant_ids(self):
+        # queryset -> list of strings or None
         data = self.cleaned_data['participant_ids']
         data = [str(d.patient_id) for d in data]
         if not data:
             return None
         return data
-        # queryset -> list of strings or None
 
     def clean_fields(self):
         data = self.cleaned_data['fields']
@@ -157,8 +170,21 @@ class ApiQueryForm(forms.Form):
             return None
         return data
 
+    def __init__(self, *args, **kwargs):
+        super.__init__(*args, **kwargs)
+        values = {'study_id': kwargs.get('study_id'),
+             'end_date': kwargs.get('end_date', None),
+             'start_date': kwargs.get('start_date', None),
+             'limit': kwargs.get('limit', None),
+             'ordered_by': kwargs.get('ordered_by', 'date'),
+             'order_direction': kwargs.get('order_direction', 'descending'),
+             'participant_ids': participant_ids,
+             'fields': fields}
 
-def validate_query(**kwargs):
+
+
+def _validate_and_coerce_query(**kwargs):
+    # functionality should move to an as_python function?
     fields = kwargs.get('fields', '')
     fields = fields.split(',')
     if fields == ['']:
@@ -178,11 +204,7 @@ def validate_query(**kwargs):
              'participant_ids': participant_ids,
              'fields': fields}
 
-
-
     form = ApiQueryForm(query)
     if not form.is_valid():
         return form.errors.as_json(), None
     return None, form.cleaned_data
-
-# Todo (CD): Implement SummaryStatisticDailyParticipantView
