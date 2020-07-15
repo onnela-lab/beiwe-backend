@@ -14,6 +14,12 @@ from django.forms import ValidationError
 import json
 
 
+class CleanSerializer(jsonSerializer):
+    #  https://stackoverflow.com/questions/5453237/override-django-object-serializer-to-get-rid-of-specified-model
+    def get_dump_object(self, obj):
+        return self._current
+
+
 class DatabaseQueryFailed(Exception):
     status_code = 400
 
@@ -31,22 +37,21 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     def get(self, study_id):
         request.values = dict(request.values)
         request.values['study_id'] = study_id
-        form = ApiQueryForm(data=request.values)
-        if not form.is_valid():
-            return self._process_errs(form.errors.get_json_data())
-        query = form.cleaned_data
+        errors, query = self._validate_query(**request.values)
+        if errors:
+            return self._process_errs(errors)
+        print(query)
         queryset = self._query_database(**query)
         json_serializer = CleanSerializer()
-        json_serializer.serialize(queryset, fields=query.get('fields', None))
-        data = json_serializer.getvalue()
+        json_serializer.serialize(queryset, fields=query['fields'])
+        data = json_serializer.getvalue()  # possibly useful to optimize to write to a file directly/stream?
         return data
 
-    @staticmethod
-    def _query_database(study_id, end_date=None, start_date=None, limit=None, ordered_by='date',
+    def _query_database(self, study_id, end_date=None, start_date=None, limit=None, ordered_by='date',
                         order_direction='descending', participant_ids=None, fields=None):
         """
         study_id : int
-        end_date/start_date : date object or None
+        end_date/start_date : date object
         limit: int
         ordered_by : string drawn from the list of fields
         order_direction: string, either ascending/descending
@@ -77,6 +82,26 @@ class SummaryStatisticDailyStudyView(TableauApiView):
             messages.extend([{"%s(%i)" % (field, num+1): err["message"]} for num, err in enumerate(field_errs)])
         return json.dumps({"errors": messages})
 
+    @staticmethod
+    def _validate_query(**kwargs):
+        fields = kwargs.get('fields', '')
+        fields = fields.split(',')
+        if fields == ['']:
+            fields = field_names
+
+        query = {'study_id': kwargs.get('study_id'),
+                 'end_date': kwargs.get('end_date', None),
+                 'start_date': kwargs.get('start_date', None),
+                 'limit': kwargs.get('limit', None),
+                 'ordered_by': kwargs.get('ordered_by', 'date'),
+                 'order_direction': kwargs.get('order_direction', 'descending'),
+                 'participant_ids': kwargs.get('participant_ids', ''),
+                 'fields': fields}
+
+        form = ApiQueryForm(data=query)
+        if not form.is_valid():
+            return form.errors.as_json_data(), None
+        return None, form.cleaned_data
 
 
 class CleanSerializer(jsonSerializer):
@@ -129,95 +154,61 @@ field_names = ["participant",
                "awake_onset_time",
                "sleep_duration",
                "sleep_onset_time"]
-# TODO, error messages
+
+class CsvField(forms.CharField):
+    def clean(self, value):
+        value = super().clean(value)
+        value = value.split(",")
+        if value == [""]:
+            return None
+        return value
 
 
 class ApiQueryForm(forms.Form):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.default_values = {'study_id': None,
-                               'end_date': None,
-                               'start_date': None,
-                               'limit': None,
-                               'ordered_by': 'date',
-                               'order_direction': 'descending',
-                               'participant_ids': None,
-                               'fields': field_names}
-        # NOTE: participant ID default should be either none, or a list of IDs (not objects), unlike the
-        #  form input field
-
     # study_id is cleaned to the object ID of the chosen Study
     study_id = forms.ModelChoiceField(queryset=Study.objects.all(),
                                       required=True)
 
-    end_date = forms.DateField(required=False,
-                               error_messages={'invalid': "end date could not be interpreted as a date"})
+    end_date = forms.DateField(required=False)
 
-    start_date = forms.DateField(required=False,
-                                 error_messages={'invalid': "start date could not be interpreted as a date"})
+    start_date = forms.DateField(required=False)
 
-    limit = forms.IntegerField(required=False,
-                               error_messages={'invalid': "limit could not be interpreted as an integer value"})
+    limit = forms.IntegerField(required=False)
 
     ordered_by = forms.ChoiceField(choices=[(f, f) for f in field_names],
                                    required=False,
                                    error_messages={'invalid_choice': "%(value)s is not a field that can be used "
                                                                      "to sort the output"})
+
     order_direction = forms.ChoiceField(choices=[('ascending', 'ascending'), ('descending', 'descending')],
-                                        required=False,
-                                        error_messages={'invalid_choice': "If provided, the order_direction parameter "
-                                                                          "should contain either the value 'ascending' "
-                                                                          "or 'descending'"})
+                                        required=False)
 
     #  participant_ids is cleaned to a list of IDs of participants
-    # not erroring or checking participant ids for validity
-    participant_ids = forms.ModelMultipleChoiceField(queryset=Participant.objects.all(),
-                                                     required=False,
-                                                     error_messages={'invalid_choice': '%(value)s is not a valid '
-                                                                                       'patient id'})
+    #  change to not raise an error or checking participant ids for validity
+    participant_ids = CsvField(required=False)
 
     fields = forms.MultipleChoiceField(choices=[(f, f) for f in field_names],
-                                       required=False,
-                                       error_messages={'invalid_choice': '%(value)s is not a valid field'})
+                                       required=False)
 
     def clean_study_id(self):
         # cleans from instance of study to its ID
-        if not self.cleaned_data["study_id"]:
-            raise ValidationError("No study ID provided")
         data = self.cleaned_data['study_id']
         return data.object_id
 
-    def clean_participant_ids(self):
-        # cleans from a queryset to a list of IDs or None
-        data = self.cleaned_data['participant_ids']
-        # field level validation happens first: this doesnt work
-        if isinstance(data, str):
-            data = data.split(',')
-        if data == ['']:
-            return self.default_values["participant_ids"]
-        data = [str(d.patient_id) for d in data]
-        return data
+    # def clean_participant_ids(self):
+    #     # cleans from a queryset to a list of IDs or None
+    #     data = self.cleaned_data['participant_ids']
+    #     if not data or data == ['']:
+    #         return None
+    #     data = [str(d.patient_id) for d in data]
+    #     return data
+    #     # queryset -> list of strings or None
 
     def clean_fields(self):
         data = self.cleaned_data['fields']
-        if isinstance(data, str):
-            data = data.split(',')
         if not data or data == ['']:
-            data = self.default_values['fields']
+            return None
         return data
 
-    def clean(self):
-        if "end_date" not in self.cleaned_data or not self.cleaned_data["end_date"]:
-            self.cleaned_data["end_date"] = self.default_values["end_date"]
-        if "start_date" not in self.cleaned_data or not self.cleaned_data["start_date"]:
-            self.cleaned_data["start_date"] = self.default_values["start_date"]
-        if "limit" not in self.cleaned_data or not self.cleaned_data["limit"]:
-            self.cleaned_data["limit"] = self.default_values["limit"]
-        if "ordered_by" not in self.cleaned_data or not self.cleaned_data["ordered_by"]:
-            self.cleaned_data["ordered_by"] = self.default_values["ordered_by"]
-        if "order_direction" not in self.cleaned_data or not self.cleaned_data["order_direction"]:
-            self.cleaned_data["order_direction"] = self.default_values["order_direction"]
 
-# clean that runs after individual fields
-    # fetch from the inital values
+
