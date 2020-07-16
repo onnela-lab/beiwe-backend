@@ -1,18 +1,12 @@
 from api.tableau_api.base import TableauApiView
 from database.tableau_api_models import SummaryStatisticDaily
-from django.core import serializers
 from flask import request
-from datetime import date, datetime
-from dateutil.parser import parse
-from django.core.exceptions import FieldError
 from django import forms
 from database.study_models import Study
-from database.user_models import Participant
-from django.forms.models import model_to_dict
-from django.core.serializers.json import Serializer as jsonSerializer
 from django.forms import ValidationError
 import json
-
+from rest_framework import serializers
+from rest_framework.renderers import JSONRenderer
 
 field_names = ["participant",
                "study",
@@ -59,19 +53,13 @@ field_names = ["participant",
                "sleep_duration",
                "sleep_onset_time"]
 valid_query_parameters = ['study_id',
-                   'end_date',
-                   'start_date',
-                   'limit',
-                   'ordered_by',
-                   'order_direction',
-                   'participant_ids',
-                   'fields']
-
-
-class CleanSerializer(jsonSerializer):
-    #  https://stackoverflow.com/questions/5453237/override-django-object-serializer-to-get-rid-of-specified-model
-    def get_dump_object(self, obj):
-        return self._current
+                          'end_date',
+                          'start_date',
+                          'limit',
+                          'ordered_by',
+                          'order_direction',
+                          'participant_ids',
+                          'fields']
 
 
 class SummaryStatisticDailyStudyView(TableauApiView):
@@ -85,24 +73,34 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         request.values['study_id'] = study_id
         errors, query = self._validate_query(**request.values)
         if errors:
-            return self._process_errs(errors)
+            return self._render_errs(errors)
         queryset = self._query_database(**query)
-        json_serializer = CleanSerializer()
-        json_serializer.serialize(queryset, fields=query['fields'])
-        data = json_serializer.getvalue()
-        return data
+        # alternative approach?
+
+        class SummaryStatisticDailySerializer(serializers.ModelSerializer):
+            class Meta:
+                model = SummaryStatisticDaily
+                fields = query["fields"]
+            if "participant" in query["fields"]:
+                participant = serializers.SlugRelatedField(slug_field="patient_id", read_only=True)
+            if "study" in query["fields"]:
+                study = serializers.SlugRelatedField(slug_field="object_id", read_only=True)
+
+        serializer = SummaryStatisticDailySerializer(queryset, many=True)
+        #  the fact that this is an error (I dont mean False) is genuinely upsetting: print(serializer.is_valid())
+        return JSONRenderer().render(serializer.data)
 
     @staticmethod
-    def _query_database(study_id, end_date=None, start_date=None, limit=None, ordered_by='date',
-                        order_direction='descending', participant_ids=None, fields=None):
+    def _query_database(study_id, end_date, start_date, limit, ordered_by, order_direction, participant_ids, fields):
         """
-        study_id : int
-        end_date/start_date : date object
-        limit: int
+        study_id : string
+        end_date/start_date : date object or None
+        limit: int or None
         ordered_by : string drawn from the list of fields
-        order_direction: string, either ascending/descending
-        participant_ids : list of ints
-        fields: any
+        order_direction: string, either 'ascending' or 'descending'
+        participant_ids : list of strings or None
+        fields: unused but left for convenience as it is a query parameter
+        returns a queryset
         """
         if order_direction.lower() == 'descending':
             ordered_by = '-' + ordered_by
@@ -115,19 +113,28 @@ class SummaryStatisticDailyStudyView(TableauApiView):
             queryset = queryset.filter(date__gte=start_date)
         queryset = queryset.order_by(ordered_by)
         if limit:
-            queryset = queryset[:int(limit)]  # consider edge cases + queryset limit
+            queryset = queryset[:int(limit)]  # seems to be the standard method in docs?
         return queryset
 
     @staticmethod
-    def _process_errs(errors):
+    def _render_errs(errors):
         messages = []
         for field, field_errs in errors.items():
-            # messages.extend([{"%s(%i)" % (field, num+1): err["message"]} for num, err in enumerate(field_errs)])
+            #  messages.extend([{"%s" % (field): err["message"]} for err in field_errs])
+            #  messages.extend(["in field '" + field + "': " + err["message"] for err in field_errs])
             messages.extend([err["message"] for err in field_errs])
         return json.dumps({"errors": messages})
 
+    #  alternative approach: single return, if it fails raise an error with the form itself or the form errors as the
+    #  data, then catch that and render it to the user? seems much more complicated, and not any better abstracted
     @staticmethod
     def _validate_query(**kwargs):
+        """
+        takes a dict of query parameters as strings and returns either
+        (dict of errors, None)
+        or
+        (None, dict of coerced, cleaned and validated query parameters)
+        """
         fields = kwargs.get('fields', '')
         fields = fields.split(",")
         if not fields or fields == [""]:
@@ -145,16 +152,11 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         form = ApiQueryForm(data=query)
         for query_val in kwargs:
             if query_val not in valid_query_parameters:
-                form.add_error(field=None, error=ValidationError(message="%s is not recognized as an API parameter" % query_val))
+                form.add_error(field=None, error=ValidationError(message="%s is not recognized as an API parameter"
+                                                                         % query_val))
         if not form.is_valid():
             return form.errors.get_json_data(), None
         return None, form.cleaned_data
-
-
-class CleanSerializer(jsonSerializer):
-    #  https://stackoverflow.com/questions/5453237/override-django-object-serializer-to-get-rid-of-specified-model
-    def get_dump_object(self, obj):
-        return self._current
 
 
 class CsvField(forms.CharField):
@@ -166,8 +168,7 @@ class CsvField(forms.CharField):
         return value
 
 
-# throws an incorrect error with falsy list elements, otherwise equivalent
-# TODO delete this in final version, talk with alvin first
+# TODO delete one of these
 class AltMultiErrorMultipleChoiceField(forms.MultipleChoiceField):
     def validate(self, value):
         errs = []
@@ -202,7 +203,7 @@ class MultiErrorMultipleChoiceField(forms.MultipleChoiceField):
 
 
 class ApiQueryForm(forms.Form):
-    # study_id is cleaned to the object ID of the chosen Study
+    # study_id is cleaned to the object_id of the chosen Study on output
     study_id = forms.ModelChoiceField(queryset=Study.objects.all(),
                                       required=True,
                                       to_field_name="object_id",
@@ -210,12 +211,12 @@ class ApiQueryForm(forms.Form):
 
     end_date = forms.DateField(required=False,
                                error_messages={'invalid': "end date could not be interpreted as a date. Dates should be"
-                                                          "formatted like 'mm/dd/yyyy' (without quotes)"})
+                                                          "formatted as 'mm/dd/yyyy' (without quotes)"})
 
     start_date = forms.DateField(required=False,
                                  error_messages={
                                      'invalid': "start date could not be interpreted as a date. Dates should be"
-                                                "formatted like 'mm/dd/yyyy' (without quotes)"})
+                                                "formatted as 'mm/dd/yyyy' (without quotes)"})
 
     limit = forms.IntegerField(required=False,
                                error_messages={'invalid': "limit value could not be interpreted as an integer value"})
@@ -234,15 +235,10 @@ class ApiQueryForm(forms.Form):
     #  participant_ids is cleaned to a list of IDs of participants
     participant_ids = CsvField(required=False)
 
-    fields = MultiErrorMultipleChoiceField(choices=[(f, f) for f in field_names],
-                                           required=False,
-                                           error_messages={'invalid_choice': '%(value)s is not a valid field'})
+    fields = AltMultiErrorMultipleChoiceField(choices=[(f, f) for f in field_names],
+                                              required=False,
+                                              error_messages={'invalid_choice': '%(value)s is not a valid field'})
 
     def clean_study_id(self):
-        # cleans from instance of study to its ID
         data = self.cleaned_data['study_id']
         return data.object_id
-
-
-
-
