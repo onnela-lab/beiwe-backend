@@ -126,7 +126,8 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         return json.dumps({"errors": messages})
 
     #  alternative approach: single return, if it fails raise an error with the form itself or the form errors as the
-    #  data, then catch that and render it to the user? seems much more complicated, and not any better abstracted
+    #  data, then catch that and render it to the user? seems much more complicated, and not any better abstracted.
+    #  I'm open to other suggestions
     @staticmethod
     def _validate_query(**kwargs):
         """
@@ -169,6 +170,10 @@ class CsvField(forms.CharField):
 
 
 # TODO delete one of these
+
+#  I think these two are functionally equivalent right now but this one
+#  is more likely to fail loudly if something changes (raise an error it shouldnt rather than not raise one it should)
+#  slightly easier to understand and modify, and is shorter
 class AltMultiErrorMultipleChoiceField(forms.MultipleChoiceField):
     def validate(self, value):
         errs = []
@@ -232,7 +237,6 @@ class ApiQueryForm(forms.Form):
                                                                           "should contain either the value 'ascending' "
                                                                           "or 'descending'"})
 
-    #  participant_ids is cleaned to a list of IDs of participants
     participant_ids = CsvField(required=False)
 
     fields = AltMultiErrorMultipleChoiceField(choices=[(f, f) for f in field_names],
