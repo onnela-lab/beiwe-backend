@@ -1,7 +1,7 @@
 from django.db import models
 from database.common_models import AbstractModel
-from .study_models import Study
-from .user_models import Participant
+from database.study_models import Study
+from database.user_models import Participant
 
 
 

@@ -28,7 +28,7 @@ class Study(AbstractModel):
     def save(self, *args, **kwargs):
         """ Ensure there is a study device settings attached to this study. """
         super().save(self, *args, **kwargs)
-        if not (self.device_settings):
+        if not self.device_settings:
             settings = DeviceSettings(study=self)
             settings.save()
             self.device_settings = settings

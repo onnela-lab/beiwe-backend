@@ -1,7 +1,7 @@
 import factory
-from .tableau_api_models import SummaryStatisticDaily
-from .user_models import Participant
-from .study_models import Study
+from database.tableau_api_models import SummaryStatisticDaily
+from database.user_models import Participant
+from database.study_models import Study
 from random import randint
 from random import random
 from faker import Faker
