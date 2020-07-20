@@ -27,9 +27,10 @@ class StudyFactory(factory.django.DjangoModelFactory):
 class SummaryFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = SummaryStatisticDaily
+    # study and participant are not automated and are specified on instantiation
     # participant = factory.Iterator(Participant.objects.all())
     # study = participant.study
-    date = factory.LazyAttribute((lambda _: fake.date_of_birth())) #not actually a DOB, but a generates a reasonable range
+    date = factory.LazyAttribute((lambda _: fake.date_of_birth())) #  not actually a DOB, but a generates a reasonable range
     distance_diameter = factory.LazyAttribute(lambda _: randint(0,1000))
     distance_from_home = factory.LazyAttribute(lambda _: randint(0,1000))
     distance_travelled = factory.LazyAttribute(lambda _: randint(0,1000))

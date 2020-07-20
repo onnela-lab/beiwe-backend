@@ -20,14 +20,10 @@ class SummaryStatisticDailySerializer(serializers.ModelSerializer):
 
     #  dynamically modify the subset of fields on instantiation
     def __init__(self, *args, **kwargs):
-        # Don't pass the 'fields' arg up to the superclass
         fields = kwargs.pop('fields', None)
-
-        # Instantiate the superclass normally
         super().__init__(*args, **kwargs)
 
         if fields is not None:
-            # Drop any fields that are not specified in the `fields` argument.
             allowed = set(fields)
             existing = set(self.fields)
             for field_name in existing - allowed:
@@ -55,14 +51,16 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     def _query_database(study_id, end_date=None, start_date=None, limit=None, ordered_by='date',
                         order_direction='descending', participant_ids=None):
         """
-        study_id : string
-        end_date/start_date : date object or None
-        limit: int or None
-        ordered_by : string drawn from the list of fields
-        order_direction: string, either 'ascending' or 'descending'
-        participant_ids : list of strings or None
-        fields: unused but left for convenience as it is a query parameter
-        returns a queryset
+        Args:
+            study_id (str): study to find data for
+            end_date (optional[date]): last date to include in search
+            start_date (optional[date]): first date to include in search
+            limit (optional[int]): maximum number of data points to return
+            ordered_by (str): parameter to sort output by. Must be one of the fields in SummaryStatisticsDaily
+            order_direction (str): order to sort in, either "ascending" or "descending"
+            participant_ids (optional[list[str]]): a list of participants to limit the search to
+
+        Returns (queryset[SummaryStatisticsDaily]): the SummaryStatisticsDaily objects specified by the parameters
         """
         if order_direction == 'descending':
             ordered_by = '-' + ordered_by
@@ -75,7 +73,7 @@ class SummaryStatisticDailyStudyView(TableauApiView):
             queryset = queryset.filter(date__gte=start_date)
         queryset = queryset.order_by(ordered_by)
         if limit:
-            queryset = queryset[:limit]  # seems to be the standard method in docs?
+            queryset = queryset[:limit]
         return queryset
 
     @staticmethod
@@ -89,6 +87,8 @@ class SummaryStatisticDailyStudyView(TableauApiView):
 
 
 class CommaSeparatedListField(forms.CharField):
+    """ A variant of the character field that outputs cleaned data in the form of a list of strings, or None, based on
+    input delimited by commas """
     def clean(self, value):
         value = super().clean(value)
         value = value.split(",")
@@ -98,6 +98,9 @@ class CommaSeparatedListField(forms.CharField):
 
 
 class MultiErrorMultipleChoiceField(forms.MultipleChoiceField):
+    """ A variant of the multiple choice field that collects errors thrown by each choice, and returns an error that
+    contains each other error. Raises up to one error per selection. Useful for validation that informs users of all
+    errors in a form at once, rather than one per form submission """
     def validate(self, value):
         errs = []
         for val in value:
