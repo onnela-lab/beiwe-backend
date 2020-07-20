@@ -124,12 +124,12 @@ class ApiQueryForm(forms.Form):
 
     end_date = forms.DateField(required=False,
                                error_messages={'invalid': 'end date could not be interpreted as a date. Dates should be'
-                                                          'formatted as "YYYY-MM-DD" (without quotes)'})
+                                                          'formatted as YYYY-MM-DD'})
 
     start_date = forms.DateField(required=False,
                                  error_messages={
                                      'invalid': 'start date could not be interpreted as a date. Dates should be'
-                                                'formatted as "YYYY-MM-DD" (without quotes)'})
+                                                'formatted as YYYY-MM-DD'})
 
     limit = forms.IntegerField(required=False,
                                error_messages={'invalid': "limit value could not be interpreted as an integer value"})
