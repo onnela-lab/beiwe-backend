@@ -55,7 +55,7 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         end_date=None,
         start_date=None,
         limit=None,
-        ordered_by="date",
+        order_by="date",
         order_direction="descending",
         participant_ids=None,
     ):
@@ -65,14 +65,14 @@ class SummaryStatisticDailyStudyView(TableauApiView):
             end_date (optional[date]): last date to include in search
             start_date (optional[date]): first date to include in search
             limit (optional[int]): maximum number of data points to return
-            ordered_by (str): parameter to sort output by. Must be one in the list of fields to return
+            order_by (str): parameter to sort output by. Must be one in the list of fields to return
             order_direction (str): order to sort in, either "ascending" or "descending"
             participant_ids (optional[list[str]]): a list of participants to limit the search to
 
         Returns (queryset[SummaryStatisticsDaily]): the SummaryStatisticsDaily objects specified by the parameters
         """
         if order_direction == "descending":
-            ordered_by = "-" + ordered_by
+            order_by = "-" + order_by
         queryset = SummaryStatisticDaily.objects.filter(study__object_id=study_id).filter(
             deleted=False
         )
@@ -82,7 +82,7 @@ class SummaryStatisticDailyStudyView(TableauApiView):
             queryset = queryset.filter(date__lte=end_date)
         if start_date:
             queryset = queryset.filter(date__gte=start_date)
-        queryset = queryset.order_by(ordered_by)
+        queryset = queryset.order_by(order_by)
         if limit:
             queryset = queryset[:limit]
         return queryset
@@ -108,7 +108,7 @@ class CommaSeparatedListFieldMixin:
     def clean(self, value):
         if value:
             if not isinstance(value, str):
-                raise ValidationError(
+                raise TypeError(
                     "a non string argument was supplied to a CommaSeparatedListField"
                 )
             value_list = value.split(",")
@@ -118,7 +118,7 @@ class CommaSeparatedListFieldMixin:
         cleaned_values = []
         for v in value_list:
             try:
-                cleaned_values.append(super(CommaSeparatedListFieldMixin, self).clean(v))
+                cleaned_values.append(super(CommaSeparatedListFieldMixin, self).clean(v.strip()))
             except ValidationError as err:
                 errors.append(err)
         if errors:
@@ -158,7 +158,7 @@ class ApiQueryForm(forms.Form):
         error_messages={"invalid": "limit value could not be interpreted as an integer value"},
     )
 
-    ordered_by = forms.ChoiceField(
+    order_by = forms.ChoiceField(
         choices=[(f, f) for f in SERIALIZABLE_FIELD_NAMES],
         required=False,
         error_messages={
