@@ -16,8 +16,10 @@ class SummaryStatisticDailySerializer(serializers.ModelSerializer):
         model = SummaryStatisticDaily
         fields = SERIALIZABLE_FIELD_NAMES
 
-    participant_id = serializers.SlugRelatedField(slug_field="patient_id", source='participant', read_only=True)
-    study_id = serializers.SlugRelatedField(slug_field="object_id", source='study', read_only=True)
+    participant_id = serializers.SlugRelatedField(
+        slug_field="patient_id", source="participant", read_only=True
+    )
+    study_id = serializers.SlugRelatedField(slug_field="object_id", source="study", read_only=True)
 
     def __init__(self, *args, fields=None, **kwargs):
         """ dynamically modify the subset of fields on instantiation """
@@ -34,7 +36,8 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     """
     API endpoint for retrieving SummaryStatisticsDaily objects for a study.
     """
-    path = '/api/v0/studies/<string:study_id>/summary-statistics/daily'
+
+    path = "/api/v0/studies/<string:study_id>/summary-statistics/daily"
 
     def get(self, study_id):
         form = ApiQueryForm(data=request.values)
@@ -47,8 +50,15 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         return JSONRenderer().render(serializer.data)
 
     @staticmethod
-    def _query_database(study_id, end_date=None, start_date=None, limit=None, ordered_by='date',
-                        order_direction='descending', participant_ids=None):
+    def _query_database(
+        study_id,
+        end_date=None,
+        start_date=None,
+        limit=None,
+        ordered_by="date",
+        order_direction="descending",
+        participant_ids=None,
+    ):
         """
         Args:
             study_id (str): study in which to find data
@@ -61,9 +71,11 @@ class SummaryStatisticDailyStudyView(TableauApiView):
 
         Returns (queryset[SummaryStatisticsDaily]): the SummaryStatisticsDaily objects specified by the parameters
         """
-        if order_direction == 'descending':
-            ordered_by = '-' + ordered_by
-        queryset = SummaryStatisticDaily.objects.filter(study__object_id=study_id).filter(deleted=False)
+        if order_direction == "descending":
+            ordered_by = "-" + ordered_by
+        queryset = SummaryStatisticDaily.objects.filter(study__object_id=study_id).filter(
+            deleted=False
+        )
         if participant_ids:
             queryset = queryset.filter(participant__patient_id__in=participant_ids)
         if end_date:
@@ -96,7 +108,9 @@ class CommaSeparatedListFieldMixin:
     def clean(self, value):
         if value:
             if not isinstance(value, str):
-                raise ValidationError("a non string argument was supplied to a CommaSeparatedListField")
+                raise ValidationError(
+                    "a non string argument was supplied to a CommaSeparatedListField"
+                )
             value_list = value.split(",")
         else:
             value_list = []
@@ -123,37 +137,58 @@ class CommaSeparatedListChoiceField(CommaSeparatedListFieldMixin, forms.ChoiceFi
 
 
 class ApiQueryForm(forms.Form):
-    end_date = forms.DateField(required=False,
-                               error_messages={'invalid': 'end date could not be interpreted as a date. Dates should be'
-                                                          'formatted as YYYY-MM-DD'})
+    end_date = forms.DateField(
+        required=False,
+        error_messages={
+            "invalid": "end date could not be interpreted as a date. Dates should be"
+            "formatted as YYYY-MM-DD"
+        },
+    )
 
-    start_date = forms.DateField(required=False,
-                                 error_messages={
-                                     'invalid': 'start date could not be interpreted as a date. Dates should be'
-                                                'formatted as YYYY-MM-DD'})
+    start_date = forms.DateField(
+        required=False,
+        error_messages={
+            "invalid": "start date could not be interpreted as a date. Dates should be"
+            "formatted as YYYY-MM-DD"
+        },
+    )
 
-    limit = forms.IntegerField(required=False,
-                               error_messages={'invalid': "limit value could not be interpreted as an integer value"})
+    limit = forms.IntegerField(
+        required=False,
+        error_messages={"invalid": "limit value could not be interpreted as an integer value"},
+    )
 
-    ordered_by = forms.ChoiceField(choices=[(f, f) for f in SERIALIZABLE_FIELD_NAMES],
-                                   required=False,
-                                   error_messages={'invalid_choice': "%(value)s is not a field that can be used "
-                                                                     "to sort the output"})
+    ordered_by = forms.ChoiceField(
+        choices=[(f, f) for f in SERIALIZABLE_FIELD_NAMES],
+        required=False,
+        error_messages={
+            "invalid_choice": "%(value)s is not a field that can be used " "to sort the output"
+        },
+    )
 
-    order_direction = forms.ChoiceField(choices=[('ascending', 'ascending'), ('descending', 'descending')],
-                                        required=False,
-                                        error_messages={'invalid_choice': "If provided, the order_direction parameter "
-                                                                          "should contain either the value 'ascending' "
-                                                                          "or 'descending'"})
+    order_direction = forms.ChoiceField(
+        choices=[("ascending", "ascending"), ("descending", "descending")],
+        required=False,
+        error_messages={
+            "invalid_choice": "If provided, the order_direction parameter "
+            "should contain either the value 'ascending' "
+            "or 'descending'"
+        },
+    )
 
     participant_ids = CommaSeparatedListCharField(required=False)
 
-    fields = CommaSeparatedListChoiceField(choices=[(f, f) for f in SERIALIZABLE_FIELD_NAMES],
-                                           required=False,
-                                           error_messages={'invalid_choice': '%(value)s is not a valid field'})
+    fields = CommaSeparatedListChoiceField(
+        choices=[(f, f) for f in SERIALIZABLE_FIELD_NAMES],
+        required=False,
+        error_messages={"invalid_choice": "%(value)s is not a valid field"},
+    )
 
     def clean(self):
         """ removes invalid query parameters and parameters not provided from the cleaned data """
         super().clean()
-        return {k: v for (k, v) in self.cleaned_data.items() if k in VALID_QUERY_PARAMETERS
-                                                                and (v or v is False)}
+        return {
+            k: v
+            for (k, v) in self.cleaned_data.items()
+            if k in VALID_QUERY_PARAMETERS and (v or v is False)
+        }

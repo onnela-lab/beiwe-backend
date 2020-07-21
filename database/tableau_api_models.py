@@ -4,7 +4,6 @@ from database.study_models import Study
 from database.user_models import Participant
 
 
-
 class SummaryStatisticDaily(AbstractModel):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     study = models.ForeignKey(Study, on_delete=models.CASCADE)
@@ -50,4 +49,3 @@ class SummaryStatisticDaily(AbstractModel):
     awake_onset_time = models.DateTimeField()
     sleep_duration = models.IntegerField()
     sleep_onset_time = models.DateTimeField()
-

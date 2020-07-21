@@ -45,12 +45,12 @@ SERIALIZABLE_FIELD_NAMES = [
     "total_unlock_events",
 ]
 VALID_QUERY_PARAMETERS = [
-    'end_date',
-    'fields',
-    'limit',
-    'order_direction',
-    'ordered_by',
-    'participant_ids',
-    'start_date',
-    'study_id',
+    "end_date",
+    "fields",
+    "limit",
+    "order_direction",
+    "ordered_by",
+    "participant_ids",
+    "start_date",
+    "study_id",
 ]
