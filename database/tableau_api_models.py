@@ -11,7 +11,7 @@ class SummaryStatisticDaily(AbstractModel):
     date = models.DateField()
     distance_diameter = models.IntegerField()
     distance_from_home = models.IntegerField()
-    distance_travelled = models.IntegerField()
+    distance_traveled = models.IntegerField()
     flight_distance_average = models.IntegerField()
     flight_distance_standard_deviation = models.IntegerField()
     flight_duration_average = models.IntegerField()

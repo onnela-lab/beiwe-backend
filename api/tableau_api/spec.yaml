@@ -154,9 +154,9 @@ components:
           # MaxHomeDist_km
           description: Maximum distance from home (meters)
           type: integer
-        distance_travelled:
+        distance_traveled:
           # DistTravelled_km
-          description: Distance travelled (meters)
+          description: Distance traveled (meters)
           type: integer
         flight_distance_average:
           # AvgFlightLen_km

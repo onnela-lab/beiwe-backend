@@ -1,32 +1,32 @@
 import json
 
-from flask import request
 from django import forms
 from django.forms import ValidationError
+from flask import request
 from rest_framework import serializers
 from rest_framework.renderers import JSONRenderer
 
 from api.tableau_api.base import TableauApiView
+from api.tableau_api.constants import SERIALIZABLE_FIELD_NAMES, VALID_QUERY_PARAMETERS
 from database.tableau_api_models import SummaryStatisticDaily
-from api.tableau_api.constants import field_names, valid_query_parameters
 
 
 class SummaryStatisticDailySerializer(serializers.ModelSerializer):
     class Meta:
         model = SummaryStatisticDaily
-        fields = field_names
+        fields = SERIALIZABLE_FIELD_NAMES
+
     participant_id = serializers.SlugRelatedField(slug_field="patient_id", source='participant', read_only=True)
     study_id = serializers.SlugRelatedField(slug_field="object_id", source='study', read_only=True)
 
-    #  dynamically modify the subset of fields on instantiation
-    def __init__(self, *args, **kwargs):
-        fields = kwargs.pop('fields', None)
+    def __init__(self, *args, fields=None, **kwargs):
+        """ dynamically modify the subset of fields on instantiation """
         super().__init__(*args, **kwargs)
 
         if fields is not None:
-            allowed = set(fields)
-            existing = set(self.fields)
-            for field_name in existing - allowed:
+            serialized_fields = set(fields)
+            all_fields = set(self.fields)
+            for field_name in all_fields - serialized_fields:
                 self.fields.pop(field_name)
 
 
@@ -37,12 +37,11 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     path = '/api/v0/studies/<string:study_id>/summary-statistics/daily'
 
     def get(self, study_id):
-        request.values = dict(request.values)
         form = ApiQueryForm(data=request.values)
         if not form.is_valid():
             return self._render_errors(form.errors.get_json_data())
         query = form.cleaned_data
-        fields = query.pop("fields", field_names)
+        fields = query.pop("fields", SERIALIZABLE_FIELD_NAMES)
         queryset = self._query_database(study_id=study_id, **query)
         serializer = SummaryStatisticDailySerializer(queryset, many=True, fields=fields)
         return JSONRenderer().render(serializer.data)
@@ -52,11 +51,11 @@ class SummaryStatisticDailyStudyView(TableauApiView):
                         order_direction='descending', participant_ids=None):
         """
         Args:
-            study_id (str): study to find data for
+            study_id (str): study in which to find data
             end_date (optional[date]): last date to include in search
             start_date (optional[date]): first date to include in search
             limit (optional[int]): maximum number of data points to return
-            ordered_by (str): parameter to sort output by. Must be one of the fields in SummaryStatisticsDaily
+            ordered_by (str): parameter to sort output by. Must be one in the list of fields to return
             order_direction (str): order to sort in, either "ascending" or "descending"
             participant_ids (optional[list[str]]): a list of participants to limit the search to
 
@@ -80,48 +79,50 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     def _render_errors(errors):
         messages = []
         for field, field_errs in errors.items():
-            #  messages.extend([{"%s" % (field): err["message"]} for err in field_errs])
-            #  messages.extend(["in field '" + field + "': " + err["message"] for err in field_errs])
             messages.extend([err["message"] for err in field_errs])
         return json.dumps({"errors": messages})
 
 
-class CommaSeparatedListField(forms.CharField):
-    """ A variant of the character field that outputs cleaned data in the form of a list of strings, or None, based on
-    input delimited by commas """
+class CommaSeparatedListFieldMixin:
+    """ A mixin for use with django form fields. This mixin changes the field to accept a comma separated list of
+        inputs that are individually cleaned and validated. Takes one optional parameter, list_validators, which is
+        a list of validators to be applied to the final list of values (the validator parameter still expects a single
+        value as input, and is applied to each value individually) """
+
+    def __init__(self, list_validators=None, *args, **kwargs):
+        self.list_validators = list_validators if list_validators is not None else []
+        super().__init__(*args, **kwargs)
+
     def clean(self, value):
-        value = super().clean(value)
-        value = value.split(",")
-        if value == [""]:
-            return None
-        return value
-
-
-class MultiErrorMultipleChoiceField(forms.MultipleChoiceField):
-    """ A variant of the multiple choice field that collects errors thrown by each choice, and returns an error that
-    contains each other error. Raises up to one error per selection. Useful for validation that informs users of all
-    errors in a form at once, rather than one per form submission """
-    def validate(self, value):
-        errs = []
-        for val in value:
+        if value:
+            if not isinstance(value, str):
+                raise ValidationError("a non string argument was supplied to a CommaSeparatedListField")
+            value_list = value.split(",")
+        else:
+            value_list = []
+        errors = []
+        cleaned_values = []
+        for v in value_list:
             try:
-                super().validate([val])
-            except ValidationError as e:
-                errs.append(e)
-        if errs:
-            raise ValidationError(errs, code='invalid_choice')
+                cleaned_values.append(super(CommaSeparatedListFieldMixin, self).clean(v))
+            except ValidationError as err:
+                errors.append(err)
+        if errors:
+            raise ValidationError(errors)
+        for validator in self.list_validators:
+            validator(cleaned_values)
+        return cleaned_values
+
+
+class CommaSeparatedListCharField(CommaSeparatedListFieldMixin, forms.CharField):
+    pass
+
+
+class CommaSeparatedListChoiceField(CommaSeparatedListFieldMixin, forms.ChoiceField):
+    pass
 
 
 class ApiQueryForm(forms.Form):
-    #  overrides the constructor to interpret a string for fields as a comma separated list of choices
-    def __init__(self, *args, **kwargs):
-        if "data" in kwargs and "fields" in kwargs["data"] and isinstance(kwargs["data"]["fields"], str):
-            fields = kwargs["data"]["fields"].split(",")
-            if fields == [""]:
-                fields = None
-            kwargs["data"]["fields"] = fields
-        super().__init__(*args, **kwargs)
-
     end_date = forms.DateField(required=False,
                                error_messages={'invalid': 'end date could not be interpreted as a date. Dates should be'
                                                           'formatted as YYYY-MM-DD'})
@@ -134,7 +135,7 @@ class ApiQueryForm(forms.Form):
     limit = forms.IntegerField(required=False,
                                error_messages={'invalid': "limit value could not be interpreted as an integer value"})
 
-    ordered_by = forms.ChoiceField(choices=[(f, f) for f in field_names],
+    ordered_by = forms.ChoiceField(choices=[(f, f) for f in SERIALIZABLE_FIELD_NAMES],
                                    required=False,
                                    error_messages={'invalid_choice': "%(value)s is not a field that can be used "
                                                                      "to sort the output"})
@@ -145,14 +146,14 @@ class ApiQueryForm(forms.Form):
                                                                           "should contain either the value 'ascending' "
                                                                           "or 'descending'"})
 
-    participant_ids = CommaSeparatedListField(required=False)
+    participant_ids = CommaSeparatedListCharField(required=False)
 
-    fields = MultiErrorMultipleChoiceField(choices=[(f, f) for f in field_names],
+    fields = CommaSeparatedListChoiceField(choices=[(f, f) for f in SERIALIZABLE_FIELD_NAMES],
                                            required=False,
                                            error_messages={'invalid_choice': '%(value)s is not a valid field'})
 
-    def clean(self, *args, **kwargs):
-        # remove falsy outputs from the cleaned data
-        super().clean(*args, **kwargs)
-        return {k: v for (k, v) in self.cleaned_data.items() if k in valid_query_parameters
+    def clean(self):
+        """ removes invalid query parameters and parameters not provided from the cleaned data """
+        super().clean()
+        return {k: v for (k, v) in self.cleaned_data.items() if k in VALID_QUERY_PARAMETERS
                                                                 and (v or v is False)}
