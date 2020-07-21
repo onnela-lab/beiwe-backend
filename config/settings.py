@@ -5,6 +5,7 @@ To customize any of these values, append a line to config/remote_db_env.py such 
 os.environ['S3_BUCKET'] = 'bucket_name'
 """
 
+
 BEIWE_SERVER_AWS_ACCESS_KEY_ID = getenv("BEIWE_SERVER_AWS_ACCESS_KEY_ID") or getenv("S3_ACCESS_CREDENTIALS_USER")
 BEIWE_SERVER_AWS_SECRET_ACCESS_KEY = getenv("BEIWE_SERVER_AWS_SECRET_ACCESS_KEY") or getenv("S3_ACCESS_CREDENTIALS_KEY")
 

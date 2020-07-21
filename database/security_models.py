@@ -9,27 +9,31 @@ from libs.security import generate_random_string, generate_hash_and_salt, compar
 
 
 class ApiKey(AbstractModel):
-    access_key_id = models.CharField(max_length=64, unique=True, validators=[STANDARD_BASE_64_VALIDATOR])
+    access_key_id = models.CharField(
+        max_length=64, unique=True, validators=[STANDARD_BASE_64_VALIDATOR]
+    )
     access_key_secret = models.CharField(max_length=44, validators=[URL_SAFE_BASE_64_VALIDATOR])
-    access_key_secret_salt = models.CharField(max_length=24, validators=[URL_SAFE_BASE_64_VALIDATOR])
-    
+    access_key_secret_salt = models.CharField(
+        max_length=24, validators=[URL_SAFE_BASE_64_VALIDATOR]
+    )
+
     is_active = models.BooleanField(default=True)
-    
+
     has_tableau_api_permissions = models.BooleanField(default=False)
-    
-    researcher = models.ForeignKey(Researcher, on_delete=models.PROTECT, related_name='api_keys')
-    
+
+    researcher = models.ForeignKey(Researcher, on_delete=models.PROTECT, related_name="api_keys")
+
     _access_key_secret_plaintext = None
-    
+
     @classmethod
-    def generate(cls, researcher: Researcher, **kwargs) -> 'ApiKey':
+    def generate(cls, researcher: Researcher, **kwargs) -> "ApiKey":
         """
         Create ApiKey with newly generated credentials credentials.
         """
         access_key = generate_random_string()[:64]
         secret_key = generate_random_string()[:64]
         secret_hash, secret_salt = generate_hash_and_salt(secret_key)
-        
+
         api_key = cls.objects.create(
             access_key_id=access_key.decode(),
             access_key_secret=secret_hash.decode(),
@@ -39,7 +43,7 @@ class ApiKey(AbstractModel):
         )
         api_key._access_key_secret_plaintext = secret_key.decode()
         return api_key
-    
+
     @property
     def access_key_secret_plaintext(self) -> Optional[str]:
         """

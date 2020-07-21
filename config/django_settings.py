@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'database.apps.DatabaseConfig',
     'django_extensions',
     'timezone_field',
+    'rest_framework',
 ]
 
 SHELL_PLUS = "ipython"

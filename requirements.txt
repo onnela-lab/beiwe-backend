@@ -21,3 +21,4 @@ django-extensions
 python-dateutil
 firebase-admin
 factory_boy
+djangorestframework

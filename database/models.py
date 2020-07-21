@@ -10,4 +10,6 @@ from .data_access_models import *
 from .dashboard_models import *
 from .schedule_models import *
 from .system_models import *
+from .tableau_api_models import *
 from database.security_models import *
+
