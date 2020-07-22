@@ -1,18 +1,32 @@
 from django import forms
-from flask import request
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from flask import request, jsonify
 from flask.views import MethodView
 from werkzeug.exceptions import abort
 
 from database.security_models import ApiKey
 from database.study_models import Study
-
+from database.user_models import StudyRelation, Researcher
 
 X_ACCESS_KEY_ID = "X-Access-Key-Id"
 X_ACCESS_KEY_SECRET = "X-Access-Key-Secret"
 
 
+# code from API exceptions flask documentation
 class AuthenticationFailed(Exception):
-    pass
+    status_code = 400
+
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
 
 
 class PermissionDenied(Exception):
@@ -75,6 +89,13 @@ class TableauApiView(MethodView):
             raise PermissionDenied("No matching study found")
 
         # Todo (CD): Implement the rest of this
+        # begin things added by CD
+        try:
+            StudyRelation.objects.filter(study__object_id=study_id).get(reseacher=api_key.researcher)
+        except ObjectDoesNotExist:
+            raise PermissionDenied("Researcher does not have permission to view that study")
+        except MultipleObjectsReturned:
+            pass  # report to console?
 
         return True
 
@@ -84,8 +105,11 @@ class TableauApiView(MethodView):
         """
         try:
             self.check_permissions(*args, **kwargs)
-        except AuthenticationFailed:
-            # Todo (CD): Handle returning the error message for this case
+        except AuthenticationFailed as error:
+            print(error.to_dict())
+            response = jsonify(error.to_dict())
+            response.status_code = error.status_code
+            # return response
             return abort(401)
         except PermissionDenied:
             # Prefer 404 over 403 to hide information about validity of these resource identifiers
