@@ -1,12 +1,11 @@
 import json
 from datetime import datetime
 
+from firebase_admin import messaging
 from flask import Blueprint, request
 
-from firebase_admin import messaging
 from config import constants
-from database.user_models import Participant
-from libs.user_authentication import authenticate_user, get_session_participant
+from authentication.user_authentication import authenticate_user, get_session_participant
 
 push_notifications_api = Blueprint('push_notifications_api', __name__)
 
@@ -24,9 +23,10 @@ def set_fcm_token():
     is generated. Expects a patient_id and and fcm_token in the request body.
     """
     participant = get_session_participant()
-    participant.fcm_instance_id = request.values['fcm_token']
-    participant.save()
-    print("Patient", participant.patient_id, "token: ", request.values['fcm_token'])
+    fcm_token = participant.get_fcm_token()
+    fcm_token.token = request.values['fcm_token']
+    fcm_token.save()
+    # print("Patient", participant.patient_id, "token: ", request.values['fcm_token'])
     return '', 204
 
 
@@ -37,13 +37,12 @@ def send_notification():
     Sends a push notification to the participant, used for testing
     Expects a patient_id in the request body.
     """
-    participant = request.get_session_participant()
     message = messaging.Message(
         data={
             'type': 'fake',
             'content': 'hello good sir',
         },
-        token=participant.fcm_instance_id,
+        token=get_session_participant().get_fcm_token().token,
     )
     response = messaging.send(message)
     print('Successfully sent notification message:', response)
@@ -57,9 +56,10 @@ def send_survey_notification():
     Sends a push notification to the participant with survey data, used for testing
     Expects a patient_id in the request body
     """
-    participant = Participant.objects.get(patient_id=request.values['patient_id'])
-    token = participant.fcm_instance_id
-    survey_ids = [survey.object_id for survey in participant.study.surveys.filter(deleted=False).order_by("?")[:4]]
+    participant = get_session_participant()
+    survey_ids = [  # up to 4 random, valid surveys.
+        survey.object_id for survey in participant.study.surveys.filter(deleted=False).order_by("?")[:4]
+    ]
     survey_ids.sort()
     sent_time = datetime.now().strftime(constants.API_TIME_FORMAT)
     message = messaging.Message(
@@ -68,25 +68,9 @@ def send_survey_notification():
             'survey_ids': json.dumps(survey_ids),
             'sent_time': sent_time,
         },
-        token=token,
+        token=participant.get_fcm_token().token,
     )
     response = messaging.send(message)
     print('Successfully sent survey message:', response)
     return '', 204
 
-
-################################################################################
-################################# DOWNLOAD #####################################
-################################################################################
-
-
-@push_notifications_api.route('/download_survey', methods=['GET', 'POST'])
-def get_single_survey():
-    """
-    Sends a json-formatted survey to the participant's phone
-    Expects a patient_id and survey_id in the request body
-    """
-    participant = Participant.objects.get(patient_id=request.values['patient_id'])
-    study = participant.study
-    survey = study.surveys.get(object_id=request.values["survey_id"])
-    return json.dumps(survey.format_survey_for_study())

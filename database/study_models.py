@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import F, Func
 from timezone_field import TimeZoneField
@@ -5,13 +6,12 @@ from timezone_field import TimeZoneField
 from config.constants import ResearcherRole
 from config.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
-from database.models import AbstractModel, JSONTextField
+from database.models import JSONTextField, TimestampedModel
 from database.user_models import Researcher
 from database.validators import LengthValidator
 
 
-class Study(AbstractModel):
-    
+class Study(TimestampedModel):
     # When a Study object is created, a default DeviceSettings object is automatically
     # created alongside it. If the Study is created via the researcher interface (as it
     # usually is) the researcher is immediately shown the DeviceSettings to edit. The code
@@ -24,15 +24,18 @@ class Study(AbstractModel):
 
     is_test = models.BooleanField(default=True)
     timezone = TimeZoneField(default="America/New_York", help_text='Timezone of the study')
+    deleted = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         """ Ensure there is a study device settings attached to this study. """
-        super().save(self, *args, **kwargs)
-        if not self.device_settings:
+        # the device settings have to be in the database before the save validation passes.
+        try:
+            self.device_settings
+        except ObjectDoesNotExist:
             settings = DeviceSettings(study=self)
             settings.save()
             self.device_settings = settings
-            self.save()
+        super().save(*args, **kwargs)
 
     @classmethod
     def create_with_object_id(cls, **kwargs):
@@ -43,9 +46,7 @@ class Study(AbstractModel):
 
     @classmethod
     def get_all_studies_by_name(cls):
-        """
-        Sort the un-deleted Studies a-z by name, ignoring case.
-        """
+        """ Sort the un-deleted Studies a-z by name, ignoring case. """
         return (cls.objects
                 .filter(deleted=False)
                 .annotate(name_lower=Func(F('name'), function='LOWER'))
@@ -58,45 +59,19 @@ class Study(AbstractModel):
                 study_relations__relationship=ResearcherRole.study_admin,
             )
 
-    def get_surveys_for_study(self, requesting_os):
-        survey_json_list = []
-        for survey in self.surveys.filter(deleted=False):
-            survey_dict = survey.format_survey_for_study()
-            # Exclude image surveys for the Android app to avoid crashing it
-            if requesting_os == "ANDROID" and survey.survey_type == "image_survey":
-                pass
-            else:
-                survey_json_list.append(survey_dict)
-                
-        return survey_json_list
-
-    def get_survey_ids_for_study(self, survey_type='tracking_survey'):
-        return self.surveys.filter(survey_type=survey_type, deleted=False).values_list('id', flat=True)
-
-    def get_survey_ids_and_object_ids_for_study(self, survey_type='tracking_survey'):
-        return self.surveys.filter(survey_type=survey_type, deleted=False).values_list('id', 'object_id')
-
-    def get_study_device_settings(self):
-        return self.device_settings
-
-    def get_researchers(self):
-        return Researcher.objects.filter(study_relations__study=self)
-
     @classmethod
     def get_researcher_studies_by_name(cls, researcher):
         return cls.get_all_studies_by_name().filter(study_relations__researcher=researcher)
 
-    def get_researchers_by_name(self):
-        return (
-            Researcher.objects.filter(study_relations__study=self)
-                .annotate(name_lower=Func(F('username'), function='LOWER'))
-                .order_by('name_lower')
-                .exclude(username__icontains="BATCH USER").exclude(username__icontains="AWS LAMBDA")
-        )
+    def get_survey_ids_and_object_ids_for_study(self, survey_type='tracking_survey'):
+        return self.surveys.filter(survey_type=survey_type, deleted=False).values_list('id', 'object_id')
+
+    def get_researchers(self):
+        return Researcher.objects.filter(study_relations__study=self)
 
     # We override the as_unpacked_native_python function to not include the encryption key.
     def as_unpacked_native_python(self, remove_timestamps=True, remove_encryption_key=True):
-        ret = super(Study, self).as_unpacked_native_python(remove_timestamps=remove_timestamps)
+        ret = super().as_unpacked_native_python(remove_timestamps=remove_timestamps)
         ret.pop("encryption_key")
         return ret
 
@@ -109,7 +84,7 @@ class StudyField(models.Model):
         unique_together = (("study", "field_name"),)
 
 
-class DeviceSettings(AbstractModel):
+class DeviceSettings(TimestampedModel):
     """
     The DeviceSettings database contains the structure that defines
     settings pushed to devices of users in of a study.

@@ -6,7 +6,7 @@ from config.constants import ResearcherRole
 from config.settings import DOMAIN_NAME, DOWNLOADABLE_APK_URL, IS_STAGING
 from database.study_models import Study
 from database.user_models import Researcher, StudyRelation
-from libs.admin_authentication import (assert_admin, assert_researcher_under_admin,
+from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
     authenticate_admin, authenticate_researcher_login, get_researcher_allowed_studies,
     get_session_researcher, researcher_is_an_admin)
 from libs.security import check_password_requirements

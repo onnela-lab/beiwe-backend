@@ -57,4 +57,6 @@ IMAGE_SURVEY_SETTINGS = {
 }
 
 OBJECT_ID_ALLOWED_CHARS = string.ascii_uppercase + string.ascii_lowercase + string.digits
-EASY_ALPHANUMERIC_CHARS = string.ascii_lowercase + '123456789'
+EASY_ALPHANUMERIC_CHARS = string.ascii_lowercase + '123456789'  # intentionally does not have 0
+BASE64_GENERIC_ALLOWED_CHARACTERS = \
+    string .ascii_lowercase + string.ascii_uppercase + string.digits + "/+"

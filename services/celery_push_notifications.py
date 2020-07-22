@@ -1,6 +1,7 @@
 from os.path import abspath
 from sys import path
 # add the root of the project into the path to allow cd-ing into this folder and running the script.
+
 path.insert(0, abspath(__file__).rsplit('/', 2)[0])
 
 import json
@@ -9,13 +10,14 @@ from datetime import datetime, timedelta
 from typing import List
 
 import pytz
+from django.utils import timezone
 from django.utils.timezone import make_aware
 from firebase_admin.messaging import Message, QuotaExceededError, send, UnregisteredError
 from kombu.exceptions import OperationalError
 
 from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, ScheduleTypes
 from database.schedule_models import ScheduledEvent
-from database.user_models import Participant
+from database.user_models import ParticipantFCMHistory
 from libs.celery_control import push_send_celery_app
 from libs.push_notifications import (firebase_app, FirebaseNotCredentialed, set_next_weekly)
 from libs.sentry import make_error_sentry
@@ -27,20 +29,17 @@ from libs.sentry import make_error_sentry
 
 def get_surveys_and_schedules(now):
     """ Mostly this function exists to reduce namespace clutter. """
-    # (don't trust django caching, just get it as a list...)
-    query = list(
-        ScheduledEvent.objects.filter(
-            scheduled_time__lte=now, participant__fcm_instance_id__isnull=False
-        ).exclude(
-            participant__fcm_instance_id=""
+    # schedule time is in the past, with participants that have fcm tokens.
+    query = ScheduledEvent.objects.filter(
+            scheduled_time__lte=now, participant__fcm_tokens__isnull=False
         ).values_list(
-            "survey__object_id", "participant__fcm_instance_id", "pk"
+            "survey__object_id", "participant__fcm_tokens__token", "pk"
         )
-    )
-    # defaultdicts are clean; screw performance.
+
+    # defaultdicts = clean code, convert to dicts at end.
+    # we need a mapping of fcm tokens (a proxy for participants) to surveys and schedule ids (pks)
     surveys = defaultdict(list)
     schedules = defaultdict(list)
-    # we want a mapping of fcm tokens (a proxy for participants) to surveys and schedule ids (pks)
     for survey_obj_id, fcm, schedule_id in query:
         surveys[fcm].append(survey_obj_id)
         schedules[fcm].append(schedule_id)
@@ -98,9 +97,12 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str], sch
             ))
             success = True
         except UnregisteredError:
-            # TODO: mark participant token as out of date?  We don't know how reliable this is.
-            # get_next_weekly_event(Survey.objects.get(object_id=survey_obj_id))
-            pass
+            # mark the fcm history as out of date.
+            fcm_hist = ParticipantFCMHistory.objects.get(fcm_token=fcm_token)
+            if fcm_hist.unregistered is None:
+                fcm_hist.unregistered = timezone.now()
+                fcm_hist.save()
+
         except QuotaExceededError:
             # limits are very high, this is effectively impossible, but it is possible.
             raise
@@ -115,15 +117,18 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str], sch
         #     pprint(vars(response))
 
     # NOTE: code has exited the ErrorHandler.
-    # If the query was successful archive the schedules.
+    # If the query was successful archive the schedules.  Clear the fcm unregistered flag
+    # if it was set (this shouldn't happen. ever. but in case we hook in a ui element we need it.)
     if success:
+        fcm_hist = ParticipantFCMHistory.objects.get(token=fcm_token)
+        if fcm_hist.unregistered is not None:
+            fcm_hist.unregistered = None
+            fcm_hist.save()
+
         for schedule in schedules:
             schedule.archive()
             if schedule.get_schedule_type() == ScheduleTypes.weekly:
-                set_next_weekly(
-                    Participant.objects.get(fcm_instance_id=fcm_token),
-                    schedule.survey
-                )
+                set_next_weekly(fcm_hist.participant, schedule.survey)
 
 
 celery_send_push_notification.max_retries = 0

@@ -3,8 +3,8 @@ from flask import abort, Blueprint, flash, Markup, redirect, render_template, re
 
 from database.study_models import Study, StudyField
 from database.user_models import Participant, ParticipantFieldValue, Researcher
-from libs import admin_authentication
-from libs.admin_authentication import (authenticate_researcher_login,
+from authentication import admin_authentication
+from authentication.admin_authentication import (authenticate_researcher_login,
     authenticate_researcher_study_access, get_researcher_allowed_studies,
     get_researcher_allowed_studies_as_query_set, get_session_researcher, researcher_is_an_admin,
     SESSION_NAME)

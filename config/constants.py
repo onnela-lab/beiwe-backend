@@ -1,5 +1,6 @@
 # from os import getenv
 from os.path import join as path_join
+
 from config.settings import DOMAIN_NAME
 
 # This string will be printed into non-error hourly reports to improve error filtering.

@@ -1,4 +1,4 @@
-from os import getenv, cpu_count
+from os import cpu_count, getenv
 
 """
 To customize any of these values, append a line to config/remote_db_env.py such as:

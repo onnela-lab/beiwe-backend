@@ -4,12 +4,12 @@ from datetime import datetime
 from django.db import models
 
 from config.study_constants import AUDIO_SURVEY_SETTINGS, IMAGE_SURVEY_SETTINGS
-from database.common_models import AbstractModel, JSONTextField
+from database.common_models import JSONTextField, TimestampedModel
 from database.validators import LengthValidator
 
 
-class AbstractSurvey(AbstractModel):
-    """ AbstractSurvey contains all fields that we want to have copied into a survey backup whenever
+class SurveyBase(TimestampedModel):
+    """ SurveyBase contains all fields that we want to have copied into a survey backup whenever
     it is updated. """
 
     AUDIO_SURVEY = 'audio_survey'
@@ -30,11 +30,13 @@ class AbstractSurvey(AbstractModel):
     # timings = JSONTextField(default=json.dumps([[], [], [], [], [], [], []]),
     #                         help_text='JSON blob containing the times at which the survey is sent.')
 
+    deleted = models.BooleanField(default=False)
+
     class Meta:
         abstract = True
 
 
-class Survey(AbstractSurvey):
+class Survey(SurveyBase):
     """
     Surveys contain all information the app needs to display the survey correctly to a participant,
     and when it should push the notifications to take the survey.
@@ -51,7 +53,7 @@ class Survey(AbstractSurvey):
     inner list containing any number of times of the day. Times of day are integer values
     indicating the number of seconds past midnight.
 
-    Inherits the following fields from AbstractSurvey
+    Inherits the following fields from SurveyBase
     content
     survey_type
     settings
@@ -198,7 +200,7 @@ class Survey(AbstractSurvey):
         ).save()
 
 
-class SurveyArchive(AbstractSurvey):
+class SurveyArchive(SurveyBase):
     """ All fields declared in abstract survey are copied whenever a change is made to a survey """
     archive_start = models.DateTimeField()
     survey = models.ForeignKey('Survey', on_delete=models.PROTECT, related_name='archives', db_index=True)

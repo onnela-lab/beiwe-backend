@@ -1,6 +1,7 @@
 import functools
 
 from flask import request
+
 from database.user_models import Participant
 
 

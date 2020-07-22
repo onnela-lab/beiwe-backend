@@ -44,58 +44,85 @@ MAGNETOMETER = "magnetometer"
 DEVICEMOTION = "devicemotion"
 REACHABILITY = "reachability"
 
+RUNNING_IN_TEST_MODE = False
+SKIP_DOWNLOAD = False
+
 
 # correct bad urls for sanity...
-if not API_URL_BASE:
-    print("You need to define the variable API_URL_BASE, this is the domain of your Beiwe deployment.")
-    exit(1)
-if not API_URL_BASE.startswith("https://"):
-    API_URL_BASE = "https://" + API_URL_BASE
+# if not API_URL_BASE:
+#     print("You need to define the variable API_URL_BASE, this is the domain of your Beiwe deployment.")
+#     exit(1)
+# if not API_URL_BASE.startswith("https://"):
+#     API_URL_BASE = "https://" + API_URL_BASE
 if not API_URL_BASE.endswith("/"):
     API_URL_BASE = API_URL_BASE + "/"
 
 
-def make_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_ids=None, data_streams=None,
-                 time_start=None, time_end=None):
+def make_request(
+        study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_ids=None, data_streams=None,
+        time_start=None, time_end=None
+):
     """
     Behavior
-    This function will download the data from the server, decompress it, and WRITE IT TO FILES IN YOUR CURRENT WORKING DIRECTORY.
-    If the data in the current working directory includes a "registry.dat" file, the server will use the contents of it to only download files that are new, potentially greatly speeding up your requests.
+    This function will download the data from the server, decompress it, and WRITE IT TO FILES IN
+    YOUR CURRENT WORKING DIRECTORY. If the data in the current working directory includes a
+    "registry.dat" file, the server will use the contents of it to only download files that are
+    new, potentially greatly speeding up your requests.
 
     Study ID
-    study_id is required for any query. The ID of a given study is displayed immediately under the name of the study on the study's page on your website. study_id is a string; it will look like this: 55f9d1a597013e3f50ffb4c7
+    study_id is required for any query. The ID of a given study is displayed immediately under
+    the name of the study on the study's page on your website. study_id is a string; it will look
+    like this: 55f9d1a597013e3f50ffb4c7
+    If you know your study's integer identifier you can pass that instead.
 
     Credentials
-    If you are using the my_data_access_credentials.py file your credentials will automatically be pulled from it; you will not need to provide those as kwargs. Simply fill in the appropriate access and secret key values to the variables in that file.
-    You can find your credentials on your website, click the Manage Credentials tab on the top of the page.
+    If you are using the my_data_access_credentials.py file your credentials will automatically
+    be pulled from it; you will not need to provide those as kwargs. Simply fill in the
+    appropriate access and secret key values to the variables in that file. You can find your
+    credentials on your website, click the Manage Credentials tab on the top of the page.
 
     User Ids
-    You may provide a list of user IDs as strings to this function, they should be identical to the user IDs displayed when viewing a study on your website.
-    Default behavior: if you provide no users data will be returned for ALL users in that study.
+    You may provide a list of user IDs as strings to this function, they should be identical to
+    the user IDs displayed when viewing a study on your website. Default behavior: if you provide
+    no users data will be returned for ALL users in that study.
 
     Data Streams
-    To specify a certain data stream add it to a list and provide that list to the data streams folder.  The data streams can be imported from this module, they are ACCELEROMETER, BLUETOOTH, CALL_LOG, GPS, IDENTIFIERS, LOG_FILE, POWER_STATE, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG, VOICE_RECORDING, and WIFI.
-    Default behavior: if you provide to data streams data will be returned for ALL available data streams.
+    To specify a certain data stream add it to a list and provide that list to the data streams
+    folder.  The data streams can be imported from this module, they are ACCELEROMETER,
+    BLUETOOTH, CALL_LOG, GPS, IDENTIFIERS, LOG_FILE, POWER_STATE, SURVEY_ANSWERS, SURVEY_TIMINGS,
+    TEXTS_LOG, VOICE_RECORDING, and WIFI. Default behavior: if you provide to data streams data
+    will be returned for ALL available data streams.
 
     Dates and Times
     Time-string format: YYYY-MM-DDThh:mm:ss
     (that is an upper case letter T separating the date and the time)
     Example: 1990-01-31T07:30:04 gets you Jan 31 1990 at 7:30:04 AM
-    Behavior: the times provided are inclusive, that is you will receive data contained in files with an exactly matching time.
-    Default behavior: if you provide no start time parameter data will be returned starting from the beginning of time for that user; if you provide no end time parameter data will be returned up to the most current indexed data.
-    NOTE: granularity of requesting time is by hour, data will be updated on the server roughly once an hour.
-    NOTE: Use the string from this module's API_TIME_FORMAT variable if you are using the Python DateTime library to generate date strings, or investigate the commented out lines of code in this function.
+    Behavior: the times provided are inclusive, that is you will receive data contained in files
+    with an exactly matching time. Default behavior: if you provide no start time parameter data
+    will be returned starting from the beginning of time for that user; if you provide no end
+    time parameter data will be returned up to the most current indexed data. NOTE: granularity
+    of requesting time is by hour, data will be updated on the server roughly once an hour. NOTE:
+    Use the string from this module's API_TIME_FORMAT variable if you are using the Python
+    DateTime library to generate date strings, or investigate the commented out lines of code in
+    this function.
     """
 
     if access_key is None or secret_key is None:
         raise Exception("You must provide credentials to run this API call.")
 
     url = API_URL_BASE + 'get-data/v1'
+    try:
+        int(study_id)
+        study_key = "study_pk"
+    except ValueError:
+        study_key = "study_id"
+
     values = {
         'access_key': access_key,
         'secret_key': secret_key,
-        'study_id': study_id,
+        study_key: study_id,
     }
+
 
     if user_ids:
         values['user_ids'] = json.dumps(user_ids)
@@ -122,6 +149,13 @@ def make_request(study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_id
 
     print("sending request, receiving data, this could take some time.")
     response = requests.post(url, data=values)
+
+    if response.status_code != 200:
+        raise requests.exceptions.HTTPError(response.status_code)
+
+    if RUNNING_IN_TEST_MODE and SKIP_DOWNLOAD:
+        raise requests.exceptions.HTTPError(response.status_code)
+
     data = response.content
     print("Data received.  Unpacking and overwriting any updated files into", path.abspath('.'))
 

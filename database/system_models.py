@@ -1,13 +1,13 @@
 from django.db import models
 from django.utils import timezone
 
-from database.common_models import AbstractModel
+from database.common_models import TimestampedModel
 
 
 class FileProcessingLockedError(Exception): pass
 
 
-class FileProcessLock(AbstractModel):
+class FileProcessLock(TimestampedModel):
     """ This is used in old versions of data processing (and commendline data processing) to
      ensure overlapping processing runs do not occur. """
 

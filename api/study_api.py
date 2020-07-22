@@ -7,7 +7,7 @@ from config.constants import API_DATE_FORMAT
 from database.schedule_models import Intervention, InterventionDate
 from database.study_models import Study, StudyField
 from database.user_models import Participant, ParticipantFieldValue
-from libs.admin_authentication import (authenticate_researcher_study_access,
+from authentication.admin_authentication import (authenticate_researcher_study_access,
     get_researcher_allowed_studies, get_session_researcher, researcher_is_an_admin)
 
 study_api = Blueprint('study_api', __name__)

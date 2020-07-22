@@ -10,7 +10,7 @@ from api import (admin_api, copy_study_api, dashboard_api, data_access_api, data
     mobile_api, participant_administration, push_notifications_api, study_api, survey_api)
 from api.tableau_api.views import SummaryStatisticDailyStudyView
 from config.settings import SENTRY_ELASTIC_BEANSTALK_DSN, SENTRY_JAVASCRIPT_DSN
-from libs.admin_authentication import is_logged_in
+from authentication.admin_authentication import is_logged_in
 from libs.security import set_secret_key
 from pages import (admin_pages, data_access_web_form, mobile_pages, survey_designer,
     system_admin_pages)
@@ -71,8 +71,4 @@ if not __name__ == '__main__':
 
 # Extra Debugging settings
 if __name__ == '__main__':
-    # might be necessary if running on windows/linux subsystem on windows.
-    # from gevent.wsgi import WSGIServer
-    # http_server = WSGIServer(('', 8080), app)
-    # http_server.serve_forever()
     app.run(host='0.0.0.0', port=int(os.getenv("PORT", "8080")), debug=True)

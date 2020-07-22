@@ -5,7 +5,7 @@ from flask import Blueprint, flash, Markup, render_template, session
 from config.constants import ALL_DATA_STREAMS
 from database.data_access_models import PipelineUploadTags
 from database.user_models import Participant, Researcher
-from libs.admin_authentication import (authenticate_researcher_login,
+from authentication.admin_authentication import (authenticate_researcher_login,
     get_researcher_allowed_studies, get_researcher_allowed_studies_as_query_set,
     researcher_is_an_admin, SESSION_NAME)
 

@@ -8,11 +8,11 @@ from django.db import models
 from django.utils.timezone import is_naive, make_aware
 
 from config.constants import ScheduleTypes
-from database.common_models import AbstractModel
+from database.common_models import TimestampedModel
 from database.survey_models import Survey, SurveyArchive
 
 
-class AbsoluteSchedule(AbstractModel):
+class AbsoluteSchedule(TimestampedModel):
     survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='absolute_schedules')
     scheduled_date = models.DateTimeField()
 
@@ -50,7 +50,7 @@ class AbsoluteSchedule(AbstractModel):
         ScheduledEvent.objects.bulk_create(new_events)
 
 
-class RelativeSchedule(AbstractModel):
+class RelativeSchedule(TimestampedModel):
     survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='relative_schedules')
     intervention = models.ForeignKey('Intervention', on_delete=models.CASCADE, related_name='relative_schedules', null=True)
     days_after = models.IntegerField(default=0)
@@ -100,7 +100,7 @@ class RelativeSchedule(AbstractModel):
         return duplicated
 
 
-class WeeklySchedule(AbstractModel):
+class WeeklySchedule(TimestampedModel):
     """ Represents an instance of a time of day within a week for the weekly survey schedule.
         day_of_week is an integer, day 0 is Sunday.
 
@@ -155,7 +155,6 @@ class WeeklySchedule(AbstractModel):
     def get_prior_and_next_event_times(self, now: datetime=None) -> (datetime, datetime):
         """ Identify the start of the week relative to the current time, use that to determine this
         week's (past or present) push notification event time, and the same event for next week.
-
         If now is passed in it must have a UTC timezone. """
 
         if now is None:
@@ -187,7 +186,7 @@ class WeeklySchedule(AbstractModel):
         return event_this_week, event_next_week
 
 
-class ScheduledEvent(AbstractModel):
+class ScheduledEvent(TimestampedModel):
     survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='scheduled_events')
     participant = models.ForeignKey('Participant', on_delete=models.PROTECT, related_name='scheduled_events')
     weekly_schedule = models.ForeignKey('WeeklySchedule', on_delete=models.CASCADE, related_name='scheduled_events', null=True, blank=True)
@@ -247,7 +246,7 @@ class ScheduledEvent(AbstractModel):
         self.delete()
 
 
-class ArchivedEvent(AbstractModel):
+class ArchivedEvent(TimestampedModel):
     survey_archive = models.ForeignKey('SurveyArchive', on_delete=models.PROTECT, related_name='archived_events')
     participant = models.ForeignKey('Participant', on_delete=models.PROTECT, related_name='archived_events')
     schedule_type = models.CharField(max_length=32)

@@ -1,16 +1,15 @@
-from datetime import datetime, date
-
 from django.db import models
 from django.db.models import F, Func
 
 from config.constants import ResearcherRole
-from database.models import AbstractModel
+from database.common_models import UtilityModel
+from database.models import TimestampedModel
 from database.validators import ID_VALIDATOR, STANDARD_BASE_64_VALIDATOR, URL_SAFE_BASE_64_VALIDATOR
 from libs.security import (compare_password, device_hash, generate_easy_alphanumeric_string,
     generate_hash_and_salt, generate_random_string, generate_user_hash_and_salt)
 
 
-class AbstractPasswordUser(AbstractModel):
+class AbstractPasswordUser(TimestampedModel):
     """
     The AbstractPasswordUser (APU) model is used to enable basic password functionality for human
     users of the database, whatever variety of user they may be.
@@ -89,14 +88,11 @@ class Participant(AbstractPasswordUser):
                                help_text='The type of device the participant is using, if any.')
 
     study = models.ForeignKey('Study', on_delete=models.PROTECT, related_name='participants', null=False)
-
-    fcm_instance_id = models.CharField(max_length=256, blank=True, null=True, db_index=True)
+    deleted = models.BooleanField(default=False)
 
     @classmethod
     def create_with_password(cls, **kwargs):
-        """
-        Creates a new participant with randomly generated patient_id and password.
-        """
+        """ Creates a new participant with randomly generated patient_id and password. """
 
         # Ensure that a unique patient_id is generated. If it is not after
         # twenty tries, raise an error.
@@ -120,30 +116,31 @@ class Participant(AbstractPasswordUser):
 
     def debug_validate_password(self, compare_me):
         """
-        Checks if the input matches the instance's password hash, but does
-        the hashing for you for use on the command line. This is necessary
-        for manually checking that setting and validating passwords work.
+        Checks if the input matches the instance's password hash, but does the hashing for you
+        for use on the command line. This is necessary for manually checking that setting and
+        validating passwords work.
         """
         compare_me = device_hash(compare_me)
         return compare_password(compare_me, self.salt, self.password)
 
-    def set_device(self, device_id):
-        self.device_id = device_id
-        self.save()
+    def assign_fcm_token(self, fcm_instance_id: str):
+        ParticipantFCMHistory.objects.create(participant=self, token=fcm_instance_id)
 
-    def set_os_type(self, os_type):
-        self.os_type = os_type
-        self.save()
-
-    def clear_device(self):
-        self.device_id = ''
-        self.save()
+    def get_fcm_token(self):
+        return self.fcm_tokens.latest("created_on")
 
     def __str__(self):
         return '{} {} of Study {}'.format(self.__class__.__name__, self.patient_id, self.study.name)
 
 
-class ParticipantFieldValue(models.Model):
+class ParticipantFCMHistory(TimestampedModel):
+    # by making the token unique the solution to problems becomes "reinstall the app"
+    participant = models.ForeignKey("Participant", null=False, on_delete=models.PROTECT, related_name="fcm_tokens")
+    token = models.CharField(max_length=256, blank=False, null=False, db_index=True, unique=True)
+    unregistered = models.DateTimeField(null=True)
+
+
+class ParticipantFieldValue(UtilityModel):
     """
     These objects can be deleted.  These are values for per-study custom fields for users
     """
@@ -178,7 +175,6 @@ class Researcher(AbstractPasswordUser):
         Creates a new Researcher with provided username and password. They will initially
         not be associated with any Study.
         """
-
         researcher = cls(username=username, **kwargs)
         researcher.set_password(password)
         # todo add check to see if access credentials are in kwargs
@@ -190,7 +186,6 @@ class Researcher(AbstractPasswordUser):
         """
         Create a new Researcher with provided username and no password
         """
-
         r = cls(username=username, password='fakepassword', salt='cab', site_admin=False)
         r.reset_access_credentials()
         return r
@@ -212,29 +207,21 @@ class Researcher(AbstractPasswordUser):
             Researcher.objects
                 .annotate(username_lower=Func(F('username'), function='LOWER'))
                 .order_by('username_lower')
-                .exclude(username__contains="BATCH USER").exclude(username__contains="AWS LAMBDA")
-                .filter(*args, **kwargs)
+                .filter(is_batch_user=False, *args, **kwargs)
         )
-
-    @classmethod
-    def get_all_researchers_by_username(cls):
-        """ Gen the un-deleted Researchers a-z by username, ignoring case."""
-        return cls.filter_alphabetical(deleted=False)
 
     def get_administered_researchers(self):
         studies = self.study_relations.filter(
             relationship=ResearcherRole.study_admin).values_list("study_id", flat=True)
         researchers = StudyRelation.objects.filter(
             study_id__in=studies).values_list("researcher_id", flat=True).distinct()
-        return Researcher.objects.filter(id__in=researchers)
+        return Researcher.objects.filter(id__in=researchers, is_batch_user=False)
 
     def get_administered_researchers_by_username(self):
         return (
             self.get_administered_researchers()
-                .filter(deleted=False)
                 .annotate(username_lower=Func(F('username'), function='LOWER'))
                 .order_by('username_lower')
-                .exclude(username__contains="BATCH USER").exclude(username__contains="AWS LAMBDA")
         )
 
     def get_administered_studies_by_name(self):
@@ -298,7 +285,7 @@ class Researcher(AbstractPasswordUser):
         ).exists()
 
 
-class StudyRelation(AbstractModel):
+class StudyRelation(TimestampedModel):
     """
     This is the through-model for defining the relationship between a researcher and a study.
     There are these relatioships:

@@ -6,7 +6,7 @@ from werkzeug.datastructures import MultiDict
 from database.user_models import Participant
 
 
-def get_session_participant():
+def get_session_participant() -> Participant:
     """ Safely and appropriately grabs the participant based on the structure of the request,
     which should be universal. First check is of the cache, which is also populated in the
     authentication wrapper code later in this file. """
@@ -34,7 +34,7 @@ def get_session_participant():
 ####################################################################################################
 
 
-def minimal_validation(some_function):
+def minimal_validation(some_function) -> callable:
     @functools.wraps(some_function)
     def authenticate_and_call(*args, **kwargs):
         is_ios = kwargs.get("OS_API", None) == Participant.IOS_API
@@ -45,7 +45,7 @@ def minimal_validation(some_function):
     return authenticate_and_call
 
 
-def validate_post_ignore_password(is_ios):
+def validate_post_ignore_password(is_ios) -> bool:
     """Check if user exists, that a password was provided but ignores its validation, and if the
     device id matches.
     IOS apparently has problems retaining the device id, so we wantt to bypass it when it is an ios user
@@ -72,7 +72,7 @@ def validate_post_ignore_password(is_ios):
 ####################################################################################################
 
 
-def authenticate_user(some_function):
+def authenticate_user(some_function) -> callable:
     """Decorator for functions (pages) that require a user to provide identification. Returns 403
     (forbidden) or 401 (depending on beiwei-api-version) if the identifying info (usernames,
     passwords device IDs are invalid.
@@ -89,7 +89,7 @@ def authenticate_user(some_function):
     return authenticate_and_call
 
 
-def validate_post():
+def validate_post() -> bool:
     """Check if user exists, check if the provided passwords match, and if the device id matches."""
     rv = request.values
     if "patient_id" not in rv or "password" not in rv or "device_id" not in rv:
@@ -108,7 +108,7 @@ def validate_post():
     return True
 
 
-def authenticate_user_registration(some_function):
+def authenticate_user_registration(some_function) -> callable:
     """ Decorator for functions (pages) that require a user to provide identification. Returns
     403 (forbidden) or 401 (depending on beiwe-api-version) if the identifying info (username,
     password, device ID) are invalid.
@@ -125,7 +125,7 @@ def authenticate_user_registration(some_function):
     return authenticate_and_call
 
 
-def validate_registration():
+def validate_registration() -> bool:
     """Check if user exists, check if the provided passwords match"""
     rv = request.values
     if "patient_id" not in rv or "password" not in rv or "device_id" not in rv:
@@ -178,4 +178,3 @@ def correct_for_basic_auth():
         if "password" not in replace_dict:
             replace_dict['password'] = auth.password
         request.values = replace_dict
-    return

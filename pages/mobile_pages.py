@@ -2,7 +2,7 @@ from flask.blueprints import Blueprint
 from flask.templating import render_template
 
 from libs.graph_data import get_survey_results
-from libs.user_authentication import authenticate_user, get_session_participant
+from authentication.user_authentication import authenticate_user, get_session_participant
 
 mobile_pages = Blueprint('mobile_pages', __name__)
 

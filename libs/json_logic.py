@@ -1,7 +1,7 @@
 import json
 
-from config.constants import (COMPARATORS, NUMERIC_COMPARATORS, NUMERIC_QUESTIONS,
-                              FREE_RESPONSE, FREE_RESPONSE_NUMERIC)
+from config.constants import (COMPARATORS, FREE_RESPONSE, FREE_RESPONSE_NUMERIC,
+    NUMERIC_COMPARATORS, NUMERIC_QUESTIONS)
 
 
 class InvalidLogicError(Exception): pass  # this is the super class, it should not show up in any validation check

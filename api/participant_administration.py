@@ -6,7 +6,7 @@ from flask import Blueprint, flash, redirect, request, Response
 from database.schedule_models import InterventionDate
 from database.study_models import Study
 from database.user_models import Participant, ParticipantFieldValue
-from libs.admin_authentication import authenticate_researcher_study_access
+from authentication.admin_authentication import authenticate_researcher_study_access
 from libs.s3 import create_client_key_pair, s3_upload
 from libs.streaming_bytes_io import StreamingStringsIO
 
@@ -59,7 +59,8 @@ def reset_device():
         flash(f'Participant {patient_id} is not in study {Study.objects.get(id=study_id).name}', 'danger')
         return redirect_obj
 
-    participant.clear_device()
+    participant.device_id = ""
+    participant.save()
     flash(f'For patient {patient_id}, device was reset; password is untouched. ', 'success')
     return redirect_obj
 
@@ -113,9 +114,12 @@ def csv_generator(study_id, number_of_new_patients):
     filewriter = writer(si)
     filewriter.writerow(['Patient ID', "Registration password"])
     study_object_id = Study.objects.filter(pk=study_id).values_list('object_id', flat=True).get()
+
     for _ in range(number_of_new_patients):
         patient_id, password = Participant.create_with_password(study_id=study_id)
-        add_fields_and_interventions(Participant.objects.get(patient_id=patient_id), Study.objects.get(id=study_id))
+        add_fields_and_interventions(
+            Participant.objects.get(patient_id=patient_id), Study.objects.get(id=study_id)
+        )
         # Creates an empty file on s3 indicating that this user exists
         s3_upload(patient_id, "", study_object_id)
         create_client_key_pair(patient_id, study_object_id)

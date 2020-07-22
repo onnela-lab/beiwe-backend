@@ -6,7 +6,7 @@ from django.utils.timezone import make_aware
 from firebase_admin import credentials, initialize_app as initialize_firebase_app
 
 from config.constants import FIREBASE_CREDENTIAL_LOCATION
-from database.schedule_models import AbsoluteSchedule, ScheduledEvent, WeeklySchedule
+from database.schedule_models import ScheduledEvent, WeeklySchedule
 from database.survey_models import Survey
 from database.user_models import Participant
 
@@ -35,27 +35,6 @@ def set_next_weekly(participant: Participant, survey: Survey) -> None:
             absolute_schedule=None,
             scheduled_time=schedule_date,
         )
-
-
-def get_next_weekly_event(survey: Survey) -> (datetime, WeeklySchedule):
-    """ Determines the next time for a particular survey, provides the relevant weekly schedule. """
-    now = make_aware(datetime.utcnow(), timezone=pytz.utc)
-    timing_list = []
-    for weekly_schedule in survey.weekly_schedules.all():
-        this_week, next_week = weekly_schedule.get_prior_and_next_event_times(now)
-        if now < this_week:
-            relevant_date = this_week
-        else:
-            relevant_date = next_week
-        timing_list.append((relevant_date, weekly_schedule))
-
-    # handle case where there are no scheduled events
-    if not timing_list:
-        raise NoSchedulesException
-
-    timing_list.sort(key=lambda date_and_schedule: date_and_schedule[0])
-    schedule_date, schedule = timing_list[0]
-    return schedule_date, schedule
 
 
 def repopulate_weekly_survey_schedule_events(survey: Survey) -> None:
@@ -112,22 +91,35 @@ def repopulate_relative_survey_schedule_events(survey: Survey) -> None:
     # if the event is from an relative schedule, absolute and weekly schedules will be None
     survey.scheduled_events.filter(absolute_schedule=None, weekly_schedule=None).delete()
     new_events = []
+
     for schedule in survey.relative_schedules.all():
         for participant in survey.study.participants.all():
-            intervention_date =  schedule.intervention.intervention_dates.get(participant=participant).date
+            intervention_date = schedule.intervention.intervention_dates.get(participant=participant).date
             if intervention_date:
-                scheduled_time = datetime.combine(
-                    schedule.intervention.intervention_dates.get(participant=participant).date,
-                    time(schedule.hour, schedule.minute),
-                )
                 new_events.append(ScheduledEvent(
                     survey=survey,
                     participant=participant,
                     weekly_schedule=None,
                     relative_schedule=schedule,
                     absolute_schedule=None,
-                    scheduled_time=scheduled_time,
+                    scheduled_time=datetime.combine(intervention_date, time(schedule.hour, schedule.minute)),
                 ))
 
     ScheduledEvent.objects.bulk_create(new_events)
 
+
+def get_next_weekly_event(survey: Survey) -> (datetime, WeeklySchedule):
+    """ Determines the next time for a particular survey, provides the relevant weekly schedule. """
+    now = make_aware(datetime.utcnow(), timezone=pytz.utc)
+    timing_list = []
+    for weekly_schedule in survey.weekly_schedules.all():
+        this_week, next_week = weekly_schedule.get_prior_and_next_event_times(now)
+        timing_list.append((this_week if now < this_week else next_week, weekly_schedule))
+
+    # handle case where there are no scheduled events
+    if not timing_list:
+        raise NoSchedulesException
+
+    timing_list.sort(key=lambda date_and_schedule: date_and_schedule[0])
+    schedule_date, schedule = timing_list[0]
+    return schedule_date, schedule

@@ -1,6 +1,6 @@
-from datetime import datetime
 import smtplib
 import traceback
+from datetime import datetime
 
 from cronutils.error_handler import BundledError
 

@@ -3,7 +3,7 @@ from json import dumps, loads
 from flask import abort, Blueprint, flash, redirect, request, Response
 
 from database.study_models import Study
-from libs.admin_authentication import authenticate_admin
+from authentication.admin_authentication import authenticate_admin
 from libs.copy_study import (ABSOLUTE_SCHEDULE_KEY, add_new_surveys, allowed_file_extension,
     DEVICE_SETTINGS_KEY, purge_unnecessary_fields, RELATIVE_SCHEDULE_KEY, SURVEYS_KEY,
     update_device_settings, WEEKLY_SCHEDULE_KEY)
@@ -38,7 +38,7 @@ def export_study_settings_file(study_id):
         survey_content[RELATIVE_SCHEDULE_KEY] = survey.relative_timings()
         surveys.append(survey_content)
 
-    device_settings = study.get_study_device_settings().as_unpacked_native_python()
+    device_settings = study.device_settings.as_unpacked_native_python()
     purge_unnecessary_fields(device_settings)
 
     output = {

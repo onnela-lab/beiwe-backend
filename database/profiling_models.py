@@ -1,16 +1,14 @@
 from datetime import timedelta
-from time import sleep
 
 from django.db import models
 from django.utils import timezone
 
 from config.constants import UPLOAD_FILE_TYPE_MAPPING
+from database.models import JSONTextField, Participant, TimestampedModel
 from libs.security import decode_base64
-from database.models import JSONTextField, AbstractModel, Participant
 
 
-class EncryptionErrorMetadata(AbstractModel):
-    
+class EncryptionErrorMetadata(TimestampedModel):
     file_name = models.CharField(max_length=256)
     total_lines = models.PositiveIntegerField()
     number_errors = models.PositiveIntegerField()
@@ -19,8 +17,7 @@ class EncryptionErrorMetadata(AbstractModel):
     participant = models.ForeignKey('Participant', on_delete=models.PROTECT, null=True)
 
 
-class LineEncryptionError(AbstractModel):
-
+class LineEncryptionError(TimestampedModel):
     AES_KEY_BAD_LENGTH = "AES_KEY_BAD_LENGTH"
     EMPTY_KEY = "EMPTY_KEY"
     INVALID_LENGTH = "INVALID_LENGTH"
@@ -53,8 +50,7 @@ class LineEncryptionError(AbstractModel):
     participant = models.ForeignKey(Participant, null=True, on_delete=models.PROTECT)
 
 
-class DecryptionKeyError(AbstractModel):
-    
+class DecryptionKeyError(TimestampedModel):
     file_path = models.CharField(max_length=256)
     contents = models.TextField()
     traceback = models.TextField(null=True)
@@ -64,27 +60,22 @@ class DecryptionKeyError(AbstractModel):
         return decode_base64(self.contents)
 
 
-class UploadTracking(AbstractModel):
-    
+class UploadTracking(TimestampedModel):
     file_path = models.CharField(max_length=256)
     file_size = models.PositiveIntegerField()
     timestamp = models.DateTimeField()
-
     participant = models.ForeignKey('Participant', on_delete=models.PROTECT, related_name='upload_trackers')
 
     @classmethod
     def re_add_files_to_process(cls, number=100):
         """ Re-adds the most recent [number] files that have been uploaded recently to FiletToProcess.
             (this is fairly optimized because it is part of debugging file processing) """
+        from database.data_access_models import FileToProcess
         uploads = cls.objects.order_by("-created_on").values_list(
             "file_path", "participant__study__object_id", "participant_id"
         )[:number]
 
-        from database.data_access_models import FileToProcess
-
-        # uhg need to cache participants...
-        participant_cache = {}
-
+        participant_cache = {}  # uhg need to cache participants...
         for i, (file_path, participant__study__object_id, participant_id) in enumerate(uploads):
             if participant_id in participant_cache:
                 participant = participant_cache[participant_id]

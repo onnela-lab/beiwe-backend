@@ -8,14 +8,13 @@ from werkzeug.datastructures import FileStorage
 from config.constants import ALLOWED_EXTENSIONS, DEVICE_IDENTIFIERS_HEADER
 from database.data_access_models import FileToProcess
 from database.profiling_models import DecryptionKeyError, UploadTracking
-from database.user_models import Participant
 from libs.encryption import decrypt_device_file, DecryptionKeyInvalidError, HandledError
 from libs.http_utils import determine_os_api
 from libs.logging import log_error
 from libs.s3 import get_client_private_key, get_client_public_key_string, s3_upload
 from libs.sentry import make_sentry_client
-from libs.user_authentication import (authenticate_user, authenticate_user_registration,
-    minimal_validation)
+from authentication.user_authentication import (authenticate_user, authenticate_user_registration,
+    get_session_participant, minimal_validation)
 
 ################################################################################
 ############################# GLOBALS... #######################################
@@ -71,7 +70,7 @@ def upload(OS_API=""):
         return render_template('blank.html'), 200
 
     patient_id = request.values['patient_id']
-    user = Participant.objects.get(patient_id=patient_id)
+    user = get_session_participant()
 
     # Slightly different values for iOS vs Android behavior.
     # Android sends the file data as standard form post parameter (request.values)
@@ -189,7 +188,7 @@ def register_user(OS_API=""):
     # This value may not be returned by later versions of the beiwe app.
     mac_address = request.values.get('bluetooth_id', "none")
 
-    user = Participant.objects.get(patient_id=patient_id)
+    user = get_session_participant()
     study_id = user.study.object_id
     if user.device_id and user.device_id != request.values['device_id']:
         # CASE: this patient has a registered a device already and it does not match this device.
@@ -225,9 +224,9 @@ def register_user(OS_API=""):
     FileToProcess.append_file_for_processing(file_name, user.study.object_id, participant=user)
 
     # set up device.
-    user.set_device(device_id)
-    user.set_os_type(OS_API)
-    user.set_password(request.values['new_password'])
+    user.device_id = device_id
+    user.os_type = OS_API
+    user.set_password(request.values['new_password'])  # set password saves the model
     device_settings = user.study.device_settings.as_unpacked_native_python()
     device_settings.pop('_id', None)
     return_obj = {'client_public_key': get_client_public_key_string(patient_id, study_id),
@@ -247,7 +246,7 @@ def register_user(OS_API=""):
 def set_password(OS_API=""):
     """ After authenticating a user, sets the new password and returns 200.
     Provide the new password in a parameter named "new_password"."""
-    participant = Participant.objects.get(patient_id=request.values['patient_id'])
+    participant = get_session_participant()
     participant.set_password(request.values["new_password"])
     return render_template('blank.html'), 200
 
@@ -277,6 +276,10 @@ def contains_valid_extension(file_name):
 @determine_os_api
 # @authenticate_user
 def get_latest_surveys(OS_API=""):
-    participant = Participant.objects.get(patient_id=request.values['patient_id'])
-    study = participant.study
-    return json.dumps(study.get_surveys_for_study(requesting_os=OS_API))
+    study = get_session_participant().study
+    survey_json_list = []
+    for survey in study.surveys.filter(deleted=False):
+        # Exclude image surveys for the Android app to avoid crashing it
+        if not (OS_API == "ANDROID" and survey.survey_type == "image_survey"):
+            survey_json_list.append(survey.format_survey_for_study())
+    return json.dumps(survey_json_list)
