@@ -1,10 +1,10 @@
 from django.db import models
-from database.common_models import AbstractModel
+from database.common_models import TimestampedModel
 from database.study_models import Study
 from database.user_models import Participant
 
 
-class SummaryStatisticDaily(AbstractModel):
+class SummaryStatisticDaily(TimestampedModel):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     study = models.ForeignKey(Study, on_delete=models.CASCADE)
     date = models.DateField()
