@@ -65,8 +65,8 @@ class TableauApiView(MethodView):
         #         access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
         #     )
         try:
-            api_key = ApiKey.get_by_key_and_optional_name(
-                form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
+            api_key = ApiKey.get(
+                access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
             )
         except ApiKey.DoesNotExist:
             raise AuthenticationFailed(self.CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
