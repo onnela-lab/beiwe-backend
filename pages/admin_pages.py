@@ -1,13 +1,15 @@
 
 from flask import abort, Blueprint, flash, Markup, redirect, render_template, request, session
 
+from database.security_models import ApiKey
 from database.study_models import Study, StudyField
 from database.user_models import Participant, ParticipantFieldValue, Researcher
 from authentication import admin_authentication
 from authentication.admin_authentication import (authenticate_researcher_login,
-    authenticate_researcher_study_access, get_researcher_allowed_studies,
-    get_researcher_allowed_studies_as_query_set, get_session_researcher, researcher_is_an_admin,
-    SESSION_NAME)
+                                                 authenticate_researcher_study_access, get_researcher_allowed_studies,
+                                                 get_researcher_allowed_studies_as_query_set, get_session_researcher,
+                                                 researcher_is_an_admin,
+                                                 SESSION_NAME, get_researcher_api_keys)
 from libs.security import check_password_requirements
 
 admin_pages = Blueprint('admin_pages', __name__)
@@ -152,7 +154,10 @@ def manage_credentials():
     # Todo (CD): Create a section for managing API keys
     return render_template('manage_credentials.html',
                            allowed_studies=get_researcher_allowed_studies(),
-                           is_admin=researcher_is_an_admin())
+                           is_admin=researcher_is_an_admin(),
+                           api_keys=get_researcher_api_keys(),
+                           api_keys_enabled=[k for k in get_researcher_api_keys() if k.is_active],
+                           api_keys_disabled=[k for k in get_researcher_api_keys() if not k.is_active])
 
 
 @admin_pages.route('/reset_admin_password', methods=['POST'])
@@ -192,4 +197,49 @@ def reset_download_api_credentials():
         <p>Please record these somewhere; they will not be shown again!</p>""" \
         % (access_key, secret_key)
     flash(Markup(msg), 'warning')
+    return redirect("/manage_credentials")
+
+
+@admin_pages.route('/new_api_key', methods=['POST'])
+@authenticate_researcher_login
+def new_api_key():
+    tableau_api_permission = 'api_permission' in request.values
+    readable_name = request.values.get("readable_name", "")
+    researcher = Researcher.objects.get(username=session[SESSION_NAME])
+    api_key = ApiKey.generate(researcher=researcher, has_tableau_api_permissions=tableau_api_permission, readable_name=readable_name)
+    msg = """<h3>New Data-Download API credentials have been generated for you!</h3>
+        <p>Your new <b>Access Key</b> is:
+          <div class="container-fluid">
+            <textarea rows="1" cols="85" readonly="readonly" onclick="this.focus();this.select()">%s</textarea></p>
+          </div>
+        <p>Your new <b>Secret Key</b> is:
+          <div class="container-fluid">
+            <textarea rows="1" cols="85" readonly="readonly" onclick="this.focus();this.select()">%s</textarea></p>
+          </div>
+        <p>Please record these somewhere; This secret key will not be shown again!</p>""" \
+          % (api_key.access_key_id, api_key.access_key_secret_plaintext)
+    api_key.save()
+    flash(Markup(msg), 'warning')
+    return redirect("/manage_credentials")
+
+
+# todo verify researcher owns that api key
+@admin_pages.route('/disable_api_key', methods=['POST'])
+@authenticate_researcher_login
+def disable_api_key():
+    if "api_key_id" not in request.values:
+        flash(Markup("No API key specified"), 'warning')
+        return redirect("/manage_credentials")
+    api_key_id = request.values["api_key_id"]
+    api_key_query = ApiKey.objects.filter(access_key_id=api_key_id)
+    if not api_key_query.exists():
+        flash(Markup("No matching API key found to disable"), 'warning')
+        return redirect("/manage_credentials")
+    api_key = api_key_query[0]
+    if not api_key.is_active:
+        flash("That API key has already been disabled", 'warning')
+        return redirect("/manage_credentials")
+    api_key.is_active = False
+    api_key.save()
+    # flash("The API key %s is now disabled" % str(api_key.access_key_id), 'warning')
     return redirect("/manage_credentials")

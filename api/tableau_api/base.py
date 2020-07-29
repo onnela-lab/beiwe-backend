@@ -12,21 +12,13 @@ X_ACCESS_KEY_ID = "X-Access-Key-Id"
 X_ACCESS_KEY_SECRET = "X-Access-Key-Secret"
 
 
-# code from API exceptions flask documentation
 class AuthenticationFailed(Exception):
-    status_code = 400
-
     def __init__(self, message, status_code=None, payload=None):
-        Exception.__init__(self)
+        super().__init__(self)
         self.message = message
-        if status_code is not None:
-            self.status_code = status_code
-        self.payload = payload
 
     def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        return rv
+        return {'message': self.message}
 
 
 class PermissionDenied(Exception):
@@ -68,10 +60,13 @@ class TableauApiView(MethodView):
         form = AuthenticationForm(request.headers)
         if not form.is_valid():
             raise AuthenticationFailed(form.errors)
-
+        # try:
+        #     api_key = ApiKey.objects.get(
+        #         access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
+        #     )
         try:
-            api_key = ApiKey.objects.get(
-                access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
+            api_key = ApiKey.get_by_key_and_optional_name(
+                form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
             )
         except ApiKey.DoesNotExist:
             raise AuthenticationFailed(self.CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
@@ -90,12 +85,13 @@ class TableauApiView(MethodView):
 
         # Todo (CD): Implement the rest of this
         # begin things added by CD
+        if api_key.researcher.site_admin:
+            return True
+
         try:
-            StudyRelation.objects.filter(study__object_id=study_id).get(reseacher=api_key.researcher)
+            StudyRelation.objects.filter(study__object_id=study_id).get(researcher=api_key.researcher)
         except ObjectDoesNotExist:
             raise PermissionDenied("Researcher does not have permission to view that study")
-        except MultipleObjectsReturned:
-            pass  # report to console?
 
         return True
 
@@ -106,14 +102,14 @@ class TableauApiView(MethodView):
         try:
             self.check_permissions(*args, **kwargs)
         except AuthenticationFailed as error:
-            print(error.to_dict())
             response = jsonify(error.to_dict())
-            response.status_code = error.status_code
-            # return response
-            return abort(401)
+            response.status_code = 400
+            return response
         except PermissionDenied:
             # Prefer 404 over 403 to hide information about validity of these resource identifiers
-            return abort(404)
+            response = jsonify({"errors": "resource not found"})
+            response.status_code = 404
+            return response
         return super().dispatch_request(*args, **kwargs)
 
     @classmethod

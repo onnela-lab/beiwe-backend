@@ -5,7 +5,6 @@ from django.forms import ValidationError
 from flask import request
 from rest_framework import serializers
 from rest_framework.renderers import JSONRenderer
-from flask_api import status
 
 from api.tableau_api.base import TableauApiView
 from api.tableau_api.constants import SERIALIZABLE_FIELD_NAMES, VALID_QUERY_PARAMETERS
@@ -43,7 +42,7 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     def get(self, study_id):
         form = ApiQueryForm(data=request.values)
         if not form.is_valid():
-            return self._render_errors(form.errors.get_json_data()), status.HTTP_400_BAD_REQUEST
+            return self._render_errors(form.errors.get_json_data())
         query = form.cleaned_data
         fields = query.pop("fields", SERIALIZABLE_FIELD_NAMES)
         queryset = self._query_database(study_id=study_id, **query)
