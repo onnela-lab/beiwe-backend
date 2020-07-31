@@ -206,13 +206,6 @@ def get_researcher_allowed_studies(as_json=True):
         return study_set
 
 
-def get_researcher_api_keys():
-    """
-    Return a list of api keys associated with a researcher
-    """
-    session_researcher = get_session_researcher()
-    return list(ApiKey.objects.filter(researcher=session_researcher))
-
 ################################################################################
 ############################# Site Administrator ###############################
 ################################################################################

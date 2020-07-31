@@ -67,16 +67,5 @@ class ApiKey(TimestampedModel):
             self.access_key_secret.encode(),
         )
 
-    @classmethod
-    def get_by_key_and_optional_name(cls, key_and_optional_name, **kwargs):
-        if ": " not in key_and_optional_name:
-            return ApiKey.objects.get(access_key_id=key_and_optional_name, **kwargs)
-        try:
-            readable_name, key = key_and_optional_name.split(": ")
-        except ValueError:
-            raise ApiKey.DoesNotExist
-        found_api_key = ApiKey.objects.get(access_key_id=key, **kwargs)
-        if found_api_key.readable_name != readable_name:
-            raise ApiKey.DoesNotExist
-        return found_api_key
+
 

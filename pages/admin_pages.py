@@ -1,5 +1,7 @@
+import json
 
 from flask import abort, Blueprint, flash, Markup, redirect, render_template, request, session
+from rest_framework.renderers import JSONRenderer
 
 from database.security_models import ApiKey
 from database.study_models import Study, StudyField
@@ -9,8 +11,9 @@ from authentication.admin_authentication import (authenticate_researcher_login,
                                                  authenticate_researcher_study_access, get_researcher_allowed_studies,
                                                  get_researcher_allowed_studies_as_query_set, get_session_researcher,
                                                  researcher_is_an_admin,
-                                                 SESSION_NAME, get_researcher_api_keys)
+                                                 SESSION_NAME)
 from libs.security import check_password_requirements
+from libs.serilalizers import ApiKeySerializer
 
 admin_pages = Blueprint('admin_pages', __name__)
 
@@ -152,12 +155,11 @@ def login():
 @authenticate_researcher_login
 def manage_credentials():
     # Todo (CD): Create a section for managing API keys
+    serializer = ApiKeySerializer(ApiKey.objects.filter(researcher=get_session_researcher()), many=True)
     return render_template('manage_credentials.html',
                            allowed_studies=get_researcher_allowed_studies(),
                            is_admin=researcher_is_an_admin(),
-                           api_keys=get_researcher_api_keys(),
-                           api_keys_enabled=[k for k in get_researcher_api_keys() if k.is_active],
-                           api_keys_disabled=[k for k in get_researcher_api_keys() if not k.is_active])
+                           api_keys=(serializer.data))
 
 
 @admin_pages.route('/reset_admin_password', methods=['POST'])
@@ -237,7 +239,7 @@ def disable_api_key():
         return redirect("/manage_credentials")
     api_key = api_key_query[0]
     if not api_key.is_active:
-        flash("That API key has already been disabled", 'warning')
+        flash("That API key has already been disabled: %s" % api_key_id, 'warning')
         return redirect("/manage_credentials")
     api_key.is_active = False
     api_key.save()
