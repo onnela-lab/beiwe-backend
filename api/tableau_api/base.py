@@ -60,7 +60,7 @@ class TableauApiView(MethodView):
         if not form.is_valid():
             raise AuthenticationFailed(form.errors)
         try:
-            api_key = ApiKey.get(
+            api_key = ApiKey.objects.get(
                 access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
             )
         except ApiKey.DoesNotExist:
