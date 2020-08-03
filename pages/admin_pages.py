@@ -224,7 +224,6 @@ def new_api_key():
     return redirect("/manage_credentials")
 
 
-# todo verify researcher owns that api key
 @admin_pages.route('/disable_api_key', methods=['POST'])
 @authenticate_researcher_login
 def disable_api_key():
@@ -232,7 +231,7 @@ def disable_api_key():
         flash(Markup("No API key specified"), 'warning')
         return redirect("/manage_credentials")
     api_key_id = request.values["api_key_id"]
-    api_key_query = ApiKey.objects.filter(access_key_id=api_key_id)
+    api_key_query = ApiKey.objects.filter(access_key_id=api_key_id).filter(researcher=get_session_researcher())
     if not api_key_query.exists():
         flash(Markup("No matching API key found to disable"), 'warning')
         return redirect("/manage_credentials")
@@ -242,5 +241,4 @@ def disable_api_key():
         return redirect("/manage_credentials")
     api_key.is_active = False
     api_key.save()
-    # flash("The API key %s is now disabled" % str(api_key.access_key_id), 'warning')
     return redirect("/manage_credentials")
