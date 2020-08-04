@@ -60,7 +60,8 @@ class TableauApiView(MethodView):
         if not form.is_valid():
             raise AuthenticationFailed(form.errors)
         try:
-            api_key = ApiKey.objects.get(
+            api_key = ApiKey.objects.\
+                get(
                 access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
             )
         except ApiKey.DoesNotExist:
@@ -78,7 +79,6 @@ class TableauApiView(MethodView):
         if not Study.objects.filter(object_id=study_id).exists():
             raise PermissionDenied("No matching study found")
 
-        # Todo (CD): Implement the rest of this
         if api_key.researcher.site_admin:
             return True
 

@@ -5,7 +5,6 @@ from flask import flash, json, redirect, request, session
 from werkzeug.exceptions import abort
 
 from config.constants import ALL_RESEARCHER_TYPES, ResearcherRole
-from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models import Researcher, StudyRelation
 from libs.security import generate_easy_alphanumeric_string
