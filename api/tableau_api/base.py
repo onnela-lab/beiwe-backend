@@ -13,12 +13,7 @@ X_ACCESS_KEY_SECRET = "X-Access-Key-Secret"
 
 
 class AuthenticationFailed(Exception):
-    def __init__(self, message, status_code=None, payload=None):
-        super().__init__(self)
-        self.message = message
-
-    def to_dict(self):
-        return {'message': self.message}
+    pass
 
 
 class PermissionDenied(Exception):
@@ -62,8 +57,8 @@ class TableauApiView(MethodView):
         try:
             api_key = ApiKey.objects.\
                 get(
-                access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
-            )
+                    access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
+                )
         except ApiKey.DoesNotExist:
             raise AuthenticationFailed(self.CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
 
@@ -96,7 +91,7 @@ class TableauApiView(MethodView):
         try:
             self.check_permissions(*args, **kwargs)
         except AuthenticationFailed as error:
-            response = jsonify(error.to_dict())
+            response = jsonify(error.args)
             response.status_code = 400
             return response
         except PermissionDenied:

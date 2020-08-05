@@ -1,7 +1,7 @@
 import json
 from collections import OrderedDict
 
-from django.forms import ModelForm
+from django import forms
 from flask import abort, Blueprint, flash, Markup, redirect, render_template, request, session
 from rest_framework.renderers import JSONRenderer
 
@@ -203,14 +203,22 @@ def reset_download_api_credentials():
     return redirect("/manage_credentials")
 
 
+class NewApiKeyForm(forms.Form):
+    readable_name = forms.CharField()
+
+    def clean(self):
+        super().clean()
+        if self.is_valid():
+            self.cleaned_data['tableau_api_permission'] = True
 
 @admin_pages.route('/new_api_key', methods=['POST'])
 @authenticate_researcher_login
 def new_api_key():
-    tableau_api_permission = True
-    readable_name = request.values.get("readable_name", "")
+    form = NewApiKeyForm(request.values)
+    if not form.is_valid():
+        return redirect("/manage_credentials")
     researcher = Researcher.objects.get(username=session[SESSION_NAME])
-    api_key = ApiKey.generate(researcher=researcher, has_tableau_api_permissions=tableau_api_permission, readable_name=readable_name)
+    api_key = ApiKey.generate(researcher=researcher, has_tableau_api_permissions=form.cleaned_data['tableau_api_permission'], readable_name=form.cleaned_data['readable_name'])
     msg = f"""<h3>New Data-Download API credentials have been generated for you!</h3>
         <p>Your new <b>Access Key</b> is:
           <div class="container-fluid">
@@ -225,12 +233,15 @@ def new_api_key():
     return redirect("/manage_credentials")
 
 
+class DisableApiKeyForm(forms.Form):
+    api_key_id = forms.CharField()
+
+
 @admin_pages.route('/disable_api_key', methods=['POST'])
 @authenticate_researcher_login
 def disable_api_key():
-    if "api_key_id" not in request.values:
-        flash(Markup("No API key specified"), 'warning')
+    form = DisableApiKeyForm(request.values)
+    if not form.is_valid():
         return redirect("/manage_credentials")
-    api_key_id = request.values["api_key_id"]
-    ApiKey.objects.filter(researcher=get_session_researcher(), access_key_id=api_key_id, is_active=True).update(is_active=False)
+    ApiKey.objects.filter(researcher=get_session_researcher(), access_key_id=form.cleaned_data['api_key_id'], is_active=True).update(is_active=False)
     return redirect("/manage_credentials")
