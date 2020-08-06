@@ -9,7 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('database', '0035_auto_20200518_1908'),
+        ('database', '0036_auto_20200624_1956'),
     ]
 
     operations = [
@@ -22,7 +22,6 @@ class Migration(migrations.Migration):
             name='ApiKey',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('deleted', models.BooleanField(default=False)),
                 ('created_on', models.DateTimeField(auto_now_add=True)),
                 ('last_updated', models.DateTimeField(auto_now=True)),
                 ('access_key_id', models.CharField(max_length=64, unique=True, validators=[django.core.validators.RegexValidator('^[0-9a-zA-Z+/]+={0,2}$')])),

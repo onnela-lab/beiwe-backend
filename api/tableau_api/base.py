@@ -1,18 +1,24 @@
 from django import forms
-from flask import request
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from flask import request, jsonify
 from flask.views import MethodView
 from werkzeug.exceptions import abort
 
 from database.security_models import ApiKey
 from database.study_models import Study
-
+from database.user_models import StudyRelation, Researcher
 
 X_ACCESS_KEY_ID = "X-Access-Key-Id"
 X_ACCESS_KEY_SECRET = "X-Access-Key-Secret"
 
 
 class AuthenticationFailed(Exception):
-    pass
+    def __init__(self, message, status_code=None, payload=None):
+        super().__init__(self)
+        self.message = message
+
+    def to_dict(self):
+        return {'message': self.message}
 
 
 class PermissionDenied(Exception):
@@ -50,13 +56,11 @@ class TableauApiView(MethodView):
         """
         Authenticate API key and check permissions for access to a study/participant data.
         """
-        # Authentication
         form = AuthenticationForm(request.headers)
         if not form.is_valid():
             raise AuthenticationFailed(form.errors)
-
         try:
-            api_key = ApiKey.objects.get(
+            api_key = ApiKey.get(
                 access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
             )
         except ApiKey.DoesNotExist:
@@ -75,6 +79,13 @@ class TableauApiView(MethodView):
             raise PermissionDenied("No matching study found")
 
         # Todo (CD): Implement the rest of this
+        if api_key.researcher.site_admin:
+            return True
+
+        try:
+            StudyRelation.objects.filter(study__object_id=study_id).get(researcher=api_key.researcher)
+        except ObjectDoesNotExist:
+            raise PermissionDenied("Researcher does not have permission to view that study")
 
         return True
 
@@ -84,12 +95,15 @@ class TableauApiView(MethodView):
         """
         try:
             self.check_permissions(*args, **kwargs)
-        except AuthenticationFailed:
-            # Todo (CD): Handle returning the error message for this case
-            return abort(401)
+        except AuthenticationFailed as error:
+            response = jsonify(error.to_dict())
+            response.status_code = 400
+            return response
         except PermissionDenied:
             # Prefer 404 over 403 to hide information about validity of these resource identifiers
-            return abort(404)
+            response = jsonify({"errors": "resource not found"})
+            response.status_code = 404
+            return response
         return super().dispatch_request(*args, **kwargs)
 
     @classmethod
