@@ -144,6 +144,7 @@ def login():
         password = request.values["password"]
         if Researcher.check_password(username, password):
             admin_authentication.log_in_researcher(username)
+            print('authenticated user')
             return redirect("/choose_study")
         else:
             flash("Incorrect username & password combination; try again.", 'danger')
