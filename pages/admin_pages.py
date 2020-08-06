@@ -242,3 +242,15 @@ def disable_api_key():
     api_key.is_active = False
     api_key.save()
     return redirect("/manage_credentials")
+
+
+# TODO DELETE ME
+@admin_pages.route('/test_database', methods=['GET', 'POST'])
+def test_database():
+    data = (
+        f"""---- Summary of the database state from the endpoint ----
+                    Number of reserachers: {len(Researcher.objects.all())}
+                    Name of the first: {Researcher.objects.all()[1].username}"""
+    )
+    print(data)
+    return data
