@@ -250,3 +250,4 @@ def researcher_is_an_admin():
     """ Returns whether the current session user is a site admin """
     researcher = get_session_researcher()
     return researcher.site_admin or researcher.is_study_admin()
+

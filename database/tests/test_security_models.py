@@ -20,17 +20,17 @@ class ApiKeyTests(TestCase):
         """
         current_count = ApiKey.objects.count()
         api_key = ApiKey.generate(self.researcher)
-        
+
         self.assertEqual(ApiKey.objects.count(), current_count + 1)
         self.assertTrue(api_key.access_key_id)
         self.assertTrue(api_key.access_key_secret)
         self.assertTrue(api_key.access_key_secret_salt)
         self.assertEqual(api_key.researcher, self.researcher)
-        
+
         # Check that the secret key is accessible
         secret_key = api_key.access_key_secret_plaintext
         self.assertTrue(secret_key)
-        
+
         # Check that the secret key is valid
         self.assertIs(api_key.proposed_secret_key_is_valid(secret_key), True)
 
@@ -39,7 +39,7 @@ class ApiKeyTests(TestCase):
         Test that a newly generated `ApiKey` only allows access to the secret key once.
         """
         api_key = ApiKey.generate(self.researcher)
-        
+
         secret_key = api_key.access_key_secret_plaintext
         self.assertTrue(secret_key)
         self.assertIsNone(api_key.access_key_secret_plaintext)
