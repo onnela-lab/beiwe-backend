@@ -13,6 +13,10 @@ class HybridTest(TransactionTestCase):
 
     These tests function by forking a thread to run the flask server. These tests are not compatible with the django
     test client. The Requests module is recommended for accessing server endpoints.
+
+    for reasons that are not fully understood, further overriding the setUpClass with functionality to initialize the
+    database behaves in odd ways, and often differently between tests. It is recommended to run code to setup each test
+    within in that test to prevent these errors
     """
     @classmethod
     def setUpClass(cls):
@@ -23,7 +27,6 @@ class HybridTest(TransactionTestCase):
 
         # Start thread
         cls.flask_task.start()
-        sleep(1)
         super(HybridTest, cls).setUpClass()
 
     @classmethod
