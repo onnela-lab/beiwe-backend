@@ -23,7 +23,8 @@
       <a class="btn btn-info" href='/dashboard/{{ study.id }}/patient/{{ participant.patient_id }}'>Go to Participant Dashboard</a>&nbsp;
       <button type="submit" class="btn btn-warning reset_password_button">Reset password</button>
     </div>
-  </form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
   <br> <br>
 
   {# Unregister Smartphone button #}
@@ -35,7 +36,8 @@
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <b>Phone Registered: </b><button type="submit" class="btn btn-warning btn-sm reset_device_button">Un-Register Smartphone</button>
         </div>
-      </form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
     {% else %}
       <b>Phone Registered: </b>No smartphone registered
     {% endif %}
@@ -94,6 +96,7 @@
         <button class="btn btn-primary btn-block" type="submit">Save Changes</button>
       {% endif %}
     {% endif %}
-  </form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
 {%  endblock %}
 

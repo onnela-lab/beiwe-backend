@@ -14,6 +14,7 @@
           <input name="username" type="text" placeholder="Username" autofocus/>
           <input name="password" type="password"  placeholder="Password" />
           <input type="submit" name="submit" value="Log in" class="btn btn-large btn-success">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         </form>
       </div>
       {# Informational text from the old Beiwe website #}

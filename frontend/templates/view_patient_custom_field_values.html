@@ -44,7 +44,8 @@
                         Save values for all custom fields
                     </button>
                 {% endif %}
-        </form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
     </div>
 
 {% endblock %}

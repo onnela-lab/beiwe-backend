@@ -24,7 +24,8 @@
 
 	        <a href="/manage_researchers" class="btn btn-warning pull-right">Cancel</a>
 
-        </form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
     </div>
 
 {% endblock %}

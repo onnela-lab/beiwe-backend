@@ -54,7 +54,8 @@
               {% if participant.device_id %}
                 <form action="/reset_device" method="post">
                   Smartphone registered
-                </form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
               {% else %}
                 No smartphone registered
               {% endif %}
@@ -82,7 +83,8 @@
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <button type="submit" class="btn btn-primary add_new_patient_button">Add new participant</button>
         </div>
-      </form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
 
       <button type="button" class="btn btn-warning add_many_patients_button" data-toggle="modal" data-target="#addManyPatientsModal" title="Enable a number of new participants to enroll in {{ study.name }}: download a file of new Patient IDs and registration passwords">Add many new participants</button>
       {% include 'create_many_patients_modal.html' %}

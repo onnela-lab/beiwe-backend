@@ -52,7 +52,8 @@
                     (Elevate to Study Admin
                     <span class="glyphicon glyphicon-arrow-up"></span>)
                   </button>
-                </form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
               {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
                 <form action="/demote_researcher" class="oneline" method="post">
                   <input type="hidden" name="study_id" value="{{ study.id }}"/>
@@ -62,7 +63,8 @@
                     (Demote to Researcher
                     <span class="glyphicon glyphicon-arrow-down"></span>)
                   </button>
-                </form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
               {% endif %}
             </td>
             <td>
@@ -75,7 +77,8 @@
                     <span class="glyphicon glyphicon-remove"></span>
                     Remove from study
                   </button>
-                </form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
               {% endif %}
             </td>
           </tr>
@@ -97,7 +100,8 @@
         <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
         <button type="submit" class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
       </div>
-    </form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
   </div>
 
   <br><br><br>
@@ -118,7 +122,8 @@
       <div class="col-md-2">
         <button class="btn btn-warning" type="submit">Update Name</button>
       </div>
-    </form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
   </div>
 
   <br><br><br>
@@ -147,7 +152,8 @@
           </label>
         </div>
         <button type="submit" id="file_upload_button" class="btn btn-warning" disabled="disabled">Import study settings file</button>
-      </form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
     </div>
   </div>
 
