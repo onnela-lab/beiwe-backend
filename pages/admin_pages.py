@@ -146,7 +146,6 @@ def login():
         password = request.values["password"]
         if Researcher.check_password(username, password):
             admin_authentication.log_in_researcher(username)
-            print('authenticated user')
             return redirect("/choose_study")
         else:
             flash("Incorrect username & password combination; try again.", 'danger')
@@ -246,16 +245,3 @@ def disable_api_key():
         return redirect(url_for("admin_pages.manage_credentials"))
     ApiKey.objects.filter(researcher=get_session_researcher(), access_key_id=form.cleaned_data['api_key_id'], is_active=True).update(is_active=False)
     return redirect(url_for("admin_pages.manage_credentials"))
-
-
-# TODO DELETE ME
-@admin_pages.route('/test_database', methods=['GET', 'POST'])
-def test_database():
-    data = (
-        f"""---- Summary of the database state from the endpoint ----
-                    Number of reserachers: {len(Researcher.objects.all())}
-                    Name of the first: {Researcher.objects.all()[1].username}"""
-    )
-    print(data)
-    return data
->>>>>>> feature/tableau-api-tests-cd

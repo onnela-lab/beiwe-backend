@@ -91,7 +91,7 @@ class TableauApiView(MethodView):
         try:
             self.check_permissions(*args, **kwargs)
         except AuthenticationFailed as error:
-            response = jsonify(error.args)
+            response = jsonify({"errors": error.args})
             response.status_code = 400
             return response
         except PermissionDenied:
