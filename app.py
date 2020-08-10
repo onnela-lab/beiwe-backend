@@ -3,6 +3,7 @@ from datetime import datetime
 
 import jinja2
 from flask import Flask, redirect, render_template
+from flask_wtf.csrf import CSRFProtect
 from raven.contrib.flask import Sentry
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -19,6 +20,7 @@ from pages import (admin_pages, data_access_web_form, mobile_pages, survey_desig
 def subdomain(directory):
     app = Flask(__name__, static_folder=directory + "/static")
     set_secret_key(app)
+    CSRFProtect(app)
     loader = [app.jinja_loader, jinja2.FileSystemLoader(directory + "/templates")]
     app.jinja_loader = jinja2.ChoiceLoader(loader)
     app.wsgi_app = ProxyFix(app.wsgi_app)

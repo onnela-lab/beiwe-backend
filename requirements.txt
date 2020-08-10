@@ -21,4 +21,5 @@ django-extensions
 python-dateutil
 firebase-admin
 factory_boy
+flask_wtf
 djangorestframework
