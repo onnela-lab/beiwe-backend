@@ -34,6 +34,7 @@
             {{ relationship }} &nbsp;&nbsp;
             {% if is_administrator_of and not is_self and not edit_researcher.site_admin and relationship != "Study Admin" %}
               <form action="/elevate_researcher" class="oneline" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="study_id" value="{{ study.id }}"/>
                 <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
                 <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
@@ -44,6 +45,7 @@
               </form>
             {% elif is_administrator_of and not is_self and not edit_researcher.site_admin and relationship == "Study Admin" %}
               <form action="/demote_researcher" class="oneline" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="study_id" value="{{ study.id }}"/>
                 <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
                 <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
@@ -57,6 +59,7 @@
           <td>
             {% if is_administrator_of and not is_self and not edit_researcher.site_admin and not relationship == "Study Admin" %}
               <form action="/remove_researcher_from_study" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="study_id" value="{{ study.id }}"/>
                 <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}"/>
                 <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
@@ -76,6 +79,7 @@
   <div class="row">
     <h5>Authorize this researcher on an additional study:</h5>
     <form action="/add_researcher_to_study" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="form-inline">
         <select class="form-control" name="study_id">
           {% for study in all_studies %}
@@ -104,6 +108,7 @@
         </ul>
       </div>
       <form action="/set_researcher_password" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-inline">
           <input type="text" name="password" class="form-control">
           <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}">

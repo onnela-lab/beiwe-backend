@@ -16,6 +16,7 @@
 
     <div class="row form-horizontal">
         <form action="/view_study/{{ study.pk }}/patient_fields/{{ patient.pk }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 {% if not fields %}
                     <p><i>{{ study.name }} does not have any custom fields.</i></p>
                 {% else %}

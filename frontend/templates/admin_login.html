@@ -11,6 +11,7 @@
       <div class="span4">
         <h3>Log In</h3>
         <form method="POST" action="/validate_login">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input name="username" type="text" placeholder="Username" autofocus/>
           <input name="password" type="password"  placeholder="Password" />
           <input type="submit" name="submit" value="Log in" class="btn btn-large btn-success">

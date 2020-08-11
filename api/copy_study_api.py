@@ -53,7 +53,6 @@ def export_study_settings_file(study_id):
         headers={'Content-Disposition': 'attachment;filename=' + filename}
     )
 
-
 @copy_study_api.route('/import_study_settings_file/<string:study_id>', methods=['POST'])
 @authenticate_admin
 def import_study_settings_file(study_id):

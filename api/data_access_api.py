@@ -18,10 +18,16 @@ from libs.streaming_bytes_io import StreamingBytesIO
 
 class DummyError(Exception): pass
 
+
 data_access_api = Blueprint('data_access_api', __name__)
+
+# import the csrf protection after the blueprint is registered to avoid circular import errors
+from app import csrf_protect as csrf
+
 
 @data_access_api.route("/get-studies/v1", methods=['POST', "GET"])
 @api_credential_check
+@csrf.exempt
 def get_studies():
     """
     Retrieve a dict containing the object ID and name of all Study objects that the user can access
@@ -40,6 +46,7 @@ def get_studies():
 
 @data_access_api.route("/get-users/v1", methods=['POST', "GET"])
 @api_study_credential_check()
+@csrf.exempt
 def get_users_in_study():
     return json.dumps(  # json can't operate on query, need as list.
         list(get_api_study().participants.values_list('patient_id', flat=True))
@@ -48,6 +55,7 @@ def get_users_in_study():
 
 @data_access_api.route("/get-data/v1", methods=['POST', "GET"])
 @api_study_credential_check(conditionally_block_test_studies=True)
+@csrf.exempt
 def get_data():
     """ Required: access key, access secret, study_id
     JSON blobs: data streams, users - default to all
@@ -327,6 +335,7 @@ VALID_PIPELINE_POST_PARAMS.append("secret_key")
 # are generated from the chunk registry.
 @data_access_api.route("/pipeline-upload/v1", methods=['POST', 'GET'])
 @api_study_credential_check()
+@csrf.exempt
 def data_pipeline_upload():
     # block extra keys
     errors = []
@@ -360,6 +369,7 @@ def data_pipeline_upload():
 
 @data_access_api.route("/pipeline-json-upload/v1", methods=['POST'])
 @api_study_credential_check()
+@csrf.exempt
 def json_pipeline_upload():
     json_data = request.values.get("summary_output", None)
     file_name = request.values.get("file_name", None)
@@ -392,6 +402,7 @@ def json_pipeline_upload():
 
 @data_access_api.route("/get-pipeline/v1", methods=["GET", "POST"])
 @api_study_credential_check()
+@csrf.exempt
 def pipeline_data_download():
     # the following two cases are for difference in content wrapping between the CLI script and
     # the download page.

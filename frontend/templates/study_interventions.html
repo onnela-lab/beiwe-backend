@@ -55,6 +55,7 @@
                     </div>
                     <div class="modal-body">
                       <form action="/edit_intervention/{{ study.id }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="text" class="form-control" name="edit_intervention" value="{{ intervention.name }}"/>
                         <input type="hidden" name="intervention_id" value="{{ intervention.id }}"/>
                         <br>
@@ -82,6 +83,7 @@
     {% if not readonly %}
       <br>
       <form action="/interventions/{{ study.id }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="study_id" value="{{ study.id }}">
         <label>Add new Intervention</label>
         <input type="text" class="form-control" name="new_intervention" />

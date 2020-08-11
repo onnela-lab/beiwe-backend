@@ -3,6 +3,8 @@ from datetime import datetime
 
 import jinja2
 from flask import Flask, redirect, render_template
+from flask_wtf import csrf
+from flask_wtf.csrf import CSRFProtect
 from raven.contrib.flask import Sentry
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -24,6 +26,7 @@ def subdomain(directory):
     return app
 
 
+
 # Register pages here
 app = subdomain("frontend")
 app.jinja_env.globals['current_year'] = datetime.now().strftime('%Y')
@@ -42,6 +45,8 @@ app.register_blueprint(copy_study_api.copy_study_api)
 app.register_blueprint(data_pipeline_api.data_pipeline_api)
 app.register_blueprint(dashboard_api.dashboard_api)
 app.register_blueprint(push_notifications_api.push_notifications_api)
+
+csrf_protect = csrf.CSRFProtect(app)
 
 # Sentry is not required, that was too much of a hassle
 if SENTRY_ELASTIC_BEANSTALK_DSN:

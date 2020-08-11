@@ -45,6 +45,7 @@
               {{ relationship }} &nbsp;&nbsp;
               {% if not edit_researcher_is_site_admin and not relationship == "Study Admin"%}
                 <form action="/elevate_researcher" class="oneline" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <input type="hidden" name="study_id" value="{{ study.id }}"/>
                   <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
                   <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
@@ -55,6 +56,7 @@
                 </form>
               {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
                 <form action="/demote_researcher" class="oneline" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <input type="hidden" name="study_id" value="{{ study.id }}"/>
                   <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
                   <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
@@ -68,6 +70,7 @@
             <td>
               {% if not edit_researcher_is_site_admin and not relationship == "Study Admin" and researcher_id != session_researcher.id %}
                 <form action="/remove_researcher_from_study" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <input type="hidden" name="study_id" value="{{ study.id }}"/>
                   <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
                   <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
@@ -87,6 +90,7 @@
   <div class="row">
     <h5>Authorize an additional researcher on this study:</h5>
     <form action="/add_researcher_to_study" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="form-inline">
         <select class="form-control" name="researcher_id">
           {% for researcher in administerable_researchers %}
@@ -112,6 +116,7 @@
   <div class="row">
     <h2>Rename study</h2>
     <form action="/rename_study/{{ study.id }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="col-md-10">
         <input type="text" name="new_study_name" value="{{ study['name'] }}" class="form-control">
       </div>
@@ -133,6 +138,7 @@
     <div class="col-md-6">
       <h4>Import another study's App Settings and/or Surveys into {{ study['name'] }}</h4>
       <form action="/import_study_settings_file/{{ study.id }}" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="file" name="upload" id="file_upload_selector">
         <div class="checkbox">
           <label>

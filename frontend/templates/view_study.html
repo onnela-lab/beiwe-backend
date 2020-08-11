@@ -53,6 +53,7 @@
             <td>
               {% if participant.device_id %}
                 <form action="/reset_device" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   Smartphone registered
                 </form>
               {% else %}
@@ -78,6 +79,7 @@
         </tbody>
       </table>
       <form action="/create_new_participant" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-inline pull-left">
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <button type="submit" class="btn btn-primary add_new_patient_button">Add new participant</button>

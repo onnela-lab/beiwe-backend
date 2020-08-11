@@ -17,6 +17,7 @@
 
   {# Go to Dashboard button and  reset password button #}
   <form action="/reset_participant_password" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="form-inline">
       <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
       <input type="hidden" name="study_id" value="{{ study.id }}">
@@ -30,6 +31,7 @@
   <div class="form-group">
     {% if participant.device_id %}
       <form action="/reset_device" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-inline">
           <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
           <input type="hidden" name="study_id" value="{{ study.id }}">
@@ -50,6 +52,7 @@
   </div>
 
   <form action="/view_study/{{ study.id }}/edit_participant/{{ participant.id }}" class="form-horizontal" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
     <h3>Interventions</h3>
     {% if study.interventions.count() > 0 %}

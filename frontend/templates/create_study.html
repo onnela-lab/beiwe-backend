@@ -18,6 +18,7 @@
 
     <div class="row col-md-8">
         <form action="/create_study" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label for="name">Study Name</label>
                 <input type="text" name="name" id="name" class="form-control" required>

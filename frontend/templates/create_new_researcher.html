@@ -12,6 +12,7 @@
 
     <div class="row col-md-4">
         <form action="/create_new_researcher" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         	<div class="form-group">
         		<label for="admin_id">Username</label>
 	            <input type="text" name="admin_id" id="admin_id" class="form-control">
