@@ -76,12 +76,12 @@ class TableauApiAuthTests(HybridTest):
         """
         self.setup(apikey=False, researcher=True, study=False)
         session = self.login()
-        api_key_count = len(ApiKey.objects.all())
+        api_key_count = ApiKey.objects.count()
         response = session.post(
             self.url_for("admin_pages.new_api_key"),
             data={"readable_name": "test_generated_api_key"},
         )
-        self.assertEqual(api_key_count + 1, len(ApiKey.objects.all()))
+        self.assertEqual(api_key_count + 1, ApiKey.objects.count())
         api_key = ApiKey.objects.get(readable_name="test_generated_api_key")
         self.assertEqual(api_key.researcher.username, TEST_USERNAME)
         self.assertTrue(api_key.is_active)
@@ -96,13 +96,13 @@ class TableauApiAuthTests(HybridTest):
         """
         self.setup(researcher=True, apikey=True, study=False)
         session = self.login()
-        api_key_count = len(ApiKey.objects.filter(is_active=True))
+        api_key_count = ApiKey.objects.filter(is_active=True).count()
         response = session.post(
             self.url_for("admin_pages.disable_api_key"),
             data={"api_key_id": self.api_key_public},
         )
         key = ApiKey.objects.get(access_key_id=self.api_key_public)
-        self.assertEqual(api_key_count - 1, len(ApiKey.objects.filter(is_active=True)))
+        self.assertEqual(api_key_count - 1, ApiKey.objects.filter(is_active=True).count())
         self.assertFalse(key.is_active)
         return True
 
