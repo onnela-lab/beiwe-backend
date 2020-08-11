@@ -321,7 +321,7 @@
 {% if readonly %}
     </div>
 {% else %}
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    </form>
 {% endif %}
 {% endblock %}

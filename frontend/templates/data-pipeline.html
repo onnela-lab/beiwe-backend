@@ -17,8 +17,8 @@
         <form action="/run-manual-code/{{ study.id }}" method="post">
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <button type="submit" class="btn btn-primary add_new_patient_button">Run manually</button>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        </form>
       </div>
     </div>
   </div>

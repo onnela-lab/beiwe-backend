@@ -52,8 +52,8 @@
                     (Elevate to Study Admin
                     <span class="glyphicon glyphicon-arrow-up"></span>)
                   </button>
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                </form>
               {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
                 <form action="/demote_researcher" class="oneline" method="post">
                   <input type="hidden" name="study_id" value="{{ study.id }}"/>

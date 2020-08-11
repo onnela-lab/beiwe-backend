@@ -41,8 +41,8 @@
                     (Elevate to Study Admin
                     <span class="glyphicon glyphicon-arrow-up"></span>)
                 </button>
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              </form>
             {% elif is_administrator_of and not is_self and not edit_researcher.site_admin and relationship == "Study Admin" %}
               <form action="/demote_researcher" class="oneline" method="post">
                 <input type="hidden" name="study_id" value="{{ study.id }}"/>
@@ -52,8 +52,8 @@
                     (Demote to Researcher
                     <span class="glyphicon glyphicon-arrow-down"></span>)
                 </button>
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              </form>
             {% endif %}
           </td>
           <td>
@@ -66,8 +66,8 @@
                   <span class="glyphicon glyphicon-remove"></span>
                   Remove from study
                 </button>
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              </form>
             {% endif %}
           </td>
 

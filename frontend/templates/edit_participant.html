@@ -23,8 +23,8 @@
       <a class="btn btn-info" href='/dashboard/{{ study.id }}/patient/{{ participant.patient_id }}'>Go to Participant Dashboard</a>&nbsp;
       <button type="submit" class="btn btn-warning reset_password_button">Reset password</button>
     </div>
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+  </form>
   <br> <br>
 
   {# Unregister Smartphone button #}
