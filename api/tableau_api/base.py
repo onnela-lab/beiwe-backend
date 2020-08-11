@@ -2,7 +2,6 @@ from django import forms
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from flask import request, jsonify
 from flask.views import MethodView
-from werkzeug.exceptions import abort
 
 from database.security_models import ApiKey
 from database.study_models import Study
