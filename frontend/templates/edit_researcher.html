@@ -89,8 +89,8 @@
         <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
         <button type="submit" class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
       </div>
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    </form>
   </div>
 
   <br><br><br><br>
@@ -113,8 +113,8 @@
           <input type="hidden" name="researcher_id" value="{{ edit_researcher.id }}">
           <input type="submit" class="btn btn-warning" value="Reset Password">
         </div>
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-</form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      </form>
     </div>
     <br><br><br><br>
   {% endif %}
