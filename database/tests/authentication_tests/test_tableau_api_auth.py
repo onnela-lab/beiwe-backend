@@ -195,14 +195,6 @@ class TableauApiAuthTests(HybridTest):
                 TableauApiView().check_permissions()
         self.assertTrue(mock_method.called)
 
-    def test_tableau_api_dispatch(self):
-        with app.test_request_context():
-            with mock.patch.object(
-                TableauApiView, "check_permissions", return_value=True
-            ) as mock_method:
-                TableauApiView().check_permissions()
-        self.assertTrue(mock_method.called)
-
     def test_summary_statistic_daily_serializer(self):
         serializer = SummaryStatisticDailySerializer()
         self.assertFalse("created_on" in serializer.fields)
