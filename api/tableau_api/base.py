@@ -2,7 +2,6 @@ from django import forms
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from flask import request, jsonify
 from flask.views import MethodView
-from werkzeug.exceptions import abort
 
 from database.security_models import ApiKey
 from database.study_models import Study
@@ -91,7 +90,7 @@ class TableauApiView(MethodView):
         try:
             self.check_permissions(*args, **kwargs)
         except AuthenticationFailed as error:
-            response = jsonify(error.args)
+            response = jsonify({"errors": error.args})
             response.status_code = 400
             return response
         except PermissionDenied:
