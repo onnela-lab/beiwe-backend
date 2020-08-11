@@ -1,5 +1,7 @@
 import threading
 
+from flask import url_for as flask_url_for
+
 from app import app as flask_app
 from django.test import TransactionTestCase
 
@@ -38,3 +40,9 @@ class HybridTest(TransactionTestCase):
     @staticmethod
     def run_flask():
         flask_app.run(host=HOST, port=PORT, debug=False)
+
+    @staticmethod
+    def url_for(endpoint, **values):
+        flask_app.config["SERVER_NAME"] = f"{HOST}:{PORT}"
+        with flask_app.app_context():
+            return flask_url_for(endpoint, **values)

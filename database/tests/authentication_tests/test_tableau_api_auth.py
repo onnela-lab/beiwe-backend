@@ -13,7 +13,7 @@ from database.tests.authentication_tests.testing_constants import (
     TEST_PASSWORD,
     TEST_STUDY_NAME,
     TEST_STUDY_ENCRYPTION_KEY,
-    URLS,
+    BASE_URL,
 )
 from database.security_models import ApiKey
 from database.user_models import Researcher, StudyRelation
@@ -56,12 +56,11 @@ class TableauApiAuthTests(HybridTest):
                     relationship="researcher",
                 ).save()
 
-    @staticmethod
-    def login(session=None):
+    def login(self, session=None):
         if session is None:
             session = requests.Session()
         session.post(
-            URLS["validate_login"],
+            self.url_for("admin_pages.login"),
             data={"username": TEST_USERNAME, "password": TEST_PASSWORD},
         )
         return session
@@ -79,7 +78,8 @@ class TableauApiAuthTests(HybridTest):
         session = self.login()
         api_key_count = len(ApiKey.objects.all())
         response = session.post(
-            URLS["new_api_key"], data={"readable_name": "test_generated_api_key"}
+            self.url_for("admin_pages.new_api_key"),
+            data={"readable_name": "test_generated_api_key"},
         )
         self.assertEqual(api_key_count + 1, len(ApiKey.objects.all()))
         api_key = ApiKey.objects.get(readable_name="test_generated_api_key")
@@ -98,7 +98,8 @@ class TableauApiAuthTests(HybridTest):
         session = self.login()
         api_key_count = len(ApiKey.objects.filter(is_active=True))
         response = session.post(
-            URLS["disable_api_key"], data={"api_key_id": self.api_key_public}
+            self.url_for("admin_pages.disable_api_key"),
+            data={"api_key_id": self.api_key_public},
         )
         key = ApiKey.objects.get(access_key_id=self.api_key_public)
         self.assertEqual(api_key_count - 1, len(ApiKey.objects.filter(is_active=True)))
@@ -188,13 +189,17 @@ class TableauApiAuthTests(HybridTest):
         Ensures the Tableau Api checks permissions during dispatch
         """
         with app.test_request_context():
-            with mock.patch.object(TableauApiView, 'check_permissions', return_value=True) as mock_method:
+            with mock.patch.object(
+                TableauApiView, "check_permissions", return_value=True
+            ) as mock_method:
                 TableauApiView().check_permissions()
         self.assertTrue(mock_method.called)
 
     def test_tableau_api_dispatch(self):
         with app.test_request_context():
-            with mock.patch.object(TableauApiView, 'check_permissions', return_value=True) as mock_method:
+            with mock.patch.object(
+                TableauApiView, "check_permissions", return_value=True
+            ) as mock_method:
                 TableauApiView().check_permissions()
         self.assertTrue(mock_method.called)
 
@@ -211,6 +216,10 @@ class TableauApiAuthTests(HybridTest):
         }
         session = requests.Session()
         response = session.get(
-            URLS["tableau_api"].replace("<string:study_id>", self.study.object_id), headers=headers
+            BASE_URL
+            + "/api/v0/studies/<string:study_id>/summary-statistics/daily".replace(
+                "<string:study_id>", self.study.object_id
+            ),
+            headers=headers,
         )
         self.assertEqual(response.status_code, 200)
