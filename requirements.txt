@@ -20,3 +20,4 @@ ipython
 django-extensions
 python-dateutil
 firebase-admin
+flask_wtf

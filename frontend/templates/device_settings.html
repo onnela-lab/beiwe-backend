@@ -24,6 +24,7 @@
     <div>
 {% else %}
     <form action="/device_settings/{{ study.id }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 {% endif %}
     <div class="row form-horizontal">
         <div class="col-xs-6">

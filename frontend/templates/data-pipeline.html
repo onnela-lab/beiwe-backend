@@ -15,6 +15,7 @@
       <div class="row">
         <h3>Run data pipeline code</h3>
         <form action="/run-manual-code/{{ study.id }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <button type="submit" class="btn btn-primary add_new_patient_button">Run manually</button>
         </form>

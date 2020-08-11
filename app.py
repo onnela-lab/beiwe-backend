@@ -3,6 +3,7 @@ from datetime import datetime
 
 import jinja2
 from flask import Flask, redirect, render_template
+from flask_wtf import csrf
 from raven.contrib.flask import Sentry
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -22,7 +23,7 @@ app.jinja_loader = jinja2.ChoiceLoader(
 set_secret_key(app)
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
-# Flask Blueprints
+# Register pages here
 app.register_blueprint(login_pages.login_pages)
 app.register_blueprint(mobile_api.mobile_api)
 app.register_blueprint(admin_pages.admin_pages)
@@ -42,7 +43,8 @@ app.register_blueprint(push_notifications_api.push_notifications_api)
 
 # Jinja
 app.jinja_env.globals['current_year'] = datetime.now().strftime('%Y')
-
+app.jinja_env.globals['current_year'] = datetime.now().strftime('%Y')
+csrf_protect = csrf.CSRFProtect(app)
 
 # Sentry is not required, that was too much of a hassle
 if SENTRY_ELASTIC_BEANSTALK_DSN:

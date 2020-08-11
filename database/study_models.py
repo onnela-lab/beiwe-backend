@@ -42,6 +42,7 @@ class Study(TimestampedModel):
             # update the study object to have a device settings object (possibly unnecessary?).
             super().save(*args, **kwargs)
 
+
     @classmethod
     def create_with_object_id(cls, **kwargs):
         """ Creates a new study with a populated object_id field. """

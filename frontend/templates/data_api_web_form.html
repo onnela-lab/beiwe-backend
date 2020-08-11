@@ -24,6 +24,7 @@
 
       <div class="row well">
         <form action="/get-data/v1" method="POST" id="data_download_parameters_form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
           {# Access Key #}
           <div class="form-group">

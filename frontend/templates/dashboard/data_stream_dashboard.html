@@ -159,6 +159,7 @@
                 </button>
               </div>
               <form action="#" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input name="color_high_range" type="hidden" id="color_high_range" value="{% raw %}{{ getCurrentGradient(current_gradient[1]) }}{% endraw %}"/>
                 <input name="color_low_range" type="hidden" id="color_low_range" value="{% raw %} {{ getCurrentGradient(current_gradient[0]) }}{% endraw %}"/>
                 <input name="all_flags_list" type="hidden" id="all_flags_list" value="{% raw %} {{ all_flags_list }} {% endraw %}"/>
