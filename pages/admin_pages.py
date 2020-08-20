@@ -29,7 +29,7 @@ def choose_study():
     return render_template(
         'choose_study.html',
         studies=allowed_studies_json,
-        allowed_studies=allowed_studies_json,
+        allowed_studies=get_researcher_allowed_studies(),
         is_admin=researcher_is_an_admin()
     )
 

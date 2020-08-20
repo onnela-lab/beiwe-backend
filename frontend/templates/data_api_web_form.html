@@ -11,8 +11,8 @@
   <script type="text/javascript" src="../static/javascript/libraries/bootstrap-datetimepicker.js"></script>
   <script type="text/javascript" src="../static/javascript/data_download_page.js"></script>
   <script>
-    var allowedStudies = {{ allowed_studies|safe }};
-    var participantsByStudy = {{ users_by_study|safe }};
+    var allowedStudies = {{ allowed_studies|tojson }};
+    var participantsByStudy = {{ users_by_study|tojson }};
   </script>
   <script src="/static/javascript/app/survey-builder/controllers/data-access-web-form-controller.js"></script>
 {% endblock %}

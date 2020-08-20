@@ -25,8 +25,8 @@ def data_api_web_form_page():
     }
     return render_template(
         "data_api_web_form.html",
-        allowed_studies=get_researcher_allowed_studies(),
-        users_by_study=json.dumps(users_by_study),
+        allowed_studies=get_researcher_allowed_studies(as_json=False),
+        users_by_study=users_by_study,
         ALL_DATA_STREAMS=ALL_DATA_STREAMS,
         is_admin=researcher_is_an_admin()
     )

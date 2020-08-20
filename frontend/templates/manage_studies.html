@@ -2,7 +2,7 @@
 
 {% block head %}
     {{ super() }}
-    <script>filterableObjects = {{ studies|safe }}</script>
+    <script>filterableObjects = {{ studies|tojson }}</script>
     <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
 {% endblock %}
 

@@ -80,7 +80,7 @@ def manage_researchers():
 
     return render_template(
         'manage_researchers.html',
-        admins=json.dumps(researcher_list),
+        admins=researcher_list,
         allowed_studies=get_researcher_allowed_studies(),
         is_admin=researcher_is_an_admin()
     )
@@ -208,7 +208,7 @@ def create_new_researcher():
 def manage_studies():
     return render_template(
         'manage_studies.html',
-        studies=json.dumps([study.as_unpacked_native_python() for study in get_administerable_studies_by_name()]),
+        studies=[study.as_unpacked_native_python() for study in get_administerable_studies_by_name()],
         allowed_studies=get_researcher_allowed_studies(),
         is_admin=researcher_is_an_admin(),
         session_researcher=get_session_researcher(),
@@ -256,7 +256,7 @@ def create_study():
         studies = [study.as_unpacked_native_python() for study in Study.get_all_studies_by_name()]
         return render_template(
             'create_study.html',
-            studies=json.dumps(studies),
+            studies=studies,
             allowed_studies=get_researcher_allowed_studies(),
             is_admin=researcher_is_an_admin()
         )

@@ -186,7 +186,7 @@ def get_researcher_allowed_studies_as_query_set():
     )
 
 
-def get_researcher_allowed_studies(as_json=True):
+def get_researcher_allowed_studies(as_json=False):
     """
     Return a list of studies which the currently logged-in researcher is authorized to view and edit.
     """
