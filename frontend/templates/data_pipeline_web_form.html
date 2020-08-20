@@ -11,8 +11,8 @@
   <script type="text/javascript" src="../static/javascript/libraries/bootstrap-datetimepicker.js"></script>
   <script type="text/javascript" src="../static/javascript/data_download_page.js"></script>
   <script>
-    var downloadableStudies = {{ downloadable_studies|safe }};
-    var tagsByStudy = {{ tags_by_study|safe }};
+    var downloadableStudies = {{ downloadable_studies|tojson }};
+    var tagsByStudy = {{ tags_by_study|tojson }};
   </script>
   <script src="/static/javascript/app/survey-builder/controllers/data-pipeline-web-form-controller.js"></script>
 {% endblock %}

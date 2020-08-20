@@ -66,7 +66,7 @@ def pipeline_download_page():
             allowed_studies=get_researcher_allowed_studies(),
             downloadable_studies=get_researcher_allowed_studies(),
             users_by_study=users_by_study,
-            tags_by_study=json.dumps(tags_by_study),
+            tags_by_study=tags_by_study,
             is_admin=researcher_is_an_admin()
     )
 

@@ -25,10 +25,10 @@ def choose_study():
         return redirect('/view_study/{:d}'.format(allowed_studies.values_list('pk', flat=True).get()))
 
     # Otherwise, show the "Choose Study" page
-    allowed_studies_json = Study.query_set_as_unpacked_native_json(allowed_studies)
+    allowed_studies_list = Study.query_set_as_unpacked_native_python(allowed_studies)
     return render_template(
         'choose_study.html',
-        studies=allowed_studies_json,
+        studies=allowed_studies_list,
         allowed_studies=get_researcher_allowed_studies(),
         is_admin=researcher_is_an_admin()
     )
