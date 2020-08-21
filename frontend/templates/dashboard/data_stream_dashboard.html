@@ -14,9 +14,9 @@
     window.color_high_range = null;
     window.color_low_range = null;
     window.show_color = {{ 'true' if show_color == True else 'false' }};
-    window.all_flags_list = {{ all_flags_list|safe }};
-    window.base_next_url = "{{ base_next_url|safe }}";
-    window.base_past_url = "{{ base_past_url|safe }}";
+    window.all_flags_list = JSON.parse('{{ all_flags_list|tojson }}');
+    window.base_next_url = JSON.parse('{{ base_next_url|tojson }}');
+    window.base_past_url = JSON.parse('{{ base_past_url|tojson }}');
     window.current_gradient = [{{ 0 if color_low_range is none else color_low_range}}, {{ 0 if color_high_range is none else color_high_range }}];
     {% if first_day and last_day %}
       window.first_day = new Date({{ first_day.year}}, {{first_day.month - 1}}, {{first_day.day }});

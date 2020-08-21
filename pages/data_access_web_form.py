@@ -25,7 +25,7 @@ def data_api_web_form_page():
     }
     return render_template(
         "data_api_web_form.html",
-        allowed_studies=get_researcher_allowed_studies(as_json=False),
+        allowed_studies=get_researcher_allowed_studies(),
         users_by_study=users_by_study,
         ALL_DATA_STREAMS=ALL_DATA_STREAMS,
         is_admin=researcher_is_an_admin()
@@ -45,7 +45,7 @@ def warn_researcher_if_hasnt_yet_generated_access_key(researcher):
 def pipeline_download_page():
     researcher = Researcher.objects.get(username=session[SESSION_NAME])
     warn_researcher_if_hasnt_yet_generated_access_key(researcher)
-    iteratable_studies = get_researcher_allowed_studies(as_json=False)
+    iteratable_studies = get_researcher_allowed_studies()
     # dict of {study ids : list of user ids}
 
     users_by_study = {str(study['id']):
