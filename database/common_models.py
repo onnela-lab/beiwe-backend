@@ -51,7 +51,7 @@ class UtilityModel(models.Model):
 
     @classmethod
     def query_set_as_unpacked_native_json(cls, query_set, remove_timestamps=True):
-        return json.dumps([obj.as_unpacked_native_python(remove_timestamps) for obj in query_set])
+        return json.dumps(cls.query_set_as_unpacked_native_python(query_set, remove_timestamps))
 
     @classmethod
     def query_set_as_unpacked_native_python(cls, query_set, remove_timestamps=True):
