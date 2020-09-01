@@ -13,7 +13,7 @@ from config.settings import SENTRY_ELASTIC_BEANSTALK_DSN, SENTRY_JAVASCRIPT_DSN
 from authentication.admin_authentication import is_logged_in
 from libs.security import set_secret_key
 from pages import (admin_pages, data_access_web_form, mobile_pages, survey_designer,
-    system_admin_pages, tableau_pages)
+    system_admin_pages)
 from flask_cors import CORS
 
 
@@ -48,7 +48,6 @@ app.register_blueprint(copy_study_api.copy_study_api)
 app.register_blueprint(data_pipeline_api.data_pipeline_api)
 app.register_blueprint(dashboard_api.dashboard_api)
 app.register_blueprint(push_notifications_api.push_notifications_api)
-app.register_blueprint(tableau_pages.tableau_pages)
 SummaryStatisticDailyStudyView.register_urls(app)
 
 # Sentry is not required, that was too much of a hassle
