@@ -29,13 +29,13 @@ class Study(TimestampedModel):
     def save(self, *args, **kwargs):
         """ Ensure there is a study device settings attached to this study. """
         # the device settings have to be in the database before the save validation passes.
+        super().save(*args, **kwargs)
         try:
             self.device_settings
         except ObjectDoesNotExist:
             settings = DeviceSettings(study=self)
             settings.save()
             self.device_settings = settings
-        super().save(*args, **kwargs)
 
     @classmethod
     def create_with_object_id(cls, **kwargs):

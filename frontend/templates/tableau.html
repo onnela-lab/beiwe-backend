@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {{ super() }}
+
+  <script type="text/javascript"
+    src="https://public.tableau.com/javascripts/api/tableau-2.min.js">
+  </script>
+  <script type="text/javascript">
+    function initViz() {
+        var containerDiv = document.getElementById("vizContainer"),
+            // url = "http://public.tableau.com/views/RegionalSampleWorkbook/Storms",
+            url = "https://prod-useast-a.online.tableau.com/t/beiwedevalvin/views/my_workbook/Sheet1/caleb@zagaran.com/my_view",
+            options = {
+                hideTabs: true,
+                onFirstInteractive: function () {
+                    console.log("Run this code when the viz has finished loading.");
+                }
+            };
+
+        var viz = new tableau.Viz(containerDiv, url, options);
+        // Create a viz object and embed it in the container div.
+    }
+  </script>
+{% endblock %}
+
+{% block title %}Tableau{% endblock %}
+
+{% block content %}
+
+<body onload="initViz();">
+    <div id="vizContainer" style="width:800px; height:700px;"></div>
+</body>
+
+{% endblock %}

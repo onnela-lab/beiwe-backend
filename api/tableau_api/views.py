@@ -2,13 +2,15 @@ import json
 
 from django import forms
 from django.forms import ValidationError
-from flask import request
+from flask import request, render_template
 from rest_framework import serializers
 from rest_framework.renderers import JSONRenderer
+from flask.views import MethodView
 
 from api.tableau_api.base import TableauApiView
 from api.tableau_api.constants import SERIALIZABLE_FIELD_NAMES, VALID_QUERY_PARAMETERS
 from database.tableau_api_models import SummaryStatisticDaily
+from flask_cors import cross_origin
 
 
 class SummaryStatisticDailySerializer(serializers.ModelSerializer):
@@ -39,6 +41,7 @@ class SummaryStatisticDailyStudyView(TableauApiView):
 
     path = "/api/v0/studies/<string:study_id>/summary-statistics/daily"
 
+    @cross_origin()
     def get(self, study_id):
         form = ApiQueryForm(data=request.values)
         if not form.is_valid():
@@ -91,6 +94,15 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         for field, field_errs in errors.items():
             messages.extend([err["message"] for err in field_errs])
         return json.dumps({"errors": messages})
+
+
+class WDC(MethodView):
+    path = 'yay'
+
+    @cross_origin()
+    def get(self):
+        return render_template('wdc.html')
+
 
 
 class CommaSeparatedListFieldMixin:

@@ -8,20 +8,25 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from api import (admin_api, copy_study_api, dashboard_api, data_access_api, data_pipeline_api,
     mobile_api, participant_administration, push_notifications_api, study_api, survey_api)
-from api.tableau_api.views import SummaryStatisticDailyStudyView
+from api.tableau_api.views import SummaryStatisticDailyStudyView, WDC
 from config.settings import SENTRY_ELASTIC_BEANSTALK_DSN, SENTRY_JAVASCRIPT_DSN
 from authentication.admin_authentication import is_logged_in
 from libs.security import set_secret_key
 from pages import (admin_pages, data_access_web_form, mobile_pages, survey_designer,
-    system_admin_pages)
+    system_admin_pages, tableau_pages)
+from flask_cors import CORS
+
+
 
 
 def subdomain(directory):
     app = Flask(__name__, static_folder=directory + "/static")
+    CORS(app)
     set_secret_key(app)
     loader = [app.jinja_loader, jinja2.FileSystemLoader(directory + "/templates")]
     app.jinja_loader = jinja2.ChoiceLoader(loader)
     app.wsgi_app = ProxyFix(app.wsgi_app)
+    app.add_url_rule('/yay', view_func=WDC.as_view("yay"))
     return app
 
 
@@ -43,6 +48,7 @@ app.register_blueprint(copy_study_api.copy_study_api)
 app.register_blueprint(data_pipeline_api.data_pipeline_api)
 app.register_blueprint(dashboard_api.dashboard_api)
 app.register_blueprint(push_notifications_api.push_notifications_api)
+app.register_blueprint(tableau_pages.tableau_pages)
 SummaryStatisticDailyStudyView.register_urls(app)
 
 # Sentry is not required, that was too much of a hassle
