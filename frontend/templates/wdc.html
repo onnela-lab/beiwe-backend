@@ -69,23 +69,22 @@
         myConnector.getData = function (table, doneCallback) {
             $.ajax({
               dataType: "json",
-              url: "http://localhost:8080/api/v0/studies/{{ study_id}}/summary-statistics/daily",
-              data: "",
+              url: "{{ url_for('summary_statistics_daily_study_view', study_id=study_id) }}",
               headers: {
                 "X-Access-Key-Id": tableau.username,
                 "X-Access-Key-Secret": tableau.password
               },
-              error: function(response) {
-                tableau.log(response);
-                tableau.abortWithError(response.responseText)
-                //tableau.abortWithError("something went wrong")
+              error:
+                function(response) {
+                tableau.log(response); //the tableau log is accessible through the tableau WDC simulator for debugging
+                tableau.abortWithError(response.responseText);
               },
               success:
                 function(resp) {
                   var feat = resp;
                   var tableData = [];
 
-                  // Iterate over the JSON object
+                  // Iterate over the response JSON object and insert into tableau table
                   for (var i = 0, len = feat.length; i < len; i++) {
                     tableData.push({
                       "participant_id": feat[i].participant_id,
