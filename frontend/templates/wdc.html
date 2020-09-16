@@ -75,11 +75,13 @@
                 "X-Access-Key-Id": tableau.username,
                 "X-Access-Key-Secret": tableau.password
               },
+              error: function(response) {
+                tableau.log(response);
+                tableau.abortWithError(response.responseText)
+                //tableau.abortWithError("something went wrong")
+              },
               success:
                 function(resp) {
-                  if (feat.hasOwnProperty("errors")){
-                    tableau.abortWithError("something went wrong")
-                  }
                   var feat = resp;
                   var tableData = [];
 
