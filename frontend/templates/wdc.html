@@ -69,7 +69,7 @@
         myConnector.getData = function (table, doneCallback) {
             $.ajax({
               dataType: "json",
-              url: "{{ url_for('summary_statistics_daily_study_view', study_id=study_id) }}",
+              url: "{{ url_for('summary_statistics_daily_study_view', study_id=study_id) }}" + tableau.connectionData,
               headers: {
                 "X-Access-Key-Id": tableau.username,
                 "X-Access-Key-Secret": tableau.password
@@ -81,59 +81,7 @@
               },
               success:
                 function(resp) {
-                  var feat = resp;
-                  var tableData = [];
-
-                  // Iterate over the response JSON object and insert into tableau table
-                  for (var i = 0, len = feat.length; i < len; i++) {
-                    tableData.push({
-                      "participant_id": feat[i].participant_id,
-                      "study_id": feat[i].study_id,
-                      "date": feat[i].date,
-                      "distance_diameter": feat[i].distance_diameter,
-                      "distance_from_home": feat[i].distance_from_home,
-                      "distance_traveled": feat[i].distance_traveled,
-                      "flight_distance_average": feat[i].flight_distance_average,
-                      "flight_distance_standard_deviation": feat[i].flight_distance_standard_deviation,
-                      "flight_duration_average": feat[i].flight_duration_average,
-                      "flight_duration_standard_deviation": feat[i].flight_duration_standard_deviation,
-                      "gps_data_missing_duration": feat[i].gps_data_missing_duration,
-                      "home_duration": feat[i].home_duration,
-                      "physical_circadian_rhythm": feat[i].physical_circadian_rhythm,
-                      "physical_circadian_rhythm_stratified": feat[i].physical_circadian_rhythm_stratified,
-                      "radius_of_gyration": feat[i].radius_of_gyration,
-                      "significant_location_count": feat[i].significant_location_count,
-                      "significant_location_entropy": feat[i].significant_location_entropy,
-                      "stationary_fraction": feat[i].stationary_fraction,
-                      "text_incoming_count": feat[i].text_incoming_count,
-                      "text_incoming_degree": feat[i].text_incoming_degree,
-                      "text_incoming_length": feat[i].text_incoming_length,
-                      "text_incoming_responsiveness": feat[i].text_incoming_responsiveness,
-                      "text_outgoing_count": feat[i].text_outgoing_count,
-                      "text_outgoing_degree": feat[i].text_outgoing_degree,
-                      "text_outgoing_length": feat[i].text_outgoing_length,
-                      "text_reciprocity": feat[i].text_reciprocity,
-                      "call_incoming_count": feat[i].call_incoming_count,
-                      "call_incoming_degree": feat[i].call_incoming_degree,
-                      "call_incoming_duration": feat[i].call_incoming_duration,
-                      "call_incoming_responsiveness": feat[i].call_incoming_responsiveness,
-                      "call_outgoing_count": feat[i].call_outgoing_count,
-                      "call_outgoing_degree": feat[i].call_outgoing_degree,
-                      "call_outgoing_duration": feat[i].call_outgoing_duration,
-                      "acceleration_direction": feat[i].acceleration_direction,
-                      "accelerometer_coverage_fraction": feat[i].accelerometer_coverage_fraction,
-                      "accelerometer_signal_variability": feat[i].accelerometer_signal_variability,
-                      "accelerometer_univariate_summaries": feat[i].accelerometer_univariate_summaries,
-                      "device_proximity": feat[i].device_proximity,
-                      "total_power_events": feat[i].total_power_events,
-                      "total_screen_events": feat[i].total_screen_events,
-                      "total_unlock_events": feat[i].total_unlock_events,
-                      "awake_onset_time": feat[i].awake_onset_time,
-                      "sleep_duration": feat[i].sleep_duration,
-                      "sleep_onset_time": feat[i].sleep_onset_time
-                    });
-                  }
-                  table.appendRows(tableData);
+                  table.appendRows(resp);
                   doneCallback();
                 }});
         };
@@ -143,6 +91,7 @@
                 tableau.username = document.getElementById('access_key_id').value
                 tableau.password = document.getElementById('access_key_secret').value
                 tableau.connectionName = "Study: {{ study_id }}"; // This will be the data source name in Tableau
+                tableau.connectionData = window.location.search; //save the query string which contains parameters for the api call
                 tableau.submit(); // This sends the connector object to Tableau
             });
           });
