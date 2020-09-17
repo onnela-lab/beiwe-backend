@@ -12,7 +12,10 @@
       (function () {
         var myConnector = tableau.makeConnector();
         myConnector.getSchema = function (schemaCallback) {
-          var cols = [
+
+          var cols = {{ (cols|safe) }}
+          /*
+              [
             {id: 'participant_id', dataType: tableau.dataTypeEnum.string,},
             {id: 'study_id', dataType: tableau.dataTypeEnum.string,},
             {id: 'date', dataType: tableau.dataTypeEnum.date,},
@@ -58,6 +61,8 @@
             {id: 'sleep_duration', dataType: tableau.dataTypeEnum.int,},
             {id: 'sleep_onset_time', dataType: tableau.dataTypeEnum.datetime,},
           ];
+          */
+
           var tableSchema = {
                 id: "StudyData",
                 alias: "Data from the Beiwe WDC on study with id: '{{ study_id }}'",

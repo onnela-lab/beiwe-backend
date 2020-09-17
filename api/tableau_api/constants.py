@@ -1,3 +1,5 @@
+from django.db.models.fields import IntegerField, FloatField, DateTimeField, DateField, BooleanField
+
 SERIALIZABLE_FIELD_NAMES = [
     "acceleration_direction",
     "accelerometer_coverage_fraction",
@@ -53,4 +55,11 @@ VALID_QUERY_PARAMETERS = [
     "participant_ids",
     "start_date",
     "study_id",
+]
+FIELD_TYPE_MAP = [
+    (IntegerField, 'tableau.dataTypeEnum.int'),
+    (FloatField, 'tableau.dataTypeEnum.float'),
+    (DateTimeField, 'tableau.dataTypeEnum.datetime'),
+    (DateField, 'tableau.dataTypeEnum.date'),
+    (BooleanField, 'tableau.dataTypeEnum.bool'),
 ]
