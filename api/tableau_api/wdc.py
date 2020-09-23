@@ -26,8 +26,6 @@ class WebDataConnector(MethodView):
                     # if the field is not recognized, supply it to tableau as a string type
                     self.cols += f"{{id: '{field.name}', dataType: tableau.dataTypeEnum.string,}},\n"
         self.cols += '];'
-        print(self.cols)
-
 
     @classmethod
     def register_urls(cls, app):

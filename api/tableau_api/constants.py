@@ -56,6 +56,8 @@ VALID_QUERY_PARAMETERS = [
     "start_date",
     "study_id",
 ]
+# maps django fields to tableau data types. All fields not included here are interpreted as string data in tableau
+# note that this process considers subclasses, so all subclasses of DateFields will appear in tableau as a data
 FIELD_TYPE_MAP = [
     (IntegerField, 'tableau.dataTypeEnum.int'),
     (FloatField, 'tableau.dataTypeEnum.float'),
