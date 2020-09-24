@@ -228,10 +228,16 @@ def register_user(OS_API=""):
     s3_upload(file_name, file_contents, study_id)
     FileToProcess.append_file_for_processing(file_name, user.study.object_id, participant=user)
 
-    plist_file_path = 'Beiwe_GoogleService-Info.plist'
-    with open(plist_file_path, 'rb') as f:
-        plist_data = plistlib.load(f)
-    print(plist_data)
+    firebase_plist_data = None
+    firebase_json_data = None
+    if user.os_type == 'IOS':
+        plist_file_path = 'Beiwe_GoogleService-Info.plist'
+        with open(plist_file_path, 'rb') as f:
+            firebase_plist_data = plistlib.load(f)
+    elif user.os_type == 'ANDROID':
+        json_file_path = 'google-services.json'
+        with open(json_file_path, 'r') as f:
+            firebase_json_data = f.read()
 
     # set up device.
     user.device_id = device_id
@@ -242,7 +248,8 @@ def register_user(OS_API=""):
     return_obj = {
         'client_public_key': get_client_public_key_string(patient_id, study_id),
         'device_settings': device_settings,
-        'ios_plist': plist_data,
+        'ios_plist': firebase_plist_data,
+        'android_firebase_json': firebase_json_data,
     }
     return json.dumps(return_obj), 200
 
