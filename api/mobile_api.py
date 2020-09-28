@@ -250,6 +250,8 @@ def register_user(OS_API=""):
         'device_settings': device_settings,
         'ios_plist': firebase_plist_data,
         'android_firebase_json': firebase_json_data,
+        'study_name': user.study.name,
+        'study_id': user.study.object_id,
     }
     return json.dumps(return_obj), 200
 
