@@ -1,3 +1,4 @@
+from django.utils import timezone
 from flask import abort, Blueprint, render_template
 
 from authentication.admin_authentication import (authenticate_researcher_study_access,
@@ -33,4 +34,5 @@ def render_edit_survey(survey_id=None):
         relative_timings=survey.relative_timings(),
         absolute_timings=survey.absolute_timings(),
         push_notifications_enabled=PUSH_NOTIFICATIONS_ENABLED,
+        today=timezone.now().strftime('%Y-%m-%d'),
     )
