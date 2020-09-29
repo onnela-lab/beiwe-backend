@@ -35,8 +35,8 @@ class FileProcessLock(TimestampedModel):
 
 
 class FileAsText(TimestampedModel):
-    tag = models.CharField(required=True, max_length=256, db_index=True)
-    text = models.TextField(required=True)
+    tag = models.CharField(null=False, blank=False, max_length=256, db_index=True)
+    text = models.TextField(null=False, blank=False)
 
     # todo: store the files for sending push notifications as three entries in this database table
     #  and make a function that checks for ios, android, and any push notifications to be present
