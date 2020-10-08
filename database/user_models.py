@@ -1,3 +1,4 @@
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.db.models import F, Func
 
@@ -147,7 +148,8 @@ class Participant(AbstractPasswordUser):
 class ParticipantFCMHistory(TimestampedModel):
     # by making the token unique the solution to problems becomes "reinstall the app"
     participant = models.ForeignKey("Participant", null=False, on_delete=models.PROTECT, related_name="fcm_tokens")
-    token = models.CharField(max_length=256, blank=False, null=False, db_index=True, unique=True)
+    token = models.CharField(max_length=256, blank=False, null=False, db_index=True, unique=True,
+                             validators=[MinLengthValidator(1)])
     unregistered = models.DateTimeField(null=True, blank=True)
 
 
