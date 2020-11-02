@@ -249,7 +249,7 @@ def register_user(OS_API=""):
         'client_public_key': get_client_public_key_string(patient_id, study_id),
         'device_settings': device_settings,
         'ios_plist': firebase_plist_data,
-        'android_firebase_json': firebase_json_data,
+        'android_firebase_json': json.loads(firebase_json_data),
         'study_name': user.study.name,
         'study_id': user.study.object_id,
     }
