@@ -10,6 +10,8 @@ from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, Scheduled
 from database.survey_models import Survey
 from database.user_models import Participant
 
+
+
 # setup firebase
 if PUSH_NOTIFICATIONS_ENABLED:
     # todo: new push notification credential details and populate arguments to certificate
