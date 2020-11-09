@@ -175,5 +175,15 @@ def reset_download_api_credentials():
     return redirect("/manage_credentials")
 
 
+
+@admin_pages.route('/upload_firebase_cert', methods=['POST'])
+@authenticate_researcher_login
+def upload_firebase_cert():
+    researcher = Researcher.objects.get(username=session[SESSION_NAME])
+    v = request.files['fileToUpload']
+    researcher.firebase_cert = str(v.read(), 'utf-8')
+    researcher.save()
+    return redirect("/manage_credentials")
+
 def participant_tags(p: Participant):
         return {tag.field.field_name: tag.value for tag in p.field_values.all()}

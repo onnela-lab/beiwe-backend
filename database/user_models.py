@@ -181,6 +181,7 @@ class Researcher(AbstractPasswordUser):
     access_key_secret_salt = models.CharField(max_length=24, validators=[URL_SAFE_BASE_64_VALIDATOR], blank=True)
 
     is_batch_user = models.BooleanField(default=False)
+    firebase_cert = models.TextField(default=False, blank=True)
 
     @classmethod
     def create_with_password(cls, username, password, **kwargs):
