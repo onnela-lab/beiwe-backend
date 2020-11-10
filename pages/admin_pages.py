@@ -3,12 +3,16 @@ from flask import (abort, Blueprint, flash, Markup, redirect, render_template, r
 
 from authentication import admin_authentication
 from authentication.admin_authentication import (authenticate_researcher_login,
-    authenticate_researcher_study_access, get_researcher_allowed_studies,
-    get_researcher_allowed_studies_as_query_set, get_session_researcher, researcher_is_an_admin,
-    SESSION_NAME)
+                                                 authenticate_researcher_study_access, get_researcher_allowed_studies,
+                                                 get_researcher_allowed_studies_as_query_set, get_session_researcher,
+                                                 researcher_is_an_admin,
+                                                 SESSION_NAME, authenticate_admin)
+from config.constants import BACKEND_FIREBASE_CREDENTIALS, ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS
 from config.settings import PUSH_NOTIFICATIONS_ENABLED
 from database.study_models import Study, StudyField
+from database.system_models import FileAsText
 from database.user_models import Participant, ParticipantFieldValue, Researcher
+from libs.push_notifications import update_firebase_instance
 from libs.security import check_password_requirements
 
 admin_pages = Blueprint('admin_pages', __name__)
@@ -175,15 +179,74 @@ def reset_download_api_credentials():
     return redirect("/manage_credentials")
 
 
-
-@admin_pages.route('/upload_firebase_cert', methods=['POST'])
-@authenticate_researcher_login
-def upload_firebase_cert():
-    researcher = Researcher.objects.get(username=session[SESSION_NAME])
-    v = request.files['fileToUpload']
-    researcher.firebase_cert = str(v.read(), 'utf-8')
-    researcher.save()
-    return redirect("/manage_credentials")
-
 def participant_tags(p: Participant):
         return {tag.field.field_name: tag.value for tag in p.field_values.all()}
+
+
+"""########################## FIREBASE CREDENTIALS ENDPOINTS ##################################"""
+
+
+@admin_pages.route('/manage_firebase_credentials')
+@authenticate_admin
+def manage_firebase_credentials():
+    return render_template('manage_firebase_credentials.html',
+                           firebase_credentials_exists=FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists(),
+                           #firebase_credentials_exists=False,
+                           android_credentials_exists=FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).exists(),
+                           ios_credentials_exists=FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).exists())
+
+
+@admin_pages.route('/upload_backend_firebase_cert', methods=['POST'])
+@authenticate_admin
+def upload_firebase_cert():
+    v = request.files['backend_firebase_cert']
+    cert = str(v.read(), 'utf-8')
+    FileAsText.objects.get_or_create(tag=BACKEND_FIREBASE_CREDENTIALS, defaults={"text": cert})
+    try:
+        update_firebase_instance()
+        msg = """<h3>New firebase credentials have been received!</h3>"""
+    except ValueError as error:
+        msg = f"""<h3>There was an error in the processing the new firebase credentials!</h3>
+                    <p>the error text read:</p>
+                    {str(error)}"""
+    flash(Markup(msg), 'warning')
+    return redirect('/manage_firebase_credentials')
+
+
+@admin_pages.route('/upload_android_firebase_cert', methods=['POST'])
+@authenticate_admin
+def upload_android_firebase_cert():
+    v = request.files['fileToUpload']
+    cert = str(v.read(), 'utf-8')
+    FileAsText.objects.get_or_create(tag=ANDROID_FIREBASE_CREDENTIALS, defaults={"text": cert})
+    return redirect('/manage_firebase_credentials')
+
+
+@admin_pages.route('/upload_ios_firebase_cert', methods=['POST'])
+@authenticate_admin
+def upload_ios_firebase_cert():
+    v = request.files['fileToUpload']
+    cert = str(v.read(), 'utf-8')
+    FileAsText.objects.get_or_create(tag=IOS_FIREBASE_CREDENTIALS, defaults={"text": cert})
+    return redirect('/manage_firebase_credentials')
+
+
+@admin_pages.route('/delete_backend_firebase_cert', methods=['POST'])
+@authenticate_admin
+def delete_backend_firebase_cert():
+    FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
+    return redirect('/manage_firebase_credentials')
+
+
+@admin_pages.route('/delete_android_firebase_cert', methods=['POST'])
+@authenticate_admin
+def delete_android_firebase_cert():
+    FileAsText.objects.get(tag=ANDROID_FIREBASE_CREDENTIALS).delete()
+    return redirect('/manage_firebase_credentials')
+
+
+@admin_pages.route('/delete_ios_firebase_cert', methods=['POST'])
+@authenticate_admin
+def delete_ios_firebase_cert():
+    FileAsText.objects.get(tag=IOS_FIREBASE_CREDENTIALS).delete()
+    return redirect('/manage_firebase_credentials')
