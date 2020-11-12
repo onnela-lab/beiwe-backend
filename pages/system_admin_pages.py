@@ -2,16 +2,20 @@ import json
 from collections import defaultdict
 
 from django.core.exceptions import ValidationError
-from flask import abort, Blueprint, escape, flash, redirect, render_template, request
+from flask import abort, Blueprint, escape, Markup, flash, redirect, render_template, request
 
 from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
     authenticate_admin, authenticate_researcher_study_access, get_researcher_allowed_studies,
     get_session_researcher, researcher_is_an_admin)
-from config.constants import CHECKBOX_TOGGLES, ResearcherRole, TIMER_VALUES
+from config.constants import ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS, CHECKBOX_TOGGLES, \
+    IOS_FIREBASE_CREDENTIALS, ResearcherRole, \
+    TIMER_VALUES
 from database.study_models import Study
+from database.system_models import FileAsText
 from database.user_models import Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
 from libs.http_utils import checkbox_to_boolean, string_to_int
+from libs.push_notifications import get_firebase_instance
 
 system_admin_pages = Blueprint('system_admin_pages', __name__)
 SITE_ADMIN = "Site Admin"
@@ -321,4 +325,110 @@ def device_settings(study_id=None):
     study.device_settings.update(**params)
     return redirect('/edit_study/{:d}'.format(study.id))
 
+
+########################## FIREBASE CREDENTIALS ENDPOINTS ##################################
+
+
+@system_admin_pages.route('/manage_firebase_credentials')
+@authenticate_admin
+def manage_firebase_credentials():
+    return render_template(
+        'manage_firebase_credentials.html',
+        firebase_credentials_exists=FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists(),
+        android_credentials_exists=FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).exists(),
+        ios_credentials_exists=FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).exists()
+    )
+
+
+@system_admin_pages.route('/upload_backend_firebase_cert', methods=['POST'])
+@authenticate_admin
+def upload_firebase_cert():
+    uploaded = request.files.get('backend_firebase_cert', b"")
+    try:
+        cert = uploaded.read().decode()
+        if not cert:
+            raise(AssertionError)
+        FileAsText.objects.get_or_create(tag=BACKEND_FIREBASE_CREDENTIALS, defaults={"text": cert})
+        get_firebase_instance(credentials_updated=True)
+        msg = """<h3>New firebase credentials have been received!</h3>"""
+        flash(Markup(msg), 'info')
+    except AssertionError:
+        msg = """
+                <div class="alert alert-danger" role="alert">
+                    <h3>There was an error in the processing the new firebase credentials!</h3>
+                    <p>You have selected no file or an empty file. If you just want to remove credentials, use the 
+                    delete button</p>
+                    <p>The previous credentials, if they existed, have not been removed</p>
+                </div>
+                """
+        flash(Markup(msg), 'error')
+    except (ValueError, UnicodeDecodeError, ValidationError) as error:
+        msg = f"""
+                <div class="alert alert-danger" role="alert">
+                    <h3>There was an error in the processing the new firebase credentials!</h3>
+                    <p>the error text read:
+                    {str(error)}</p>
+                </div>
+                """
+        flash(Markup(msg), 'error')
+    return redirect('/manage_firebase_credentials')
+
+
+@system_admin_pages.route('/upload_android_firebase_cert', methods=['POST'])
+@authenticate_admin
+def upload_android_firebase_cert():
+    v = request.files['android_firebase_cert']
+    cert = str(v.read(), 'utf-8')
+    FileAsText.objects.get_or_create(tag=ANDROID_FIREBASE_CREDENTIALS, defaults={"text": cert})
+    msg = """<h3>New android credentials were received!</h3>
+                <p>All registered android apps will be updated as they connect. That process may take some time</p>
+                """
+    flash(Markup(msg), 'info')
+    return redirect('/manage_firebase_credentials')
+
+
+@system_admin_pages.route('/upload_ios_firebase_cert', methods=['POST'])
+@authenticate_admin
+def upload_ios_firebase_cert():
+    v = request.files['ios_firebase_cert']
+    cert = str(v.read(), 'utf-8')
+    FileAsText.objects.get_or_create(tag=IOS_FIREBASE_CREDENTIALS, defaults={"text": cert})
+    msg = """<h3>New IOS credentials were received!</h3>
+                    <p>All registered IOS apps will be updated as they connect. That process may take some time</p>
+                    """
+    flash(Markup(msg), 'info')
+    return redirect('/manage_firebase_credentials')
+
+
+@system_admin_pages.route('/delete_backend_firebase_cert', methods=['POST'])
+@authenticate_admin
+def delete_backend_firebase_cert():
+    FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
+    msg = """<h3>All backend Firebase credentials have been deleted!</h3>
+            <p>Note that this does not include IOS and Android app credentials, these must be deleted separately if 
+            desired</p>"""
+    flash(Markup(msg), 'info')
+    return redirect('/manage_firebase_credentials')
+
+
+@system_admin_pages.route('/delete_android_firebase_cert', methods=['POST'])
+@authenticate_admin
+def delete_android_firebase_cert():
+    FileAsText.objects.get(tag=ANDROID_FIREBASE_CREDENTIALS).delete()
+    msg = """<h3>Stored Android Firebase credentials have been removed if they existed!</h3>
+                <p>All registered android apps will be updated as they connect. That process may take some time</p>
+                """
+    flash(Markup(msg), 'info')
+    return redirect('/manage_firebase_credentials')
+
+
+@system_admin_pages.route('/delete_ios_firebase_cert', methods=['POST'])
+@authenticate_admin
+def delete_ios_firebase_cert():
+    FileAsText.objects.get(tag=IOS_FIREBASE_CREDENTIALS).delete()
+    msg = """<h3>Stored IOS Firebase credentials have been removed if they existed!</h3>
+                <p>All registered IOS apps will be updated as they connect. That process may take some time</p>
+                """
+    flash(Markup(msg), 'info')
+    return redirect('/manage_firebase_credentials')
 
