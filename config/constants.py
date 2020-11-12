@@ -361,4 +361,4 @@ CELERY_CONFIG_LOCATION = path_join(PROJECT_ROOT, "manager_ip")
 ANDROID_FIREBASE_CREDENTIALS = "android_firebase_credentials"
 IOS_FIREBASE_CREDENTIALS = "ios_firebase_credentials"
 BACKEND_FIREBASE_CREDENTIALS = "backend_firebase_credentials"
-FIREBASE_APP_INSTANCE = None
+#FIREBASE_APP_INSTANCE = None

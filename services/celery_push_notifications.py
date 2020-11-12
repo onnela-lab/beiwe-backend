@@ -25,7 +25,7 @@ from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, Sche
 from database.schedule_models import ScheduledEvent
 from database.user_models import Participant, ParticipantFCMHistory
 from libs.celery_control import push_send_celery_app
-from libs.push_notifications import (firebase_app, FirebaseNotCredentialed, set_next_weekly)
+from libs.push_notifications import (get_firebase_instance, FirebaseNotCredentialed, set_next_weekly)
 
 
 ################################################################E###############
@@ -70,7 +70,7 @@ def create_push_notification_tasks():
     print(schedules)
     print(patient_ids)
     with make_error_sentry('data'):
-        if not firebase_app:
+        if not get_firebase_instance():
             raise FirebaseNotCredentialed("Firebase is not configured, cannot queue notifications.")
 
         # surveys and schedules are guaranteed to have the same keys, assembling the data structures
@@ -97,7 +97,7 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str],
         "participant__patient_id", flat=True).get()
 
     with make_error_sentry("data"):
-        if not firebase_app:
+        if not get_firebase_instance():
             raise FirebaseNotCredentialed(
                 "You have not provided credentials for Firebase, notifications cannot be sent."
             )
