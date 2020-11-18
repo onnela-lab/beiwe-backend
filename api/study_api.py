@@ -4,12 +4,12 @@ from django.db.models import ProtectedError
 from flask import abort, Blueprint, flash, redirect, render_template, request
 
 from config.constants import API_DATE_FORMAT
-from config.settings import PUSH_NOTIFICATIONS_ENABLED
 from database.schedule_models import Intervention, InterventionDate
 from database.study_models import Study, StudyField
 from database.user_models import Participant, ParticipantFieldValue
 from authentication.admin_authentication import (authenticate_researcher_study_access,
     get_researcher_allowed_studies, get_session_researcher, researcher_is_an_admin)
+from libs.push_notifications import get_firebase_instance
 
 study_api = Blueprint('study_api', __name__)
 
@@ -85,7 +85,8 @@ def render_edit_participant(participant: Participant, study: Study):
         study=study,
         intervention_data=intervention_data,
         field_values=field_data,
-        push_notifications_enabled=PUSH_NOTIFICATIONS_ENABLED,
+        push_notifications_enabled_for_ios=bool(get_firebase_instance(require_ios=True)),
+        push_notifications_enabled_for_android=bool(get_firebase_instance(require_android=True))
     )
 
 @study_api.route('/interventions/<string:study_id>', methods=['GET', 'POST'])

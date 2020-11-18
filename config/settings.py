@@ -44,7 +44,3 @@ CONCURRENT_NETWORK_OPS = getenv("CONCURRENT_NETWORK_OPS") or cpu_count() * 2
 # Mostly this changes the ram utilization of file processing, higher is more efficient,
 # but will use more memory.
 FILE_PROCESS_PAGE_SIZE = getenv("FILE_PROCESS_PAGE_SIZE") or 250
-
-# Flag for whether or not the new survey scheduling and push notification code is active
-PUSH_NOTIFICATIONS_ENABLED = bool(getenv("PUSH_NOTIFICATIONS_ENABLED"))
-
