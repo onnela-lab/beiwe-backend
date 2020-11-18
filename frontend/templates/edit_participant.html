@@ -51,7 +51,7 @@
 
   <form action="/view_study/{{ study.id }}/edit_participant/{{ participant.id }}" class="form-horizontal" method="POST">
 
-    {% if push_notifications_enabled %}
+    {% if push_notifications_enabled_for_ios or push_notifications_enabled_for_android %}
       <h3>Interventions</h3>
       {% if study.interventions.count() > 0 %}
         {% for intervention_id, intervention_name, intervention_date in intervention_data %}

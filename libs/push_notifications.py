@@ -3,13 +3,12 @@ from datetime import datetime
 
 import pytz
 from django.utils.timezone import is_aware, is_naive, make_aware
-from firebase_admin import credentials, initialize_app as initialize_firebase_app, \
-    delete_app as delete_firebase_instance, get_app as get_firebase_app
+from firebase_admin import (credentials, delete_app as delete_firebase_instance,
+    get_app as get_firebase_app, initialize_app as initialize_firebase_app)
 
-from config.constants import ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS
-from config.settings import PUSH_NOTIFICATIONS_ENABLED
-from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, ScheduledEvent,
-    WeeklySchedule)
+from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
+    IOS_FIREBASE_CREDENTIALS)
+from database.schedule_models import AbsoluteSchedule, ArchivedEvent, ScheduledEvent, WeeklySchedule
 from database.survey_models import Survey
 from database.system_models import FileAsText
 from database.user_models import Participant
@@ -17,8 +16,9 @@ from database.user_models import Participant
 
 def get_firebase_instance(credentials_updated=False, require_android=False, require_ios=False):
     """ Ensure that the current firebase credentials being used reflect the state of the database, including possibly
-     removing the app if credentials have been removed. This function should be called after any update to the stored
-     credentials and on startup """
+     removing the app if credentials have been removed. This function can be called at any point to verify that a
+      firebase connection exists. If the credentials_updated parameter is true, the old app instance is cleared and
+      remade with the newly updated credentials """
     if credentials_updated:
         try:
             delete_firebase_instance(get_firebase_app())
@@ -27,7 +27,8 @@ def get_firebase_instance(credentials_updated=False, require_android=False, requ
         if not FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists():
             return None
         stored_credentials = json.loads(FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).text)
-        return initialize_firebase_app(credentials.Certificate(stored_credentials))
+        initialize_firebase_app(credentials.Certificate(stored_credentials))
+    # files_list = list(FileAsText.objects.all())
     if (not FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists()) \
             or (require_android and not FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).exists()) \
             or (require_ios and not FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).exists()):

@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from flask import (abort, Blueprint, flash, Markup, redirect, render_template, request,
-    session)
+                   session)
 
 from authentication import admin_authentication
 from authentication.admin_authentication import (authenticate_researcher_login,
@@ -9,10 +9,10 @@ from authentication.admin_authentication import (authenticate_researcher_login,
                                                  researcher_is_an_admin,
                                                  SESSION_NAME)
 from config.constants import BACKEND_FIREBASE_CREDENTIALS, ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS
-from config.settings import PUSH_NOTIFICATIONS_ENABLED
 from database.study_models import Study, StudyField
 from database.system_models import FileAsText
 from database.user_models import Participant, ParticipantFieldValue, Researcher
+from libs.push_notifications import get_firebase_instance
 from libs.security import check_password_requirements
 
 admin_pages = Blueprint('admin_pages', __name__)
@@ -71,7 +71,8 @@ def view_study(study_id=None):
         page_location='study_landing',
         study_id=study_id,
         readonly=not researcher.check_study_admin(study_id) and not researcher.site_admin,
-        push_notifications_enabled=PUSH_NOTIFICATIONS_ENABLED,
+        push_notifications_enabled=get_firebase_instance(require_android=True) or \
+                                   get_firebase_instance(require_ios=True),
     )
 
 
@@ -127,8 +128,6 @@ def logout():
     return redirect("/")
 
 
-
-
 @admin_pages.route('/manage_credentials')
 @authenticate_researcher_login
 def manage_credentials():
@@ -174,11 +173,10 @@ def reset_download_api_credentials():
             <textarea rows="1" cols="85" readonly="readonly" onclick="this.focus();this.select()">%s</textarea></p>
           </div>
         <p>Please record these somewhere; they will not be shown again!</p>""" \
-        % (access_key, secret_key)
+          % (access_key, secret_key)
     flash(Markup(msg), 'warning')
     return redirect("/manage_credentials")
 
 
 def participant_tags(p: Participant):
-        return {tag.field.field_name: tag.value for tag in p.field_values.all()}
-
+    return {tag.field.field_name: tag.value for tag in p.field_values.all()}
