@@ -2,26 +2,23 @@ import json
 from collections import defaultdict
 
 from django.core.exceptions import ValidationError
-from flask import abort, Blueprint, escape, Markup, flash, redirect, render_template, request
+from flask import abort, Blueprint, escape, flash, Markup, redirect, render_template, request
 
-from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
-    authenticate_admin, authenticate_researcher_study_access, get_researcher_allowed_studies,
-    get_session_researcher, researcher_is_an_admin)
-from config.constants import ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS, CHECKBOX_TOGGLES, \
-    IOS_FIREBASE_CREDENTIALS, ResearcherRole, \
-    TIMER_VALUES
+from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin, authenticate_admin,
+    authenticate_researcher_study_access, get_researcher_allowed_studies, get_session_researcher,
+    researcher_is_an_admin)
+from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS, CHECKBOX_TOGGLES,
+    IOS_FIREBASE_CREDENTIALS, ResearcherRole, TIMER_VALUES)
 from database.study_models import Study
 from database.system_models import FileAsText
 from database.user_models import Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
 from libs.http_utils import checkbox_to_boolean, string_to_int
 from libs.push_notifications import get_firebase_instance
-from pages.message_strings import ALERT_ANDROID_DELETED_TEXT, ALERT_ANDROID_SUCCESS_TEXT, \
-    ALERT_ANDROID_VALIDATION_FAILED_TEXT, ALERT_DECODE_ERROR_TEXT, \
-    ALERT_EMPTY_TEXT, \
-    ALERT_FIREBASE_DELETED_TEXT, \
-    ALERT_IOS_DELETED_TEXT, ALERT_IOS_SUCCESS_TEXT, ALERT_IOS_VALIDATION_FAILED_TEXT, ALERT_MISC_ERROR_TEXT, \
-    ALERT_SUCCESS_TEXT
+from pages.message_strings import (ALERT_ANDROID_DELETED_TEXT, ALERT_ANDROID_SUCCESS_TEXT,
+    ALERT_ANDROID_VALIDATION_FAILED_TEXT, ALERT_DECODE_ERROR_TEXT, ALERT_EMPTY_TEXT, ALERT_FIREBASE_DELETED_TEXT,
+    ALERT_IOS_DELETED_TEXT, ALERT_IOS_SUCCESS_TEXT, ALERT_IOS_VALIDATION_FAILED_TEXT, ALERT_MISC_ERROR_TEXT,
+    ALERT_SUCCESS_TEXT)
 
 system_admin_pages = Blueprint('system_admin_pages', __name__)
 SITE_ADMIN = "Site Admin"
@@ -347,6 +344,8 @@ def device_settings(study_id=None):
 
 
 ########################## FIREBASE CREDENTIALS ENDPOINTS ##################################
+# note: all of the strings passed in the following function (eg: ALERT_DECODE_ERROR_TEXT) are plain strings
+# not intended for use with .format or other potential injection vectors
 
 
 @system_admin_pages.route('/manage_firebase_credentials')
@@ -367,22 +366,18 @@ def upload_firebase_cert():
     try:
         cert = uploaded.read().decode()
         if not cert:
-            raise AssertionError
+            raise AssertionError("unexpected empty string")
         FileAsText.objects.get_or_create(tag=BACKEND_FIREBASE_CREDENTIALS, defaults={"text": cert})
         get_firebase_instance(credentials_updated=True)
-        msg = ALERT_SUCCESS_TEXT
-        flash(Markup(msg), 'info')
+        flash(Markup(ALERT_SUCCESS_TEXT), 'info')
     except AssertionError:
-        msg = ALERT_EMPTY_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except UnicodeDecodeError:
-        msg = ALERT_DECODE_ERROR_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
     except (ValueError, ValidationError):
-        msg = ALERT_MISC_ERROR_TEXT
         # if the error occurred when trying to initialize the firebase app, remove the faulty credentials
         FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_MISC_ERROR_TEXT), 'error')
     return redirect('/manage_firebase_credentials')
 
 
@@ -393,24 +388,19 @@ def upload_android_firebase_cert():
     try:
         cert = uploaded.read().decode()
         if not cert:
-            raise AssertionError
+            raise AssertionError("unexpected empty string")
         if not validate_android_credentials(cert):
             raise ValidationError
         FileAsText.objects.get_or_create(tag=ANDROID_FIREBASE_CREDENTIALS, defaults={"text": cert})
-        msg = ALERT_ANDROID_SUCCESS_TEXT
-        flash(Markup(msg), 'info')
+        flash(Markup(ALERT_ANDROID_SUCCESS_TEXT), 'info')
     except AssertionError:
-        msg = ALERT_EMPTY_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except UnicodeDecodeError:
-        msg = ALERT_DECODE_ERROR_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
     except ValidationError:
-        msg = ALERT_ANDROID_VALIDATION_FAILED_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_ANDROID_VALIDATION_FAILED_TEXT), 'error')
     except ValueError:
-        msg = ALERT_MISC_ERROR_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_MISC_ERROR_TEXT), 'error')
     return redirect('/manage_firebase_credentials')
 
 
@@ -421,24 +411,19 @@ def upload_ios_firebase_cert():
     try:
         cert = uploaded.read().decode()
         if not cert:
-            raise AssertionError
+            raise AssertionError("unexpected empty string")
         if not validate_ios_credentials(cert):
             raise ValidationError
         FileAsText.objects.get_or_create(tag=IOS_FIREBASE_CREDENTIALS, defaults={"text": cert})
-        msg = ALERT_IOS_SUCCESS_TEXT
-        flash(Markup(msg), 'info')
+        flash(Markup(ALERT_IOS_SUCCESS_TEXT), 'info')
     except AssertionError:
-        msg = ALERT_EMPTY_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except UnicodeDecodeError:
-        msg = ALERT_DECODE_ERROR_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
     except ValidationError:
-        msg = ALERT_IOS_VALIDATION_FAILED_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_IOS_VALIDATION_FAILED_TEXT), 'error')
     except ValueError:
-        msg = ALERT_MISC_ERROR_TEXT
-        flash(Markup(msg), 'error')
+        flash(Markup(ALERT_MISC_ERROR_TEXT), 'error')
     return redirect('/manage_firebase_credentials')
 
 
@@ -448,8 +433,7 @@ def delete_backend_firebase_cert():
     FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
     # deletes the existing firebase app connection to clear credentials from memory
     get_firebase_instance(credentials_updated=True)
-    msg = ALERT_FIREBASE_DELETED_TEXT
-    flash(Markup(msg), 'info')
+    flash(Markup(ALERT_FIREBASE_DELETED_TEXT), 'info')
     return redirect('/manage_firebase_credentials')
 
 
@@ -457,8 +441,7 @@ def delete_backend_firebase_cert():
 @authenticate_admin
 def delete_android_firebase_cert():
     FileAsText.objects.get(tag=ANDROID_FIREBASE_CREDENTIALS).delete()
-    msg = ALERT_ANDROID_DELETED_TEXT
-    flash(Markup(msg), 'info')
+    flash(Markup(ALERT_ANDROID_DELETED_TEXT), 'info')
     return redirect('/manage_firebase_credentials')
 
 
@@ -466,6 +449,5 @@ def delete_android_firebase_cert():
 @authenticate_admin
 def delete_ios_firebase_cert():
     FileAsText.objects.get(tag=IOS_FIREBASE_CREDENTIALS).delete()
-    msg = ALERT_IOS_DELETED_TEXT
-    flash(Markup(msg), 'info')
+    flash(Markup(ALERT_IOS_DELETED_TEXT), 'info')
     return redirect('/manage_firebase_credentials')
