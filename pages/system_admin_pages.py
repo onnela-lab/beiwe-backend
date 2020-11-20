@@ -15,7 +15,7 @@ from database.system_models import FileAsText
 from database.user_models import Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
 from libs.http_utils import checkbox_to_boolean, string_to_int
-from libs.push_notifications import get_firebase_instance
+from libs.push_notifications import check_firebase_instance
 from pages.message_strings import (ALERT_ANDROID_DELETED_TEXT, ALERT_ANDROID_SUCCESS_TEXT,
     ALERT_ANDROID_VALIDATION_FAILED_TEXT, ALERT_DECODE_ERROR_TEXT, ALERT_EMPTY_TEXT, ALERT_FIREBASE_DELETED_TEXT,
     ALERT_IOS_DELETED_TEXT, ALERT_IOS_SUCCESS_TEXT, ALERT_IOS_VALIDATION_FAILED_TEXT, ALERT_MISC_ERROR_TEXT,
@@ -380,7 +380,7 @@ def upload_firebase_cert():
         if not cert:
             raise AssertionError("unexpected empty string")
         FileAsText.objects.get_or_create(tag=BACKEND_FIREBASE_CREDENTIALS, defaults={"text": cert})
-        get_firebase_instance(credentials_updated=True)
+        check_firebase_instance(credentials_updated=True)
         flash(Markup(ALERT_SUCCESS_TEXT), 'info')
     except AssertionError:
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
@@ -444,7 +444,7 @@ def upload_ios_firebase_cert():
 def delete_backend_firebase_cert():
     FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
     # deletes the existing firebase app connection to clear credentials from memory
-    get_firebase_instance(credentials_updated=True)
+    check_firebase_instance(credentials_updated=True)
     flash(Markup(ALERT_FIREBASE_DELETED_TEXT), 'info')
     return redirect('/manage_firebase_credentials')
 
