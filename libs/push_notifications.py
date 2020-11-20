@@ -28,12 +28,18 @@ def get_firebase_instance(credentials_updated=False, require_android=False, requ
             return None
         stored_credentials = json.loads(FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).text)
         initialize_firebase_app(credentials.Certificate(stored_credentials))
+
     # files_list = list(FileAsText.objects.all())
-    if (not FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists()) \
-            or (require_android and not FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).exists()) \
-            or (require_ios and not FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).exists()):
+    if ((not FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists())
+            or (require_android and not FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).exists())
+            or (require_ios and not FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).exists())):
         return None
+
     return get_firebase_app()
+
+
+get_firebase_instance(credentials_updated=True)
+
 
 class FirebaseNotCredentialed(Exception): pass
 class NoSchedulesException(Exception): pass

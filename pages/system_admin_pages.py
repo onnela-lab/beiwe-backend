@@ -1,4 +1,5 @@
 import json
+import plistlib
 from collections import defaultdict
 
 from django.core.exceptions import ValidationError
@@ -82,17 +83,28 @@ def validate_android_credentials(credentials):
     """ Ensure basic formatting and field validation for android firebase credential json file uploads
             the credentials argument should contain a decoded string of such a file """
     try:
-        return True
+        json_obj = json.dumps(credentials)
+        if ("project_info" not in json_obj or
+                "storage_bucket" not in json_obj or
+                "firebase_url" not in json_obj or
+                "project_id" not in json_obj):
+            return False
     except Exception:
         return False
+    return True
 
 def validate_ios_credentials(credentials):
     """ Ensure basic formatting and field validation for ios firebase credential plist file uploads
                 the credentials argument should contain a decoded string of such a file """
     try:
-        return True
+        plist_obj = plistlib.loads(str.encode(credentials))
+        if ("STORAGE_BUCKET" not in plist_obj or
+                "API_KEY" not in plist_obj or
+                "DATABASE_URL" not in plist_obj):
+            return False
     except Exception:
         return False
+    return True
 ####################################################################################################
 ######################################## Pages #####################################################
 ####################################################################################################
@@ -390,7 +402,7 @@ def upload_android_firebase_cert():
         if not cert:
             raise AssertionError("unexpected empty string")
         if not validate_android_credentials(cert):
-            raise ValidationError
+            raise ValidationError('wrong keys for android cert')
         FileAsText.objects.get_or_create(tag=ANDROID_FIREBASE_CREDENTIALS, defaults={"text": cert})
         flash(Markup(ALERT_ANDROID_SUCCESS_TEXT), 'info')
     except AssertionError:
@@ -413,7 +425,7 @@ def upload_ios_firebase_cert():
         if not cert:
             raise AssertionError("unexpected empty string")
         if not validate_ios_credentials(cert):
-            raise ValidationError
+            raise ValidationError('wrong keys for ios cert')
         FileAsText.objects.get_or_create(tag=IOS_FIREBASE_CREDENTIALS, defaults={"text": cert})
         flash(Markup(ALERT_IOS_SUCCESS_TEXT), 'info')
     except AssertionError:
@@ -430,7 +442,7 @@ def upload_ios_firebase_cert():
 @system_admin_pages.route('/delete_backend_firebase_cert', methods=['POST'])
 @authenticate_admin
 def delete_backend_firebase_cert():
-    FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
+    FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
     # deletes the existing firebase app connection to clear credentials from memory
     get_firebase_instance(credentials_updated=True)
     flash(Markup(ALERT_FIREBASE_DELETED_TEXT), 'info')
@@ -440,7 +452,7 @@ def delete_backend_firebase_cert():
 @system_admin_pages.route('/delete_android_firebase_cert', methods=['POST'])
 @authenticate_admin
 def delete_android_firebase_cert():
-    FileAsText.objects.get(tag=ANDROID_FIREBASE_CREDENTIALS).delete()
+    FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).delete()
     flash(Markup(ALERT_ANDROID_DELETED_TEXT), 'info')
     return redirect('/manage_firebase_credentials')
 
@@ -448,6 +460,6 @@ def delete_android_firebase_cert():
 @system_admin_pages.route('/delete_ios_firebase_cert', methods=['POST'])
 @authenticate_admin
 def delete_ios_firebase_cert():
-    FileAsText.objects.get(tag=IOS_FIREBASE_CREDENTIALS).delete()
+    FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).delete()
     flash(Markup(ALERT_IOS_DELETED_TEXT), 'info')
     return redirect('/manage_firebase_credentials')
