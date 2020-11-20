@@ -6,9 +6,11 @@ from django.utils import timezone
 from flask import abort, Blueprint, json, render_template, request
 from werkzeug.datastructures import FileStorage
 
-from config.constants import ALLOWED_EXTENSIONS, DEVICE_IDENTIFIERS_HEADER
+from config.constants import (ALLOWED_EXTENSIONS, ANDROID_FIREBASE_CREDENTIALS, DEVICE_IDENTIFIERS_HEADER,
+    IOS_FIREBASE_CREDENTIALS)
 from database.data_access_models import FileToProcess
 from database.profiling_models import DecryptionKeyError, UploadTracking
+from database.system_models import FileAsText
 from libs.encryption import decrypt_device_file, DecryptionKeyInvalidError, HandledError
 from libs.http_utils import determine_os_api
 from libs.logging import log_error
@@ -231,13 +233,13 @@ def register_user(OS_API=""):
     firebase_plist_data = None
     firebase_json_data = None
     if user.os_type == 'IOS':
-        plist_file_path = 'Beiwe_GoogleService-Info.plist'
-        with open(plist_file_path, 'rb') as f:
-            firebase_plist_data = plistlib.load(f)
+        ios_credentials = FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).first()
+        if ios_credentials:
+            firebase_plist_data = plistlib.load(ios_credentials)
     elif user.os_type == 'ANDROID':
-        json_file_path = 'google-services.json'
-        with open(json_file_path, 'r') as f:
-            firebase_json_data = f.read()
+        android_credentials = FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).first()
+        if android_credentials:
+            firebase_json_data = json.loads(android_credentials)
 
     # set up device.
     user.device_id = device_id
@@ -249,7 +251,7 @@ def register_user(OS_API=""):
         'client_public_key': get_client_public_key_string(patient_id, study_id),
         'device_settings': device_settings,
         'ios_plist': firebase_plist_data,
-        'android_firebase_json': json.loads(firebase_json_data),
+        'android_firebase_json': firebase_json_data,
         'study_name': user.study.name,
         'study_id': user.study.object_id,
     }
