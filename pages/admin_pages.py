@@ -12,7 +12,7 @@ from config.constants import BACKEND_FIREBASE_CREDENTIALS, ANDROID_FIREBASE_CRED
 from database.study_models import Study, StudyField
 from database.system_models import FileAsText
 from database.user_models import Participant, ParticipantFieldValue, Researcher
-from libs.push_notifications import get_firebase_instance
+from libs.push_notifications import check_firebase_instance
 from libs.security import check_password_requirements
 
 admin_pages = Blueprint('admin_pages', __name__)
@@ -71,8 +71,8 @@ def view_study(study_id=None):
         page_location='study_landing',
         study_id=study_id,
         readonly=not researcher.check_study_admin(study_id) and not researcher.site_admin,
-        push_notifications_enabled=get_firebase_instance(require_android=True) or \
-                                   get_firebase_instance(require_ios=True),
+        push_notifications_enabled=check_firebase_instance(require_android=True) or \
+                                   check_firebase_instance(require_ios=True),
     )
 
 
