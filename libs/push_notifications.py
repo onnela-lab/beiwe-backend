@@ -4,12 +4,12 @@ from json import JSONDecodeError
 
 import pytz
 from django.utils.timezone import is_aware, is_naive, make_aware
-from firebase_admin import (credentials, delete_app as delete_firebase_instance,
-    get_app as get_firebase_app,
+from firebase_admin import (delete_app as delete_firebase_instance, get_app as get_firebase_app,
     initialize_app as initialize_firebase_app)
+from firebase_admin.credentials import Certificate as FirebaseCertificate
 
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
-    IOS_FIREBASE_CREDENTIALS)
+    FIREBASE_APP_REAL_NAME, FIREBASE_APP_TEST_NAME, IOS_FIREBASE_CREDENTIALS)
 from database.schedule_models import AbsoluteSchedule, ArchivedEvent, ScheduledEvent, WeeklySchedule
 from database.survey_models import Survey
 from database.system_models import FileAsText
@@ -20,40 +20,58 @@ class FirebaseMisconfigured(Exception): pass
 class NoSchedulesException(Exception): pass
 
 
-def check_firebase_instance(credentials_updated=False, require_android=False, require_ios=False):
+def update_firebase_instance(credentials=None):
+    if credentials is None:
+        credentials = FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).first()
+        if credentials is None:
+            try:
+                delete_firebase_instance(get_firebase_app(name=FIREBASE_APP_REAL_NAME))
+            except ValueError:
+                # this occurs when the firebase app does not already exist, it can be safely ignored
+                pass
+            return
+        credentials = credentials.text
+
+    try:
+        encoded_credentials = json.loads(credentials)
+    except JSONDecodeError as e:
+        raise FirebaseMisconfigured(e)
+
+    try:
+        initialize_firebase_app(FirebaseCertificate(encoded_credentials), name=FIREBASE_APP_TEST_NAME)
+    except ValueError as e:
+        raise FirebaseMisconfigured(e)
+    # this should never error because it would have been escalated above
+    delete_firebase_instance(get_firebase_app(name=FIREBASE_APP_TEST_NAME))
+
+    try:
+        delete_firebase_instance(get_firebase_app(name=FIREBASE_APP_REAL_NAME))
+    except ValueError:
+        pass  # this value error occurs when the firebase app does not already exist, it can be safely ignored
+    initialize_firebase_app(FirebaseCertificate(encoded_credentials), name=FIREBASE_APP_REAL_NAME)
+    FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
+    FileAsText.objects.create(tag=BACKEND_FIREBASE_CREDENTIALS, text=credentials)
+
+
+def check_firebase_instance(require_android=False, require_ios=False):
     """ Ensure that the current firebase credentials being used reflect the state of the database, including possibly
     removing the app if credentials have been removed. This function can be called at any point to verify that a
     firebase connection exists. If the credentials_updated parameter is true, the old app instance is cleared and
     remade with the newly updated credentials """
-    if credentials_updated:
-        try:
-            delete_firebase_instance(get_firebase_app())
-        except ValueError:
-            pass  # this value error occurs when the firebase app does not already exist, it can be safely ignored
-        if not FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists():
-            return False
-        try:
-            stored_credentials = json.loads(FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).text)
-        except JSONDecodeError as e:
-            raise FirebaseMisconfigured(e)
-        try:
-            initialize_firebase_app(credentials.Certificate(stored_credentials))
-        except ValueError as e:
-            raise FirebaseMisconfigured(e)
 
-    if ((not FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists())
+    # the parentheses in the following if are both necessary for the logic and necessary to avoid extra database calls
+    if (
+            not FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists()
             or (require_android and not FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).exists())
-            or (require_ios and not FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).exists())):
+            or (require_ios and not FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).exists())
+    ):
         return False
 
     try:
-        get_firebase_app()
+        get_firebase_app(name=FIREBASE_APP_REAL_NAME)
     except ValueError as E:
         raise FirebaseMisconfigured(E)
     return True
-
-
-check_firebase_instance(credentials_updated=True)
 
 
 def set_next_weekly(participant: Participant, survey: Survey) -> None:
