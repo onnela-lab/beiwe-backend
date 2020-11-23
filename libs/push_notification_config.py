@@ -4,12 +4,12 @@ from json import JSONDecodeError
 
 import pytz
 from django.utils.timezone import is_aware, is_naive, make_aware
-from firebase_admin import (delete_app as delete_firebase_instance, get_app as get_firebase_app,
-    initialize_app as initialize_firebase_app)
+from firebase_admin import (delete_app as delete_firebase_instance,
+    get_app as get_firebase_app, initialize_app as initialize_firebase_app)
 from firebase_admin.credentials import Certificate as FirebaseCertificate
 
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
-    FIREBASE_APP_REAL_NAME, FIREBASE_APP_TEST_NAME, IOS_FIREBASE_CREDENTIALS)
+    FIREBASE_APP_TEST_NAME, IOS_FIREBASE_CREDENTIALS)
 from database.schedule_models import AbsoluteSchedule, ArchivedEvent, ScheduledEvent, WeeklySchedule
 from database.survey_models import Survey
 from database.system_models import FileAsText
@@ -25,7 +25,7 @@ def update_firebase_instance(credentials=None):
         credentials = FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).first()
         if credentials is None:
             try:
-                delete_firebase_instance(get_firebase_app(name=FIREBASE_APP_REAL_NAME))
+                delete_firebase_instance(get_firebase_app())
             except ValueError:
                 # this occurs when the firebase app does not already exist, it can be safely ignored
                 pass
@@ -45,10 +45,10 @@ def update_firebase_instance(credentials=None):
     delete_firebase_instance(get_firebase_app(name=FIREBASE_APP_TEST_NAME))
 
     try:
-        delete_firebase_instance(get_firebase_app(name=FIREBASE_APP_REAL_NAME))
+        delete_firebase_instance(get_firebase_app())
     except ValueError:
         pass  # this value error occurs when the firebase app does not already exist, it can be safely ignored
-    initialize_firebase_app(FirebaseCertificate(encoded_credentials), name=FIREBASE_APP_REAL_NAME)
+    initialize_firebase_app(FirebaseCertificate(encoded_credentials))
     FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
     FileAsText.objects.create(tag=BACKEND_FIREBASE_CREDENTIALS, text=credentials)
 
@@ -68,7 +68,7 @@ def check_firebase_instance(require_android=False, require_ios=False):
         return False
 
     try:
-        get_firebase_app(name=FIREBASE_APP_REAL_NAME)
+        get_firebase_app()
     except ValueError as E:
         raise FirebaseMisconfigured(E)
     return True

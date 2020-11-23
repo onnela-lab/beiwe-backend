@@ -361,5 +361,6 @@ CELERY_CONFIG_LOCATION = path_join(PROJECT_ROOT, "manager_ip")
 ANDROID_FIREBASE_CREDENTIALS = "android_firebase_credentials"
 IOS_FIREBASE_CREDENTIALS = "ios_firebase_credentials"
 BACKEND_FIREBASE_CREDENTIALS = "backend_firebase_credentials"
+# firebase gets the default app name unless otherwise specified, so it is necessary to have
+# another name for testing that will never be used to send notifications
 FIREBASE_APP_TEST_NAME = 'FIREBASE_APP_TEST_NAME'
-FIREBASE_APP_REAL_NAME = 'FIREBASE_APP_REAL_NAME'
