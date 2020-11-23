@@ -25,7 +25,7 @@ from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, Sche
 from database.schedule_models import ScheduledEvent
 from database.user_models import Participant, ParticipantFCMHistory
 from libs.celery_control import push_send_celery_app
-from libs.push_notifications import (check_firebase_instance, FirebaseMisconfigured, set_next_weekly)
+from libs.push_notification_config import (check_firebase_instance, FirebaseMisconfigured, set_next_weekly)
 
 
 ################################################################E###############

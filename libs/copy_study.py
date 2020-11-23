@@ -8,7 +8,7 @@ from database.common_models import JSONTextField
 from database.schedule_models import AbsoluteSchedule, RelativeSchedule, WeeklySchedule
 from database.study_models import Study
 from database.survey_models import Survey
-from libs.push_notifications import (repopulate_absolute_survey_schedule_events,
+from libs.push_notification_config import (repopulate_absolute_survey_schedule_events,
     repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)
 
 NoneType = type(None)
