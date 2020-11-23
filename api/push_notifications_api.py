@@ -10,6 +10,7 @@ from flask import Blueprint, request
 from authentication.user_authentication import authenticate_user, get_session_participant
 from config import constants
 from database.user_models import ParticipantFCMHistory
+from libs.push_notification_config import check_firebase_instance
 
 push_notifications_api = Blueprint('push_notifications_api', __name__)
 
@@ -57,6 +58,7 @@ def send_notification():
     Sends a push notification to the participant, used for testing
     Expects a patient_id in the request body.
     """
+    print(check_firebase_instance())
     message = messaging.Message(
         data={
             'type': 'fake',
