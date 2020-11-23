@@ -10,7 +10,7 @@ from api import (admin_api, copy_study_api, dashboard_api, data_access_api, data
     mobile_api, participant_administration, push_notifications_api, study_api, survey_api)
 from authentication.admin_authentication import is_logged_in
 from config.settings import SENTRY_ELASTIC_BEANSTALK_DSN, SENTRY_JAVASCRIPT_DSN
-from libs.push_notifications import FirebaseMisconfigured, update_firebase_instance
+from libs.push_notification_config import FirebaseMisconfigured, update_firebase_instance
 from libs.security import set_secret_key
 from pages import (admin_pages, data_access_web_form, login_pages, mobile_pages, survey_designer,
     system_admin_pages)

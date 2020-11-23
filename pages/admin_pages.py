@@ -12,7 +12,7 @@ from config.constants import BACKEND_FIREBASE_CREDENTIALS, ANDROID_FIREBASE_CRED
 from database.study_models import Study, StudyField
 from database.system_models import FileAsText
 from database.user_models import Participant, ParticipantFieldValue, Researcher
-from libs.push_notifications import check_firebase_instance
+from libs.push_notification_config import check_firebase_instance
 from libs.security import check_password_requirements
 
 admin_pages = Blueprint('admin_pages', __name__)
