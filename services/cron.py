@@ -20,7 +20,7 @@ MONTHLY = "monthly"
 VALID_ARGS = [FIVE_MINUTES, HOURLY, FOUR_HOURLY, DAILY, WEEKLY, MONTHLY]
 
 TASKS = {
-    FIVE_MINUTES: [create_file_processing_tasks],
+    FIVE_MINUTES: [create_file_processing_tasks, create_push_notification_tasks],
     HOURLY: [index.hourly],
     FOUR_HOURLY: [],
     DAILY: [index.daily],
