@@ -374,8 +374,10 @@ def manage_firebase_credentials():
 @system_admin_pages.route('/upload_backend_firebase_cert', methods=['POST'])
 @authenticate_admin
 def upload_firebase_cert():
-    uploaded = request.files.get('backend_firebase_cert', b"")
+    uploaded = request.files.get('backend_firebase_cert', None)
     try:
+        if uploaded is None:
+            raise AssertionError("file name missing from upload")
         cert = uploaded.read().decode()
         if not cert:
             raise AssertionError("unexpected empty string")
@@ -395,8 +397,10 @@ def upload_firebase_cert():
 @system_admin_pages.route('/upload_android_firebase_cert', methods=['POST'])
 @authenticate_admin
 def upload_android_firebase_cert():
-    uploaded = request.files.get('android_firebase_cert', b"")
+    uploaded = request.files.get('android_firebase_cert', None)
     try:
+        if uploaded is None:
+            raise AssertionError("file name missing from upload")
         cert = uploaded.read().decode()
         if not cert:
             raise AssertionError("unexpected empty string")
@@ -418,8 +422,10 @@ def upload_android_firebase_cert():
 @system_admin_pages.route('/upload_ios_firebase_cert', methods=['POST'])
 @authenticate_admin
 def upload_ios_firebase_cert():
-    uploaded = request.files.get('ios_firebase_cert', b"")
+    uploaded = request.files.get('ios_firebase_cert', None)
     try:
+        if uploaded is None:
+            raise AssertionError("file name missing from upload")
         cert = uploaded.read().decode()
         if not cert:
             raise AssertionError("unexpected empty string")
