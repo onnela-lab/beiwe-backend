@@ -16,13 +16,14 @@ from typing import List
 import pytz
 from django.utils import timezone
 from django.utils.timezone import make_aware
-from firebase_admin.messaging import (Message, Notification, QuotaExceededError, send,
-    ThirdPartyAuthError, UnregisteredError)
+from firebase_admin.messaging import (AndroidConfig, AndroidNotification, Message, Notification,
+                                      QuotaExceededError, send, ThirdPartyAuthError,
+                                      UnregisteredError)
 from kombu.exceptions import OperationalError
 
 from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, ScheduleTypes
 from database.schedule_models import ScheduledEvent
-from database.user_models import ParticipantFCMHistory
+from database.user_models import Participant, ParticipantFCMHistory
 from libs.celery_control import push_send_celery_app
 from libs.push_notifications import (firebase_app, FirebaseNotCredentialed, set_next_weekly)
 
@@ -65,6 +66,9 @@ def create_push_notification_tasks():
     expiry = (datetime.utcnow() + timedelta(minutes=5)).replace(second=30, microsecond=0)
     now = make_aware(datetime.utcnow(), timezone=pytz.utc)
     surveys, schedules, patient_ids = get_surveys_and_schedules(now)
+    print(surveys)
+    print(schedules)
+    print(patient_ids)
     with make_error_sentry('data'):
         if not firebase_app:
             raise FirebaseNotCredentialed("Firebase is not configured, cannot queue notifications.")
@@ -103,24 +107,39 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str],
         reference_schedule = schedules.order_by("scheduled_time").first()
         survey_obj_ids = list(set(survey_obj_ids))
 
+        # There is debugging code that looks for this variable, don't delete it...
+        print(f"Sending push notification to {patient_id} for {survey_obj_ids}.")
         try:
-            # There is debugging code that looks for this variable, don't delete it...
-            print(f"Sending push notification to {patient_id} for {survey_obj_ids}.")
-            response = send(Message(
-                data={
-                    'type': 'survey',
-                    'survey_ids': json.dumps(list(set(survey_obj_ids))),  # Dedupe.
-                    'sent_time': reference_schedule.scheduled_time.strftime(API_TIME_FORMAT),
-                    'nonce': ''.join(random.choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(32))
-                },
-                notification=Notification(
-                    title="Beiwe",
-                    body=
-                    "You have a survey to take." if len(survey_obj_ids) == 1 else
-                    "You have surveys to take.",
-                ),
-                token=fcm_token,
-            ))
+            if Participant.objects.get(patient_id=patient_id).os_type == Participant.ANDROID_API:
+                message = Message(
+                    android=AndroidConfig(
+                        data={
+                            'type': 'survey',
+                            'survey_ids': json.dumps(list(set(survey_obj_ids))),  # Dedupe.
+                            'sent_time': reference_schedule.scheduled_time.strftime(API_TIME_FORMAT),
+                            'nonce': ''.join(random.choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(32))
+                        },
+                        priority='high',
+                    ),
+                    token=fcm_token,
+                )
+            else:
+                message = Message(
+                    data={
+                        'type': 'survey',
+                        'survey_ids': json.dumps(list(set(survey_obj_ids))),  # Dedupe.
+                        'sent_time': reference_schedule.scheduled_time.strftime(API_TIME_FORMAT),
+                        'nonce': ''.join(random.choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(32))
+                    },
+                    notification=AndroidNotification(
+                        title="Beiwe",
+                        body=
+                        "You have a survey to take." if len(survey_obj_ids) == 1 else
+                        "You have surveys to take.",
+                    ),
+                    token=fcm_token,
+                )
+            response = send(message)
             #
             # response = send(Message(
             #     # data={
@@ -131,7 +150,6 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str],
             #     # },
             #     token=fcm_token,
             # ))
-
             success = True
         except UnregisteredError:
             # mark the fcm history as out of date.
@@ -168,6 +186,7 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str],
     # If the query was successful archive the schedules.  Clear the fcm unregistered flag
     # if it was set (this shouldn't happen. ever. but in case we hook in a ui element we need it.)
     if success:
+        print("Push notification send succeeded")
         fcm_hist = ParticipantFCMHistory.objects.get(token=fcm_token)
         if fcm_hist.unregistered is not None:
             fcm_hist.unregistered = None
@@ -177,6 +196,8 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str],
             schedule.archive()
             if schedule.get_schedule_type() == ScheduleTypes.weekly:
                 set_next_weekly(fcm_hist.participant, schedule.survey)
+    else:
+        print("Push notification send failed")
 
 
 celery_send_push_notification.max_retries = 0
@@ -191,9 +212,3 @@ def safe_queue_push(*args, **kwargs):
                 pass
             else:
                 raise
-
-
-# Running this file will enqueue users
-if __name__ == "__main__":
-    create_push_notification_tasks()
-
