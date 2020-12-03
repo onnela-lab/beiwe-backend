@@ -70,6 +70,7 @@ def create_push_notification_tasks():
     print(schedules)
     print(patient_ids)
     with make_error_sentry('data'):
+        update_firebase_instance()
         if not check_firebase_instance():
             raise FirebaseMisconfigured("Firebase is not configured, cannot queue notifications.")
 
