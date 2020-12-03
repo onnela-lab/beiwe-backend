@@ -387,6 +387,8 @@ def upload_firebase_cert():
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except UnicodeDecodeError:
         flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
+    except AttributeError:
+        flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except (ValueError, ValidationError):
         # if the error occurred when trying to initialize the firebase app, remove the faulty credentials
         FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
@@ -414,6 +416,8 @@ def upload_android_firebase_cert():
         flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
     except ValidationError:
         flash(Markup(ALERT_ANDROID_VALIDATION_FAILED_TEXT), 'error')
+    except AttributeError:
+        flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except ValueError:
         flash(Markup(ALERT_MISC_ERROR_TEXT), 'error')
     return redirect('/manage_firebase_credentials')
@@ -437,6 +441,8 @@ def upload_ios_firebase_cert():
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except UnicodeDecodeError:
         flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
+    except AttributeError:
+        flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except ValidationError:
         flash(Markup(ALERT_IOS_VALIDATION_FAILED_TEXT), 'error')
     except ValueError:
