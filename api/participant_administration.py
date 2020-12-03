@@ -103,12 +103,12 @@ def create_many_patients(study_id=None):
     filename = sub(r'[^a-zA-Z0-9_\.=]', '', filename_spaces_to_underscores)
     if not filename.endswith('.csv'):
         filename += ".csv"
-    return Response(csv_generator(study_id, number_of_new_patients),
+    return Response(participant_csv_generator(study_id, number_of_new_patients),
                     mimetype="csv",
                     headers={'Content-Disposition': 'attachment; filename="%s"' % filename})
 
 
-def csv_generator(study_id, number_of_new_patients):
+def participant_csv_generator(study_id, number_of_new_patients):
     si = StreamingStringsIO()
     filewriter = writer(si)
     filewriter.writerow(['Patient ID', "Registration password"])
