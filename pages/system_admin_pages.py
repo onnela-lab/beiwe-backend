@@ -385,9 +385,9 @@ def upload_firebase_cert():
         flash(Markup(ALERT_SUCCESS_TEXT), 'info')
     except AssertionError:
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
-    except UnicodeDecodeError:
+    except UnicodeDecodeError:  # raised for an unexpected file type
         flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
-    except AttributeError:
+    except AttributeError:  # raised for a missing file
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except (ValueError, ValidationError):
         # if the error occurred when trying to initialize the firebase app, remove the faulty credentials
@@ -412,11 +412,11 @@ def upload_android_firebase_cert():
         flash(Markup(ALERT_ANDROID_SUCCESS_TEXT), 'info')
     except AssertionError:
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
-    except UnicodeDecodeError:
+    except UnicodeDecodeError:  # raised for an unexpected file type
         flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
     except ValidationError:
         flash(Markup(ALERT_ANDROID_VALIDATION_FAILED_TEXT), 'error')
-    except AttributeError:
+    except AttributeError:  # raised for a missing file
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except ValueError:
         flash(Markup(ALERT_MISC_ERROR_TEXT), 'error')
@@ -439,9 +439,9 @@ def upload_ios_firebase_cert():
         flash(Markup(ALERT_IOS_SUCCESS_TEXT), 'info')
     except AssertionError:
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
-    except UnicodeDecodeError:
+    except UnicodeDecodeError:  # raised for an unexpected file type
         flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
-    except AttributeError:
+    except AttributeError:  # raised for a missing file
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except ValidationError:
         flash(Markup(ALERT_IOS_VALIDATION_FAILED_TEXT), 'error')
