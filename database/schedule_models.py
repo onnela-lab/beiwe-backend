@@ -177,8 +177,14 @@ class ScheduledEvent(TimestampedModel):
         WeeklySchedule: ScheduleTypes.weekly,
     }
 
-    class Meta:
-        unique_together = ('survey', 'participant', 'scheduled_time',)
+    # This constraint is no longer necessary because de-duplication occurs when scheduled events are
+    # generated. Additionally, in some corner cases, it causes a database error in relative
+    # survey events where a survey is sent multiple times and multiple interventions exist such
+    # that the event times overlap (eg, two interventions a day apart and two surveys at the same
+    # time the day of and day after the intervention results in the same survey being scheduled
+    # for a user twice at the same time
+    #  class Meta:
+    #     unique_together = ('survey', 'participant', 'scheduled_time',)
 
     def get_schedule_type(self):
         return self.SCHEDULE_CLASS_LOOKUP[self.get_schedule().__class__]
