@@ -7,7 +7,7 @@ from authentication.admin_authentication import authenticate_researcher_study_ac
 from database.schedule_models import InterventionDate
 from database.study_models import Study
 from database.user_models import Participant, ParticipantFieldValue
-from libs.push_notifications import (repopulate_absolute_survey_schedule_events,
+from libs.push_notification_config import (repopulate_absolute_survey_schedule_events,
     repopulate_weekly_survey_schedule_events)
 from libs.s3 import create_client_key_pair, s3_upload
 from libs.streaming_bytes_io import StreamingStringsIO
