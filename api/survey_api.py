@@ -73,6 +73,7 @@ def update_survey(survey_id=None):
         errors = do_validate_survey(content)
         if len(errors) > 1:
             return make_response(json.dumps(errors), 400)
+
     # For each of the schedule types, creates Schedule objects and ScheduledEvent objects
     weekly_timings = json.loads(request.values['weekly_timings'])
     w_duplicated = WeeklySchedule.create_weekly_schedules(weekly_timings, survey)

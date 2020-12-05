@@ -1,5 +1,4 @@
-import json
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, tzinfo
 from typing import List
 
 import pytz
@@ -40,14 +39,22 @@ class RelativeSchedule(TimestampedModel):
     survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='relative_schedules')
     intervention = models.ForeignKey('Intervention', on_delete=models.CASCADE, related_name='relative_schedules', null=True)
     days_after = models.IntegerField(default=0)
+    # to be clear: these are absolute times of day, not offsets
     hour = models.PositiveIntegerField(validators=[MaxValueValidator(23)])
     minute = models.PositiveIntegerField(validators=[MaxValueValidator(59)])
 
-    def scheduled_time(self, intervention_date: date, tz=None) -> datetime:
-        # forces the timezone, you can pass in a timezone to reduce overhead.
+    def scheduled_time(self, intervention_date: date, tz: tzinfo) -> datetime:
+        # timezone should be determined externally and passed in
+
+        # There is a small difference between applying the timezone via make_aware and
+        # via the tzinfo keyword.  Make_aware seems less weird, so we use that one
+        # example order is make_aware and then tzinfo, input was otherwise identical:
+        # datetime.datetime(2020, 12, 5, 14, 30, tzinfo=<DstTzInfo 'America/New_York' EST-1 day, 19:00:00 STD>)
+        # datetime.datetime(2020, 12, 5, 14, 30, tzinfo=<DstTzInfo 'America/New_York' LMT-1 day, 19:04:00 STD>)
+
+        # the time of day (hour, minute) are not offsets, they are absolute.
         return make_aware(
-            datetime.combine(intervention_date, time(self.hour, self.minute)),
-            tz or self.survey.study.timezone
+            datetime.combine(intervention_date, time(self.hour, self.minute)), tz
         )
 
     @staticmethod

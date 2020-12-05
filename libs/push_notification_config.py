@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from json import JSONDecodeError
 
 import pytz
@@ -10,7 +10,8 @@ from firebase_admin.credentials import Certificate as FirebaseCertificate
 
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     FIREBASE_APP_TEST_NAME, IOS_FIREBASE_CREDENTIALS)
-from database.schedule_models import AbsoluteSchedule, ArchivedEvent, ScheduledEvent, WeeklySchedule
+from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, ScheduledEvent,
+    WeeklySchedule)
 from database.survey_models import Survey
 from database.system_models import FileAsText
 from database.user_models import Participant
@@ -181,10 +182,11 @@ def repopulate_absolute_survey_schedule_events(survey: Survey, participant: Part
 def repopulate_relative_survey_schedule_events(survey: Survey, participant: Participant = None) -> None:
     """ Creates new ScheduledEvents for the survey's RelativeSchedules while deleting the old
     ScheduledEvents related to the survey. """
+    study_tz = survey.study.timezone or pytz.timezone("America/New_York")
 
+    # Clear out existing events.
     # if the event is from an relative schedule, absolute and weekly schedules will be None
     event_filters = dict(absolute_schedule=None, weekly_schedule=None)
-
     if participant is not None:
         event_filters["participant"] = participant
     survey.scheduled_events.filter(**event_filters).delete()
@@ -194,20 +196,17 @@ def repopulate_relative_survey_schedule_events(survey: Survey, participant: Part
     # whether an event ever triggered on that survey.
     new_events = []
     for relative_schedule in survey.relative_schedules.all():
-
-        # Get participants with intervention dates, handle single and multiple users
+        # only interventions that have been marked, handle single user case, get data points.
+        interventions_query = relative_schedule.intervention.intervention_dates.exclude(date=None)
         if participant is None:
-            participant_intervention_dates = relative_schedule.intervention.intervention_dates \
-                .exclude(date=None).values_list("participant_id", "date")
-        else:
-            participant_intervention_dates = relative_schedule.intervention.intervention_dates \
-                .exclude(date=None).filter(participant=participant).values_list("participant_id", "date")
+            interventions_query = interventions_query.filter(participant=participant)
+        interventions_query = interventions_query.values_list("participant_id", "date")
 
-        # optimizations: should be able to pull out that .exists() call into a white or black list.
-        for participant_id, d in participant_intervention_dates:
-            schedule_time = relative_schedule.scheduled_time(d)
+        for participant_id, intervention_date in interventions_query:
+            scheduled_date = intervention_date + timedelta(days=relative_schedule.days_after)
+            schedule_time = relative_schedule.scheduled_time(scheduled_date, study_tz)
 
-            # skip if there is an archived event matching participant
+            # skip if already sent (archived event matching participant, survey, and schedule time)
             if ArchivedEvent.objects.filter(
                 participant_id=participant_id,
                 survey_archive__survey_id=survey.id,
