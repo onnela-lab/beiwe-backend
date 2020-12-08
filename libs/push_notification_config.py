@@ -24,14 +24,17 @@ class NoSchedulesException(Exception): pass
 def update_firebase_instance(credentials=None):
     if credentials is None:
         credentials = FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).first()
-        if credentials is None:
+        if credentials is None:  # no credentials passed in and none in the database
             try:
                 delete_firebase_instance(get_firebase_app())
             except ValueError:
                 # this occurs when the firebase app does not already exist, it can be safely ignored
                 pass
             return
+        credentials_changed = False
         credentials = credentials.text
+    else:
+        credentials_changed = True
 
     try:
         encoded_credentials = json.loads(credentials)
@@ -50,8 +53,9 @@ def update_firebase_instance(credentials=None):
     except ValueError:
         pass  # this value error occurs when the firebase app does not already exist, it can be safely ignored
     initialize_firebase_app(FirebaseCertificate(encoded_credentials))
-    FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
-    FileAsText.objects.create(tag=BACKEND_FIREBASE_CREDENTIALS, text=credentials)
+    if credentials_changed:
+        FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
+        FileAsText.objects.create(tag=BACKEND_FIREBASE_CREDENTIALS, text=credentials)
 
 
 def check_firebase_instance(require_android=False, require_ios=False):
