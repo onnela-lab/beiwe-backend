@@ -4,8 +4,7 @@ from flask import (abort, Blueprint, flash, Markup, redirect, render_template, r
 from authentication import admin_authentication
 from authentication.admin_authentication import (authenticate_researcher_login,
     authenticate_researcher_study_access, get_researcher_allowed_studies,
-    get_researcher_allowed_studies_as_query_set, get_session_researcher, researcher_is_an_admin,
-    SESSION_NAME)
+    get_researcher_allowed_studies_as_query_set, researcher_is_an_admin, SESSION_NAME)
 from config.settings import PUSH_NOTIFICATIONS_ENABLED
 from database.study_models import Study, StudyField
 from database.user_models import Participant, ParticipantFieldValue, Researcher
@@ -46,7 +45,6 @@ def choose_study():
 @authenticate_researcher_study_access
 def view_study(study_id=None):
     study = Study.objects.get(pk=study_id)
-    researcher = get_session_researcher()
     participants = study.participants.all()
 
     # creates dicts of Custom Fields and Interventions to be easily accessed in the template
@@ -66,7 +64,6 @@ def view_study(study_id=None):
         interventions=list(study.interventions.all().values_list("name", flat=True)),
         page_location='study_landing',
         study_id=study_id,
-        readonly=not researcher.check_study_admin(study_id) and not researcher.site_admin,
         push_notifications_enabled=PUSH_NOTIFICATIONS_ENABLED,
     )
 
