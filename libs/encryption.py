@@ -12,7 +12,7 @@ from database.profiling_models import (DecryptionKeyError, EncryptionErrorMetada
     LineEncryptionError)
 from database.study_models import Study
 from libs.logging import log_error
-from libs.security import decode_base64, encode_base64, PaddingException
+from libs.security import Base64LengthException, decode_base64, encode_base64, PaddingException
 
 
 class DecryptionKeyInvalidError(Exception): pass
@@ -131,17 +131,17 @@ def decrypt_device_file(patient_id, original_data: bytes, private_key_cipher, us
     # some time ago: the decryption key is encoded as base64 twice, once wrapping the output of the
     # RSA encryption, and once wrapping the AES decryption key.
     # The second of the two except blocks likely means that the device failed to write the encryption
-    # key as the first line of the file, but it may be a valid (but undecryptable) line of the  file.
+    # key as the first line of the file, but it may be a valid (but undecryptable) line of the file.
     try:
         decoded_key = decode_base64(file_data[0])
-    except (TypeError, IndexError, PaddingException) as decode_error:
+    except (TypeError, IndexError, PaddingException, Base64LengthException) as decode_error:
         create_decryption_key_error(traceback.format_exc())
         raise DecryptionKeyInvalidError("invalid decryption key. %s" % decode_error)
 
     try:
         base64_key = private_key_cipher.decrypt(decoded_key)
         decrypted_key = decode_base64(base64_key)
-    except (TypeError, IndexError, PaddingException) as decr_error:
+    except (TypeError, IndexError, PaddingException, Base64LengthException) as decr_error:
         create_decryption_key_error(traceback.format_exc())
         raise DecryptionKeyInvalidError("invalid decryption key. %s" % decr_error)
 
