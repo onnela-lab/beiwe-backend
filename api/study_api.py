@@ -3,12 +3,12 @@ from datetime import date, datetime
 from django.db.models import ProtectedError
 from flask import abort, Blueprint, flash, redirect, render_template, request
 
+from authentication.admin_authentication import (authenticate_researcher_study_access,
+    get_researcher_allowed_studies, get_session_researcher, researcher_is_an_admin)
 from config.constants import API_DATE_FORMAT
 from database.schedule_models import Intervention, InterventionDate
 from database.study_models import Study, StudyField
 from database.user_models import Participant, ParticipantFieldValue
-from authentication.admin_authentication import (authenticate_researcher_study_access,
-    get_researcher_allowed_studies, get_session_researcher, researcher_is_an_admin)
 from libs.push_notification_config import check_firebase_instance
 
 study_api = Blueprint('study_api', __name__)

@@ -1,9 +1,8 @@
 from flask import abort, Blueprint, flash, json, make_response, redirect, request
 
+from authentication.admin_authentication import authenticate_researcher_study_access
 from database.schedule_models import AbsoluteSchedule, RelativeSchedule, WeeklySchedule
 from database.survey_models import Survey
-from authentication.admin_authentication import authenticate_researcher_study_access
-from libs.dev_utils import p
 from libs.json_logic import do_validate_survey
 from libs.push_notification_config import (repopulate_absolute_survey_schedule_events,
     repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)

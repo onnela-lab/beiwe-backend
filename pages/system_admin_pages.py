@@ -5,21 +5,22 @@ from collections import defaultdict
 from django.core.exceptions import ValidationError
 from flask import abort, Blueprint, escape, flash, Markup, redirect, render_template, request
 
-from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin, authenticate_admin,
+from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
+    authenticate_admin,
     authenticate_researcher_study_access, get_researcher_allowed_studies, get_session_researcher,
     researcher_is_an_admin)
-from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS, CHECKBOX_TOGGLES,
-    IOS_FIREBASE_CREDENTIALS, ResearcherRole, TIMER_VALUES)
+from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
+    CHECKBOX_TOGGLES, IOS_FIREBASE_CREDENTIALS, ResearcherRole, TIMER_VALUES)
 from database.study_models import Study
 from database.system_models import FileAsText
 from database.user_models import Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
 from libs.http_utils import checkbox_to_boolean, string_to_int
-from libs.push_notification_config import check_firebase_instance, update_firebase_instance
+from libs.push_notification_config import update_firebase_instance
 from pages.message_strings import (ALERT_ANDROID_DELETED_TEXT, ALERT_ANDROID_SUCCESS_TEXT,
-    ALERT_ANDROID_VALIDATION_FAILED_TEXT, ALERT_DECODE_ERROR_TEXT, ALERT_EMPTY_TEXT, ALERT_FIREBASE_DELETED_TEXT,
-    ALERT_IOS_DELETED_TEXT, ALERT_IOS_SUCCESS_TEXT, ALERT_IOS_VALIDATION_FAILED_TEXT, ALERT_MISC_ERROR_TEXT,
-    ALERT_SUCCESS_TEXT)
+    ALERT_ANDROID_VALIDATION_FAILED_TEXT, ALERT_DECODE_ERROR_TEXT, ALERT_EMPTY_TEXT,
+    ALERT_FIREBASE_DELETED_TEXT, ALERT_IOS_DELETED_TEXT, ALERT_IOS_SUCCESS_TEXT,
+    ALERT_IOS_VALIDATION_FAILED_TEXT, ALERT_MISC_ERROR_TEXT, ALERT_SUCCESS_TEXT)
 
 system_admin_pages = Blueprint('system_admin_pages', __name__)
 SITE_ADMIN = "Site Admin"

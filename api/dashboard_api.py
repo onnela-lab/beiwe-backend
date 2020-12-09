@@ -4,14 +4,14 @@ from datetime import date, datetime, timedelta
 
 from flask import abort, Blueprint, render_template, request
 
+from authentication.admin_authentication import (authenticate_researcher_study_access,
+    get_researcher_allowed_studies, researcher_is_an_admin)
 from config.constants import (ALL_DATA_STREAMS, API_DATE_FORMAT, COMPLETE_DATA_STREAM_DICT,
     PROCESSED_DATA_STREAM_DICT)
 from database.dashboard_models import DashboardColorSetting, DashboardGradient, DashboardInflection
 from database.data_access_models import ChunkRegistry, PipelineRegistry
 from database.study_models import Study
 from database.user_models import Participant
-from authentication.admin_authentication import (authenticate_researcher_study_access,
-    get_researcher_allowed_studies, researcher_is_an_admin)
 
 dashboard_api = Blueprint('dashboard_api', __name__)
 

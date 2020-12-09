@@ -1,16 +1,13 @@
-from django.core.exceptions import ValidationError
 from flask import (abort, Blueprint, flash, Markup, redirect, render_template, request,
-                   session)
+    session)
 
 from authentication import admin_authentication
 from authentication.admin_authentication import (authenticate_researcher_login,
-                                                 authenticate_researcher_study_access, get_researcher_allowed_studies,
-                                                 get_researcher_allowed_studies_as_query_set, get_session_researcher,
-                                                 researcher_is_an_admin,
-                                                 SESSION_NAME)
-from config.constants import BACKEND_FIREBASE_CREDENTIALS, ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS
+    authenticate_researcher_study_access, get_researcher_allowed_studies,
+    get_researcher_allowed_studies_as_query_set, get_session_researcher,
+    researcher_is_an_admin,
+    SESSION_NAME)
 from database.study_models import Study, StudyField
-from database.system_models import FileAsText
 from database.user_models import Participant, ParticipantFieldValue, Researcher
 from libs.push_notification_config import check_firebase_instance
 from libs.security import check_password_requirements

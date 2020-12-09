@@ -6,6 +6,7 @@ from config.study_constants import BASE64_GENERIC_ALLOWED_CHARACTERS, OBJECT_ID_
 from database.study_models import Study
 from database.user_models import Researcher, StudyRelation
 
+
 class BadObjectIdType(Exception): pass
 class IncorrectAPIAuthUsage(Exception): pass
 

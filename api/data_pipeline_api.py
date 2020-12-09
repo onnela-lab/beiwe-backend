@@ -1,7 +1,7 @@
 from flask import Blueprint, flash, redirect
 
-from database.study_models import Study
 from authentication.admin_authentication import authenticate_researcher_study_access
+from database.study_models import Study
 from libs.sentry import make_error_sentry
 from pipeline.boto_helpers import get_boto_client
 from pipeline.configuration_getters import get_current_region

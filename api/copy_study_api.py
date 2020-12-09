@@ -2,8 +2,8 @@ from json import dumps, loads
 
 from flask import abort, Blueprint, flash, redirect, request, Response
 
-from database.study_models import Study
 from authentication.admin_authentication import authenticate_admin
+from database.study_models import Study
 from libs.copy_study import (ABSOLUTE_SCHEDULE_KEY, add_new_surveys, allowed_file_extension,
     DEVICE_SETTINGS_KEY, purge_unnecessary_fields, RELATIVE_SCHEDULE_KEY, SURVEYS_KEY,
     update_device_settings, WEEKLY_SCHEDULE_KEY)
