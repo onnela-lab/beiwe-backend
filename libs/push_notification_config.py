@@ -106,14 +106,13 @@ def repopulate_weekly_survey_schedule_events(survey: Survey, participant: Partic
     """ Clear existing schedules, get participants, bulk create schedules Weekly events are
     calculated in a way that we don't bother checking for survey archives, because they only
     exist in the future. """
-    event_filters = dict(relative_schedule=None, absolute_schedule=None)
-
+    events = survey.scheduled_events.filter(relative_schedule=None, absolute_schedule=None)
     if participant is not None:
-        survey.scheduled_events.filter(**event_filters, participant=participant).delete()
+        events = events.filter(participant=participant)
         participant_ids = [participant.pk]
     else:
         participant_ids = survey.study.participants.values_list("pk", flat=True)
-        survey.scheduled_events.filter(**event_filters).delete()
+    events.delete()
 
     try:
         # forces tz-aware schedule_date
@@ -141,12 +140,10 @@ def repopulate_absolute_survey_schedule_events(survey: Survey, participant: Part
     ScheduledEvents related to the survey
     """
     # if the event is from an absolute schedule, relative and weekly schedules will be None
-    event_filters = dict(relative_schedule=None, weekly_schedule=None)
-
+    events = survey.scheduled_events.filter(relative_schedule=None, weekly_schedule=None)
     if participant is not None:
-        event_filters['participant'] = participant
-
-    survey.scheduled_events.filter(**event_filters).delete()
+        events = events.filter(participant=participant)
+    events.delete()
 
     new_events = []
     for schedule_pk, scheduled_time in survey.absolute_schedules.values_list("pk", "scheduled_date"):
@@ -155,38 +152,35 @@ def repopulate_absolute_survey_schedule_events(survey: Survey, participant: Part
             scheduled_time = make_aware(scheduled_time, survey.study.timezone)
             AbsoluteSchedule.objects.filter(pk=schedule_pk).update(scheduled_time=scheduled_time)
 
-        event_params = dict(
-            survey=survey,
-            weekly_schedule=None,
-            relative_schedule=None,
-            absolute_schedule_id=schedule_pk,
-            scheduled_time=scheduled_time,
-        )
-
         # if one participant
         if participant is not None:
-            if not ArchivedEvent.objects.filter(
-                    survey_archive__survey=survey,
-                    scheduled_time=scheduled_time,
-                    participant_id=participant.pk
-            ).exists():
-                event_params["participant_id"] = participant.pk
-                new_events.append(ScheduledEvent(**event_params))
-            continue
+            archive_exists = ArchivedEvent.objects.filter(
+                survey_archive__survey=survey,
+                scheduled_time=scheduled_time,
+                participant_id=participant.pk).exists()
+            relevant_participants = [] if archive_exists else [participant.pk]
 
-        # don't create events for already sent notifications
-        irrelevant_participants = ArchivedEvent.objects.filter(
-            survey_archive__survey=survey, scheduled_time=scheduled_time,
-        ).values_list("participant_id", flat=True)
-        relevant_participants = survey.study.participants.exclude(
-            pk__in=irrelevant_participants
-        ).values_list("pk", flat=True)
+        # if many participants
+        else:
+            # don't create events for already sent notifications
+            irrelevant_participants = ArchivedEvent.objects.filter(
+                survey_archive__survey=survey, scheduled_time=scheduled_time,
+            ).values_list("participant_id", flat=True)
+            relevant_participants = survey.study.participants.exclude(
+                pk__in=irrelevant_participants
+            ).values_list("pk", flat=True)
 
-        # all participants
+        # populate
         for participant_id in relevant_participants:
-            event_params["participant_id"] = participant_id
-            new_events.append(ScheduledEvent(**event_params))
-
+            new_events.append(ScheduledEvent(
+                survey=survey,
+                weekly_schedule=None,
+                relative_schedule=None,
+                absolute_schedule_id=schedule_pk,
+                scheduled_time=scheduled_time,
+                participant_id=participant_id
+            ))
+    # instantiate
     ScheduledEvent.objects.bulk_create(new_events)
 
 
@@ -197,10 +191,10 @@ def repopulate_relative_survey_schedule_events(survey: Survey, participant: Part
 
     # Clear out existing events.
     # if the event is from an relative schedule, absolute and weekly schedules will be None
-    event_filters = dict(absolute_schedule=None, weekly_schedule=None)
+    events = survey.scheduled_events.filter(absolute_schedule=None, weekly_schedule=None)
     if participant is not None:
-        event_filters["participant"] = participant
-    survey.scheduled_events.filter(**event_filters).delete()
+        events = events.filter(participant=participant)
+    events.delete()
 
     # This is per schedule, and a participant can't have more than one intervention date per
     # intervention per schedule.  It is also per survey and all we really care about is

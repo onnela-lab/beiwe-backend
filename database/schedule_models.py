@@ -68,8 +68,8 @@ class RelativeSchedule(TimestampedModel):
             return False
 
         duplicated = False
-        # should be all ints
         for intervention_id, days_after, num_seconds in timings:
+            # should be all ints, use integer division.
             hour = num_seconds // 3600
             minute = num_seconds % 3600 // 60
             # using get_or_create to catch duplicate schedules
@@ -82,6 +82,7 @@ class RelativeSchedule(TimestampedModel):
             )
             if not created:
                 duplicated = True
+
         return duplicated
 
 
@@ -115,6 +116,7 @@ class WeeklySchedule(TimestampedModel):
         duplicated = False
         for day in range(7):
             for seconds in timings[day]:
+                # should be all ints, use integer division.
                 hour = seconds // 3600
                 minute = seconds % 3600 // 60
                 # using get_or_create to catch duplicate schedules
