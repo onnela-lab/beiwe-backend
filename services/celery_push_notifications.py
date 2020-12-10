@@ -1,32 +1,33 @@
-import random
-from os.path import abspath
-from sys import path
-path.insert(0, abspath(__file__).rsplit('/', 2)[0])
-
-# add the root of the project into the path to allow cd-ing into this folder and running the script.
-from config.study_constants import OBJECT_ID_ALLOWED_CHARS
-from libs.sentry import make_error_sentry
-
-
+# independent imports
 import json
+import random
 from collections import defaultdict
 from datetime import datetime, timedelta
+from os.path import abspath
+from sys import path
 from typing import List
 
 import pytz
-from django.utils import timezone
-from django.utils.timezone import make_aware
-from firebase_admin.messaging import (AndroidConfig, AndroidNotification, Message, Notification,
-                                      QuotaExceededError, send, ThirdPartyAuthError,
-                                      UnregisteredError)
 from kombu.exceptions import OperationalError
 
+# add the root of the project into the path to allow cd-ing into this folder and running the script.
+path.insert(0, abspath(__file__).rsplit('/', 2)[0])
+
+# imports that require the path command above be executed
+from django.utils import timezone
+from django.utils.timezone import make_aware
+from firebase_admin.messaging import (AndroidConfig, AndroidNotification, Message,
+    QuotaExceededError, send, ThirdPartyAuthError, UnregisteredError)
+
 from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, ScheduleTypes
+from config.study_constants import OBJECT_ID_ALLOWED_CHARS
 from database.schedule_models import ScheduledEvent
 from database.user_models import Participant, ParticipantFCMHistory
 from libs.celery_control import push_send_celery_app
 from libs.push_notification_config import (check_firebase_instance, FirebaseMisconfigured,
-    set_next_weekly, update_firebase_instance)
+    set_next_weekly)
+from libs.sentry import make_error_sentry
+
 
 ################################################################E###############
 ############################# PUSH NOTIFICATIONS ###############################
@@ -70,7 +71,6 @@ def create_push_notification_tasks():
     print(schedules)
     print(patient_ids)
     with make_error_sentry('data'):
-        update_firebase_instance()
         if not check_firebase_instance():
             raise FirebaseMisconfigured("Firebase is not configured, cannot queue notifications.")
 
@@ -98,7 +98,6 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str],
         "participant__patient_id", flat=True).get()
 
     with make_error_sentry("data"):
-        update_firebase_instance()
         if not check_firebase_instance():
             raise FirebaseMisconfigured(
                 "You have not provided credentials for Firebase, notifications cannot be sent."

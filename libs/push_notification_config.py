@@ -21,7 +21,10 @@ class FirebaseMisconfigured(Exception): pass
 class NoSchedulesException(Exception): pass
 
 
-def update_firebase_instance(credentials=None):
+def update_firebase_instance(credentials: str or None = None) -> None:
+    """ Ensure that the current firebase credentials being used reflect the state of the
+    database, including possibly removing the app if credentials have been removed. This function
+    can be called at any point to verify that a firebase connection exists. """
     if credentials is None:
         credentials = FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).first()
         if credentials is None:  # no credentials passed in and none in the database
@@ -51,31 +54,35 @@ def update_firebase_instance(credentials=None):
     try:
         delete_firebase_instance(get_firebase_app())
     except ValueError:
-        pass  # this value error occurs when the firebase app does not already exist, it can be safely ignored
+        # occurs when the firebase app does not already exist, it can be safely ignored
+        pass
+
+    # can now safely initialize the [possibly new] firebase app, and mutate the db if necessary.
     initialize_firebase_app(FirebaseCertificate(encoded_credentials))
     if credentials_changed:
         FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
         FileAsText.objects.create(tag=BACKEND_FIREBASE_CREDENTIALS, text=credentials)
 
 
-def check_firebase_instance(require_android=False, require_ios=False):
-    """ Ensure that the current firebase credentials being used reflect the state of the database, including possibly
-    removing the app if credentials have been removed. This function can be called at any point to verify that a
-    firebase connection exists. If the credentials_updated parameter is true, the old app instance is cleared and
-    remade with the newly updated credentials """
+def check_firebase_instance(require_android=False, require_ios=False) -> bool:
+    """ Test the database state for the various creds. If creds are present test the firebase
+    initialization process (update_firebase_instance). """
+    active_creds = list(FileAsText.objects.filter(
+        tag__in=[BACKEND_FIREBASE_CREDENTIALS, ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS]
+    ).values_list("tag", flat=True))
 
-    # the parentheses in the following if are both necessary for the logic and necessary to avoid extra database calls
-    if (
-            not FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).exists()
-            or (require_android and not FileAsText.objects.filter(tag=ANDROID_FIREBASE_CREDENTIALS).exists())
-            or (require_ios and not FileAsText.objects.filter(tag=IOS_FIREBASE_CREDENTIALS).exists())
+    if (  # keep those parens.
+            BACKEND_FIREBASE_CREDENTIALS not in active_creds
+            or (require_android and ANDROID_FIREBASE_CREDENTIALS not in active_creds)
+            or (require_ios and IOS_FIREBASE_CREDENTIALS not in active_creds)
     ):
         return False
 
     try:
-        get_firebase_app()
-    except ValueError as E:
-        raise FirebaseMisconfigured(E)
+        update_firebase_instance()
+    except FirebaseMisconfigured as E:
+        return False
+
     return True
 
 

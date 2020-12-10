@@ -49,10 +49,6 @@ app.jinja_env.globals['current_year'] = datetime.now().strftime('%Y')
 if SENTRY_ELASTIC_BEANSTALK_DSN:
     sentry = Sentry(app, dsn=SENTRY_ELASTIC_BEANSTALK_DSN)
 
-try:
-    update_firebase_instance()
-except FirebaseMisconfigured:
-    print('bad database state, something went wrong') # TODO: make this a sentry error
 
 @app.route("/<page>.html")
 def strip_dot_html(page):
