@@ -16,7 +16,7 @@ from database.system_models import FileAsText
 from database.user_models import Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
 from libs.http_utils import checkbox_to_boolean, string_to_int
-from libs.push_notification_config import update_firebase_instance
+from libs.push_notification_config import FirebaseMisconfigured, update_firebase_instance
 from pages.message_strings import (ALERT_ANDROID_DELETED_TEXT, ALERT_ANDROID_SUCCESS_TEXT,
     ALERT_ANDROID_VALIDATION_FAILED_TEXT, ALERT_DECODE_ERROR_TEXT, ALERT_EMPTY_TEXT,
     ALERT_FIREBASE_DELETED_TEXT, ALERT_IOS_DELETED_TEXT, ALERT_IOS_SUCCESS_TEXT,
@@ -390,7 +390,7 @@ def upload_firebase_cert():
         flash(Markup(ALERT_DECODE_ERROR_TEXT), 'error')
     except AttributeError:  # raised for a missing file
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
-    except (ValueError, ValidationError):
+    except (ValueError, ValidationError, FirebaseMisconfigured):
         # if the error occurred when trying to initialize the firebase app, remove the faulty credentials
         FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
         flash(Markup(ALERT_MISC_ERROR_TEXT), 'error')
