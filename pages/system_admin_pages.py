@@ -392,7 +392,7 @@ def upload_firebase_cert():
         flash(Markup(ALERT_EMPTY_TEXT), 'error')
     except (ValueError, ValidationError, FirebaseMisconfigured):
         # if the error occurred when trying to initialize the firebase app, remove the faulty credentials
-        FileAsText.objects.get(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
+        FileAsText.objects.filter(tag=BACKEND_FIREBASE_CREDENTIALS).delete()
         flash(Markup(ALERT_MISC_ERROR_TEXT), 'error')
     return redirect('/manage_firebase_credentials')
 
