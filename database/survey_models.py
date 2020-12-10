@@ -136,30 +136,6 @@ class Survey(SurveyBase):
 
         return survey_dict
 
-    def create_absolute_schedules_and_events(self):
-        from database.schedule_models import AbsoluteSchedule, ScheduledEvent
-
-        # todo: finish writing, this doesn't work, isn't used anywhere
-        for schedule in AbsoluteSchedule.objects.filter(surevy=self).values_list("scheduled_date", flat=True):
-            year, month, day, seconds = schedule
-            hour = seconds // 3600
-            minute = seconds % 3600 // 60
-            schedule_date = datetime(year, month, day, hour, minute)
-
-            absolute_schedule = AbsoluteSchedule.objects.create(
-                survey=self,
-                scheduled_date=schedule_date,
-            )
-            for participant in self.study.participants.all():
-                ScheduledEvent.objects.create(
-                    survey=self,
-                    participant=participant,
-                    weekly_schedule=None,
-                    relative_schedule=None,
-                    absolute_schedule=absolute_schedule,
-                    scheduled_time=schedule_date,
-                )
-
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.archive()

@@ -18,10 +18,11 @@ class AbsoluteSchedule(TimestampedModel):
     @staticmethod
     def create_absolute_schedules(timings: List[List[int]], survey: Survey) -> bool:
         """ Creates new AbsoluteSchedule objects from a frontend-style list of dates and times"""
+        survey.absolute_schedules.all().delete()
+
         if not timings:
             return False
 
-        survey.absolute_schedules.all().delete()
         duplicated = False
         for year, month, day, num_seconds in timings:
             hour = num_seconds // 3600
@@ -62,10 +63,10 @@ class RelativeSchedule(TimestampedModel):
         """
         Creates new RelativeSchedule objects from a frontend-style list of interventions and times
         """
+        survey.relative_schedules.all().delete()
         if not timings:
             return False
 
-        survey.relative_schedules.all().delete()
         duplicated = False
         # should be all ints
         for intervention_id, days_after, num_seconds in timings:
@@ -99,11 +100,18 @@ class WeeklySchedule(TimestampedModel):
     @staticmethod
     def create_weekly_schedules(timings: List[List[int]], survey: Survey) -> bool:
         """ Creates new WeeklySchedule objects from a frontend-style list of seconds into the day. """
+
         if not timings:
+            survey.weekly_schedules.all().delete()
             return False
-        
-        assert len(timings) == 7
+
+        # asserts are not bypassed in production. Keep.
+        if len(timings) != 7:
+            raise Exception(
+                f"Must have schedule for every day of the week, found {len(timings)} instead."
+            )
         survey.weekly_schedules.all().delete()
+
         duplicated = False
         for day in range(7):
             for seconds in timings[day]:
