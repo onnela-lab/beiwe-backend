@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Forest Status{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <script>filterableObjects = {{ forest_log | tojson }}</script>
+    <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<div id="filterableList" ng-controller="FilterableListController">
+    <div class="form-group col-sm-4">
+      <input type="search" class="form-control" placeholder="Filter" ng-model="filterText" autofocus>
+    </div>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Created</th>
+            <th scope="col">Participant</th>
+            <th scope="col">Tree</th>
+            <th scope="col">Start Date</th>
+            <th scope="col">End Date</th>
+            <th scope="col">Status</th>
+            {% if is_site_admin %}
+              <th scope="col"></th>
+            {% endif %}
+          </tr>
+        </thead>
+
+        <tbody>
+        {# status codes are numbered 1-4 and corrospond to queued, running, success, error #}
+          <tr ng-repeat="log in filterableObjects" ng-if="(log.participant + log.forest_tree + log.date_start + log.date_end).toLowerCase().includes(filterText.toLowerCase())"
+              ng-class="{1:'', 2:'warning', 3:'success', 4:'danger'}[log.status]"> {# warning: log.status==2 #}
+            <td>{% raw %}{{ log.created_on }}{% endraw %}</td>
+            <td>{% raw %}{{ log.participant }}{% endraw %}</td>
+            <td>{% raw %}{{ log.forest_tree }}{% endraw %}</td>
+            <td>{% raw %}{{ log.date_start }}{% endraw %}</td>
+            <td>{% raw %}{{ log.date_end }}{% endraw %}</td>
+            <td>
+              <div ng-switch on="log.status">
+               <span ng-switch-when="1">Queued</span>
+               <span ng-switch-when="2">Running</span>
+               <span ng-switch-when="3">Success</span>
+              <span ng-switch-when="4">Error</span>
+             </div>
+            </td>
+            {% if is_site_admin %}
+              <td>
+                <form ng-if="log.status == 1" action="{{ url_for('system_admin_pages.cancel_forest_task', forest_task_id=1) }}" method="post">
+                  <input type="hidden" class="form-control" name="api_key_id" value="{% raw %}{{ log.status }}{% endraw %}"/>
+                  <button type="submit" class="btn active btn-primary" onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')">Cancel Task</button>
+                </form>
+              </td>
+            {% endif %}
+          </tr>
+        <tbody/>
+      </table>
+    </div>
+  </div>
+
+{% endblock %}

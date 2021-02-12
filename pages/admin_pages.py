@@ -1,4 +1,3 @@
-from django import forms
 from flask import (abort, Blueprint, flash, Markup, redirect, render_template, request, session,
     url_for)
 
@@ -11,6 +10,7 @@ from constants.admin_pages import (DisableApiKeyForm, NEW_API_KEY_MESSAGE, NewAp
     RESET_DOWNLOAD_API_CREDENTIALS_MESSAGE)
 from database.security_models import ApiKey
 from database.study_models import Study
+from database.tableau_api_models import ForestTracker
 from database.user_models import Researcher
 from libs.push_notification_config import check_firebase_instance
 from libs.security import check_password_requirements
@@ -170,15 +170,31 @@ def disable_api_key():
     return redirect("/manage_credentials")
 
 
-@admin_pages.route('/forest_status/<string:study_id>', methods=['GET'])
+@admin_pages.route('/forest_status/<string:study_id>', methods=['GET', 'POST'])
 @authenticate_researcher_study_access
 def forest_status(study_id=None):
     study = Study.objects.get(pk=study_id)
-    return redirect('/edit_study/{:d}'.format(study.id))
+    if request.method == 'GET':
+        return render_template(
+            'forest_status.html',
+            study=study,
+            is_site_admin=get_session_researcher().site_admin,
+            forest_log=list(ForestTracker.objects.all().order_by("-created_on").values("participant", "forest_tree", "date_start", "date_end", "status", "id", "created_on"))
+            #file size include in display. stacktrace? forest version?
+        )
+
+    # post request is to cancel a forest task, requires site admin permissions
+    if not get_session_researcher().site_admin:
+        return abort(403)
 
 
 @admin_pages.route('/study_analysis_progress/<string:study_id>', methods=['GET'])
 @authenticate_researcher_study_access
 def study_analysis_progress(study_id=None):
     study = Study.objects.get(pk=study_id)
-    return redirect('/edit_study/{:d}'.format(study.id))
+    return render_template(
+        'study_analysis_progress.html',
+        study=study,
+        is_admin=researcher_is_an_admin(),
+        forest_log=list(ForestTracker.objects.all().order_by("date_start").values("participant", "forest_tree", "date_start", "date_end", "status"))
+    )
