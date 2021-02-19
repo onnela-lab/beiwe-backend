@@ -9,6 +9,7 @@
   <script type="text/javascript" src="../static/javascript/libraries/bootstrap-datetimepicker.js"></script>
   <script type="text/javascript" src="../static/javascript/data_download_page.js"></script>
   {# TODO: make a new js file for this page that does most of these things, this is temporary #}
+  <script type="text/javascript" src="../static/javascript/data_download_page.js"></script>
 {% endblock %}
 
 {% block title %}Create Forest Tasks{% endblock %}
@@ -82,9 +83,6 @@
           <div class="row">
             <div class="col-sm-2">
               <input type="submit" class="btn btn-success" value="Create Forest Tasks" id="forest_task_submit_button" />
-            </div>
-            <div class="col-sm-10">
-              <p id="explanation_paragraph" hidden><b>It may take several minutes to compile your data and download it as a .zip file. Do not click "Reload" or "Back" until your data finishes downloading. Once your data file downloads, you must reload this page before you can download another datafile.</b></p>
             </div>
           </div>
           </div>

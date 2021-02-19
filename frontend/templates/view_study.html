@@ -89,7 +89,17 @@
       <button type="button" class="btn btn-warning add_many_patients_button" data-toggle="modal" data-target="#addManyPatientsModal" title="Enable a number of new participants to enroll in {{ study.name }}: download a file of new Patient IDs and registration passwords">Add many new participants</button>
       {% include 'create_many_patients_modal.html' %}
 
-      <br/><hr><br/>
+      {% if study.forest_enabled %}
+        <div class="row">
+          <h3>Forest</h3>
+        <p><a href="/forest_status/{{ study['id'] }}">View a log of recent forest runs on this study</a></p>
+        <p><a href="/study_analysis_progress/{{ study['id'] }}">View a summary of what data forest has generated for this study</a></p>
+        {% if is_site_admin %}
+          <p><a href="/create_forest_tasks/{{ study['id'] }}">Create new forest tasks</a></p>
+        {% endif %}
+
+        </div>
+      {% endif %}
 
       <div class="row">
         <h3>Surveys</h3>

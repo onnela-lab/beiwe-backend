@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {{ super() }}
+    <script src="https://cdn.rawgit.com/ashl1/datatables-rowsgroup/fbd569b8768155c7a9a62568e66a64115887d7d0/dataTables.rowsGroup.js"></script>
+    <script>
+    chart = {{ chart|safe }}
+    $(document).ready(function() {
+      $('#analysis_chart').DataTable( {
+          "scrollX": true,
+          'rowsGroup': [0],
+          'createdRow': function(row, data, index) {
+            for (let i = 0; i < data.length; i++)
+                if (data[i] == 'queued') {
+                    $('td', row).css('background-color', 'red');
+                    //$('td', row).addClass("table-primary");
+                    //$('td', row).get(i).addClass("table-primary")
+                }
+        },
+          data: chart,
+          columns: [
+              {% for column_name in chart_columns %}
+                { title: "{{ column_name }}" },
+              {% endfor %}
+          ]
+      } );
+    } );
+    </script>
+{% endblock %}
+
+{% block title %}Study Analysis Progress{% endblock %}
+
+{% block content %}
+  <table id="analysis_chart" class="display" width="100%"></table>
+{%  endblock %}

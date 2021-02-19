@@ -25,32 +25,30 @@
             <th scope="col">End Date</th>
             <th scope="col">Status</th>
             {% if is_site_admin %}
-              <th scope="col"></th>
+              <th scope="col">Cancel</th>
             {% endif %}
           </tr>
         </thead>
 
         <tbody>
-        {# status codes are numbered 1-4 and corrospond to queued, running, success, error #}
-          <tr ng-repeat="log in filterableObjects" ng-if="(log.participant + log.forest_tree + log.date_start + log.date_end).toLowerCase().includes(filterText.toLowerCase())"
-              ng-class="{1:'', 2:'warning', 3:'success', 4:'danger'}[log.status]"> {# warning: log.status==2 #}
+          <tr ng-repeat="log in filterableObjects" ng-if="(log.participant + log.forest_tree + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())">
+
             <td>{% raw %}{{ log.created_on }}{% endraw %}</td>
             <td>{% raw %}{{ log.participant }}{% endraw %}</td>
             <td>{% raw %}{{ log.forest_tree }}{% endraw %}</td>
-            <td>{% raw %}{{ log.date_start }}{% endraw %}</td>
-            <td>{% raw %}{{ log.date_end }}{% endraw %}</td>
-            <td>
-              <div ng-switch on="log.status">
-               <span ng-switch-when="1">Queued</span>
-               <span ng-switch-when="2">Running</span>
-               <span ng-switch-when="3">Success</span>
-              <span ng-switch-when="4">Error</span>
-             </div>
+            <td>{% raw %}{{ log.data_date_start }}{% endraw %}</td>
+            <td>{% raw %}{{ log.data_date_end }}{% endraw %}</td>
+            <td ng-class="{ {{ status_choices.QUEUED }}: '',
+              {{ status_choices.RUNNING }}:'list-group-item-info',
+              {{ status_choices.SUCCESS }}:'list-group-item-success',
+              {{ status_choices.ERROR }}:'list-group-item-danger',
+              {{ status_choices.CANCELLED }}:'list-group-item-danger'}[log.status]">
+              {% raw %}{{ log.status }}{% endraw %}
             </td>
             {% if is_site_admin %}
               <td>
-                <form ng-if="log.status == 1" action="{{ url_for('system_admin_pages.cancel_forest_task', forest_task_id=1) }}" method="post">
-                  <input type="hidden" class="form-control" name="api_key_id" value="{% raw %}{{ log.status }}{% endraw %}"/>
+                <form ng-if="log.status == 'queued'" action="{{ url_for('admin_pages.forest_status', study_id=study.id)}}" method="post">
+                  <input type="hidden" class="form-control" name="task_id" value="{% raw %}{{ log.external_id }}{% endraw %}"/>
                   <button type="submit" class="btn active btn-primary" onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')">Cancel Task</button>
                 </form>
               </td>

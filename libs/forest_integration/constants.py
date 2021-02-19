@@ -1,9 +1,17 @@
 TREES = \
 [
-    'gps'
-    'Acceleration'
+    'gps',
+    'Acceleration',
+    'Poplar',
 ]
 
+TREE_METADATA = {
+    'gps' : "gps data",
+    'Acceleration' : "acceleraton data",
+    'Poplar' : "poplar data",
+}
+
+FOREST_VERSION = "0.0.0"
 
 TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     ('gps', 'missing_time'): ('gps_data_missing_duration', None),

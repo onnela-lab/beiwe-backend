@@ -62,6 +62,19 @@ logfile_backups = 1
 stopasgroup = true
 startsecs = 5
 
+[program:celery_forest]
+# the queue and app names are declared in constants.py.
+directory = /home/ubuntu/beiwe-backend/
+command = python3 -m celery -A services.celery_forest worker -Q data_processing --loglevel=info -Ofair --hostname=%%h_processing
+stdout_logfile = /home/ubuntu/celery_forest.log
+stderr_logfile = /home/ubuntu/celery_forest.log
+autostart = true
+logfile_maxbytes = 10MB
+logfile_backups = 1
+#stopwaitsecs = 30
+stopasgroup = true
+startsecs = 5
+
 [program:celery_push_send]
 # the queue and app names are declared in constants.py.
 directory = /home/ubuntu/beiwe-backend/

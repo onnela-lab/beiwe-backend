@@ -340,6 +340,8 @@ DATA_PROCESSING_CELERY_SERVICE = "services.celery_data_processing"
 DATA_PROCESSING_CELERY_QUEUE = "data_processing"
 PUSH_NOTIFICATION_SEND_SERVICE = "services.push_notification_send"
 PUSH_NOTIFICATION_SEND_QUEUE = "push_notifications"
+FOREST_SERVICE = "services.celery_forest"
+FOREST_QUEUE = "forest_queue"
 
 
 class ScheduleTypes(object):

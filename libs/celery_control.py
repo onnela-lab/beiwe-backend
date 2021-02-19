@@ -7,7 +7,7 @@ from django.utils import timezone
 from kombu.exceptions import OperationalError
 
 from config.constants import (CELERY_CONFIG_LOCATION, DATA_PROCESSING_CELERY_SERVICE,
-    PUSH_NOTIFICATION_SEND_SERVICE)
+    FOREST_SERVICE, PUSH_NOTIFICATION_SEND_SERVICE)
 
 
 class FalseCeleryAppError(Exception): pass
@@ -63,6 +63,7 @@ def get_celery_app(service_name: str) -> Celery or FalseCeleryApp:
 # if None then there is no celery app.
 processing_celery_app = get_celery_app(DATA_PROCESSING_CELERY_SERVICE)
 push_send_celery_app = get_celery_app(PUSH_NOTIFICATION_SEND_SERVICE)
+forest_celery_app = get_celery_app(FOREST_SERVICE)
 
 
 def inspect():

@@ -18,6 +18,7 @@ from database.system_models import FileAsText
 from database.tableau_api_models import ForestTracker
 from database.user_models import Participant, Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
+from libs.forest_integration.constants import FOREST_VERSION, TREE_METADATA, TREES
 from libs.http_utils import checkbox_to_boolean, string_to_int
 from libs.push_notification_config import (get_firebase_credential_errors,
     update_firebase_instance)
@@ -401,19 +402,19 @@ def create_forest_tasks(study_id=None):
     try:
         study = Study.objects.get(pk=study_id)
     except Study.DoesNotExist:
-        abort(404)
+        return abort(404)
 
     if request.method == 'GET':
         return render_template(
             "create_forest_tasks.html",
             study=study.as_unpacked_native_python(),
             participants=list(study.participants.order_by("patient_id").values_list("patient_id", flat=True)),
-            trees=["GPS", "Acceleration", "Oak"]  # TODO: reference canonical tree list
+            trees=TREES
         )
 
     # change location of this function (imported from data_access_api) ?
-    start_date = datetime.strptime(request.form.get("time_start"), "%m/%d/%Y %I:%M %p")
-    end_date = datetime.strptime(request.form.get("time_end"), "%m/%d/%Y %I:%M %p")
+    start_date = datetime.strptime(request.form.get("time_start"), "%m/%d/%Y %I:%M %p").date()
+    end_date = datetime.strptime(request.form.get("time_end"), "%m/%d/%Y %I:%M %p").date()
 
     for participant_id in request.form.getlist("user_ids"):
         for tree in request.form.getlist("trees"):
@@ -424,23 +425,15 @@ def create_forest_tasks(study_id=None):
                 data_date_start=start_date,
                 data_date_end=end_date,
                 status=ForestTracker.Status.QUEUED,
-                forest_version=" ",
+                forest_version=FOREST_VERSION,
                 commit_hash=" ",
-                metadata=" ",
-                metadata_hash=" ",
+                metadata=TREE_METADATA[tree],
+                metadata_hash=hash(TREE_METADATA[tree]),
                 file_size=0
             ).save()
             # TODO: add missing params or update model defaults
-            # print(vars(t))
 
     return redirect('/create_forest_tasks/{:d}'.format(study.id))
-
-@system_admin_pages.route('/cancel_forest_task/<string:forest_task_id>', methods=['POST'])
-@authenticate_admin
-def cancel_forest_task(forest_task_id=None):
-    forest_tracker = ForestTracker.objects.filter(id=forest_task_id)
-    forest_tracker.update(status=ForestTracker.ERROR_STATUS, stacktrace=f'canceled by {get_session_researcher().username} on {datetime.now()}')
-    return redirect('/forest_status/{:d}'.format(forest_tracker.participant.study.id))
 
 ########################## FIREBASE CREDENTIALS ENDPOINTS ##################################
 # note: all of the strings passed in the following function (eg: ALERT_DECODE_ERROR_TEXT) are plain strings

@@ -1,3 +1,7 @@
+
+import datetime
+from collections import defaultdict
+
 from flask import (abort, Blueprint, flash, Markup, redirect, render_template, request, session,
     url_for)
 
@@ -11,7 +15,8 @@ from constants.admin_pages import (DisableApiKeyForm, NEW_API_KEY_MESSAGE, NewAp
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.tableau_api_models import ForestTracker
-from database.user_models import Researcher
+from database.user_models import Participant, Researcher
+from libs.forest_integration.constants import TREES
 from libs.push_notification_config import check_firebase_instance
 from libs.security import check_password_requirements
 from libs.serilalizers import ApiKeySerializer
@@ -81,6 +86,7 @@ def view_study(study_id=None):
         interventions=list(study.interventions.all().values_list("name", flat=True)),
         page_location='study_landing',
         study_id=study_id,
+        is_site_admin=get_session_researcher().site_admin,
         push_notifications_enabled=check_firebase_instance(require_android=True) or
                                    check_firebase_instance(require_ios=True),
     )
@@ -179,22 +185,81 @@ def forest_status(study_id=None):
             'forest_status.html',
             study=study,
             is_site_admin=get_session_researcher().site_admin,
-            forest_log=list(ForestTracker.objects.all().order_by("-created_on").values("participant", "forest_tree", "date_start", "date_end", "status", "id", "created_on"))
-            #file size include in display. stacktrace? forest version?
+            status_choices=ForestTracker.Status,
+            forest_log=list(ForestTracker.objects.all().order_by("-created_on").values("participant", "forest_tree", "data_date_start", "data_date_end", "status", "external_id", "created_on"))
         )
 
     # post request is to cancel a forest task, requires site admin permissions
     if not get_session_researcher().site_admin:
         return abort(403)
 
+    try:
+        forest_task_id = request.values.get("api_key_id")
+        if forest_task_id is None:
+            return abort(404)
+        forest_tracker = ForestTracker.objects.get(external_id=forest_task_id)
+    except Exception:
+        return abort(404)
+
+    forest_tracker.status = ForestTracker.Status.CANCELLED
+    forest_tracker.stacktrace = f'canceled by {get_session_researcher().username} on {datetime.date.today()}'
+    forest_tracker.save()
+
+    return redirect('/forest_status/{:d}'.format(forest_tracker.participant.study.id))
+
+
+# source: https://stackoverflow.com/questions/1060279/iterating-through-a-range-of-dates-in-python
+def daterange(start, stop, step=datetime.timedelta(days=1), inclusive=False):
+    if step.days > 0:
+        while start < stop:
+            yield start
+            start = start + step
+            # not +=! don't modify object passed in if it's mutable
+            # since this function is not restricted to
+            # only types from datetime module
+    elif step.days < 0:
+        while start > stop:
+            yield start
+            start = start + step
+    if inclusive and start == stop:
+        yield start
+
+
 
 @admin_pages.route('/study_analysis_progress/<string:study_id>', methods=['GET'])
 @authenticate_researcher_study_access
 def study_analysis_progress(study_id=None):
     study = Study.objects.get(pk=study_id)
+    participants = Participant.objects.filter(study=study_id)
+
+    # generate chart of study analysis progress logs
+    trackers = ForestTracker.objects.filter(participant__in=participants).order_by("data_date_start")
+
+    # discuss me!!!
+    start_date = study.created_on.date()
+    end_date = datetime.date.today()
+
+    # generate the date range for charting
+    dates = list(daterange(start_date, end_date))
+
+    chart_columns = ["participant", "tree"] + dates
+    chart = []
+
+    results = defaultdict(lambda: "None")
+    for tracker in trackers:
+        for date in daterange(tracker.data_date_start, tracker.data_date_end, inclusive=True):
+            results[(tracker.participant, tracker.forest_tree, date)] = tracker.status
+
+    for participant in participants:
+        for tree in TREES:
+            row = [participant.id, tree] + [results[(participant, tree, date)] for date in dates]
+            chart.append(row)
+
+    print(chart)
     return render_template(
         'study_analysis_progress.html',
         study=study,
         is_admin=researcher_is_an_admin(),
-        forest_log=list(ForestTracker.objects.all().order_by("date_start").values("participant", "forest_tree", "date_start", "date_end", "status"))
+        chart_columns=chart_columns,
+        chart=chart  # this uses the jinja safe filter and should never involve user input
     )
