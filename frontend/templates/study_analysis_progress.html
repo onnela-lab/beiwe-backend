@@ -10,9 +10,9 @@
           "scrollX": true,
           'rowsGroup': [0],
           'createdRow': function(row, data, index) {
-            for (let i = 0; i < data.length; i++)
+            for (let i = 2; i < data.length; i++)
                 if (data[i] == 'queued') {
-                    $('td', row).css('background-color', 'red');
+                    $($('td', row).get(i)).css('background-color', 'red');
                     //$('td', row).addClass("table-primary");
                     //$('td', row).get(i).addClass("table-primary")
                 }

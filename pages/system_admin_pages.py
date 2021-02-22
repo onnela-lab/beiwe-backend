@@ -412,9 +412,8 @@ def create_forest_tasks(study_id=None):
             trees=TREES
         )
 
-    # change location of this function (imported from data_access_api) ?
-    start_date = datetime.strptime(request.form.get("time_start"), "%m/%d/%Y %I:%M %p").date()
-    end_date = datetime.strptime(request.form.get("time_end"), "%m/%d/%Y %I:%M %p").date()
+    start_date = datetime.strptime(request.form.get("date_start"), "%Y-%m-%d").date()
+    end_date = datetime.strptime(request.form.get("date_end"), "%Y-%m-%d").date()
 
     for participant_id in request.form.getlist("user_ids"):
         for tree in request.form.getlist("trees"):

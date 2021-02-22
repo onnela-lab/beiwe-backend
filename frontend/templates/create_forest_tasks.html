@@ -6,10 +6,22 @@
   <script type="text/javascript" src="../static/javascript/libraries/moment.js"></script>
   <script type="text/javascript" src="../static/javascript/libraries/transition.js"></script>
   <script type="text/javascript" src="../static/javascript/libraries/collapse.js"></script>
-  <script type="text/javascript" src="../static/javascript/libraries/bootstrap-datetimepicker.js"></script>
-  <script type="text/javascript" src="../static/javascript/data_download_page.js"></script>
-  {# TODO: make a new js file for this page that does most of these things, this is temporary #}
-  <script type="text/javascript" src="../static/javascript/data_download_page.js"></script>
+  <script type="text/javascript" src="../static/javascript/libraries/bootstrap-datepicker.min.js"></script>
+  <script type="text/javascript">
+    $(document).ready(function() {
+    /* Set up Date/Time pickers */
+      $('#start_datepicker').datepicker({
+          format: "yyyy-m-d",
+          start_date: "0d",
+          end_date: "+3d"
+      });
+      $('#end_datepicker').datepicker({
+          format: "yyyy-m-d",
+          start_date: "0d",
+          end_date: "+3d"
+      });
+    });
+  </script>
 {% endblock %}
 
 {% block title %}Create Forest Tasks{% endblock %}
@@ -52,39 +64,40 @@
 
             {# Time Range #}
             <div class="row">
-            {# Start Datetime #}
+            {# Start date #}
             <div class="col-sm-4">
               <div class="form-group">
-                <label for="start_datetime">Start Date and Time</label>
-                <div class="input-group date" id="start_datetimepicker">
-                  <input type="text" class="form-control" name="time_start" id="start_datetime" />
-                  <span class="input-group-addon">
-                    <span class="glyphicon glyphicon-calendar"></span>
-                  </span>
+                  <label for="start_date">Start Date</label>
+                  <div class="input-group date" data-provide="start_datepicker" id="start_datepicker">
+                    <input type="text" class="form-control" name="date_start" id="start_date">
+                    <div class="input-group-addon">
+                      <span class="glyphicon glyphicon-th"></span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {# End Datetime #}
+
+            {# End date #}
+            <div class="row">
             <div class="col-sm-4">
               <div class="form-group">
-                <label for="end_datetime">End Date and Time</label>
-                <div class="input-group date" id="end_datetimepicker">
-                  <input type="text" class="form-control" name="time_end" id="end_datetime" />
-                  <span class="input-group-addon">
-                    <span class="glyphicon glyphicon-calendar"></span>
-                  </span>
+                  <label for="end_date">End Date</label>
+                  <div class="input-group date" data-provide="end_datepicker" id="end_datepicker">
+                    <input type="text" class="form-control" name="date_end" id="end_date">
+                    <div class="input-group-addon">
+                      <span class="glyphicon glyphicon-th"></span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            </div>
+              </div>
           <br><br>
 
           <div class="row">
             <div class="col-sm-2">
               <input type="submit" class="btn btn-success" value="Create Forest Tasks" id="forest_task_submit_button" />
             </div>
-          </div>
           </div>
         </form>
       </div>
