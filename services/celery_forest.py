@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from cronutils.error_handler import NullErrorHandler
 from django.utils import timezone
-from kombu.exceptions import OperationalError
+# from kombu.exceptions import OperationalError
 
 from config.constants import FOREST_QUEUE
 from database.tableau_api_models import ForestTracker
@@ -17,6 +17,7 @@ def create_forest_celery_tasks():
     # we reuse the high level strategy from data processing celery tasks, see that documentation.
     expiry = (datetime.utcnow() + timedelta(minutes=5)).replace(second=30, microsecond=0)
     now = timezone.now()
+    print(f"create_forest_celery_tasks running at {now}")
 
     # with make_error_sentry(sentry_type=SentryTypes.data_processing):  # add a new type?
     with NullErrorHandler: # for debugging, does not suppress errors
@@ -61,7 +62,8 @@ def enque_forest_task(*args, **kwargs):
     for i in range(10):
         try:
             return forest_celery_app.apply_async(*args, **kwargs)
-        except OperationalError:
+        # except OperationalError:
+        except Exception:
             if i < 3:
                 pass
             else:
