@@ -194,7 +194,8 @@ def forest_status(study_id=None):
         return abort(403)
 
     try:
-        forest_task_id = request.values.get("api_key_id")
+        print(request.values)
+        forest_task_id = request.values.get("task_id")
         if forest_task_id is None:
             return abort(404)
         forest_tracker = ForestTracker.objects.get(external_id=forest_task_id)
@@ -260,5 +261,6 @@ def study_analysis_progress(study_id=None):
         study=study,
         is_admin=researcher_is_an_admin(),
         chart_columns=chart_columns,
+        status_choices=ForestTracker.Status,
         chart=chart  # this uses the jinja safe filter and should never involve user input
     )

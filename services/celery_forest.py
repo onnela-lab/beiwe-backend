@@ -19,7 +19,7 @@ def create_forest_celery_tasks():
     now = timezone.now()
 
     # with make_error_sentry(sentry_type=SentryTypes.data_processing):  # add a new type?
-    with NullErrorHandler:
+    with NullErrorHandler: # for debugging, does not suppress errors
         for tracker in pending:
             print(f"Queueing up celery task for {tracker.participant} on tree {tracker.forest_tree} from {tracker.data_date_start} to {tracker.data_date_end}")
             enque_forest_task(
@@ -35,9 +35,13 @@ def create_forest_celery_tasks():
 @forest_celery_app.task(queue=FOREST_QUEUE)
 def celery_run_forest(forest_tracker_id):
     tracker = ForestTracker.objects.get(id=forest_tracker_id)
-    # try to finder earlier tracker?
-    # mutex operation?
-    print("running task from celery...")
+    # try to finder earlier tracker something like?
+    participant = tracker.participant
+    forest_tree = tracker.forest_tree
+    tracker = ForestTracker.objects.filter(participant=participant, forest_tree=forest_tree)[0]
+
+    # mutex operation necessary?
+    print(f"running task from celery on tracker {tracker.id}")
     tracker.status = tracker.Status.RUNNING
     tracker.process_start_time = timezone.now()
     try:
@@ -47,6 +51,8 @@ def celery_run_forest(forest_tracker_id):
     except Exception as exception:
         tracker.status = tracker.Status.ERROR
         tracker.stacktrace = str(exception)
+        tracker.process_end_time = timezone.now()
+        return
     tracker.status = tracker.Status.SUCCESS
     tracker.process_end_time = timezone.now()
 

@@ -71,11 +71,11 @@ class ForestTracker(TimestampedModel):
     # time limit?
 
     class Status:
-        QUEUED = 'queued'
-        RUNNING = 'running'
-        SUCCESS = 'success'
-        ERROR = 'error'
-        CANCELLED = 'cancelled'
+        QUEUED = 'Queued'
+        RUNNING = 'Running'
+        SUCCESS = 'Success'
+        ERROR = 'Error'
+        CANCELLED = 'Cancelled'
 
     STATUS_CHOICES = (
         (Status.QUEUED, Status.QUEUED),

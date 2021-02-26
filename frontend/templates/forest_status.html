@@ -47,7 +47,7 @@
             </td>
             {% if is_site_admin %}
               <td>
-                <form ng-if="log.status == 'queued'" action="{{ url_for('admin_pages.forest_status', study_id=study.id)}}" method="post">
+                <form ng-if="log.status == '{{ status_choices.QUEUED }}'" action="{{ url_for('admin_pages.forest_status', study_id=study.id)}}" method="post">
                   <input type="hidden" class="form-control" name="task_id" value="{% raw %}{{ log.external_id }}{% endraw %}"/>
                   <button type="submit" class="btn active btn-primary" onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')">Cancel Task</button>
                 </form>

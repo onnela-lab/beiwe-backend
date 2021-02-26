@@ -10,12 +10,23 @@
           "scrollX": true,
           'rowsGroup': [0],
           'createdRow': function(row, data, index) {
-            for (let i = 2; i < data.length; i++)
-                if (data[i] == 'queued') {
-                    $($('td', row).get(i)).css('background-color', 'red');
-                    //$('td', row).addClass("table-primary");
-                    //$('td', row).get(i).addClass("table-primary")
+            for (let i = 2; i < data.length; i++) {
+                if (data[i] == '{{ status_choices.RUNNING }}') {
+                    $($('td', row).get(i)).css('background-color', 'Blue');
                 }
+                if (data[i] == '{{ status_choices.QUEUED }}') {
+                    $($('td', row).get(i)).css('background-color', 'Cyan');
+                }
+                if (data[i] == '{{ status_choices.SUCCESS }}') {
+                    $($('td', row).get(i)).css('background-color', 'Green');
+                }
+                if (data[i] == '{{ status_choices.ERROR }}') {
+                    $($('td', row).get(i)).css('background-color', 'Red');
+                }
+                if (data[i] == '{{ status_choices.CANCELLED }}') {
+                    $($('td', row).get(i)).css('background-color', 'Red');
+                }
+            }
         },
           data: chart,
           columns: [
