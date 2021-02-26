@@ -65,7 +65,7 @@ startsecs = 5
 [program:celery_forest]
 # the queue and app names are declared in constants.py.
 directory = /home/ubuntu/beiwe-backend/
-command = python3 -m celery -A services.celery_forest worker -Q data_processing --loglevel=info -Ofair --hostname=%%h_processing
+command = python3 -m celery -A services.celery_forest worker -Q forest_queue --loglevel=info -Ofair --hostname=%%h_forest
 stdout_logfile = /home/ubuntu/celery_forest.log
 stderr_logfile = /home/ubuntu/celery_forest.log
 autostart = true

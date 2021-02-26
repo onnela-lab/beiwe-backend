@@ -408,8 +408,10 @@ def create_forest_tasks(study_id=None):
         return render_template(
             "create_forest_tasks.html",
             study=study.as_unpacked_native_python(),
-            participants=list(study.participants.order_by("patient_id").values_list("patient_id", flat=True)),
-            trees=TREES
+            participants=list(
+                study.participants.order_by("patient_id").values_list("patient_id", flat=True)
+            ),
+            trees=TREES,
         )
 
     start_date = datetime.strptime(request.form.get("date_start"), "%Y-%m-%d").date()
@@ -428,7 +430,7 @@ def create_forest_tasks(study_id=None):
                 commit_hash=" ",
                 metadata=TREE_METADATA[tree],
                 metadata_hash=hash(TREE_METADATA[tree]),
-                file_size=0
+                file_size=0,
             ).save()
             # TODO: add missing params or update model defaults
 

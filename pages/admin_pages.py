@@ -255,7 +255,6 @@ def study_analysis_progress(study_id=None):
             row = [participant.id, tree] + [results[(participant, tree, date)] for date in dates]
             chart.append(row)
 
-    print(chart)
     return render_template(
         'study_analysis_progress.html',
         study=study,
