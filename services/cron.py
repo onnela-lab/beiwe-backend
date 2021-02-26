@@ -2,8 +2,6 @@
 from os.path import abspath
 from sys import path
 
-from services.celery_forest import create_forest_celery_tasks
-
 path.insert(0, abspath(__file__).rsplit('/', 2)[0])
 
 # start actual cron-related code here
@@ -11,6 +9,7 @@ from sys import argv
 from cronutils import run_tasks
 from services.celery_data_processing import create_file_processing_tasks
 from services.celery_push_notifications import create_push_notification_tasks
+from services.celery_forest import create_forest_celery_tasks
 
 FIVE_MINUTES = "five_minutes"
 HOURLY = "hourly"
