@@ -14,6 +14,7 @@ from authentication.admin_authentication import (assert_admin, assert_researcher
     get_session_researcher, researcher_is_an_admin)
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     CHECKBOX_TOGGLES, IOS_FIREBASE_CREDENTIALS, ResearcherRole, TIMER_VALUES)
+from database.data_access_models import ChunkRegistry
 from database.study_models import Study
 from database.system_models import FileAsText
 from database.tableau_api_models import ForestTracker
@@ -405,6 +406,16 @@ def create_forest_tasks(study_id=None):
     except Study.DoesNotExist:
         return abort(404)
 
+    participants = Participant.objects.filter(study=study_id)
+    try:
+        start_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
+        end_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
+        start_date = start_date.time_bin.date()
+        end_date = end_date.time_bin.date()
+    except ChunkRegistry.DoesNotExist:
+        start_date = study.created_on.date()
+        end_date = timezone.now().date()
+
     if request.method == 'GET':
         return render_template(
             "create_forest_tasks.html",
@@ -413,8 +424,8 @@ def create_forest_tasks(study_id=None):
                 study.participants.order_by("patient_id").values_list("patient_id", flat=True)
             ),
             trees=TREES,
-            start_date=study.created_on.strftime('%Y-%m-%d'),
-            end_date=timezone.now().strftime('%Y-%m-%d')
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
         )
 
     start_date = datetime.strptime(request.form.get("date_start"), "%Y-%m-%d").date()

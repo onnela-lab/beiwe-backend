@@ -41,7 +41,7 @@ def celery_run_forest(forest_tracker_id):
     # try to finder earlier tracker something like?
     participant = tracker.participant
     forest_tree = tracker.forest_tree
-    tracker = ForestTracker.objects.filter(participant=participant, forest_tree=forest_tree)[0]
+    tracker = ForestTracker.objects.filter(participant=participant, forest_tree=forest_tree, status=ForestTracker.Status.QUEUED)[0]
 
     # mutex operation necessary?
     print(f"running task from celery on tracker {tracker.id}")
