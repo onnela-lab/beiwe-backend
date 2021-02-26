@@ -42,5 +42,9 @@
 {% block title %}Study Analysis Progress{% endblock %}
 
 {% block content %}
+  {% if metadata_conflict %}
+    <h4 >Warning: There are analyses on this study that were computed using different Forest parameters</h4>
+    <br>
+  {% endif %}
   <table id="analysis_chart" class="display" width="100%"></table>
 {%  endblock %}

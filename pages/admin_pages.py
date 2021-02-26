@@ -237,8 +237,8 @@ def study_analysis_progress(study_id=None):
     trackers = ForestTracker.objects.filter(participant__in=participants).order_by("-created_on")
 
     try:
-        start_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
-        end_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
+        start_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
+        end_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
         start_date = start_date.time_bin.date()
         end_date = end_date.time_bin.date()
     except ChunkRegistry.DoesNotExist:
@@ -246,7 +246,7 @@ def study_analysis_progress(study_id=None):
         end_date = datetime.date.today()
 
     # generate the date range for charting
-    dates = list(daterange(start_date, end_date))
+    dates = list(daterange(start_date, end_date, inclusive=True))
 
     chart_columns = ["participant", "tree"] + dates
     chart = []
@@ -266,7 +266,7 @@ def study_analysis_progress(study_id=None):
             row = [participant.id, tree] + [results[(participant, tree, date)] for date in dates]
             chart.append(row)
 
-    # metadata_conflict = False
+    metadata_conflict = False
     # metadata_hash_found = None
     # for metadata_hash in metadata.values():
     #     if metadata_hash is not None:
@@ -277,7 +277,10 @@ def study_analysis_progress(study_id=None):
     #             break
 
     # or, equivalently, with apologies to future developers
-    metadata_conflict = len(set([m for m in metadata.values() if m is not None])) > 1
+    for tree in set([k[1] for k in metadata.keys()]):
+        metadata_conflict = metadata_conflict or \
+                            len(set([m for k, m in metadata.items()
+                                     if m is not None and k[1] == tree])) > 1
 
 
 

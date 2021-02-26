@@ -49,7 +49,7 @@ def celery_run_forest(forest_tracker_id):
     tracker.process_start_time = timezone.now()
     # add a chunk registry filter for data type?
     data = ChunkRegistry.objects.filter(participant=participant)
-    tracker.file_size = data.aggregate(Sum('file_size'))
+    tracker.file_size = int(data.aggregate(Sum('file_size')).get('file_size__sum'))
     try:
         # actually run forest here
         forest_output = ''
