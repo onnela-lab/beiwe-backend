@@ -12,6 +12,7 @@ from authentication.admin_authentication import (authenticate_researcher_login,
     SESSION_NAME)
 from constants.admin_pages import (DisableApiKeyForm, NEW_API_KEY_MESSAGE, NewApiKeyForm,
     RESET_DOWNLOAD_API_CREDENTIALS_MESSAGE)
+from database.data_access_models import ChunkRegistry
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.tableau_api_models import ForestTracker
@@ -194,7 +195,6 @@ def forest_status(study_id=None):
         return abort(403)
 
     try:
-        print(request.values)
         forest_task_id = request.values.get("task_id")
         if forest_task_id is None:
             return abort(404)
@@ -234,11 +234,16 @@ def study_analysis_progress(study_id=None):
     participants = Participant.objects.filter(study=study_id)
 
     # generate chart of study analysis progress logs
-    trackers = ForestTracker.objects.filter(participant__in=participants).order_by("data_date_start")
+    trackers = ForestTracker.objects.filter(participant__in=participants).order_by("-created_on")
 
-    # discuss me!!!
-    start_date = study.created_on.date()
-    end_date = datetime.date.today()
+    try:
+        start_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
+        end_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
+        start_date = start_date.time_bin.date()
+        end_date = end_date.time_bin.date()
+    except ChunkRegistry.DoesNotExist:
+        start_date = study.created_on.date()
+        end_date = datetime.date.today()
 
     # generate the date range for charting
     dates = list(daterange(start_date, end_date))
@@ -246,15 +251,35 @@ def study_analysis_progress(study_id=None):
     chart_columns = ["participant", "tree"] + dates
     chart = []
 
+    metadata = dict()
     results = defaultdict(lambda: "None")
     for tracker in trackers:
         for date in daterange(tracker.data_date_start, tracker.data_date_end, inclusive=True):
             results[(tracker.participant, tracker.forest_tree, date)] = tracker.status
+            if tracker.status == tracker.Status.SUCCESS:
+                metadata[(tracker.participant, tracker.forest_tree, date)] = tracker.metadata_hash
+            else:
+                metadata[(tracker.participant, tracker.forest_tree, date)] = None
 
     for participant in participants:
         for tree in TREES:
             row = [participant.id, tree] + [results[(participant, tree, date)] for date in dates]
             chart.append(row)
+
+    # metadata_conflict = False
+    # metadata_hash_found = None
+    # for metadata_hash in metadata.values():
+    #     if metadata_hash is not None:
+    #         if metadata_hash_found is None:
+    #             metadata_hash_found = metadata_hash
+    #         elif metadata_hash_found != metadata_hash:
+    #             metadata_conflict = True
+    #             break
+
+    # or, equivalently, with apologies to future developers
+    metadata_conflict = len(set([m for m in metadata.values() if m is not None])) > 1
+
+
 
     return render_template(
         'study_analysis_progress.html',
@@ -262,5 +287,8 @@ def study_analysis_progress(study_id=None):
         is_admin=researcher_is_an_admin(),
         chart_columns=chart_columns,
         status_choices=ForestTracker.Status,
+        metadata_conflict=metadata_conflict,
+        start_date=start_date,
+        end_date=end_date,
         chart=chart  # this uses the jinja safe filter and should never involve user input
     )

@@ -8,7 +8,7 @@ from libs.forest_integration.constants import TREE_COLUMN_NAMES_TO_SUMMARY_STATI
 
 
 def construct_summary_statistics(study, participant, tree_name, csv_string):
-    if not Participant.objects.filter(patient_id=participant, study__name=study, deleted=False):
+    if not participant and participant.study:
         raise ValueError("no participant or study associated with Forest data")
     file = StringIO(csv_string)  # this imitates the file interface to allow reading as a CSV
     with open(file, 'rb') as f:

@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from flask import (abort, Blueprint, escape, flash, Markup, redirect, render_template, request,
     url_for)
 
@@ -412,6 +413,8 @@ def create_forest_tasks(study_id=None):
                 study.participants.order_by("patient_id").values_list("patient_id", flat=True)
             ),
             trees=TREES,
+            start_date=study.created_on.strftime('%Y-%m-%d'),
+            end_date=timezone.now().strftime('%Y-%m-%d')
         )
 
     start_date = datetime.strptime(request.form.get("date_start"), "%Y-%m-%d").date()
