@@ -41,7 +41,7 @@ def celery_run_forest(forest_tracker_id):
     # try to finder earlier tracker something like?
     participant = tracker.participant
     forest_tree = tracker.forest_tree
-    tracker = ForestTracker.objects.filter(participant=participant, forest_tree=forest_tree, status=ForestTracker.Status.QUEUED)[0]
+    tracker = ForestTracker.objects.filter(participant=participant, forest_tree=forest_tree, status=ForestTracker.Status.QUEUED).order_by("-data_date_start").first()
 
     # mutex operation necessary?
     print(f"running task from celery on tracker {tracker.id}")
@@ -49,22 +49,18 @@ def celery_run_forest(forest_tracker_id):
     tracker.process_start_time = timezone.now()
     # add a chunk registry filter for data type?
     data = ChunkRegistry.objects.filter(participant=participant)
-    tracker.file_size = int(data.aggregate(Sum('file_size')).get('file_size__sum'))
+    tracker.file_size = data.aggregate(Sum('file_size')).get('file_size__sum')
     try:
         # actually run forest here
         forest_output = ''
+        construct_summary_statistics(tracker.participant.study, tracker.participant,
+                                     tracker.forest_tree, forest_output)
     except Exception as exception:
         tracker.status = tracker.Status.ERROR
         tracker.stacktrace = str(exception)
         tracker.process_end_time = timezone.now()
         tracker.save()
         return
-    try:
-        construct_summary_statistics(tracker.participant.study, tracker.participant,
-                                     tracker.forest_tree, forest_output)
-    except Exception:
-        # discuss what to do here
-        print("an error occurred during data interpretation")
 
     tracker.status = tracker.Status.SUCCESS
     tracker.process_end_time = timezone.now()
