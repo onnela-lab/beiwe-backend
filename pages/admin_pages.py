@@ -269,7 +269,6 @@ def study_analysis_progress(study_id=None):
             chart.append(row)
 
     metadata_conflict = False
-
     # ensure that within each tree, only a single metadata value is used (only the most recent runs
     # are considered, and unsuccessful runs are assumed to invalidate old runs, clearing metadata)
     for tree in set([k[1] for k in metadata.keys()]):
