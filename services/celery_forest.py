@@ -10,7 +10,7 @@ from database.data_access_models import ChunkRegistry
 from database.tableau_api_models import ForestTracker
 from libs.celery_control import forest_celery_app
 from libs.forest_integration.forest_data_interpretation import construct_summary_statistics
-
+from forest.jasmine import
 from libs.sentry import make_error_sentry, SentryTypes
 
 # run via cron every five minutes

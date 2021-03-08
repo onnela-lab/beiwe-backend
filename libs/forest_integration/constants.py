@@ -1,8 +1,8 @@
 TREES = \
 [
-    'gps',
-    'Acceleration',
-    'Poplar',
+    'jasmine',
+    'poplar',
+    'willow',
 ]
 
 TREE_METADATA = {
@@ -11,7 +11,7 @@ TREE_METADATA = {
     'Poplar' : "poplar data",
 }
 
-FOREST_VERSION = "0.0.0"
+FOREST_VERSION = "0.1"
 
 
 # the following dictionary maps pairs of tree names and CSV fields to summary statistic names
