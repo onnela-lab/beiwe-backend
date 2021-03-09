@@ -1,14 +1,11 @@
-TREES = \
-[
+TREES = [
     'jasmine',
-    'poplar',
     'willow',
 ]
 
 TREE_METADATA = {
     'gps' : "gps data",
     'Acceleration' : "acceleraton data",
-    'Poplar' : "poplar data",
 }
 
 FOREST_VERSION = "0.1"

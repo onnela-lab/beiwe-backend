@@ -1,14 +1,14 @@
+import json
 import uuid
 
 from django.db import models
 from database.common_models import TimestampedModel
-from database.study_models import Study
 from database.user_models import Participant
+from libs.forest_integration.constants import TREES
 
 
 class SummaryStatisticDaily(TimestampedModel):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
-    study = models.ForeignKey(Study, on_delete=models.CASCADE)
     date = models.DateField(db_index=True)
     distance_diameter = models.IntegerField(null=True, blank=True)
     distance_from_home = models.IntegerField(null=True, blank=True)
@@ -52,20 +52,27 @@ class SummaryStatisticDaily(TimestampedModel):
     sleep_duration = models.IntegerField(null=True, blank=True)
     sleep_onset_time = models.DateTimeField(null=True, blank=True)
 
+    jasmine_tracker = models.ForeignKey("ForestMetadata", null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
+    willow_tracker = models.ForeignKey("ForestMetadata", null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
+
+
 class ForestTracker(TimestampedModel):
     participant = models.ForeignKey(
         'Participant', on_delete=models.PROTECT, db_index=True
     )
-    external_id = models.UUIDField(default=uuid.uuid4, editable=False)
     # the external id is used for endpoints that refer to forest trackers to avoid exposing the
     # primary keys of the model. it is intentionally not the primary key
+    external_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    
+    metadata = models.ForeignKey("ForestMetadata", on_delete=models.PROTECT)
 
-    forest_tree = models.TextField()
+    forest_tree = models.TextField(choices=[(tree, tree) for tree in TREES])
     data_date_start = models.DateField()  # inclusive
     data_date_end = models.DateField()  # inclusive
 
     file_size = models.IntegerField()  # input file size sum for accounting
     process_start_time = models.DateTimeField(null=True, blank=True)
+    process_download_end_time = models.DateField(null=True, blank=True)
     process_end_time = models.DateTimeField(null=True, blank=True)
     # celery_task_id?
     # time limit?
@@ -88,10 +95,28 @@ class ForestTracker(TimestampedModel):
     stacktrace = models.TextField(null=True, blank=True, default=None)  # for logs
     forest_version = models.CharField(max_length=10)
     commit_hash = models.CharField(max_length=40)
-    metadata = models.TextField()  # json string, add validator?
-    metadata_hash = models.CharField(max_length=64)
 
 
-# class ForestTree(TimestampedModel):
-#     name = models.CharField(max_length=30)
-#
+class ForestMetadata(TimestampedModel):
+    """
+    Model for tracking metadata used in Forest analyses. There is one object for all trees.
+    
+    When adding support for a new tree, make sure to add a migration to populate existing
+    ForestMetadata objects with the default metadata for the new tree. This way, all existing
+    ForestTrackers are still associated to the same ForestMetadata object and we don't have to give
+    a warning to users that the metadata have changed.
+    """
+    # Note: making a NullBooleanField unique=True allows us to ensure only one object can have
+    #       default=True at any time (null is considered unique). This means this field should be
+    #       consumed as True or falsy (null is false), as the value should never be actually set to
+    #       `False`.
+    default = models.NullBooleanField(unique=True)
+    notes = models.TextField(blank=True)
+    name = models.TextField(blank=True)
+    
+    jasmine_json_string = models.TextField()
+    willow_json_string = models.TextField()
+    
+    def metadata_for_tree(self, tree_name):
+        json_string_field_name = f"{tree_name}_json_string"
+        return json.loads(getattr(self, json_string_field_name))

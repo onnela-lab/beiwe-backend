@@ -10,6 +10,7 @@ from config.constants import ResearcherRole
 from config.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from database.models import JSONTextField, TimestampedModel
+from database.tableau_api_models import ForestMetadata
 from database.user_models import Researcher
 from database.validators import LengthValidator
 
@@ -34,7 +35,11 @@ class Study(TimestampedModel):
         max_length=256, default="America/New_York", null=False, blank=False
     )
     deleted = models.BooleanField(default=False)
+    
     forest_enabled = models.BooleanField(default=False)
+    # Note: this is not nullable to prevent bugs where this is null, though if forest_enabled is
+    #       False, the forest_metadata field isn't used
+    forest_metadata = models.ForeignKey(ForestMetadata, on_delete=models.PROTECT)
 
     def save(self, *args, **kwargs):
         """ Ensure there is a study device settings attached to this study. """
