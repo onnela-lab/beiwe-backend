@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime, timedelta
 
 from cronutils.error_handler import NullErrorHandler
@@ -55,9 +56,9 @@ def celery_run_forest(forest_tracker_id):
         forest_output = ''
         construct_summary_statistics(tracker.participant.study, tracker.participant,
                                      tracker.forest_tree, forest_output)
-    except Exception as exception:
+    except Exception:
         tracker.status = tracker.Status.ERROR
-        tracker.stacktrace = str(exception)
+        tracker.stacktrace = traceback.format_exc()
         tracker.process_end_time = timezone.now()
         tracker.save()
         return

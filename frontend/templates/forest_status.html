@@ -25,7 +25,7 @@
             <th scope="col">End Date</th>
             <th scope="col">Status</th>
             {% if is_site_admin %}
-              <th scope="col">Cancel</th>
+              <th scope="col">Action</th>
             {% endif %}
           </tr>
         </thead>
@@ -51,6 +51,7 @@
                   <input type="hidden" class="form-control" name="task_id" value="{% raw %}{{ log.external_id }}{% endraw %}"/>
                   <button type="submit" class="btn active btn-primary" onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')">Cancel Task</button>
                 </form>
+                <button class="btn-link" ng-if="log.status == '{{ status_choices.ERROR }}'" ng-click="alert(log.stacktrace)">View error</button>
               </td>
             {% endif %}
           </tr>

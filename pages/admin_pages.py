@@ -187,7 +187,7 @@ def forest_status(study_id=None):
             study=study,
             is_site_admin=get_session_researcher().site_admin,
             status_choices=ForestTracker.Status,
-            forest_log=list(ForestTracker.objects.all().order_by("-created_on").values("participant", "forest_tree", "data_date_start", "data_date_end", "status", "external_id", "created_on"))
+            forest_log=list(ForestTracker.objects.all().order_by("-created_on").values("participant", "forest_tree", "data_date_start", "data_date_end", "stacktrace", "status", "external_id", "created_on"))
         )
 
     # post request is to cancel a forest task, requires site admin permissions
