@@ -2,8 +2,10 @@ import traceback
 from datetime import datetime, timedelta
 
 from cronutils.error_handler import NullErrorHandler
+from django.db import DatabaseError, transaction
 from django.db.models import Sum
 from django.utils import timezone
+from forest.jasmine import
 from kombu.exceptions import OperationalError
 
 from config.constants import FOREST_QUEUE
@@ -11,8 +13,7 @@ from database.data_access_models import ChunkRegistry
 from database.tableau_api_models import ForestTracker
 from libs.celery_control import forest_celery_app
 from libs.forest_integration.forest_data_interpretation import construct_summary_statistics
-from forest.jasmine import
-from libs.sentry import make_error_sentry, SentryTypes
+
 
 # run via cron every five minutes
 def create_forest_celery_tasks():
@@ -38,19 +39,28 @@ def create_forest_celery_tasks():
 #run via celery as long as tasks exist
 @forest_celery_app.task(queue=FOREST_QUEUE)
 def celery_run_forest(forest_tracker_id):
-    tracker = ForestTracker.objects.get(id=forest_tracker_id)
-    # try to finder earlier tracker something like?
-    participant = tracker.participant
-    forest_tree = tracker.forest_tree
-    tracker = ForestTracker.objects.filter(participant=participant, forest_tree=forest_tree, status=ForestTracker.Status.QUEUED).order_by("-data_date_start").first()
+    with transaction.atomic():
+        tracker = ForestTracker.objects.filter(id=forest_tracker_id).first()
 
-    # mutex operation necessary?
-    print(f"running task from celery on tracker {tracker.id}")
-    tracker.status = tracker.Status.RUNNING
-    tracker.process_start_time = timezone.now()
-    # add a chunk registry filter for data type?
+        # try to finder earlier tracker something like?
+        participant = tracker.participant
+        forest_tree = tracker.forest_tree
+        trackers = ForestTracker.objects.select_for_update().filter(participant=participant, forest_tree=forest_tree)
+        tracker = trackers.filter(status=ForestTracker.Status.QUEUED).order_by(
+            "-data_date_start").first()
+        if tracker is None:
+            return
+        if trackers.filter(status=ForestTracker.Status.RUNNING).exists():
+            # requeue
+            return
+        tracker.status = ForestTracker.Status.RUNNING
+        tracker.process_start_time = timezone.now()
+        tracker.save(update_fields=["status", "process_start_time"])
+        # add a chunk registry filter for data type
+
     data = ChunkRegistry.objects.filter(participant=participant)
     tracker.file_size = data.aggregate(Sum('file_size')).get('file_size__sum')
+    print(f"running task from celery on tracker {tracker.id}")
     try:
         # actually run forest here
         forest_output = ''

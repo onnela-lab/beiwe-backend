@@ -15,6 +15,7 @@ def construct_summary_statistics(study, participant, tree_name, csv_string):
         reader = csv.DictReader(f)
         data = list(reader)
 
+    #TODO: ensure data is only in time range assossiated with forest tracker
     for line in data:
         summary_date = date(year=line['year'], month=line['month'], day=line['day'])
         updates = {}

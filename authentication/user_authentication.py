@@ -48,7 +48,7 @@ def minimal_validation(some_function) -> callable:
 def validate_post_ignore_password(is_ios) -> bool:
     """Check if user exists, that a password was provided but ignores its validation, and if the
     device id matches.
-    IOS apparently has problems retaining the device id, so we wantt to bypass it when it is an ios user
+    IOS apparently has problems retaining the device id, so we want to bypass it when it is an ios user
     """
     rv = request.values
     if "patient_id" not in rv or "password" not in rv or "device_id" not in rv:

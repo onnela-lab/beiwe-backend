@@ -245,12 +245,6 @@ def study_analysis_progress(study_id=None):
         start_date = study.created_on.date()
         end_date = datetime.date.today()
 
-    # generate the date range for charting
-    dates = list(daterange(start_date, end_date, inclusive=True))
-
-    chart_columns = ["participant", "tree"] + dates
-    chart = []
-
     # this code simultaneously builds up the chart of most recent forest results for date ranges
     # by participant and tree, and tracks the metadata
     metadata = dict()
@@ -262,6 +256,12 @@ def study_analysis_progress(study_id=None):
                 metadata[(tracker.participant, tracker.forest_tree, date)] = tracker.metadata_hash
             else:
                 metadata[(tracker.participant, tracker.forest_tree, date)] = None
+
+    # generate the date range for charting
+    dates = list(daterange(start_date, end_date, inclusive=True))
+
+    chart_columns = ["participant", "tree"] + dates
+    chart = []
 
     for participant in participants:
         for tree in TREES:
