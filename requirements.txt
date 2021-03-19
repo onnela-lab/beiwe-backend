@@ -1,5 +1,5 @@
 # core libraries
-Django==2.2.15
+Django==2.2.18
 Flask>=1.1.2
 firebase-admin==4.5.1
 
