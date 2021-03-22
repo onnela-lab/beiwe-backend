@@ -41,6 +41,22 @@
     {% endif %}
   </div>
 
+  {# Unregister Participant button #}
+  <div class="form-group">
+    {% if participant.unregistered %}
+      <b>Registration Status: </b>Participant is unenrolled and not able to upload data
+    {% else %}
+      <form action="/unregister_participant" method="post">
+        <div class="form-inline">
+          <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
+          <input type="hidden" name="study_id" value="{{ study.id }}">
+          <b>Registration Status: </b><button type="submit" class="btn btn-warning btn-sm">Un-Register Participant</button>
+        </div>
+      </form>
+
+    {% endif %}
+  </div>
+
   <div class="form-group">
     {% if participant.os_type %}
       <b>Phone OS: </b>{{ participant.os_type }}

@@ -76,6 +76,11 @@ def upload(OS_API=""):
     patient_id = request.values['patient_id']
     participant = get_session_participant()
 
+    if participant.unregistered:
+        # in this case, return a 200 response to avoid the client device filling with undeletable
+        # data files
+        return render_template('blank.html'), 200
+
     # Slightly different values for iOS vs Android behavior.
     # Android sends the file data as standard form post parameter (request.values)
     # iOS sends the file as a multipart upload (so ends up in request.files)

@@ -64,6 +64,37 @@ def reset_device():
     flash(f'For patient {patient_id}, device was reset; password is untouched. ', 'success')
     return redirect_obj
 
+@participant_administration.route('/unregister_participant', methods=["POST"])
+@authenticate_researcher_study_access
+def unregister_participant():
+    """
+    Resets a participant's device. The participant will not be able to connect until they
+    register a new device.
+    """
+
+    patient_id = request.values['patient_id']
+    study_id = request.values['study_id']
+
+    try:
+        participant = Participant.objects.get(patient_id=patient_id)
+    except Participant.DoesNotExist:
+        flash(f'The participant {patient_id} does not exist', 'danger')
+        return redirect(f'/view_study/{study_id}/')
+
+    redirect_obj = redirect(f'/view_study/{participant.study_id}/')
+    if participant.study.id != int(study_id):
+        flash(f'Participant {patient_id} is not in study {Study.objects.get(id=study_id).name}', 'danger')
+        return redirect_obj
+
+    if participant.unregistered:
+        flash(f'Participant {patient_id} is already unregistered', 'danger')
+        return redirect_obj
+
+    participant.unregistered = True
+    participant.save()
+    flash(f'{patient_id} was successfully unregisted from the study. They will not be able to upload further data. ', 'success')
+    return redirect_obj
+
 
 @participant_administration.route('/create_new_participant', methods=["POST"])
 @authenticate_researcher_study_access

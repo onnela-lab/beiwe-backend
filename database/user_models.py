@@ -115,6 +115,8 @@ class Participant(AbstractPasswordUser):
 
     deleted = models.BooleanField(default=False)
 
+    unregistered = models.BooleanField(default=False)
+
     @classmethod
     def create_with_password(cls, **kwargs):
         """ Creates a new participant with randomly generated patient_id and password. """

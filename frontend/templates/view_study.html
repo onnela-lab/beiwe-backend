@@ -32,6 +32,7 @@
           <th>Patient ID</th>
           <th>Phone registered</th>
           <th>Phone OS</th>
+          <th>Registration Status</th>
           {% if push_notifications_enabled %}
             {% for intervention in interventions | sort(case_sensitive=False) %}
               <th>{{ intervention }}</th>
@@ -64,6 +65,17 @@
                 {{ participant.os_type }}
               {% else %}
                 <i>unknown</i>
+              {% endif %}
+            </td>
+            <td>
+              {% if participant.unregistered %}
+                <i>Unregistered</i>
+              {% else %}
+                <form action="/unregister_participant" method="post">
+                  <input type="hidden" name="study_id" value="{{ study.id }}">
+                  <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
+                  <button type="submit" class="btn btn-primary">Unregister</button>
+                </form>
               {% endif %}
             </td>
             {% if push_notifications_enabled %}
