@@ -49,7 +49,6 @@ INSTALLED_APPS = [
 
 SHELL_PLUS = "ipython"
 
-SHELL_PLUS_PRE_IMPORTS = []
 SHELL_PLUS_POST_IMPORTS = [
     "pytz",
     "json",
@@ -62,7 +61,16 @@ SHELL_PLUS_POST_IMPORTS = [
     ["libs.shell_utils", "*"],
     ["dateutil", ('tz',)],
     ['libs.dev_utils', "GlobalTimeTracker"],
+    # ['libs.celery_control', (
+    #     "get_notification_scheduled_job_ids",
+    #     "get_notification_reserved_job_ids",
+    #     "get_notification_active_job_ids",
+    #     "get_processing_scheduled_job_ids",
+    #     "get_processing_reserved_job_ids",
+    #     "get_processing_active_job_ids",
+    # )]
 ]
+SHELL_PLUS_PRE_IMPORTS = []
 
 # Using the default test runner
 TEST_RUNNER = 'django.test.runner.DiscoverRunner'

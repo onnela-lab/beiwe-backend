@@ -7,16 +7,14 @@ from typing import List
 from django.utils import timezone
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
     send as send_notification, ThirdPartyAuthError, UnregisteredError)
-from kombu.exceptions import OperationalError
 
 from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, ScheduleTypes
 from config.settings import PUSH_NOTIFICATION_ATTEMPT_COUNT
 from config.study_constants import OBJECT_ID_ALLOWED_CHARS
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.user_models import Participant, ParticipantFCMHistory, PushNotificationDisabledEvent
-from libs.celery_control import push_send_celery_app
-from libs.push_notification_config import (check_firebase_instance, FirebaseMisconfigured,
-    set_next_weekly)
+from libs.celery_control import push_send_celery_app, safe_apply_async
+from libs.push_notification_config import check_firebase_instance, set_next_weekly
 from libs.sentry import make_error_sentry, SentryTypes
 
 
@@ -63,9 +61,10 @@ def create_push_notification_tasks():
     expiry = (datetime.utcnow() + timedelta(minutes=5)).replace(second=30, microsecond=0)
     now = timezone.now()
     surveys, schedules, patient_ids = get_surveys_and_schedules(now)
-    print(surveys)
-    print(schedules)
-    print(patient_ids)
+    print("Surveys:", surveys, sep="\n\t")
+    print("Schedules:", schedules, sep="\n\t")
+    print("Patient_ids:", patient_ids, sep="\n\t")
+
     with make_error_sentry(sentry_type=SentryTypes.data_processing):
         if not check_firebase_instance():
             print("Firebase is not configured, cannot queue notifications.")
@@ -75,7 +74,8 @@ def create_push_notification_tasks():
         # is a pain, so it is factored out. sorry, but not sorry. it was a mess.
         for fcm_token in surveys.keys():
             print(f"Queueing up push notification for user {patient_ids[fcm_token]} for {surveys[fcm_token]}")
-            safe_queue_push(
+            safe_apply_async(
+                celery_send_push_notification,
                 args=[fcm_token, surveys[fcm_token], schedules[fcm_token]],
                 max_retries=0,
                 expires=expiry,
@@ -230,17 +230,6 @@ def enqueue_weekly_surveys(participant: Participant, schedules: List[ScheduledEv
     for schedule in schedules:
         if schedule.get_schedule_type() == ScheduleTypes.weekly:
             set_next_weekly(participant, schedule.survey)
-
-
-def safe_queue_push(*args, **kwargs):
-    for i in range(10):
-        try:
-            return celery_send_push_notification.apply_async(*args, **kwargs)
-        except OperationalError:
-            if i < 3:
-                pass
-            else:
-                raise
 
 
 celery_send_push_notification.max_retries = 0  # requires the celerytask function object.

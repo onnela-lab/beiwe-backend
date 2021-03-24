@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta
 
-from kombu.exceptions import OperationalError
-
 from config.constants import DATA_PROCESSING_CELERY_QUEUE
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from database.user_models import Participant
-from libs.celery_control import get_processing_active_job_ids, processing_celery_app
+from libs.celery_control import (get_processing_active_job_ids, processing_celery_app,
+    safe_apply_async)
 from libs.file_processing.file_processing_core import do_process_user_file_chunks
 from libs.sentry import make_error_sentry, SentryTypes
 
@@ -47,7 +46,8 @@ def create_file_processing_tasks():
         for participant_id in participants_to_process:
             # Queue all users' file processing, and generate a list of currently running jobs
             # to use to detect when all jobs are finished running.
-            safely_queue_user(
+            safe_apply_async(
+                celery_process_file_chunks,
                 args=[participant_id],
                 max_retries=0,
                 expires=expiry,
@@ -110,31 +110,3 @@ def celery_process_file_chunks(participant_id):
 
 # and mark it to not retry!
 celery_process_file_chunks.max_retries = 0
-
-
-# Useful for debugging, we use get_active_job_ids to ensure that there are no multiple concurrent
-# file processing operations for a single user
-
-def safely_queue_user(*args, **kwargs):
-    """
-    Queue the given user's file processing with the given keyword arguments. This should
-    return immediately and leave the processing to be done in the background via celery.
-    In case there is an error with enqueuing the process, retry it several times until
-    it works.
-    """
-    for i in range(10):
-        try:
-            return celery_process_file_chunks.apply_async(*args, **kwargs)
-        except OperationalError:
-            # Enqueuing can fail deep inside amqp/transport.py with an OperationalError. We
-            # wrap it in some retry logic when this occurs.
-            # Dec. 2019 - this code was written in early 2017, it has never failed.
-            if i < 3:
-                pass
-            else:
-                raise
-
-
-# for debugging.  running this file will enqueue users
-if __name__ == "__main__":
-    create_file_processing_tasks()

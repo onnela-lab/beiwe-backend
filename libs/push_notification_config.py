@@ -8,8 +8,7 @@ from firebase_admin.credentials import Certificate as FirebaseCertificate
 
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     FIREBASE_APP_TEST_NAME, IOS_FIREBASE_CREDENTIALS)
-from database.schedule_models import (ArchivedEvent, ScheduledEvent,
-    WeeklySchedule)
+from database.schedule_models import ArchivedEvent, ScheduledEvent, WeeklySchedule
 from database.study_models import Study
 from database.survey_models import Survey
 from database.system_models import FileAsText

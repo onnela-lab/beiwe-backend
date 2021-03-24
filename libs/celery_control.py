@@ -1,34 +1,59 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
+from typing import List
 
 from celery import Celery
+from django.utils import timezone
 from kombu.exceptions import OperationalError
 
 from config.constants import (CELERY_CONFIG_LOCATION, DATA_PROCESSING_CELERY_SERVICE,
     PUSH_NOTIFICATION_SEND_SERVICE)
 
 
+class FalseCeleryAppError(Exception): pass
 class CeleryNotRunningException(Exception): pass
 
 
-def get_celery_app(service_name: str):
+class FalseCeleryApp:
+    """ Class that mimics enough functionality of a Celery app for us to be able to execute
+    our celery infrastructure from the shell, single-threaded, without queuing. """
+
+    def __init__(self, an_function: callable):
+        """ at instantiation (aka when used as a decorator) stash the function we wrap """
+        print(f"Instantiating a FalseCeleryApp for {an_function.__name__}.")
+        self.an_function = an_function
+
+    @staticmethod
+    def task(*args, **kwargs):
+        """ Our pattern is that we wrap our celery functions in the task decorator.
+        This function executes at-import-time because it is a file-global function declaration with
+        a celery_app.task(queue=queue_name) decorator. Our hack is to declare a static "task" method
+        that does nothing but returns a FalseCelery app. """
+        print(f"task declared, args: {args}, kwargs:{kwargs}")
+        return FalseCeleryApp
+
+    def apply_async(self, *args, **kwargs):
+        """ apply_async is the function we use to queue up tasks.  Our hack is to declare
+        our own apply_async function that extracts the "args" parameter.  We pass those
+        into our stored function. """
+        print(f"apply_async running, args:{args}, kwargs:{kwargs}")
+        if "args" not in kwargs:
+            raise FalseCeleryAppError("'args' was not present?")
+        return self.an_function(*kwargs["args"])
+
+
+def get_celery_app(service_name: str) -> Celery or FalseCeleryApp:
     # the location of the celery configuration file is in the folder above the project folder.
     try:
         with open(CELERY_CONFIG_LOCATION, 'r') as f:
-            manager_info = f.read()
+            manager_ip, password = f.read().splitlines()
     except IOError:
-        print("No celery configuration present...")
-        return None
+        return FalseCeleryApp
 
-    manager_ip, password = manager_info.splitlines()
-
-    # note that the 2nd trailing slash here is actually required and
-    pyamqp_endpoint = f'pyamqp://beiwe:{password}@{manager_ip}//'
-
-    # set up the celery app...
     return Celery(
         service_name,
-        broker=pyamqp_endpoint,
+        # note that the 2nd trailing slash here is required, it is some default rabbitmq thing.
+        broker=f'pyamqp://beiwe:{password}@{manager_ip}//',  # the pyamqp_endpoint.
         backend='rpc://',
         task_publish_retry=False,
         task_track_started=True,
@@ -41,27 +66,29 @@ push_send_celery_app = get_celery_app(PUSH_NOTIFICATION_SEND_SERVICE)
 
 
 def inspect():
-    """ Inspect is annoyingly unreliable and has a default 1 second timeout. """
-    # this import appears to need to come after the celery app is loaded, class is dynamic.
+    """ Inspect is annoyingly unreliable and has a default 1 second timeout.
+        Will error if executed while a FalseCeleryApp is in use. """
+    if isinstance(processing_celery_app, FalseCeleryApp) or isinstance(push_send_celery_app, FalseCeleryApp):
+        raise CeleryNotRunningException("FalseCeleryApp is in use, this session is not connected to celery.")
 
-    if processing_celery_app is None or push_send_celery_app is None:
-        raise CeleryNotRunningException()
-
+    # this import needs to come after the celery app is loaded, the class is dynamic
+    # and the inspect function is injected, it is not present in the source.
     from celery.task.control import inspect as celery_inspect
-    now = datetime.now()
+    now = timezone.now()
     fail_time = now + timedelta(seconds=20)
 
     while now < fail_time:
         try:
             return celery_inspect(timeout=0.1)
         except CeleryNotRunningException:
-            now = datetime.now()
+            now = timezone.now()
             continue
 
     raise CeleryNotRunningException()
 
 
 def safe_apply_async(task_func: callable, *args, **kwargs):
+    """ Passthrough functions """
     for i in range(10):
         try:
             return task_func.apply_async(*args, **kwargs)
@@ -69,46 +96,32 @@ def safe_apply_async(task_func: callable, *args, **kwargs):
             # Enqueuing can fail deep inside amqp/transport.py with an OperationalError. We
             # wrap it in some retry logic when this occurs.
             # Dec. 2019 - this code was written in early 2017, it has never failed.
-            if i < 3:
-                pass
-            else:
+            if i >= 3:
                 raise
 
 
-def get_revoked_job_ids():
-    return inspect().revoked().values()
-
+# The following are helper functions for use in a shell session.
+# All return a list of ids (can be empty), or None if celery isn't currently running.
 
 # Notifications...
-def get_notification_scheduled_job_ids():
-    """ Returns list of ids (can be empty), or None if celery isn't currently running. """
+def get_notification_scheduled_job_ids() -> List[int] or None:
     return _get_job_ids(inspect().scheduled(), "notifications")
-
-
-def get_notification_reserved_job_ids():
-    """ Returns list of ids (can be empty), or None if celery isn't currently running. """
+def get_notification_reserved_job_ids() -> List[int] or None:
     return _get_job_ids(inspect().reserved(), "notifications")
-
-
-def get_notification_active_job_ids():
-    """ Returns list of ids (can be empty), or None if celery isn't currently running. """
+def get_notification_active_job_ids() -> List[int] or None:
     return _get_job_ids(inspect().active(), "notifications")
 
-
 # Processing
-def get_processing_scheduled_job_ids():
-    """ Returns list of ids (can be empty), or None if celery isn't currently running. """
+def get_processing_scheduled_job_ids() -> List[int] or None:
     return _get_job_ids(inspect().scheduled(), "processing")
-
-
-def get_processing_reserved_job_ids():
-    """ Returns list of ids (can be empty), or None if celery isn't currently running. """
+def get_processing_reserved_job_ids() -> List[int] or None:
     return _get_job_ids(inspect().reserved(), "processing")
-
-
-def get_processing_active_job_ids():
-    """ Returns list of ids (can be empty), or None if celery isn't currently running. """
+def get_processing_active_job_ids() -> List[int] or None:
     return _get_job_ids(inspect().active(), "processing")
+
+# Both (not 100% sure this return structure is correct.)
+def get_revoked_job_ids() -> List[List, List]:
+    return list(inspect().revoked().values())
 
 
 def _get_job_ids(celery_query_dict, celery_app_suffix):
