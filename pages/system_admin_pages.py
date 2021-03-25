@@ -443,7 +443,6 @@ def create_forest_tasks(study_id=None):
                 forest_version=FOREST_VERSION,
                 commit_hash=" ",
                 metadata=study.forest_metadata,
-                metadata_hash=hash(study.forest_metadata),  # hash of the db pointer
                 file_size=0,
             ).save()
             # TODO: add missing params or update model defaults

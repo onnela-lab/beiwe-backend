@@ -252,7 +252,7 @@ def study_analysis_progress(study_id=None):
         for date in daterange(tracker.data_date_start, tracker.data_date_end, inclusive=True):
             results[(tracker.participant, tracker.forest_tree, date)] = tracker.status
             if tracker.status == tracker.Status.SUCCESS:
-                metadata[(tracker.participant, tracker.forest_tree, date)] = tracker.metadata_hash
+                metadata[(tracker.participant, tracker.forest_tree, date)] = tracker.metadata_id
             else:
                 metadata[(tracker.participant, tracker.forest_tree, date)] = None
 
