@@ -33,7 +33,6 @@ SERIALIZABLE_FIELD_NAMES = [
     "sleep_duration",
     "sleep_onset_time",
     "stationary_fraction",
-    "study_id",
     "text_incoming_count",
     "text_incoming_degree",
     "text_incoming_length",

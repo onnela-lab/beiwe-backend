@@ -46,8 +46,11 @@ class Study(TimestampedModel):
         # First we just save. This code has vacillated between throwing a validation error and not
         # during study creation.  Our current fix is to save, then test whether a device settings
         # object exists.  If not, create it.
+        try:
+            self.forest_metadata
+        except ObjectDoesNotExist:
+            self.forest_metadata = ForestMetadata.objects.get(default=True)
         super().save(*args, **kwargs)
-
         try:
             self.device_settings
         except ObjectDoesNotExist:
@@ -56,6 +59,8 @@ class Study(TimestampedModel):
             settings.save()
             # update the study object to have a device settings object (possibly unnecessary?).
             super().save(*args, **kwargs)
+
+
 
     @classmethod
     def create_with_object_id(cls, **kwargs):

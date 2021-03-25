@@ -74,8 +74,6 @@ class ForestTracker(TimestampedModel):
     process_start_time = models.DateTimeField(null=True, blank=True)
     process_download_end_time = models.DateField(null=True, blank=True)
     process_end_time = models.DateTimeField(null=True, blank=True)
-    # celery_task_id?
-    # time limit?
 
     class Status:
         QUEUED = 'Queued'

@@ -226,7 +226,6 @@ def daterange(start, stop, step=datetime.timedelta(days=1), inclusive=False):
         yield start
 
 
-
 @admin_pages.route('/study_analysis_progress/<string:study_id>', methods=['GET'])
 @authenticate_researcher_study_access
 def study_analysis_progress(study_id=None):
@@ -275,8 +274,6 @@ def study_analysis_progress(study_id=None):
         if len(set([m for k, m in metadata.items() if m is not None and k[1] == tree])) > 1:
             metadata_conflict = True
             break
-
-
 
     return render_template(
         'study_analysis_progress.html',

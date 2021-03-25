@@ -1,3 +1,5 @@
+import json
+import os
 import traceback
 from datetime import datetime, timedelta
 
@@ -5,7 +7,8 @@ from cronutils.error_handler import NullErrorHandler
 from django.db import DatabaseError, transaction
 from django.db.models import Sum
 from django.utils import timezone
-from forest.jasmine import
+from forest.jasmine.traj2stats import gps_stats_main as jasmine_main
+from forest.willow.log_stats import log_stats_main as willow_main
 from kombu.exceptions import OperationalError
 
 from config.constants import FOREST_QUEUE
@@ -42,7 +45,6 @@ def celery_run_forest(forest_tracker_id):
     with transaction.atomic():
         tracker = ForestTracker.objects.filter(id=forest_tracker_id).first()
 
-        # try to finder earlier tracker something like?
         participant = tracker.participant
         forest_tree = tracker.forest_tree
         trackers = ForestTracker.objects.select_for_update().filter(participant=participant, forest_tree=forest_tree)
@@ -51,7 +53,7 @@ def celery_run_forest(forest_tracker_id):
         if tracker is None:
             return
         if trackers.filter(status=ForestTracker.Status.RUNNING).exists():
-            # requeue
+            enque_forest_task(**tracker)
             return
         tracker.status = ForestTracker.Status.RUNNING
         tracker.process_start_time = timezone.now()
@@ -62,9 +64,33 @@ def celery_run_forest(forest_tracker_id):
     tracker.file_size = data.aggregate(Sum('file_size')).get('file_size__sum')
     print(f"running task from celery on tracker {tracker.id}")
     try:
-        # actually run forest here
+        io_folder = os.path.join(os.getcwd(), str(tracker.external_id))
+        input_data_folder = os.path.join(io_folder, "data")
+        output_data_folder = os.path.join(io_folder, "output")
+        os.mkdir(io_folder)
+        os.mkdir(input_data_folder)
+        os.mkdir(output_data_folder)
+        for data_file in data:
+            file_name = os.path.join(input_data_folder, data_file.chunk_hash + ".txt")
+            contents = data_file.s3_retrieve()
+            with open(file_name, "x") as f:
+                f.write(contents)
+        params = {
+            'study_folder': input_data_folder,
+            'output_folder': output_data_folder,
+            "time_start": tracker.data_date_start,
+            "time_end": tracker.data_date_end,
+        }
         forest_output = ''
-        construct_summary_statistics(tracker.participant.study, tracker.participant,
+        if tracker.forest_tree == "willow":
+            # the following merges the computed parameters with the ones from the metadata object,
+            # preferring the newly computed parameters
+            params = {**json.loads(tracker.metadata.willow_json_string), **params}
+            forest_output = willow_main(**params)
+        if tracker.forest_tree == "jasmine":
+            params = {**json.loads(tracker.metadata.jasmine_json_string), **params}
+            forest_output = jasmine_main(**params)
+        construct_summary_statistics(tracker, tracker.participant.study, tracker.participant,
                                      tracker.forest_tree, forest_output)
     except Exception:
         tracker.status = tracker.Status.ERROR

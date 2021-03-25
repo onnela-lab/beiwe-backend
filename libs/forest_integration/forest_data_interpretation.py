@@ -7,7 +7,7 @@ from database.user_models import Participant
 from libs.forest_integration.constants import TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS
 
 
-def construct_summary_statistics(study, participant, tree_name, csv_string):
+def construct_summary_statistics(tracker, study, participant, tree_name, csv_string):
     if not participant and participant.study:
         raise ValueError("no participant or study associated with Forest data")
     file = StringIO(csv_string)  # this imitates the file interface to allow reading as a CSV
@@ -15,9 +15,10 @@ def construct_summary_statistics(study, participant, tree_name, csv_string):
         reader = csv.DictReader(f)
         data = list(reader)
 
-    #TODO: ensure data is only in time range assossiated with forest tracker
     for line in data:
         summary_date = date(year=line['year'], month=line['month'], day=line['day'])
+        if not (tracker.data_date_start < summary_date < tracker.data_date_end):
+            continue
         updates = {}
         for column_name, value in line.items():
             if (tree_name, column_name) in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS:

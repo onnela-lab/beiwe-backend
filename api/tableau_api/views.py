@@ -73,6 +73,7 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         """
         if order_direction == "descending":
             order_by = "-" + order_by
+        # TODO: change to be based participant studies
         queryset = SummaryStatisticDaily.objects.filter(study__object_id=study_id)
         if participant_ids:
             queryset = queryset.filter(participant__patient_id__in=participant_ids)
