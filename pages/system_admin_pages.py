@@ -20,7 +20,7 @@ from database.system_models import FileAsText
 from database.tableau_api_models import ForestTracker
 from database.user_models import Participant, Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
-from libs.forest_integration.constants import FOREST_VERSION, TREE_METADATA, TREES
+from libs.forest_integration.constants import FOREST_VERSION, TREES
 from libs.http_utils import checkbox_to_boolean, string_to_int
 from libs.push_notification_config import (get_firebase_credential_errors,
     update_firebase_instance)
@@ -442,8 +442,8 @@ def create_forest_tasks(study_id=None):
                 status=ForestTracker.Status.QUEUED,
                 forest_version=FOREST_VERSION,
                 commit_hash=" ",
-                metadata=TREE_METADATA[tree],
-                metadata_hash=hash(TREE_METADATA[tree]),
+                metadata=study.forest_metadata,
+                metadata_hash=hash(study.forest_metadata),  # hash of the db pointer
                 file_size=0,
             ).save()
             # TODO: add missing params or update model defaults

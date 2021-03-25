@@ -3,11 +3,6 @@ TREES = [
     'willow',
 ]
 
-TREE_METADATA = {
-    'gps' : "gps data",
-    'Acceleration' : "acceleraton data",
-}
-
 FOREST_VERSION = "0.1"
 
 
