@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import traceback
 from datetime import datetime, timedelta
 
@@ -64,22 +65,12 @@ def celery_run_forest(forest_tracker_id):
     tracker.file_size = data.aggregate(Sum('file_size')).get('file_size__sum')
     print(f"running task from celery on tracker {tracker.id}")
     try:
-        io_folder = os.path.join(os.getcwd(), str(tracker.external_id))
-        input_data_folder = os.path.join(io_folder, "data")
-        output_data_folder = os.path.join(io_folder, "output")
-        os.mkdir(io_folder)
-        os.mkdir(input_data_folder)
-        os.mkdir(output_data_folder)
-        for data_file in data:
-            file_name = os.path.join(input_data_folder, data_file.chunk_hash + ".txt")
-            contents = data_file.s3_retrieve()
-            with open(file_name, "x") as f:
-                f.write(contents)
+        io_folder, input_data_folder, output_data_folder = create_local_data_files(tracker, data)
         params = {
             'study_folder': input_data_folder,
             'output_folder': output_data_folder,
-            "time_start": tracker.data_date_start,
-            "time_end": tracker.data_date_end,
+            'time_start': tracker.data_date_start,
+            'time_end': tracker.data_date_end,
         }
         forest_output = ''
         if tracker.forest_tree == "willow":
@@ -92,6 +83,7 @@ def celery_run_forest(forest_tracker_id):
             forest_output = jasmine_main(**params)
         construct_summary_statistics(tracker, tracker.participant.study, tracker.participant,
                                      tracker.forest_tree, forest_output)
+        clean_local_data_files(io_folder)
     except Exception:
         tracker.status = tracker.Status.ERROR
         tracker.stacktrace = traceback.format_exc()
@@ -102,6 +94,25 @@ def celery_run_forest(forest_tracker_id):
     tracker.status = tracker.Status.SUCCESS
     tracker.process_end_time = timezone.now()
     tracker.save()
+
+
+def create_local_data_files(tracker, data):
+    io_folder = os.path.join(os.getcwd(), str(tracker.external_id))
+    input_data_folder = os.path.join(io_folder, "data")
+    output_data_folder = os.path.join(io_folder, "output")
+    os.mkdir(io_folder)
+    os.mkdir(input_data_folder)
+    os.mkdir(output_data_folder)
+    for data_file in data:
+        file_name = os.path.join(input_data_folder, data_file.chunk_hash + ".txt")
+        contents = data_file.s3_retrieve()
+        with open(file_name, "x") as f:
+            f.write(contents)
+    return io_folder, input_data_folder, output_data_folder
+
+
+def clean_local_data_files(io_folder):
+    shutil.rmtree(io_folder)  # this is equivalent to rm -r, double check any changes made here
 
 
 def enque_forest_task(*args, **kwargs):
