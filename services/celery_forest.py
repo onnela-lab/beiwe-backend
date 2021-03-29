@@ -8,8 +8,8 @@ from cronutils.error_handler import NullErrorHandler
 from django.db import DatabaseError, transaction
 from django.db.models import Sum
 from django.utils import timezone
-from forest.jasmine.traj2stats import gps_stats_main as jasmine_main
-from forest.willow.log_stats import log_stats_main as willow_main
+from temp_forest_repo.forest.forest.jasmine.traj2stats import gps_stats_main as jasmine_main
+from temp_forest_repo.forest.forest.willow.log_stats import log_stats_main as willow_main
 from kombu.exceptions import OperationalError
 
 from config.constants import FOREST_QUEUE
