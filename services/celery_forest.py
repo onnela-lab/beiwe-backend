@@ -104,10 +104,10 @@ def create_local_data_files(tracker, data):
     os.mkdir(input_data_folder)
     os.mkdir(output_data_folder)
     for data_file in data:
-        file_name = os.path.join(input_data_folder, data_file.chunk_hash + ".txt")
+        file_name = os.path.join(input_data_folder, "".join(filter(lambda c: c != "/", data_file.chunk_hash)) + ".txt")
         contents = data_file.s3_retrieve()
         with open(file_name, "x") as f:
-            f.write(contents)
+            f.write(contents.decode("utf-8"))
     return io_folder, input_data_folder, output_data_folder
 
 
