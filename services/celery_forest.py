@@ -19,6 +19,9 @@ from libs.celery_control import forest_celery_app
 from libs.forest_integration.forest_data_interpretation import construct_summary_statistics
 
 
+DATA_FOLDER = os.path.join(os.getcwd(), "forest_data_files")
+
+
 # run via cron every five minutes
 def create_forest_celery_tasks():
     pending = ForestTracker.objects.filter(status=ForestTracker.Status.QUEUED)
@@ -59,13 +62,13 @@ def celery_run_forest(forest_tracker_id):
         tracker.status = ForestTracker.Status.RUNNING
         tracker.process_start_time = timezone.now()
         tracker.save(update_fields=["status", "process_start_time"])
-        # add a chunk registry filter for data type
 
     data = ChunkRegistry.objects.filter(participant=participant)
     tracker.file_size = data.aggregate(Sum('file_size')).get('file_size__sum')
-    print(f"running task from celery on tracker {tracker.id}")
+    print(f"collecting data. running task from celery on tracker {tracker.id}")
     try:
         io_folder, input_data_folder, output_data_folder = create_local_data_files(tracker, data)
+        tracker.process_download_end_time = timezone.now()
         params = {
             'study_folder': input_data_folder,
             'output_folder': output_data_folder,
@@ -85,6 +88,7 @@ def celery_run_forest(forest_tracker_id):
                                      tracker.forest_tree, forest_output)
         clean_local_data_files(io_folder)
     except Exception:
+        clean_local_data_files(os.path.join(DATA_FOLDER, str(tracker.external_id)))
         tracker.status = tracker.Status.ERROR
         tracker.stacktrace = traceback.format_exc()
         tracker.process_end_time = timezone.now()
@@ -97,7 +101,7 @@ def celery_run_forest(forest_tracker_id):
 
 
 def create_local_data_files(tracker, data):
-    io_folder = os.path.join(os.getcwd(), str(tracker.external_id))
+    io_folder = os.path.join(DATA_FOLDER, str(tracker.external_id))
     input_data_folder = os.path.join(io_folder, "data")
     output_data_folder = os.path.join(io_folder, "output")
     os.mkdir(io_folder)

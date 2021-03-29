@@ -4,11 +4,11 @@ import json
 import uuid
 
 import django.db.models.deletion
-from django.db import migrations, migrations, models, models
+from django.db import migrations, models
 
 jasmine_defaults = {
     "option": "daily",
-    "tz_string": "America/New_York",
+    "tz_str": "America/New_York",
     "save_traj": "",  # intentionally left as a falsy value
     # "study_folder": "",
     # "output_folder": "",
@@ -18,7 +18,7 @@ jasmine_defaults = {
 
 willow_defaults = {
     "option": "daily",
-    "tz_string": "America/New_York",
+    "tz_str": "America/New_York",
     # "study_folder": "",
     # "output_folder": "",
 }
