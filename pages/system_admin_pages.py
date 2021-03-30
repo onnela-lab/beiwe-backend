@@ -5,10 +5,8 @@ from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from flask import (abort, Blueprint, escape, flash, Markup, redirect, render_template, request,
-    url_for)
+from flask import (abort, Blueprint, escape, flash, Markup, redirect, render_template, request)
 
-from api.data_access_api import str_to_datetime
 from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
     authenticate_admin, authenticate_researcher_study_access, get_researcher_allowed_studies,
     get_session_researcher, researcher_is_an_admin)
@@ -434,19 +432,17 @@ def create_forest_tasks(study_id=None):
     for participant_id in request.form.getlist("user_ids"):
         for tree in request.form.getlist("trees"):
             participant = Participant.objects.get(patient_id=participant_id)
-            t = ForestTracker(
+            ForestTracker(
                 participant=participant,
                 forest_tree=tree,
                 data_date_start=start_date,
                 data_date_end=end_date,
                 status=ForestTracker.Status.QUEUED,
-                forest_version=FOREST_VERSION,
-                commit_hash=" ",
                 metadata=study.forest_metadata,
-                file_size=0,
             ).save()
             # TODO: add missing params or update model defaults
-
+    flash("Forest tasks successfully queued!", "success")
+    
     return redirect('/create_forest_tasks/{:d}'.format(study.id))
 
 ########################## FIREBASE CREDENTIALS ENDPOINTS ##################################

@@ -7,9 +7,7 @@ from database.user_models import Participant
 from libs.forest_integration.constants import TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS
 
 
-def construct_summary_statistics(tracker, study, participant, tree_name, csv_string):
-    if not participant and participant.study:
-        raise ValueError("no participant or study associated with Forest data")
+def construct_summary_statistics(tracker, csv_string):
     file = StringIO(csv_string)  # this imitates the file interface to allow reading as a CSV
     with open(file, 'rb') as f:
         reader = csv.DictReader(f)
@@ -21,7 +19,7 @@ def construct_summary_statistics(tracker, study, participant, tree_name, csv_str
             continue
         updates = {}
         for column_name, value in line.items():
-            if (tree_name, column_name) in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS:
+            if (tracker.forest_tree, column_name) in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS:
                 summary_stat_field, interp_function = TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS[(tree_name, column_name)]
                 if interp_function is not None:
                     updates[summary_stat_field] = interp_function(value, line)
@@ -34,8 +32,7 @@ def construct_summary_statistics(tracker, study, participant, tree_name, csv_str
                   'Check if you are using an outdated version of Forest')
 
         obj, created = SummaryStatisticDaily.objects.update_or_create(
-            study=study,
-            participant=participant,
+            participant=tracker.participant,
             date=summary_date,
             defaults=updates
         )

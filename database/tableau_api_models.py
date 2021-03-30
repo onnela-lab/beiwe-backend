@@ -1,5 +1,7 @@
 import json
+import os
 import uuid
+from pathlib import Path
 
 from django.db import models
 from database.common_models import TimestampedModel
@@ -70,7 +72,7 @@ class ForestTracker(TimestampedModel):
     data_date_start = models.DateField()  # inclusive
     data_date_end = models.DateField()  # inclusive
 
-    file_size = models.IntegerField()  # input file size sum for accounting
+    total_file_size = models.IntegerField(blank=True, null=True)  # input file size sum for accounting
     process_start_time = models.DateTimeField(null=True, blank=True)
     process_download_end_time = models.DateField(null=True, blank=True)
     process_end_time = models.DateTimeField(null=True, blank=True)
@@ -91,8 +93,31 @@ class ForestTracker(TimestampedModel):
     )
     status = models.TextField(choices=STATUS_CHOICES)
     stacktrace = models.TextField(null=True, blank=True, default=None)  # for logs
-    forest_version = models.CharField(max_length=10)
-    commit_hash = models.CharField(max_length=40)
+    forest_version = models.CharField(blank=True, max_length=10)
+
+    def get_data_base_folder(self):
+        """
+        Return the path to the base data folder, creating it if it doesn't already exist.
+        """
+        path = os.path.join("/tmp", str(self.external_id))
+        Path(path).mkdir(parents=True, exist_ok=True)
+        return path
+    
+    def get_data_input_folder(self):
+        """
+        Return the path to the input data folder, creating it if it doesn't already exist.
+        """
+        path = os.path.join(self.get_data_base_folder(), "data")
+        Path(path).mkdir(parents=True, exist_ok=True)
+        return path
+    
+    def get_data_output_folder(self):
+        """
+        Return the path to the output data folder, creating it if it doesn't already exist.
+        """
+        path = os.path.join(self.get_data_base_folder(), "output")
+        Path(path).mkdir(parents=True, exist_ok=True)
+        return path
 
 
 class ForestMetadata(TimestampedModel):

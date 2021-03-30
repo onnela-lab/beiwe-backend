@@ -21,6 +21,7 @@ from libs.forest_integration.constants import TREES
 from libs.push_notification_config import check_firebase_instance
 from libs.security import check_password_requirements
 from libs.serilalizers import ApiKeySerializer
+from libs.utils.date_utils import daterange
 
 admin_pages = Blueprint('admin_pages', __name__)
 
@@ -194,36 +195,24 @@ def forest_status(study_id=None):
     if not get_session_researcher().site_admin:
         return abort(403)
 
-    try:
-        forest_task_id = request.values.get("task_id")
-        if forest_task_id is None:
-            return abort(404)
-        forest_tracker = ForestTracker.objects.get(external_id=forest_task_id)
-    except Exception:
+    forest_task_id = request.values.get("task_id")
+    if forest_task_id is None:
         return abort(404)
+    number_updated = (
+        ForestTracker
+            .objects
+            .filter(external_id=forest_task_id, status=ForestTracker.Status.QUEUED)
+            .update(
+                status=ForestTracker.Status.CANCELLED,
+                stacktrace=f'Canceled by {get_session_researcher().username} on {datetime.date.today()}',
+            )
+    )
+    if number_updated > 0:
+        flash("Forest task successfully cancelled.", "success")
+    else:
+        flash("Sorry, we were unable to find or cancel this Forest task.", "warning")
 
-    forest_tracker.status = ForestTracker.Status.CANCELLED
-    forest_tracker.stacktrace = f'canceled by {get_session_researcher().username} on {datetime.date.today()}'
-    forest_tracker.save()
-
-    return redirect('/forest_status/{:d}'.format(forest_tracker.participant.study.id))
-
-
-# source: https://stackoverflow.com/questions/1060279/iterating-through-a-range-of-dates-in-python
-def daterange(start, stop, step=datetime.timedelta(days=1), inclusive=False):
-    if step.days > 0:
-        while start < stop:
-            yield start
-            start = start + step
-            # not +=! don't modify object passed in if it's mutable
-            # since this function is not restricted to
-            # only types from datetime module
-    elif step.days < 0:
-        while start > stop:
-            yield start
-            start = start + step
-    if inclusive and start == stop:
-        yield start
+    return redirect(f'/forest_status/{study_id}')
 
 
 @admin_pages.route('/study_analysis_progress/<string:study_id>', methods=['GET'])
@@ -247,7 +236,7 @@ def study_analysis_progress(study_id=None):
     # this code simultaneously builds up the chart of most recent forest results for date ranges
     # by participant and tree, and tracks the metadata
     metadata = dict()
-    results = defaultdict(lambda: "None")
+    results = defaultdict(lambda: "--")
     for tracker in trackers:
         for date in daterange(tracker.data_date_start, tracker.data_date_end, inclusive=True):
             results[(tracker.participant, tracker.forest_tree, date)] = tracker.status
