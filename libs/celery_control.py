@@ -119,8 +119,9 @@ def get_processing_reserved_job_ids() -> List[int] or None:
 def get_processing_active_job_ids() -> List[int] or None:
     return _get_job_ids(inspect().active(), "processing")
 
-# Both (not 100% sure this return structure is correct.)
-def get_revoked_job_ids() -> List[List, List]:
+
+def get_revoked_job_ids():
+    """ Returns a list of a tuple of two lists of usually ints. """
     return list(inspect().revoked().values())
 
 
