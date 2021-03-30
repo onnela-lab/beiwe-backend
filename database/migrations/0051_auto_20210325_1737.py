@@ -55,7 +55,7 @@ def seed_study_forest_metadata(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('database', '0049_auto_20210223_2005'),
+        ('database', '0050_participant_unregistered'),
     ]
 
     operations = [
