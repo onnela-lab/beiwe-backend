@@ -443,7 +443,7 @@ def create_forest_tasks(study_id=None):
             # TODO: add missing params or update model defaults
     flash("Forest tasks successfully queued!", "success")
     
-    return redirect('/create_forest_tasks/{:d}'.format(study.id))
+    return redirect(f"/forest_status/{study_id}")
 
 ########################## FIREBASE CREDENTIALS ENDPOINTS ##################################
 # note: all of the strings passed in the following function (eg: ALERT_DECODE_ERROR_TEXT) are plain strings
