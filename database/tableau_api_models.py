@@ -94,30 +94,27 @@ class ForestTracker(TimestampedModel):
     status = models.TextField(choices=STATUS_CHOICES)
     stacktrace = models.TextField(null=True, blank=True, default=None)  # for logs
     forest_version = models.CharField(blank=True, max_length=10)
-
-    def get_data_base_folder(self):
+    
+    @property
+    def data_base_folder(self):
         """
         Return the path to the base data folder, creating it if it doesn't already exist.
         """
-        path = os.path.join("/tmp", str(self.external_id))
-        Path(path).mkdir(parents=True, exist_ok=True)
-        return path
+        return os.path.join("/tmp", str(self.external_id))
     
-    def get_data_input_folder(self):
+    @property
+    def data_input_folder(self):
         """
         Return the path to the input data folder, creating it if it doesn't already exist.
         """
-        path = os.path.join(self.get_data_base_folder(), "data")
-        Path(path).mkdir(parents=True, exist_ok=True)
-        return path
+        return os.path.join(self.data_base_folder, "data")
     
-    def get_data_output_folder(self):
+    @property
+    def data_output_folder(self):
         """
         Return the path to the output data folder, creating it if it doesn't already exist.
         """
-        path = os.path.join(self.get_data_base_folder(), "output")
-        Path(path).mkdir(parents=True, exist_ok=True)
-        return path
+        return os.path.join(self.data_base_folder, "output")
 
 
 class ForestMetadata(TimestampedModel):

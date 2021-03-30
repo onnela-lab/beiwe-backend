@@ -71,8 +71,8 @@ def celery_run_forest(forest_tracker_id):
         create_local_data_files(tracker, chunks)
         tracker.process_download_end_time = timezone.now()
         params = {
-            'study_folder': tracker.get_data_input_folder(),
-            'output_folder': tracker.get_data_output_folder(),
+            'study_folder': tracker.data_input_folder,
+            'output_folder': tracker.data_output_folder,
             'time_start': tracker.data_date_start,
             'time_end': tracker.data_date_end,
         }
@@ -94,16 +94,17 @@ def celery_run_forest(forest_tracker_id):
     tracker.process_end_time = timezone.now()
     tracker.save()
     # Todo (Alvin): put this back in after testing
-    # clean_local_data_files(tracker.get_data_base_folder())
+    # clean_local_data_files(tracker.data_base_folder)
 
 
 def create_local_data_files(tracker, chunks):
     for chunk in chunks.values("study__object_id", *chunk_fields):
         contents = s3_retrieve(chunk["chunk_path"], chunk["study__object_id"], raw_path=True)
         file_name = os.path.join(
-            tracker.get_data_input_folder(),
+            tracker.data_input_folder,
             determine_file_name(chunk),
         )
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
         with open(file_name, "x") as f:
             f.write(contents.decode("utf-8"))
 
