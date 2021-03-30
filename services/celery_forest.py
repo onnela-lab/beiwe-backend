@@ -12,6 +12,7 @@ from forest.jasmine.traj2stats import gps_stats_main as jasmine_main
 from forest.willow.log_stats import log_stats_main as willow_main
 from pkg_resources import get_distribution
 
+from api.data_access_api import chunk_fields
 from config.constants import FOREST_QUEUE
 from database.data_access_models import ChunkRegistry
 from database.tableau_api_models import ForestTracker
@@ -20,6 +21,10 @@ from libs.forest_integration.forest_data_interpretation import construct_summary
 
 
 # run via cron every five minutes
+from libs.s3 import s3_retrieve
+from libs.streaming_zip import determine_file_name
+
+
 def create_forest_celery_tasks():
     pending_trackers = ForestTracker.objects.filter(status=ForestTracker.Status.QUEUED)
 
@@ -59,11 +64,11 @@ def celery_run_forest(forest_tracker_id):
         tracker.process_start_time = timezone.now()
         tracker.save(update_fields=["status", "forest_version", "process_start_time"])
 
-    data = ChunkRegistry.objects.filter(participant=participant)
-    tracker.total_file_size = data.aggregate(Sum('file_size')).get('file_size__sum')
+    chunks = ChunkRegistry.objects.filter(participant=participant)
+    tracker.total_file_size = chunks.aggregate(Sum('file_size')).get('file_size__sum')
     print(f"collecting data. running task from celery on tracker {tracker.id}")
     try:
-        create_local_data_files(tracker, data)
+        create_local_data_files(tracker, chunks)
         tracker.process_download_end_time = timezone.now()
         params = {
             'study_folder': tracker.get_data_input_folder(),
@@ -92,13 +97,13 @@ def celery_run_forest(forest_tracker_id):
     # clean_local_data_files(tracker.get_data_base_folder())
 
 
-def create_local_data_files(tracker, data):
-    for data_file in data:
+def create_local_data_files(tracker, chunks):
+    for chunk in chunks.values("study__object_id", *chunk_fields):
+        contents = s3_retrieve(chunk["chunk_path"], chunk["study__object_id"], raw_path=True)
         file_name = os.path.join(
             tracker.get_data_input_folder(),
-            "".join(filter(lambda c: c != "/", data_file.chunk_hash)) + ".txt",
+            determine_file_name(chunk),
         )
-        contents = data_file.s3_retrieve()
         with open(file_name, "x") as f:
             f.write(contents.decode("utf-8"))
 
