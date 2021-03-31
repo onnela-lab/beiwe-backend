@@ -4,16 +4,33 @@
 
 {% block head %}
     {{ super() }}
-    <script>filterableObjects = {{ forest_log | tojson }}</script>
+    <script>window.filterableObjects = {{ forest_log | tojson }}</script>
     <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
+    <script>
+      (function () {
+        angular
+          .module('surveyBuilder')
+          .controller('ForestLogController', ['$controller', '$scope', function($controller, $scope) {
+            $controller('FilterableListController', {$scope: $scope});
+            $scope.errorModalText = ''
+            $scope.showErrorModal = showErrorModal
+
+            function showErrorModal(index) {
+              $scope.errorModalText = window.filterableObjects[index].stacktrace
+              $('#error-modal').modal('show')
+            }
+          }])
+      })()
+    </script>
 {% endblock %}
 
 {% block content %}
 
-<div id="filterableList" ng-controller="FilterableListController">
+<div ng-controller="ForestLogController">
     <div class="form-group col-sm-4">
       <input type="search" class="form-control" placeholder="Filter" ng-model="filterText" autofocus>
     </div>
+
     <div class="table-responsive">
       <table class="table">
         <thead>
@@ -32,7 +49,6 @@
 
         <tbody>
           <tr ng-repeat="log in filterableObjects" ng-if="(log.participant + log.forest_tree + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())">
-
             <td>{% raw %}{{ log.created_on }}{% endraw %}</td>
             <td>{% raw %}{{ log.participant }}{% endraw %}</td>
             <td>{% raw %}{{ log.forest_tree }}{% endraw %}</td>
@@ -49,15 +65,39 @@
               <td>
                 <form ng-if="log.status == '{{ status_choices.QUEUED }}'" action="{{ url_for('admin_pages.forest_status', study_id=study.id)}}" method="post">
                   <input type="hidden" class="form-control" name="task_id" value="{% raw %}{{ log.external_id }}{% endraw %}"/>
-                  <button type="submit" class="btn active btn-primary" onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')">Cancel Task</button>
+                  <button class="btn btn-link"
+                          onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')"
+                          style="padding: 0;" type="submit">
+                    Cancel Task
+                  </button>
                 </form>
-                <button class="btn-link" ng-if="log.status == '{{ status_choices.ERROR }}'" ng-click="alert(log.stacktrace)">View error</button>
+                <button class="btn-link" ng-click="showErrorModal($index)"
+                        ng-if="log.status == '{{ status_choices.ERROR }}'" style="padding: 0;">
+                  View error
+                </button>
               </td>
             {% endif %}
           </tr>
-        <tbody/>
+        </tbody>
       </table>
     </div>
+    <div class="modal fade" id="error-modal" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Forest task error stacktrace</h4>
+          </div>
+          <div class="modal-body">
+            <p style="white-space: pre;">{% raw %}{{ errorModalText }}{% endraw %}</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
   </div>
+
 
 {% endblock %}
