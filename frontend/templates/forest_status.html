@@ -88,7 +88,7 @@
             <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             <h4 class="modal-title">Forest task error stacktrace</h4>
           </div>
-          <div class="modal-body" style="font-family: Consolas, monospace;">
+          <div class="modal-body" style="font-family: Consolas, monospace; overflow-x: scroll;">
             <p style="white-space: pre-wrap;">{% raw %}{{ errorModalText }}{% endraw %}</p>
           </div>
           <div class="modal-footer">
@@ -98,6 +98,4 @@
       </div><!-- /.modal-dialog -->
     </div><!-- /.modal -->
   </div>
-
-
 {% endblock %}

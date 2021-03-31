@@ -1,15 +1,14 @@
 import csv
+import os
 from datetime import date
-from io import StringIO
 
 from database.tableau_api_models import SummaryStatisticDaily
-from database.user_models import Participant
-from libs.forest_integration.constants import TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS
+from libs.forest_integration.constants import TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS, ForestTree
 
 
-def construct_summary_statistics(tracker, csv_string):
-    file = StringIO(csv_string)  # this imitates the file interface to allow reading as a CSV
-    with open(file, 'rb') as f:
+def construct_summary_statistics(tracker):
+    forest_output_file_path = os.path.join(tracker.data_output_path, f"{tracker.participant.patient_id}.csv")
+    with open(forest_output_file_path, 'rb') as f:
         reader = csv.DictReader(f)
         data = list(reader)
 
@@ -31,7 +30,7 @@ def construct_summary_statistics(tracker, csv_string):
             print('some fields not found in forest data output, possible missing data. '
                   'Check if you are using an outdated version of Forest')
 
-        obj, created = SummaryStatisticDaily.objects.update_or_create(
+        SummaryStatisticDaily.objects.update_or_create(
             participant=tracker.participant,
             date=summary_date,
             defaults=updates

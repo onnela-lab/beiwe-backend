@@ -17,7 +17,7 @@ from database.security_models import ApiKey
 from database.study_models import Study
 from database.tableau_api_models import ForestTracker
 from database.user_models import Participant, Researcher
-from libs.forest_integration.constants import TREES
+from libs.forest_integration.constants import ForestTree
 from libs.push_notification_config import check_firebase_instance
 from libs.security import check_password_requirements
 from libs.serilalizers import ApiKeySerializer
@@ -252,7 +252,7 @@ def study_analysis_progress(study_id=None):
     chart = []
 
     for participant in participants:
-        for tree in TREES:
+        for tree in ForestTree.values():
             row = [participant.id, tree] + [results[(participant, tree, date)] for date in dates]
             chart.append(row)
 

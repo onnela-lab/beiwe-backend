@@ -1,12 +1,11 @@
 import json
 import os
 import uuid
-from pathlib import Path
 
 from django.db import models
 from database.common_models import TimestampedModel
 from database.user_models import Participant
-from libs.forest_integration.constants import TREES
+from libs.forest_integration.constants import ForestTree
 
 
 class SummaryStatisticDaily(TimestampedModel):
@@ -68,7 +67,7 @@ class ForestTracker(TimestampedModel):
     
     metadata = models.ForeignKey("ForestMetadata", on_delete=models.PROTECT)
 
-    forest_tree = models.TextField(choices=[(tree, tree) for tree in TREES])
+    forest_tree = models.TextField(choices=ForestTree.choices())
     data_date_start = models.DateField()  # inclusive
     data_date_end = models.DateField()  # inclusive
 
@@ -96,25 +95,25 @@ class ForestTracker(TimestampedModel):
     forest_version = models.CharField(blank=True, max_length=10)
     
     @property
-    def data_base_folder(self):
+    def data_base_path(self):
         """
         Return the path to the base data folder, creating it if it doesn't already exist.
         """
-        return os.path.join("/tmp", str(self.external_id))
+        return os.path.join("/tmp", str(self.external_id), self.forest_tree)
     
     @property
-    def data_input_folder(self):
+    def data_input_path(self):
         """
         Return the path to the input data folder, creating it if it doesn't already exist.
         """
-        return os.path.join(self.data_base_folder, "data")
+        return os.path.join(self.data_base_path, "data")
     
     @property
-    def data_output_folder(self):
+    def data_output_path(self):
         """
         Return the path to the output data folder, creating it if it doesn't already exist.
         """
-        return os.path.join(self.data_base_folder, "output")
+        return os.path.join(self.data_base_path, "output")
 
 
 class ForestMetadata(TimestampedModel):

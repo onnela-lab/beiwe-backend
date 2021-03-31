@@ -17,6 +17,7 @@ from config.constants import FOREST_QUEUE
 from database.data_access_models import ChunkRegistry
 from database.tableau_api_models import ForestTracker
 from libs.celery_control import forest_celery_app, safe_apply_async
+from libs.forest_integration.constants import ForestTree
 from libs.forest_integration.forest_data_interpretation import construct_summary_statistics
 
 
@@ -71,21 +72,20 @@ def celery_run_forest(forest_tracker_id):
         create_local_data_files(tracker, chunks)
         tracker.process_download_end_time = timezone.now()
         params = {
-            'study_folder': tracker.data_input_folder,
-            'output_folder': tracker.data_output_folder,
+            'study_folder': tracker.data_input_path,
+            'output_folder': tracker.data_output_path,
             'time_start': tracker.data_date_start,
             'time_end': tracker.data_date_end,
         }
-        forest_output = ''
-        if tracker.forest_tree == "willow":
+        if tracker.forest_tree == ForestTree.willow:
             # the following merges the computed parameters with the ones from the metadata object,
             # preferring the newly computed parameters
             params = {**json.loads(tracker.metadata.willow_json_string), **params}
-            forest_output = willow_main(**params)
-        if tracker.forest_tree == "jasmine":
+            willow_main(**params)
+        elif tracker.forest_tree == ForestTree.jasmine:
             params = {**json.loads(tracker.metadata.jasmine_json_string), **params}
-            forest_output = jasmine_main(**params)
-        construct_summary_statistics(tracker, forest_output)
+            jasmine_main(**params)
+        construct_summary_statistics(tracker)
     except Exception:
         tracker.status = tracker.Status.ERROR
         tracker.stacktrace = traceback.format_exc()
@@ -101,7 +101,7 @@ def create_local_data_files(tracker, chunks):
     for chunk in chunks.values("study__object_id", *chunk_fields):
         contents = s3_retrieve(chunk["chunk_path"], chunk["study__object_id"], raw_path=True)
         file_name = os.path.join(
-            tracker.data_input_folder,
+            tracker.data_input_path,
             determine_file_name(chunk),
         )
         os.makedirs(os.path.dirname(file_name), exist_ok=True)
