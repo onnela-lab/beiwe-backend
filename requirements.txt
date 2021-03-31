@@ -33,5 +33,3 @@ pytz
 # Ug due to pytz.timezone("America/New_York") being off by 4 minutes (aka ... wrong) we had to abandon
 # this library. but we can't remove it because it is used in migrations.
 django-timezone-field==4.1.1
-
-git+ssh://git@github.com/onnela-lab/forest@zagaran-output-pattern-changes

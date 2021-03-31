@@ -1,3 +1,5 @@
 # data processing
 celery==4.4.7
 
+# This is temporary until forest is open-sourced
+git+ssh://git@github.com/onnela-lab/forest@zagaran-output-pattern-changes
