@@ -82,14 +82,14 @@
       </table>
     </div>
     <div class="modal fade" id="error-modal" tabindex="-1" role="dialog">
-      <div class="modal-dialog" role="document">
+      <div class="modal-dialog" role="document" style="width: 60%;">
         <div class="modal-content">
           <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             <h4 class="modal-title">Forest task error stacktrace</h4>
           </div>
-          <div class="modal-body">
-            <p style="white-space: pre;">{% raw %}{{ errorModalText }}{% endraw %}</p>
+          <div class="modal-body" style="font-family: Consolas, monospace;">
+            <p style="white-space: pre-wrap;">{% raw %}{{ errorModalText }}{% endraw %}</p>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
