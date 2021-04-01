@@ -17,7 +17,7 @@ from config.settings import SENTRY_ELASTIC_BEANSTALK_DSN, SENTRY_JAVASCRIPT_DSN
 from libs.security import set_secret_key
 from libs.sentry import normalize_sentry_dsn
 from pages import (admin_pages, data_access_web_form, login_pages, mobile_pages, survey_designer,
-    system_admin_pages)
+                   system_admin_pages, forest_pages)
 
 # Flask App
 app = Flask(__name__, static_folder="frontend/static")
@@ -35,6 +35,7 @@ app.register_blueprint(mobile_api.mobile_api)
 app.register_blueprint(admin_pages.admin_pages)
 app.register_blueprint(mobile_pages.mobile_pages)
 app.register_blueprint(system_admin_pages.system_admin_pages)
+app.register_blueprint(forest_pages.forest_pages)
 app.register_blueprint(survey_designer.survey_designer)
 app.register_blueprint(admin_api.admin_api)
 app.register_blueprint(participant_administration.participant_administration)

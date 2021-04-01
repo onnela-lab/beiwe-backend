@@ -1,9 +1,5 @@
-
-import datetime
-from collections import defaultdict
-
-from flask import (abort, Blueprint, flash, Markup, redirect, render_template, request, session,
-    url_for)
+from flask import (Blueprint, flash, Markup, redirect, render_template, request, session,
+                   url_for)
 
 from authentication import admin_authentication
 from authentication.admin_authentication import (authenticate_researcher_login,
@@ -12,16 +8,12 @@ from authentication.admin_authentication import (authenticate_researcher_login,
     SESSION_NAME)
 from constants.admin_pages import (DisableApiKeyForm, NEW_API_KEY_MESSAGE, NewApiKeyForm,
     RESET_DOWNLOAD_API_CREDENTIALS_MESSAGE)
-from database.data_access_models import ChunkRegistry
 from database.security_models import ApiKey
 from database.study_models import Study
-from database.tableau_api_models import ForestTracker
-from database.user_models import Participant, Researcher
-from libs.forest_integration.constants import ForestTree
+from database.user_models import Researcher
 from libs.push_notification_config import check_firebase_instance
 from libs.security import check_password_requirements
 from libs.serilalizers import ApiKeySerializer
-from libs.utils.date_utils import daterange
 
 admin_pages = Blueprint('admin_pages', __name__)
 
@@ -178,100 +170,3 @@ def disable_api_key():
     return redirect("/manage_credentials")
 
 
-@admin_pages.route('/forest_status/<string:study_id>', methods=['GET', 'POST'])
-@authenticate_researcher_study_access
-def forest_status(study_id=None):
-    study = Study.objects.get(pk=study_id)
-    if request.method == 'GET':
-        return render_template(
-            'forest_status.html',
-            study=study,
-            is_site_admin=get_session_researcher().site_admin,
-            status_choices=ForestTracker.Status,
-            forest_log=list(ForestTracker.objects.all().order_by("-created_on").values("participant", "forest_tree", "data_date_start", "data_date_end", "stacktrace", "status", "external_id", "created_on"))
-        )
-
-    # post request is to cancel a forest task, requires site admin permissions
-    if not get_session_researcher().site_admin:
-        return abort(403)
-
-    forest_task_id = request.values.get("task_id")
-    if forest_task_id is None:
-        return abort(404)
-    number_updated = (
-        ForestTracker
-            .objects
-            .filter(external_id=forest_task_id, status=ForestTracker.Status.QUEUED)
-            .update(
-                status=ForestTracker.Status.CANCELLED,
-                stacktrace=f'Canceled by {get_session_researcher().username} on {datetime.date.today()}',
-            )
-    )
-    if number_updated > 0:
-        flash("Forest task successfully cancelled.", "success")
-    else:
-        flash("Sorry, we were unable to find or cancel this Forest task.", "warning")
-
-    return redirect(f'/forest_status/{study_id}')
-
-
-@admin_pages.route('/study_analysis_progress/<string:study_id>', methods=['GET'])
-@authenticate_researcher_study_access
-def study_analysis_progress(study_id=None):
-    study = Study.objects.get(pk=study_id)
-    participants = Participant.objects.filter(study=study_id)
-
-    # generate chart of study analysis progress logs
-    trackers = ForestTracker.objects.filter(participant__in=participants).order_by("created_on")
-
-    try:
-        start_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
-        end_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
-        start_date = start_date.time_bin.date()
-        end_date = end_date.time_bin.date()
-    except ChunkRegistry.DoesNotExist:
-        start_date = study.created_on.date()
-        end_date = datetime.date.today()
-
-    # this code simultaneously builds up the chart of most recent forest results for date ranges
-    # by participant and tree, and tracks the metadata
-    metadata = dict()
-    results = defaultdict(lambda: "--")
-    for tracker in trackers:
-        for date in daterange(tracker.data_date_start, tracker.data_date_end, inclusive=True):
-            results[(tracker.participant, tracker.forest_tree, date)] = tracker.status
-            if tracker.status == tracker.Status.SUCCESS:
-                metadata[(tracker.participant, tracker.forest_tree, date)] = tracker.metadata_id
-            else:
-                metadata[(tracker.participant, tracker.forest_tree, date)] = None
-
-    # generate the date range for charting
-    dates = list(daterange(start_date, end_date, inclusive=True))
-
-    chart_columns = ["participant", "tree"] + dates
-    chart = []
-
-    for participant in participants:
-        for tree in ForestTree.values():
-            row = [participant.id, tree] + [results[(participant, tree, date)] for date in dates]
-            chart.append(row)
-
-    metadata_conflict = False
-    # ensure that within each tree, only a single metadata value is used (only the most recent runs
-    # are considered, and unsuccessful runs are assumed to invalidate old runs, clearing metadata)
-    for tree in set([k[1] for k in metadata.keys()]):
-        if len(set([m for k, m in metadata.items() if m is not None and k[1] == tree])) > 1:
-            metadata_conflict = True
-            break
-
-    return render_template(
-        'study_analysis_progress.html',
-        study=study,
-        is_admin=researcher_is_an_admin(),
-        chart_columns=chart_columns,
-        status_choices=ForestTracker.Status,
-        metadata_conflict=metadata_conflict,
-        start_date=start_date,
-        end_date=end_date,
-        chart=chart  # this uses the jinja safe filter and should never involve user input
-    )

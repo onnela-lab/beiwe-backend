@@ -92,10 +92,28 @@
       {% if study.forest_enabled %}
         <div class="row">
           <h3>Forest</h3>
-        <p><a href="/forest_status/{{ study['id'] }}">View a log of recent forest runs on this study</a></p>
-        <p><a href="/study_analysis_progress/{{ study['id'] }}">View a summary of what data forest has generated for this study</a></p>
+        <p>
+          <b>View a log of recent forest runs on this study</b>
+          <br>
+          <a class="btn btn-info" href="{{ url_for('forest_pages.task_log', study_id=study.id) }}">
+            Forest Task Log
+          </a>
+        </p>
+        <p>
+          <b>View a summary of what data forest has generated for this study</b>
+          <br>
+          <a class="btn btn-info" href="{{ url_for('forest_pages.analysis_progress', study_id=study.id) }}">
+            Forest Analysis Progress
+          </a>
+        </p>
         {% if is_site_admin %}
-          <p><a href="/create_forest_tasks/{{ study['id'] }}">Create new forest tasks</a></p>
+          <p>
+            <b>Create new forest tasks</b>
+            <br>
+            <a class="btn btn-info" href="{{ url_for('forest_pages.create_tasks', study_id=study.id) }}">
+              Create Forest Tasks
+            </a>
+          </p>
         {% endif %}
 
         </div>

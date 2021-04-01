@@ -1,10 +1,8 @@
 import json
 import plistlib
 from collections import defaultdict
-from datetime import datetime
 
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 from flask import (abort, Blueprint, escape, flash, Markup, redirect, render_template, request)
 
 from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
@@ -12,13 +10,10 @@ from authentication.admin_authentication import (assert_admin, assert_researcher
     get_session_researcher, researcher_is_an_admin)
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     CHECKBOX_TOGGLES, IOS_FIREBASE_CREDENTIALS, ResearcherRole, TIMER_VALUES)
-from database.data_access_models import ChunkRegistry
 from database.study_models import Study
 from database.system_models import FileAsText
-from database.tableau_api_models import ForestTracker
-from database.user_models import Participant, Researcher, StudyRelation
+from database.user_models import Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
-from libs.forest_integration.constants import ForestTree
 from libs.http_utils import checkbox_to_boolean, string_to_int
 from libs.push_notification_config import (get_firebase_credential_errors,
     update_firebase_instance)
@@ -392,58 +387,6 @@ def device_settings(study_id=None):
     study.device_settings.update(**params)
     return redirect('/edit_study/{:d}'.format(study.id))
 
-
-@system_admin_pages.route('/create_forest_tasks/<string:study_id>', methods=['GET', 'POST'])
-@authenticate_admin
-def create_forest_tasks(study_id=None):
-    # Only a SITE admin can queue forest tasks
-    if not get_session_researcher().site_admin:
-        return abort(403)
-    try:
-        study = Study.objects.get(pk=study_id)
-    except Study.DoesNotExist:
-        return abort(404)
-
-    participants = Participant.objects.filter(study=study_id)
-    try:
-        start_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
-        end_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
-        start_date = start_date.time_bin.date()
-        end_date = end_date.time_bin.date()
-    except ChunkRegistry.DoesNotExist:
-        start_date = study.created_on.date()
-        end_date = timezone.now().date()
-
-    if request.method == 'GET':
-        return render_template(
-            "create_forest_tasks.html",
-            study=study.as_unpacked_native_python(),
-            participants=list(
-                study.participants.order_by("patient_id").values_list("patient_id", flat=True)
-            ),
-            trees=ForestTree.values(),
-            start_date=start_date.strftime('%Y-%m-%d'),
-            end_date=end_date.strftime('%Y-%m-%d')
-        )
-
-    start_date = datetime.strptime(request.form.get("date_start"), "%Y-%m-%d").date()
-    end_date = datetime.strptime(request.form.get("date_end"), "%Y-%m-%d").date()
-
-    for participant_id in request.form.getlist("user_ids"):
-        for tree in request.form.getlist("trees"):
-            participant = Participant.objects.get(patient_id=participant_id)
-            ForestTracker(
-                participant=participant,
-                forest_tree=tree,
-                data_date_start=start_date,
-                data_date_end=end_date,
-                status=ForestTracker.Status.QUEUED,
-                metadata=study.forest_metadata,
-            ).save()
-            # TODO: add missing params or update model defaults
-    flash("Forest tasks successfully queued!", "success")
-    
-    return redirect(f"/forest_status/{study_id}")
 
 ########################## FIREBASE CREDENTIALS ENDPOINTS ##################################
 # note: all of the strings passed in the following function (eg: ALERT_DECODE_ERROR_TEXT) are plain strings
