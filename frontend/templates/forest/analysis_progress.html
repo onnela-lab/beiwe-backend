@@ -3,6 +3,7 @@
 {% block head %}
   {{ super() }}
     <script src="https://cdn.rawgit.com/ashl1/datatables-rowsgroup/fbd569b8768155c7a9a62568e66a64115887d7d0/dataTables.rowsGroup.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap.min.js"></script>
     <script>
     chart = {{ chart|safe }}
     $(document).ready(function() {
@@ -12,19 +13,19 @@
           'createdRow': function(row, data, index) {
             for (let i = 2; i < data.length; i++) {
                 if (data[i] == '{{ status_choices.RUNNING }}') {
-                    $($('td', row).get(i)).css('background-color', 'Blue');
+                    $($('td', row).get(i)).addClass('bg-primary');
                 }
                 if (data[i] == '{{ status_choices.QUEUED }}') {
-                    $($('td', row).get(i)).css('background-color', 'Cyan');
+                    $($('td', row).get(i)).addClass('bg-info');
                 }
                 if (data[i] == '{{ status_choices.SUCCESS }}') {
-                    $($('td', row).get(i)).css('background-color', 'Green');
+                    $($('td', row).get(i)).addClass('bg-success');
                 }
                 if (data[i] == '{{ status_choices.ERROR }}') {
-                    $($('td', row).get(i)).css('background-color', 'Red');
+                    $($('td', row).get(i)).addClass('bg-danger');
                 }
                 if (data[i] == '{{ status_choices.CANCELLED }}') {
-                    $($('td', row).get(i)).css('background-color', 'Red');
+                    $($('td', row).get(i)).addClass('bg-warning');
                 }
             }
         },
@@ -43,8 +44,9 @@
 
 {% block content %}
   {% if metadata_conflict %}
-    <h4 >Warning: There are analyses on this study that were computed using different Forest parameters</h4>
-    <br>
+    <div class="alert alert-warning">
+      Warning: There are analyses on this study that were computed using different Forest parameters.
+    </div>
   {% endif %}
   <table id="analysis_chart" class="display" width="100%"></table>
 {%  endblock %}

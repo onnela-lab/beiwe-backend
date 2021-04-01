@@ -1,6 +1,7 @@
 import datetime
 from collections import defaultdict
 
+from django import forms
 from django.utils import timezone
 from flask import render_template, request, abort, flash, redirect, Blueprint, url_for
 
@@ -13,7 +14,7 @@ from database.tableau_api_models import ForestTracker
 from database.user_models import Participant
 from libs.forest_integration.constants import ForestTree
 from libs.utils.date_utils import daterange
-
+from libs.utils.form_utils import CommaSeparatedListCharField, CommaSeparatedListChoiceField
 
 forest_pages = Blueprint('forest_pages', __name__)
 
@@ -51,11 +52,11 @@ def analysis_progress(study_id=None):
     results = defaultdict(lambda: "--")
     for tracker in trackers:
         for date in daterange(tracker.data_date_start, tracker.data_date_end, inclusive=True):
-            results[(tracker.participant, tracker.forest_tree, date)] = tracker.status
+            results[(tracker.participant_id, tracker.forest_tree, date)] = tracker.status
             if tracker.status == tracker.Status.SUCCESS:
-                metadata[(tracker.participant, tracker.forest_tree, date)] = tracker.metadata_id
+                metadata[(tracker.participant_id, tracker.forest_tree, date)] = tracker.metadata_id
             else:
-                metadata[(tracker.participant, tracker.forest_tree, date)] = None
+                metadata[(tracker.participant_id, tracker.forest_tree, date)] = None
 
     # generate the date range for charting
     dates = list(daterange(start_date, end_date, inclusive=True))
@@ -65,7 +66,7 @@ def analysis_progress(study_id=None):
 
     for participant in participants:
         for tree in ForestTree.values():
-            row = [participant.id, tree] + [results[(participant, tree, date)] for date in dates]
+            row = [participant.id, tree] + [results[(participant.id, tree, date)] for date in dates]
             chart.append(row)
 
     metadata_conflict = False
@@ -88,19 +89,82 @@ def analysis_progress(study_id=None):
     )
 
 
+class CreateTasksForm(forms.Form):
+    date_start = forms.DateField()
+    date_end = forms.DateField()
+    participant_patient_ids = CommaSeparatedListCharField()
+    trees = CommaSeparatedListChoiceField(choices=ForestTree.choices())
+    
+    def __init__(self, *args, **kwargs):
+        self.study = kwargs.pop("study")
+        super().__init__(*args, **kwargs)
+    
+    def clean_participant_patient_ids(self):
+        """
+        Filter participants to those who are registered in this study and specified in this field
+        (instead of raising a ValidationError if an invalid or non-study patient id is specified).
+        """
+        patient_ids = self.cleaned_data["participant_patient_ids"]
+        participants = (
+            Participant
+                .objects
+                .filter(patient_id__in=patient_ids, study=self.study)
+                .values("id", "patient_id")
+        )
+        self.cleaned_data["participant_ids"] = [participant["id"] for participant in participants]
+        
+        return [participant["patient_id"] for participant in participants]
+
+    def save(self):
+        forest_trackers = []
+        for participant_id in self.cleaned_data["participant_ids"]:
+            for tree in self.cleaned_data["trees"]:
+                forest_trackers.append(
+                    ForestTracker(
+                        participant_id=participant_id,
+                        forest_tree=tree,
+                        data_date_start=self.cleaned_data["start_date"],
+                        data_date_end=self.cleaned_data["end_date"],
+                        status=ForestTracker.Status.QUEUED,
+                        metadata=self.study.forest_metadata,
+                    )
+                )
+        ForestTracker.objects.bulk_create(forest_trackers)
+
+
 @forest_pages.route('/studies/<string:study_id>/forest/create-tasks', methods=['GET', 'POST'])
 @authenticate_admin
 def create_tasks(study_id=None):
-    # Only a SITE admin ccran queue forest tasks
+    # Only a SITE admin can queue forest tasks
     if not get_session_researcher().site_admin:
         return abort(403)
     try:
         study = Study.objects.get(pk=study_id)
     except Study.DoesNotExist:
         return abort(404)
+        
+    if request.method == "GET":
+        return _render_create_tasks(study)
     
-    participants = Participant.objects.filter(study=study_id)
+    form = CreateTasksForm(data=request.values, study=study)
+    if not form.is_valid():
+        error_messages = [
+            f'"{field}": {message}'
+            for field, messages in form.errors.items()
+            for message in messages
+        ]
+        error_messages_string = "\n".join(error_messages)
+        flash(f"Errors:\n\n{error_messages_string}", "warning")
+        return _render_create_tasks(study)
+    
+    form.save()
+    flash("Forest tasks successfully queued!", "success")
+    return redirect(url_for("forest_pages.task_log", study_id=study_id))
+
+
+def _render_create_tasks(study):
     try:
+        participants = Participant.objects.filter(study=study)
         start_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
         end_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
         start_date = start_date.time_bin.date()
@@ -108,38 +172,16 @@ def create_tasks(study_id=None):
     except ChunkRegistry.DoesNotExist:
         start_date = study.created_on.date()
         end_date = timezone.now().date()
-    
-    if request.method == 'GET':
-        return render_template(
-            "forest/create_tasks.html",
-            study=study.as_unpacked_native_python(),
-            participants=list(
-                study.participants.order_by("patient_id").values_list("patient_id", flat=True)
-            ),
-            trees=ForestTree.values(),
-            start_date=start_date.strftime('%Y-%m-%d'),
-            end_date=end_date.strftime('%Y-%m-%d')
-        )
-    
-    start_date = datetime.datetime.strptime(request.form.get("date_start"), "%Y-%m-%d").date()
-    end_date = datetime.datetime.strptime(request.form.get("date_end"), "%Y-%m-%d").date()
-    
-    for participant_id in request.form.getlist("user_ids"):
-        for tree in request.form.getlist("trees"):
-            participant = Participant.objects.get(patient_id=participant_id)
-            ForestTracker(
-                participant=participant,
-                forest_tree=tree,
-                data_date_start=start_date,
-                data_date_end=end_date,
-                status=ForestTracker.Status.QUEUED,
-                metadata=study.forest_metadata,
-            ).save()
-            # TODO: add missing params or update model defaults
-    flash("Forest tasks successfully queued!", "success")
-    
-    return redirect(url_for("forest_pages.task_log", study_id=study_id))
-
+    return render_template(
+        "forest/create_tasks.html",
+        study=study.as_unpacked_native_python(),
+        participants=list(
+            study.participants.order_by("patient_id").values_list("patient_id", flat=True)
+        ),
+        trees=ForestTree.values(),
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d')
+    )
 
 @forest_pages.route('/studies/<string:study_id>/forest/task-log', methods=['GET', 'POST'])
 @authenticate_researcher_study_access

@@ -77,7 +77,6 @@ X_ACCESS_KEY_SECRET = "X-Access-Key-Secret"
 CREDENTIALS_NOT_VALID_ERROR_MESSAGE = "Credentials not valid"
 HEADER_IS_REQUIRED = "This header is required"
 RESOURCE_NOT_FOUND = "resource not found"
-NONSTRING_ERROR_MESSAGE = "a non string argument was supplied to a CommaSeparatedListField"
 
 # permissions errors
 APIKEY_NO_ACCESS_MESSAGE = "ApiKey does not have access to Tableau API"

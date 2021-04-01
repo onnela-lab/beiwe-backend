@@ -2,16 +2,16 @@ import json
 
 from django import forms
 from django.db.models import QuerySet
-from django.forms import ValidationError
 from flask import request
 from flask_cors import cross_origin
 from rest_framework import serializers
 from rest_framework.renderers import JSONRenderer
 
 from api.tableau_api.base import TableauApiView
-from api.tableau_api.constants import (NONSTRING_ERROR_MESSAGE, SERIALIZABLE_FIELD_NAMES,
-    SERIALIZABLE_FIELD_NAMES_DROPDOWN, VALID_QUERY_PARAMETERS)
+from api.tableau_api.constants import (SERIALIZABLE_FIELD_NAMES,
+                                       SERIALIZABLE_FIELD_NAMES_DROPDOWN, VALID_QUERY_PARAMETERS)
 from database.tableau_api_models import SummaryStatisticDaily
+from libs.utils.form_utils import CommaSeparatedListCharField, CommaSeparatedListChoiceField
 
 
 class SummaryStatisticDailySerializer(serializers.ModelSerializer):
@@ -92,50 +92,6 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         for field, field_errs in errors.items():
             messages.extend([err["message"] for err in field_errs])
         return json.dumps({"errors": messages})
-
-
-class CommaSeparatedListFieldMixin:
-    """ A mixin for use with django form fields. This mixin changes the field to accept a comma separated list of
-        inputs that are individually cleaned and validated. Takes one optional parameter, list_validators, which is
-        a list of validators to be applied to the final list of values (the validator parameter still expects a single
-        value as input, and is applied to each value individually) """
-
-    def __init__(self, list_validators=None, *args, **kwargs):
-        if list_validators is None:
-            self.list_validators = []
-        super().__init__(*args, **kwargs)
-
-    def clean(self, value) -> list:
-        if value:
-            if not isinstance(value, str):
-                raise TypeError(NONSTRING_ERROR_MESSAGE)
-            value_list = value.split(",")
-        else:
-            value_list = []
-
-        errors = []
-        cleaned_values = []
-        for v in value_list:
-            try:
-                cleaned_values.append(super(CommaSeparatedListFieldMixin, self).clean(v.strip()))
-            except ValidationError as err:
-                errors.append(err)
-
-        if errors:
-            raise ValidationError(errors)
-        for validator in self.list_validators:
-            validator(cleaned_values)
-
-        return cleaned_values
-
-
-# Mixins must be declared before ApiQueryForm because they are used in a static scope...
-class CommaSeparatedListCharField(CommaSeparatedListFieldMixin, forms.CharField):
-    pass
-
-
-class CommaSeparatedListChoiceField(CommaSeparatedListFieldMixin, forms.ChoiceField):
-    pass
 
 
 class ApiQueryForm(forms.Form):
