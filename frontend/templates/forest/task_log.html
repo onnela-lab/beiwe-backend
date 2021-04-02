@@ -102,48 +102,62 @@
             <h4 class="modal-title">Forest Task Details</h4>
           </div>
           <div class="modal-body">
-            <h4>Task Metadata</h4>
-            <dl>
-              <dt>Patient ID</dt>
-              <dd>{% raw %}{{ modalLog.patient_id }}{% endraw %}</dd>
-              <dt>Tree</dt>
-              <dd>{% raw %}{{ modalLog.forest_tree_display }}{% endraw %}</dd>
-              <dt>Data Date Start</dt>
-              <dd>{% raw %}{{ modalLog.data_date_start }}{% endraw %}</dd>
-              <dt>Data Date End</dt>
-              <dd>{% raw %}{{ modalLog.data_date_end }}{% endraw %}</dd>
-              <dt>Status</dt>
-              <dd>{% raw %}{{ modalLog.status }}{% endraw %}</dd>
-              <dt>Created On</dt>
-              <dd>{% raw %}{{ modalLog.created_on_display }}{% endraw %}</dd>
-            </dl>
-
-            <h4>Processing Metadata</h4>
-            <dl>
-              <dt>Total File Size</dt>
-              <dd>{% raw %}{{ modalLog.total_file_size || '--' }}{% endraw %}</dd>
-              <dt>Processing Start Timestamp</dt>
-              <dd>{% raw %}{{ modalLog.process_start_time || '--' }}{% endraw %}</dd>
-              <dt>Downloading Complete Timestamp</dt>
-              <dd>{% raw %}{{ modalLog.process_download_end_time || '--' }}{% endraw %}</dd>
-              <dt>Processing Complete Timestamp</dt>
-              <dd>{% raw %}{{ modalLog.process_end_time || '--' }}{% endraw %}</dd>
-            </dl>
-
-            <h4>Forest Details</h4>
-            <dl>
-              <dt>Forest Version</dt>
-              <dd>{% raw %}{{ modalLog.forest_version || '--' }}{% endraw %}</dd>
-              <dt>Forest Parameters (Name)</dt>
-              <dd>{% raw %}{{ modalLog.metadata_name || '--' }}{% endraw %}</dd>
-              <dt>Forest Parameters (Value)</dt>
-              <dd style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.forest_params }}{% endraw %}</dd>
-              <dt>Forest Parameters (Notes)</dt>
-              <dd>{% raw %}{{ modalLog.metadata_notes || '--' }}{% endraw %}</dd>
-            </dl>
-
-            <h4>Task Log</h4>
-            <p style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.stacktrace || '--' }}{% endraw %}</p>
+            <div class="panel panel-default">
+              <div class="panel-heading">Task Metadata</div>
+              <div class="panel-body">
+                <dl style="margin-bottom: 0;">
+                  <dt>Patient ID</dt>
+                  <dd>{% raw %}{{ modalLog.patient_id }}{% endraw %}</dd>
+                  <dt>Tree</dt>
+                  <dd>{% raw %}{{ modalLog.forest_tree_display }}{% endraw %}</dd>
+                  <dt>Data Date Start</dt>
+                  <dd>{% raw %}{{ modalLog.data_date_start }}{% endraw %}</dd>
+                  <dt>Data Date End</dt>
+                  <dd>{% raw %}{{ modalLog.data_date_end }}{% endraw %}</dd>
+                  <dt>Status</dt>
+                  <dd>{% raw %}{{ modalLog.status }}{% endraw %}</dd>
+                  <dt>Created On</dt>
+                  <dd>{% raw %}{{ modalLog.created_on_display }}{% endraw %}</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="panel panel-default">
+              <div class="panel-heading">Processing Metadata</div>
+              <div class="panel-body">
+                <dl style="margin-bottom: 0;">
+                  <dt>Total File Size</dt>
+                  <dd>{% raw %}{{ modalLog.total_file_size || '--' }}{% endraw %}</dd>
+                  <dt>Processing Start Timestamp</dt>
+                  <dd>{% raw %}{{ modalLog.process_start_time || '--' }}{% endraw %}</dd>
+                  <dt>Downloading Complete Timestamp</dt>
+                  <dd>{% raw %}{{ modalLog.process_download_end_time || '--' }}{% endraw %}</dd>
+                  <dt>Processing Complete Timestamp</dt>
+                  <dd>{% raw %}{{ modalLog.process_end_time || '--' }}{% endraw %}</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="panel panel-default">
+              <div class="panel-heading">Forest Details</div>
+              <div class="panel-body">
+                <dl style="margin-bottom: 0;">
+                  <dt>Forest Version</dt>
+                  <dd>{% raw %}{{ modalLog.forest_version || '--' }}{% endraw %}</dd>
+                  <dt>Forest Parameters (Name)</dt>
+                  <dd>{% raw %}{{ modalLog.metadata_name || '--' }}{% endraw %}</dd>
+                  <dt>Forest Parameters (Value)</dt>
+                  <dd style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.forest_params }}{% endraw %}</dd>
+                  <dt>Forest Parameters (Notes)</dt>
+                  <dd>{% raw %}{{ modalLog.metadata_notes || '--' }}{% endraw %}</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="panel panel-default">
+              <div class="panel-heading">Task Log</div>
+              <div class="panel-body">
+                {# Note, because of the white-space: pre-wrap, whitespace between the p tags matters #}
+                <p style="font-family: Consolas, monospace; margin-bottom: 0; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.stacktrace || '--' }}{% endraw %}</p>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
