@@ -12,11 +12,11 @@
           .module('surveyBuilder')
           .controller('ForestLogController', ['$controller', '$scope', function($controller, $scope) {
             $controller('FilterableListController', {$scope: $scope});
-            $scope.errorModalText = ''
+            $scope.modalLog = null
             $scope.showErrorModal = showErrorModal
 
-            function showErrorModal(index) {
-              $scope.errorModalText = window.filterableObjects[index].stacktrace
+            function showErrorModal(log) {
+              $scope.modalLog = log
               $('#error-modal').modal('show')
             }
           }])
@@ -40,22 +40,22 @@
       <table class="table">
         <thead>
           <tr>
-            <th scope="col">Created</th>
-            <th scope="col">Participant</th>
+            <th scope="col">Created On</th>
+            <th scope="col">Patient ID</th>
             <th scope="col">Tree</th>
-            <th scope="col">Start Date</th>
-            <th scope="col">End Date</th>
+            <th scope="col">Data Start Date</th>
+            <th scope="col">Data End Date</th>
             <th scope="col">Status</th>
             {% if is_site_admin %}
-              <th scope="col">Action</th>
+              <th scope="col">Actions</th>
             {% endif %}
           </tr>
         </thead>
 
         <tbody>
-          <tr ng-repeat="log in filterableObjects" ng-if="(log.participant + log.forest_tree + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())">
-            <td>{% raw %}{{ log.created_on }}{% endraw %}</td>
-            <td>{% raw %}{{ log.participant }}{% endraw %}</td>
+          <tr ng-repeat="log in filterableObjects" ng-if="(log.patient_id + log.forest_tree + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())">
+            <td>{% raw %}{{ log.created_on_display }}{% endraw %}</td>
+            <td>{% raw %}{{ log.patient_id }}{% endraw %}</td>
             <td>{% raw %}{{ log.forest_tree }}{% endraw %}</td>
             <td>{% raw %}{{ log.data_date_start }}{% endraw %}</td>
             <td>{% raw %}{{ log.data_date_end }}{% endraw %}</td>
@@ -68,6 +68,17 @@
             </td>
             {% if is_site_admin %}
               <td>
+                <div>
+                  <button class="btn-link" ng-click="showErrorModal(log)" style="padding: 0;">
+                    View details
+                  </button>
+                </div>
+                <div>
+                  <a class="btn btn-link" ng-href="{% raw %}{{ log.download_url|trustAsResourceUrl }}{% endraw %}"
+                     style="padding: 0;">
+                    Download Raw Data
+                  </a>
+                </div>
                 <div ng-if="log.status === '{{ status_choices.QUEUED }}'">
                   <form action="{% raw %}{{ log.cancel_url|trustAsResourceUrl }}{% endraw %}" method="post">
                     <button class="btn btn-link"
@@ -76,17 +87,6 @@
                       Cancel Task
                     </button>
                   </form>
-                </div>
-                <div ng-if="log.status !== '{{ status_choices.CANCELLED }}'">
-                  <a class="btn btn-link" ng-href="{% raw %}{{ log.download_url|trustAsResourceUrl }}{% endraw %}"
-                     style="padding: 0;">
-                    Download Raw Data
-                  </a>
-                </div>
-                <div ng-if="log.status === '{{ status_choices.ERROR }}'">
-                  <button class="btn-link" ng-click="showErrorModal($index)" style="padding: 0;">
-                    View error
-                  </button>
                 </div>
               </td>
             {% endif %}
@@ -97,12 +97,53 @@
     <div class="modal fade" id="error-modal" tabindex="-1" role="dialog">
       <div class="modal-dialog" role="document" style="width: 60%;">
         <div class="modal-content">
-          <div class="modal-header">
+          <div class="modal-header bg-primary">
             <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-            <h4 class="modal-title">Forest task error stacktrace</h4>
+            <h4 class="modal-title">Forest Task Details</h4>
           </div>
-          <div class="modal-body" style="font-family: Consolas, monospace; overflow-x: scroll;">
-            <p style="white-space: pre-wrap;">{% raw %}{{ errorModalText }}{% endraw %}</p>
+          <div class="modal-body">
+            <h4>Task Metadata</h4>
+            <dl>
+              <dt>Patient ID</dt>
+              <dd>{% raw %}{{ modalLog.patient_id }}{% endraw %}</dd>
+              <dt>Tree</dt>
+              <dd>{% raw %}{{ modalLog.forest_tree }}{% endraw %}</dd>
+              <dt>Data Date Start</dt>
+              <dd>{% raw %}{{ modalLog.data_date_start }}{% endraw %}</dd>
+              <dt>Data Date End</dt>
+              <dd>{% raw %}{{ modalLog.data_date_end }}{% endraw %}</dd>
+              <dt>Status</dt>
+              <dd>{% raw %}{{ modalLog.status }}{% endraw %}</dd>
+              <dt>Created On</dt>
+              <dd>{% raw %}{{ modalLog.created_on_display }}{% endraw %}</dd>
+            </dl>
+
+            <h4>Processing Metadata</h4>
+            <dl>
+              <dt>Total File Size</dt>
+              <dd>{% raw %}{{ modalLog.total_file_size || '--' }}{% endraw %}</dd>
+              <dt>Processing Start Timestamp</dt>
+              <dd>{% raw %}{{ modalLog.process_start_time || '--' }}{% endraw %}</dd>
+              <dt>Downloading Complete Timestamp</dt>
+              <dd>{% raw %}{{ modalLog.process_download_end_time || '--' }}{% endraw %}</dd>
+              <dt>Processing Complete Timestamp</dt>
+              <dd>{% raw %}{{ modalLog.process_end_time || '--' }}{% endraw %}</dd>
+            </dl>
+
+            <h4>Forest Details</h4>
+            <dl>
+              <dt>Forest Version</dt>
+              <dd>{% raw %}{{ modalLog.forest_version || '--' }}{% endraw %}</dd>
+              <dt>Forest Parameters (Name)</dt>
+              <dd>{% raw %}{{ modalLog.metadata_name || '--' }}{% endraw %}</dd>
+              <dt>Forest Parameters (Value)</dt>
+              <dd style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.forest_params }}{% endraw %}</dd>
+              <dt>Forest Parameters (Notes)</dt>
+              <dd>{% raw %}{{ modalLog.metadata_notes || '--' }}{% endraw %}</dd>
+            </dl>
+
+            <h4>Task Log</h4>
+            <p style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.stacktrace || '--' }}{% endraw %}</p>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>

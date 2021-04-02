@@ -13,7 +13,7 @@ from database.study_models import Study
 from database.user_models import Researcher
 from libs.push_notification_config import check_firebase_instance
 from libs.security import check_password_requirements
-from libs.serilalizers import ApiKeySerializer
+from libs.serializers import ApiKeySerializer
 
 admin_pages = Blueprint('admin_pages', __name__)
 

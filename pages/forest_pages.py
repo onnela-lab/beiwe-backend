@@ -14,6 +14,7 @@ from database.study_models import Study
 from database.tableau_api_models import ForestTracker
 from database.user_models import Participant
 from libs.forest_integration.constants import ForestTree
+from libs.serializers import ForestTrackerSerializer
 from libs.streaming_zip import zip_generator
 from libs.utils.date_utils import daterange
 from libs.utils.form_utils import CommaSeparatedListCharField, CommaSeparatedListChoiceField
@@ -194,34 +195,13 @@ def task_log(study_id=None):
             .objects
             .filter(participant__study_id=study_id)
             .order_by("-created_on")
-            .values(
-                "created_on",
-                "data_date_end",
-                "data_date_start",
-                "external_id",
-                "forest_tree",
-                "participant",
-                "stacktrace",
-                "status",
-            )
     )
-    for tracker in forest_trackers:
-        tracker["download_url"] = url_for(
-            "forest_pages.download_task_data",
-            study_id=study_id,
-            forest_tracker_external_id=tracker["external_id"],
-        )
-        tracker["cancel_url"] = url_for(
-            "forest_pages.cancel_task",
-            study_id=study_id,
-            forest_tracker_external_id=tracker["external_id"],
-        )
     return render_template(
-        'forest/task_log.html',
+        "forest/task_log.html",
         study=study,
         is_site_admin=get_session_researcher().site_admin,
         status_choices=ForestTracker.Status,
-        forest_log=list(forest_trackers),
+        forest_log=ForestTrackerSerializer(forest_trackers, many=True).data,
     )
 
 
