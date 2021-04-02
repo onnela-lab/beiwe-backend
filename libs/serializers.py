@@ -23,6 +23,7 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
     created_on_display = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
     forest_params = serializers.SerializerMethodField()
+    forest_tree_display = serializers.SerializerMethodField()
     metadata_name = serializers.SerializerMethodField()
     metadata_notes = serializers.SerializerMethodField()
     patient_id = serializers.SerializerMethodField()
@@ -31,13 +32,12 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
         model = ForestTracker
         fields = [
             "cancel_url",
-            "created_on",
             "created_on_display",
             "data_date_end",
             "data_date_start",
             "download_url",
             "forest_params",
-            "forest_tree",
+            "forest_tree_display",
             "metadata_name",
             "metadata_notes",
             "patient_id",
@@ -65,6 +65,9 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
             study_id=instance.participant.study_id,
             forest_tracker_external_id=instance.external_id,
         )
+    
+    def get_forest_tree_display(self, instance):
+        return instance.forest_tree.title()
     
     def get_forest_params(self, instance):
         return repr(instance.forest_params())

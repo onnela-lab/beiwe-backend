@@ -203,7 +203,7 @@ def _render_create_tasks(study):
         participants=list(
             study.participants.order_by("patient_id").values_list("patient_id", flat=True)
         ),
-        trees=ForestTree.values(),
+        trees=ForestTree.choices(),
         start_date=start_date.strftime('%Y-%m-%d'),
         end_date=end_date.strftime('%Y-%m-%d')
     )

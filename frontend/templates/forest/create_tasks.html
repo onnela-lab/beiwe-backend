@@ -57,7 +57,7 @@
                 {% for tree in trees %}
                   <div class="checkbox">
                     <label>
-                      <input name="trees" type="checkbox" value="{{ tree }}"> {{ tree }}
+                      <input name="trees" type="checkbox" value="{{ tree[0] }}"> {{ tree[1] }}
                     </label>
                   </div>
                 {% endfor %}

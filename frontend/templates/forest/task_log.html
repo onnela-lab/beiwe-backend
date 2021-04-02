@@ -53,10 +53,10 @@
         </thead>
 
         <tbody>
-          <tr ng-repeat="log in filterableObjects" ng-if="(log.patient_id + log.forest_tree + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())">
+          <tr ng-repeat="log in filterableObjects" ng-if="(log.created_on_display + log.patient_id + log.forest_tree_display + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())">
             <td>{% raw %}{{ log.created_on_display }}{% endraw %}</td>
             <td>{% raw %}{{ log.patient_id }}{% endraw %}</td>
-            <td>{% raw %}{{ log.forest_tree }}{% endraw %}</td>
+            <td>{% raw %}{{ log.forest_tree_display }}{% endraw %}</td>
             <td>{% raw %}{{ log.data_date_start }}{% endraw %}</td>
             <td>{% raw %}{{ log.data_date_end }}{% endraw %}</td>
             <td ng-class="{ {{ status_choices.QUEUED }}: 'list-group-item-info',
@@ -107,7 +107,7 @@
               <dt>Patient ID</dt>
               <dd>{% raw %}{{ modalLog.patient_id }}{% endraw %}</dd>
               <dt>Tree</dt>
-              <dd>{% raw %}{{ modalLog.forest_tree }}{% endraw %}</dd>
+              <dd>{% raw %}{{ modalLog.forest_tree_display }}{% endraw %}</dd>
               <dt>Data Date Start</dt>
               <dd>{% raw %}{{ modalLog.data_date_start }}{% endraw %}</dd>
               <dt>Data Date End</dt>

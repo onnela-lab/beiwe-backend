@@ -7,7 +7,7 @@ class ForestTree:
     
     @classmethod
     def choices(cls):
-        return [(choice, choice) for choice in cls.values()]
+        return [(choice, choice.title()) for choice in cls.values()]
     
     @classmethod
     def values(cls):
