@@ -46,6 +46,7 @@ class ForestTask(TimestampedModel):
     external_id = models.UUIDField(default=uuid.uuid4, editable=False)
     
     forest_param = models.ForeignKey(ForestParam, on_delete=models.PROTECT)
+    params_dict_cache = models.TextField(blank=True)  # Cache of the params used
     
     forest_tree = models.TextField(choices=ForestTree.choices())
     data_date_start = models.DateField()  # inclusive
@@ -193,6 +194,8 @@ class ForestTask(TimestampedModel):
             self.participant.study.object_id,
             raw_path=True,
         )
+        self.all_bv_set_s3_key = self.generate_all_bv_set_s3_key()
+        self.save(update_fields=["all_bv_set_s3_key"])
     
     def save_all_memory_dict_bytes(self, all_memory_dict_bytes):
         from libs.s3 import s3_upload
@@ -202,6 +205,8 @@ class ForestTask(TimestampedModel):
             self.participant.study.object_id,
             raw_path=True,
         )
+        self.all_memory_dict_s3_key = self.generate_all_memory_dict_s3_key()
+        self.save(update_fields=["all_memory_dict_s3_key"])
 
 
 class SummaryStatisticDaily(TimestampedModel):

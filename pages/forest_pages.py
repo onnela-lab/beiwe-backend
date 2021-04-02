@@ -85,7 +85,6 @@ def analysis_progress(study_id=None):
     return render_template(
         'forest/analysis_progress.html',
         study=study,
-        study_id=study.id,
         chart_columns=chart_columns,
         status_choices=ForestTask.Status,
         params_conflict=params_conflict,
@@ -199,7 +198,6 @@ def _render_create_tasks(study):
     return render_template(
         "forest/create_tasks.html",
         study=study,
-        study_id=study.id,
         participants=list(
             study.participants.order_by("patient_id").values_list("patient_id", flat=True)
         ),
@@ -222,7 +220,6 @@ def task_log(study_id=None):
     return render_template(
         "forest/task_log.html",
         study=study,
-        study_id=study_id,
         is_site_admin=get_session_researcher().site_admin,
         status_choices=ForestTask.Status,
         forest_log=ForestTrackerSerializer(forest_trackers, many=True).data,

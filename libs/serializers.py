@@ -1,3 +1,5 @@
+import json
+
 from flask import url_for
 from rest_framework import serializers
 
@@ -22,10 +24,10 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
     cancel_url = serializers.SerializerMethodField()
     created_on_display = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
-    forest_params = serializers.SerializerMethodField()
     forest_tree_display = serializers.SerializerMethodField()
     forest_param_name = serializers.SerializerMethodField()
     forest_param_notes = serializers.SerializerMethodField()
+    params_dict = serializers.SerializerMethodField()
     patient_id = serializers.SerializerMethodField()
     
     class Meta:
@@ -36,10 +38,10 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
             "data_date_end",
             "data_date_start",
             "download_url",
-            "forest_params",
             "forest_tree_display",
             "forest_param_name",
             "forest_param_notes",
+            "params_dict",
             "patient_id",
             "process_download_end_time",
             "process_start_time",
@@ -69,14 +71,16 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
     def get_forest_tree_display(self, instance):
         return instance.forest_tree.title()
     
-    def get_forest_params(self, instance):
-        return repr(instance.params_dict())
-    
     def get_forest_param_name(self, instance):
         return instance.forest_param.name
     
     def get_forest_param_notes(self, instance):
         return instance.forest_param.notes
+    
+    def get_params_dict(self, instance):
+        if instance.params_dict_cache:
+            return repr(json.loads(instance.params_dict_cache))
+        return repr(instance.params_dict())
     
     def get_patient_id(self, instance):
         return instance.participant.patient_id

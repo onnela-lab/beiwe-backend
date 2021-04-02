@@ -63,9 +63,9 @@
                       Forest <span class="caret"></span>
                     </a>
                     <ul class="dropdown-menu">
-                      <li><a href="{{ url_for('forest_pages.create_tasks', study_id=study_id) }}">Create Forest Tasks</a></li>
-                      <li><a href="{{ url_for('forest_pages.task_log', study_id=study_id) }}">View Forest Task Log</a></li>
-                      <li><a href="{{ url_for('forest_pages.analysis_progress', study_id=study_id) }}">View Forest Analysis Progress</a></li>
+                      <li><a href="{{ url_for('forest_pages.create_tasks', study_id=study.id) }}">Create Forest Tasks</a></li>
+                      <li><a href="{{ url_for('forest_pages.task_log', study_id=study.id) }}">View Forest Task Log</a></li>
+                      <li><a href="{{ url_for('forest_pages.analysis_progress', study_id=study.id) }}">View Forest Analysis Progress</a></li>
                     </ul>
                   </li>
                 {% endif %}

@@ -145,7 +145,15 @@
                   <dt>Forest Parameters (Name)</dt>
                   <dd>{% raw %}{{ modalLog.forest_param_name || '--' }}{% endraw %}</dd>
                   <dt>Forest Parameters (Value)</dt>
-                  <dd style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.forest_params }}{% endraw %}</dd>
+                  <dd>
+                    <p>
+                      Note: If this task has not run yet, below shows the params that would be used if forest were to
+                      run at the time this page was loaded (params can update as other tasks are run). If this task has
+                      already run forest, below shows the params that were used when forest was run (which will not
+                      change as other tasks are run).
+                    </p>
+                    <p style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.params_dict }}{% endraw %}</p>
+                  </dd>
                   <dt>Forest Parameters (Notes)</dt>
                   <dd>{% raw %}{{ modalLog.forest_param_notes || '--' }}{% endraw %}</dd>
                 </dl>

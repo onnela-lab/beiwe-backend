@@ -88,7 +88,10 @@ def celery_run_forest(forest_tracker_id):
         tracker.process_download_end_time = timezone.now()
         tracker.save(update_field=["process_download_end_time"])
 
-        TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**tracker.params_dict())
+        params_dict = tracker.params_dict()
+        tracker.params_dict_cache = json.dumps(params_dict)
+        tracker.save(update_field=["params_dict_cache"])
+        TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**params_dict)
         construct_summary_statistics(tracker)
         save_cached_files(tracker)
     
