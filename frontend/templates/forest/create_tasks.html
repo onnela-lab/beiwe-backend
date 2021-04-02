@@ -42,7 +42,7 @@
             <div class="col-sm-4">
               <div class="form-group">
                 <label for="patient_selector">Patients</label>
-                <select id="patient_selector" ng-model="selectedPatient" name="user_ids" class="form-control" size=12 multiple>
+                <select id="patient_selector" ng-model="selectedPatient" name="participant_patient_ids" class="form-control" size=12 multiple>
                   {% for participant in participants %}
                     <option>{{ participant }}</option>
                   {% endfor %}

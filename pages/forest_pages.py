@@ -4,11 +4,12 @@ from collections import defaultdict
 from django import forms
 from django.utils import timezone
 from flask import render_template, request, abort, flash, redirect, Blueprint, url_for, Response
+from werkzeug.datastructures import MultiDict
 
 from api.data_access_api import chunk_fields
 from authentication.admin_authentication import authenticate_researcher_study_access, \
     researcher_is_an_admin, get_session_researcher, authenticate_admin, \
-    get_researcher_allowed_studies
+    get_researcher_allowed_studies, forest_enabled
 from database.data_access_models import ChunkRegistry
 from database.study_models import Study
 from database.tableau_api_models import ForestTracker
@@ -33,6 +34,7 @@ def inject_html_params():
 
 @forest_pages.route('/studies/<string:study_id>/forest/progress', methods=['GET'])
 @authenticate_researcher_study_access
+@forest_enabled
 def analysis_progress(study_id=None):
     study = Study.objects.get(pk=study_id)
     participants = Participant.objects.filter(study=study_id)
@@ -83,6 +85,7 @@ def analysis_progress(study_id=None):
     return render_template(
         'forest/analysis_progress.html',
         study=study,
+        study_id=study.id,
         chart_columns=chart_columns,
         status_choices=ForestTracker.Status,
         metadata_conflict=metadata_conflict,
@@ -100,7 +103,23 @@ class CreateTasksForm(forms.Form):
     
     def __init__(self, *args, **kwargs):
         self.study = kwargs.pop("study")
+        if "data" in kwargs:
+            if isinstance(kwargs["data"], MultiDict):
+                # Convert Flask/Werkzeug MultiDict format into comma-separated values. This is
+                # to allow Flask's handling of multi inputs to work with Django's form data
+                # structures.
+                kwargs["data"] = {
+                    key: ",".join(value)
+                    for key, value in kwargs["data"].to_dict(flat=False).items()
+                }
         super().__init__(*args, **kwargs)
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data["date_end"] < cleaned_data["date_start"]:
+            error_message = "Start date must be before or the same as end date."
+            self.add_error("date_start", error_message)
+            self.add_error("date_end", error_message)
     
     def clean_participant_patient_ids(self):
         """
@@ -126,8 +145,8 @@ class CreateTasksForm(forms.Form):
                     ForestTracker(
                         participant_id=participant_id,
                         forest_tree=tree,
-                        data_date_start=self.cleaned_data["start_date"],
-                        data_date_end=self.cleaned_data["end_date"],
+                        data_date_start=self.cleaned_data["date_start"],
+                        data_date_end=self.cleaned_data["date_end"],
                         status=ForestTracker.Status.QUEUED,
                         metadata=self.study.forest_metadata,
                     )
@@ -137,6 +156,7 @@ class CreateTasksForm(forms.Form):
 
 @forest_pages.route('/studies/<string:study_id>/forest/tasks/create', methods=['GET', 'POST'])
 @authenticate_admin
+@forest_enabled
 def create_tasks(study_id=None):
     # Only a SITE admin can queue forest tasks
     if not get_session_researcher().site_admin:
@@ -150,6 +170,7 @@ def create_tasks(study_id=None):
         return _render_create_tasks(study)
     
     form = CreateTasksForm(data=request.values, study=study)
+
     if not form.is_valid():
         error_messages = [
             f'"{field}": {message}'
@@ -177,7 +198,8 @@ def _render_create_tasks(study):
         end_date = timezone.now().date()
     return render_template(
         "forest/create_tasks.html",
-        study=study.as_unpacked_native_python(),
+        study=study,
+        study_id=study.id,
         participants=list(
             study.participants.order_by("patient_id").values_list("patient_id", flat=True)
         ),
@@ -188,6 +210,7 @@ def _render_create_tasks(study):
 
 @forest_pages.route('/studies/<string:study_id>/forest/tasks', methods=["GET"])
 @authenticate_researcher_study_access
+@forest_enabled
 def task_log(study_id=None):
     study = Study.objects.get(pk=study_id)
     forest_trackers = (
@@ -207,6 +230,7 @@ def task_log(study_id=None):
 
 @forest_pages.route("/studies/<string:study_id>/forest/tasks/<string:forest_tracker_external_id>/cancel", methods=["POST"])
 @authenticate_admin
+@forest_enabled
 def cancel_task(study_id, forest_tracker_external_id):
     number_updated = (
         ForestTracker
@@ -227,6 +251,7 @@ def cancel_task(study_id, forest_tracker_external_id):
 
 @forest_pages.route("/studies/<string:study_id>/forest/tasks/<string:forest_tracker_external_id>/download", methods=["GET"])
 @authenticate_admin
+@forest_enabled
 def download_task_data(study_id, forest_tracker_external_id):
     try:
         tracker = ForestTracker.objects.get(

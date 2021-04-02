@@ -129,7 +129,6 @@ def authenticate_researcher_study_access(some_function):
     A site admin is always able to access a study or survey. """
     @functools.wraps(some_function)
     def authenticate_and_call(*args, **kwargs):
-
         # Check for regular login requirement
         if not is_logged_in():
             return redirect("/")
@@ -248,3 +247,21 @@ def researcher_is_an_admin():
     researcher = get_session_researcher()
     return researcher.site_admin or researcher.is_study_admin()
 
+
+def forest_enabled(func):
+    """
+    Decorator for validating that Forest is enabled for this study.
+    """
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            study = Study.objects.get(id=kwargs.get("study_id", None))
+        except Study.DoesNotExist:
+            return abort(404)
+        
+        if not study.forest_enabled:
+            return abort(404)
+        
+        return func(*args, **kwargs)
+    
+    return wrapped

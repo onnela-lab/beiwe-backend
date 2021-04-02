@@ -43,20 +43,31 @@
                 </li>
                 {# If the current admin is authorized to view only one study, give them a "Home" button to view that study #}
                 <li ng-if="navBarStudies.length <= 1" role="presentation"><a href="/choose_study">Home</a></li>
-                {% if page_location == 'study_landing' %}
-                    <li class='active' role="presentation"><a href="/view_study/{{ study_id }}">View Study</a></li>
-                    <li role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
-                {% elif page_location == 'dashboard_landing' %}
-                    <li role="presentation"><a href="/view_study/{{ study_id }}">View Study</a></li>
-                    <li class='active' role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
-                {% elif page_location == 'dashboard_patient' %}
-                    <li role="presentation"><a href="/view_study/{{ study_id }}">View Study</a></li>
-                    <li role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
-                    <li class='active' role="presentation"><a href="">{{ patient_id }}</a></li>
-                {% elif page_location == 'dashboard_data' %}
-                    <li role="presentation"><a href="/view_study/{{ study_id }}">View Study</a></li>
-                    <li role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
-                    <li class='active' role="presentation"><a href="">{{ data_stream }}</a></li>
+
+                {% if page_location in ['study_landing', 'dashboard_landing', 'dashboard_patient', 'dashboard_data'] %}
+                  <li {% if page_location == 'study_landing' %}class="active"{% endif %} role="presentation">
+                    <a href="{{ url_for('admin_pages.view_study', study_id=study_id) }}">View Study</a>
+                  </li>
+                  <li {% if page_location == 'dashboard_landing' %}class="active"{% endif %} role="presentation">
+                    <a href="{{ url_for('dashboard_api.dashboard_page', study_id=study_id) }}">Dashboard</a>
+                  </li>
+                  {% if page_location == 'dashboard_patient' %}
+                    <li class="active" role="presentation"><a href="">{{ patient_id }}</a></li>
+                  {% elif page_location == 'dashboard_data' %}
+                    <li class="active" role="presentation"><a href="">{{ data_stream }}</a></li>
+                  {% endif %}
+                {% endif %}
+                {% if study and study.forest_enabled %}
+                  <li role="presentation">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                      Forest <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                      <li><a href="{{ url_for('forest_pages.create_tasks', study_id=study_id) }}">Create Forest Tasks</a></li>
+                      <li><a href="{{ url_for('forest_pages.task_log', study_id=study_id) }}">View Forest Task Log</a></li>
+                      <li><a href="{{ url_for('forest_pages.analysis_progress', study_id=study_id) }}">View Forest Analysis Progress</a></li>
+                    </ul>
+                  </li>
                 {% endif %}
             </ul>
 
