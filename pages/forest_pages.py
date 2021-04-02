@@ -222,6 +222,7 @@ def task_log(study_id=None):
     return render_template(
         "forest/task_log.html",
         study=study,
+        study_id=study_id,
         is_site_admin=get_session_researcher().site_admin,
         status_choices=ForestTracker.Status,
         forest_log=ForestTrackerSerializer(forest_trackers, many=True).data,

@@ -54,11 +54,13 @@
             <div class="col-sm-4">
               <div class="form-group">
                 <label for="tree_selector">Trees</label>
-                <select class="form-control" name="trees" id="tree_selector" size=12 multiple>
-                  {% for tree in trees %}
-                    <option>{{ tree }}</option>
-                  {% endfor %}
-                </select>
+                {% for tree in trees %}
+                  <div class="checkbox">
+                    <label>
+                      <input name="trees" type="checkbox" value="{{ tree }}"> {{ tree }}
+                    </label>
+                  </div>
+                {% endfor %}
               </div>
             </div>
             <br>
