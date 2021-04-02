@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 import traceback
 from datetime import datetime, timedelta
 
@@ -8,8 +7,8 @@ from cronutils.error_handler import NullErrorHandler
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
-from forest.jasmine.traj2stats import gps_stats_main as jasmine_main
-from forest.willow.log_stats import log_stats_main as willow_main
+from forest.jasmine.traj2stats import gps_stats_main
+from forest.willow.log_stats import log_stats_main
 from pkg_resources import get_distribution
 
 from api.data_access_api import chunk_fields
@@ -24,6 +23,12 @@ from libs.forest_integration.forest_data_interpretation import construct_summary
 # run via cron every five minutes
 from libs.s3 import s3_retrieve
 from libs.streaming_zip import determine_file_name
+
+
+TREE_TO_FOREST_FUNCTION = {
+    ForestTree.jasmine: gps_stats_main,
+    ForestTree.willow: log_stats_main,
+}
 
 
 def create_forest_celery_tasks():
@@ -67,25 +72,16 @@ def celery_run_forest(forest_tracker_id):
 
     chunks = ChunkRegistry.objects.filter(participant=participant)
     tracker.total_file_size = chunks.aggregate(Sum('file_size')).get('file_size__sum')
-    print(f"collecting data. running task from celery on tracker {tracker.id}")
+    tracker.save(update_fields=["total_file_size"])
+    
     try:
         create_local_data_files(tracker, chunks)
         tracker.process_download_end_time = timezone.now()
-        params = {
-            'study_folder': tracker.data_input_path,
-            'output_folder': tracker.data_output_path,
-            'time_start': tracker.data_date_start,
-            'time_end': tracker.data_date_end,
-        }
-        if tracker.forest_tree == ForestTree.willow:
-            # the following merges the computed parameters with the ones from the metadata object,
-            # preferring the newly computed parameters
-            params = {**json.loads(tracker.metadata.willow_json_string), **params}
-            willow_main(**params)
-        elif tracker.forest_tree == ForestTree.jasmine:
-            params = {**json.loads(tracker.metadata.jasmine_json_string), **params}
-            jasmine_main(**params)
+        tracker.save(update_field=["process_download_end_time"])
+
+        TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**tracker.forest_params())
         construct_summary_statistics(tracker)
+    
     except Exception:
         tracker.status = tracker.Status.ERROR
         tracker.stacktrace = traceback.format_exc()
@@ -93,8 +89,8 @@ def celery_run_forest(forest_tracker_id):
         tracker.status = tracker.Status.SUCCESS
     tracker.process_end_time = timezone.now()
     tracker.save()
-    # Todo (Alvin): put this back in after testing
-    # clean_local_data_files(tracker.data_base_folder)
+    
+    tracker.clean_up_files()
 
 
 def create_local_data_files(tracker, chunks):
@@ -107,10 +103,6 @@ def create_local_data_files(tracker, chunks):
         os.makedirs(os.path.dirname(file_name), exist_ok=True)
         with open(file_name, "x") as f:
             f.write(contents.decode("utf-8"))
-
-
-def clean_local_data_files(io_folder):
-    shutil.rmtree(io_folder)  # this is equivalent to rm -r, double check any changes made here
 
 
 def enqueue_forest_task(**kwargs):

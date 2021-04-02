@@ -4,7 +4,7 @@
 
 {% block head %}
     {{ super() }}
-    <script>window.filterableObjects = {{ forest_log | tojson }}</script>
+    <script>window.filterableObjects = {{ forest_log|tojson }}</script>
     <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
     <script>
       (function () {
@@ -18,6 +18,11 @@
             function showErrorModal(index) {
               $scope.errorModalText = window.filterableObjects[index].stacktrace
               $('#error-modal').modal('show')
+            }
+          }])
+          .filter('trustAsResourceUrl', ['$sce', function ($sce) {
+            return function(url) {
+              return $sce.trustAsResourceUrl(url);
             }
           }])
       })()
@@ -63,18 +68,26 @@
             </td>
             {% if is_site_admin %}
               <td>
-                <form ng-if="log.status == '{{ status_choices.QUEUED }}'" action="{{ url_for('forest_pages.task_log', study_id=study.id) }}" method="post">
-                  <input type="hidden" class="form-control" name="task_id" value="{% raw %}{{ log.external_id }}{% endraw %}"/>
-                  <button class="btn btn-link"
-                          onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')"
-                          style="padding: 0;" type="submit">
-                    Cancel Task
+                <div ng-if="log.status === '{{ status_choices.QUEUED }}'">
+                  <form action="{% raw %}{{ log.cancel_url|trustAsResourceUrl }}{% endraw %}" method="post">
+                    <button class="btn btn-link"
+                            onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')"
+                            style="padding: 0;" type="submit">
+                      Cancel Task
+                    </button>
+                  </form>
+                </div>
+                <div ng-if="log.status !== '{{ status_choices.CANCELLED }}'">
+                  <a class="btn btn-link" ng-href="{% raw %}{{ log.download_url|trustAsResourceUrl }}{% endraw %}"
+                     style="padding: 0;">
+                    Download Raw Data
+                  </a>
+                </div>
+                <div ng-if="log.status === '{{ status_choices.ERROR }}'">
+                  <button class="btn-link" ng-click="showErrorModal($index)" style="padding: 0;">
+                    View error
                   </button>
-                </form>
-                <button class="btn-link" ng-click="showErrorModal($index)"
-                        ng-if="log.status == '{{ status_choices.ERROR }}'" style="padding: 0;">
-                  View error
-                </button>
+                </div>
               </td>
             {% endif %}
           </tr>

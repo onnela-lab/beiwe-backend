@@ -3,8 +3,9 @@ from collections import defaultdict
 
 from django import forms
 from django.utils import timezone
-from flask import render_template, request, abort, flash, redirect, Blueprint, url_for
+from flask import render_template, request, abort, flash, redirect, Blueprint, url_for, Response
 
+from api.data_access_api import chunk_fields
 from authentication.admin_authentication import authenticate_researcher_study_access, \
     researcher_is_an_admin, get_session_researcher, authenticate_admin, \
     get_researcher_allowed_studies
@@ -13,6 +14,7 @@ from database.study_models import Study
 from database.tableau_api_models import ForestTracker
 from database.user_models import Participant
 from libs.forest_integration.constants import ForestTree
+from libs.streaming_zip import zip_generator
 from libs.utils.date_utils import daterange
 from libs.utils.form_utils import CommaSeparatedListCharField, CommaSeparatedListChoiceField
 
@@ -132,7 +134,7 @@ class CreateTasksForm(forms.Form):
         ForestTracker.objects.bulk_create(forest_trackers)
 
 
-@forest_pages.route('/studies/<string:study_id>/forest/create-tasks', methods=['GET', 'POST'])
+@forest_pages.route('/studies/<string:study_id>/forest/tasks/create', methods=['GET', 'POST'])
 @authenticate_admin
 def create_tasks(study_id=None):
     # Only a SITE admin can queue forest tasks
@@ -183,33 +185,56 @@ def _render_create_tasks(study):
         end_date=end_date.strftime('%Y-%m-%d')
     )
 
-@forest_pages.route('/studies/<string:study_id>/forest/task-log', methods=['GET', 'POST'])
+@forest_pages.route('/studies/<string:study_id>/forest/tasks', methods=["GET"])
 @authenticate_researcher_study_access
 def task_log(study_id=None):
     study = Study.objects.get(pk=study_id)
-    if request.method == 'GET':
-        return render_template(
-            'forest/task_log.html',
-            study=study,
-            is_site_admin=get_session_researcher().site_admin,
-            status_choices=ForestTracker.Status,
-            forest_log=list(ForestTracker.objects.all().order_by("-created_on").values("participant", "forest_tree", "data_date_start", "data_date_end", "stacktrace", "status", "external_id", "created_on"))
+    forest_trackers = (
+        ForestTracker
+            .objects
+            .filter(participant__study_id=study_id)
+            .order_by("-created_on")
+            .values(
+                "created_on",
+                "data_date_end",
+                "data_date_start",
+                "external_id",
+                "forest_tree",
+                "participant",
+                "stacktrace",
+                "status",
+            )
+    )
+    for tracker in forest_trackers:
+        tracker["download_url"] = url_for(
+            "forest_pages.download_task_data",
+            study_id=study_id,
+            forest_tracker_external_id=tracker["external_id"],
         )
+        tracker["cancel_url"] = url_for(
+            "forest_pages.cancel_task",
+            study_id=study_id,
+            forest_tracker_external_id=tracker["external_id"],
+        )
+    return render_template(
+        'forest/task_log.html',
+        study=study,
+        is_site_admin=get_session_researcher().site_admin,
+        status_choices=ForestTracker.Status,
+        forest_log=list(forest_trackers),
+    )
 
-    # post request is to cancel a forest task, requires site admin permissions
-    if not get_session_researcher().site_admin:
-        return abort(403)
 
-    forest_task_id = request.values.get("task_id")
-    if forest_task_id is None:
-        return abort(404)
+@forest_pages.route("/studies/<string:study_id>/forest/tasks/<string:forest_tracker_external_id>/cancel", methods=["POST"])
+@authenticate_admin
+def cancel_task(study_id, forest_tracker_external_id):
     number_updated = (
         ForestTracker
             .objects
-            .filter(external_id=forest_task_id, status=ForestTracker.Status.QUEUED)
+            .filter(external_id=forest_tracker_external_id, status=ForestTracker.Status.QUEUED)
             .update(
                 status=ForestTracker.Status.CANCELLED,
-                stacktrace=f'Canceled by {get_session_researcher().username} on {datetime.date.today()}',
+                stacktrace=f"Canceled by {get_session_researcher().username} on {datetime.date.today()}",
             )
     )
     if number_updated > 0:
@@ -219,3 +244,21 @@ def task_log(study_id=None):
 
     return redirect(url_for("forest_pages.task_log", study_id=study_id))
 
+
+@forest_pages.route("/studies/<string:study_id>/forest/tasks/<string:forest_tracker_external_id>/download", methods=["GET"])
+@authenticate_admin
+def download_task_data(study_id, forest_tracker_external_id):
+    try:
+        tracker = ForestTracker.objects.get(
+            external_id=forest_tracker_external_id,
+            participant__study_id=study_id,
+        )
+    except ForestTracker.DoesNotExist:
+        return abort(404)
+
+    chunks = ChunkRegistry.objects.filter(participant=tracker.participant).values(*chunk_fields)
+    return Response(
+        zip_generator(chunks),
+        headers={"Content-Disposition": f"attachment; filename=\"{tracker.get_slug()}.zip\""},
+        mimetype="zip",
+    )

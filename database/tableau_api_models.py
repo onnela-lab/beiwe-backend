@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import uuid
 
 from django.db import models
@@ -94,6 +95,12 @@ class ForestTracker(TimestampedModel):
     stacktrace = models.TextField(null=True, blank=True, default=None)  # for logs
     forest_version = models.CharField(blank=True, max_length=10)
     
+    def clean_up_files(self):
+        """
+        Delete temporary input and output files from this Forest run.
+        """
+        shutil.rmtree(self.data_base_path)
+    
     @property
     def data_base_path(self):
         """
@@ -114,6 +121,31 @@ class ForestTracker(TimestampedModel):
         Return the path to the output data folder, creating it if it doesn't already exist.
         """
         return os.path.join(self.data_base_path, "output")
+    
+    def forest_params(self):
+        """
+        Return a dict of params to pass into the forest function.
+        """
+        params = {
+            "output_folder": self.data_output_path,
+            "study_folder": self.data_input_path,
+            "time_end": self.data_date_end,
+            "time_start": self.data_date_start,
+        }
+        return {**self.metadata.metadata_for_tree(self.forest_tree), **params}
+    
+    def get_slug(self):
+        """
+        Return a human-readable identifier.
+        """
+        parts = [
+            "data",
+            self.participant.patient_id,
+            self.forest_tree,
+            str(self.data_date_start),
+            str(self.data_date_end),
+        ]
+        return "_".join(parts)
 
 
 class ForestMetadata(TimestampedModel):
@@ -137,5 +169,7 @@ class ForestMetadata(TimestampedModel):
     willow_json_string = models.TextField()
     
     def metadata_for_tree(self, tree_name):
+        if tree_name not in ForestTree.values():
+            raise KeyError(f"Invalid tree \"{tree_name}\". Must be one of {ForestTree.values()}.")
         json_string_field_name = f"{tree_name}_json_string"
         return json.loads(getattr(self, json_string_field_name))
