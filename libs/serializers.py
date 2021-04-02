@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from config.constants import DEV_TIME_FORMAT
 from database.security_models import ApiKey
-from database.tableau_api_models import ForestTracker
+from database.tableau_api_models import ForestTask
 
 
 class ApiKeySerializer(serializers.ModelSerializer):
@@ -24,12 +24,12 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
     download_url = serializers.SerializerMethodField()
     forest_params = serializers.SerializerMethodField()
     forest_tree_display = serializers.SerializerMethodField()
-    metadata_name = serializers.SerializerMethodField()
-    metadata_notes = serializers.SerializerMethodField()
+    forest_param_name = serializers.SerializerMethodField()
+    forest_param_notes = serializers.SerializerMethodField()
     patient_id = serializers.SerializerMethodField()
     
     class Meta:
-        model = ForestTracker
+        model = ForestTask
         fields = [
             "cancel_url",
             "created_on_display",
@@ -38,8 +38,8 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
             "download_url",
             "forest_params",
             "forest_tree_display",
-            "metadata_name",
-            "metadata_notes",
+            "forest_param_name",
+            "forest_param_notes",
             "patient_id",
             "process_download_end_time",
             "process_start_time",
@@ -70,13 +70,13 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
         return instance.forest_tree.title()
     
     def get_forest_params(self, instance):
-        return repr(instance.forest_params())
+        return repr(instance.params_dict())
     
-    def get_metadata_name(self, instance):
-        return instance.metadata.name
+    def get_forest_param_name(self, instance):
+        return instance.forest_param.name
     
-    def get_metadata_notes(self, instance):
-        return instance.metadata.notes
+    def get_forest_param_notes(self, instance):
+        return instance.forest_param.notes
     
     def get_patient_id(self, instance):
         return instance.participant.patient_id

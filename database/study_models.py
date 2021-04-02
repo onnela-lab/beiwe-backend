@@ -10,7 +10,7 @@ from config.constants import ResearcherRole
 from config.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from database.models import JSONTextField, TimestampedModel
-from database.tableau_api_models import ForestMetadata
+from database.tableau_api_models import ForestParam
 from database.user_models import Researcher
 from database.validators import LengthValidator
 
@@ -38,8 +38,8 @@ class Study(TimestampedModel):
     
     forest_enabled = models.BooleanField(default=False)
     # Note: this is not nullable to prevent bugs where this is null, though if forest_enabled is
-    #       False, the forest_metadata field isn't used
-    forest_metadata = models.ForeignKey(ForestMetadata, on_delete=models.PROTECT)
+    #       False, the forest_param field isn't used
+    forest_param = models.ForeignKey(ForestParam, on_delete=models.PROTECT)
 
     def save(self, *args, **kwargs):
         """ Ensure there is a study device settings attached to this study. """
@@ -47,9 +47,9 @@ class Study(TimestampedModel):
         # during study creation.  Our current fix is to save, then test whether a device settings
         # object exists.  If not, create it.
         try:
-            self.forest_metadata
+            self.forest_param
         except ObjectDoesNotExist:
-            self.forest_metadata = ForestMetadata.objects.get(default=True)
+            self.forest_param = ForestParam.objects.get(default=True)
         super().save(*args, **kwargs)
         try:
             self.device_settings

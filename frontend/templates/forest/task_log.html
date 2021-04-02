@@ -59,11 +59,11 @@
             <td>{% raw %}{{ log.forest_tree_display }}{% endraw %}</td>
             <td>{% raw %}{{ log.data_date_start }}{% endraw %}</td>
             <td>{% raw %}{{ log.data_date_end }}{% endraw %}</td>
-            <td ng-class="{ {{ status_choices.QUEUED }}: 'list-group-item-info',
-                            {{ status_choices.RUNNING }}: 'list-group-item-primary',
-                            {{ status_choices.SUCCESS }}: 'list-group-item-success',
-                            {{ status_choices.ERROR }}: 'list-group-item-danger',
-                            {{ status_choices.CANCELLED }}: 'list-group-item-warning'}[log.status]">
+            <td ng-class="{ {{ status_choices.queued }}: 'list-group-item-info',
+                            {{ status_choices.running }}: 'list-group-item-primary',
+                            {{ status_choices.success }}: 'list-group-item-success',
+                            {{ status_choices.error }}: 'list-group-item-danger',
+                            {{ status_choices.cancelled }}: 'list-group-item-warning'}[log.status]">
               {% raw %}{{ log.status }}{% endraw %}
             </td>
             {% if is_site_admin %}
@@ -79,7 +79,7 @@
                     Download Raw Data
                   </a>
                 </div>
-                <div ng-if="log.status === '{{ status_choices.QUEUED }}'">
+                <div ng-if="log.status === '{{ status_choices.queued }}'">
                   <form action="{% raw %}{{ log.cancel_url|trustAsResourceUrl }}{% endraw %}" method="post">
                     <button class="btn btn-link"
                             onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')"
@@ -143,11 +143,11 @@
                   <dt>Forest Version</dt>
                   <dd>{% raw %}{{ modalLog.forest_version || '--' }}{% endraw %}</dd>
                   <dt>Forest Parameters (Name)</dt>
-                  <dd>{% raw %}{{ modalLog.metadata_name || '--' }}{% endraw %}</dd>
+                  <dd>{% raw %}{{ modalLog.forest_param_name || '--' }}{% endraw %}</dd>
                   <dt>Forest Parameters (Value)</dt>
                   <dd style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.forest_params }}{% endraw %}</dd>
                   <dt>Forest Parameters (Notes)</dt>
-                  <dd>{% raw %}{{ modalLog.metadata_notes || '--' }}{% endraw %}</dd>
+                  <dd>{% raw %}{{ modalLog.forest_param_notes || '--' }}{% endraw %}</dd>
                 </dl>
               </div>
             </div>

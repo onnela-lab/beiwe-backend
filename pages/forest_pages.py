@@ -12,7 +12,7 @@ from authentication.admin_authentication import authenticate_researcher_study_ac
     get_researcher_allowed_studies, forest_enabled
 from database.data_access_models import ChunkRegistry
 from database.study_models import Study
-from database.tableau_api_models import ForestTracker
+from database.tableau_api_models import ForestTask
 from database.user_models import Participant
 from libs.forest_integration.constants import ForestTree
 from libs.serializers import ForestTrackerSerializer
@@ -40,7 +40,7 @@ def analysis_progress(study_id=None):
     participants = Participant.objects.filter(study=study_id)
 
     # generate chart of study analysis progress logs
-    trackers = ForestTracker.objects.filter(participant__in=participants).order_by("created_on")
+    trackers = ForestTask.objects.filter(participant__in=participants).order_by("created_on")
 
     try:
         start_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
@@ -53,15 +53,15 @@ def analysis_progress(study_id=None):
 
     # this code simultaneously builds up the chart of most recent forest results for date ranges
     # by participant and tree, and tracks the metadata
-    metadata = dict()
+    params = dict()
     results = defaultdict(lambda: "--")
     for tracker in trackers:
         for date in daterange(tracker.data_date_start, tracker.data_date_end, inclusive=True):
             results[(tracker.participant_id, tracker.forest_tree, date)] = tracker.status
-            if tracker.status == tracker.Status.SUCCESS:
-                metadata[(tracker.participant_id, tracker.forest_tree, date)] = tracker.metadata_id
+            if tracker.status == tracker.Status.success:
+                params[(tracker.participant_id, tracker.forest_tree, date)] = tracker.forest_param_id
             else:
-                metadata[(tracker.participant_id, tracker.forest_tree, date)] = None
+                params[(tracker.participant_id, tracker.forest_tree, date)] = None
 
     # generate the date range for charting
     dates = list(daterange(start_date, end_date, inclusive=True))
@@ -74,12 +74,12 @@ def analysis_progress(study_id=None):
             row = [participant.id, tree] + [results[(participant.id, tree, date)] for date in dates]
             chart.append(row)
 
-    metadata_conflict = False
-    # ensure that within each tree, only a single metadata value is used (only the most recent runs
-    # are considered, and unsuccessful runs are assumed to invalidate old runs, clearing metadata)
-    for tree in set([k[1] for k in metadata.keys()]):
-        if len(set([m for k, m in metadata.items() if m is not None and k[1] == tree])) > 1:
-            metadata_conflict = True
+    params_conflict = False
+    # ensure that within each tree, only a single set of param values are used (only the most recent runs
+    # are considered, and unsuccessful runs are assumed to invalidate old runs, clearing params)
+    for tree in set([k[1] for k in params.keys()]):
+        if len(set([m for k, m in params.items() if m is not None and k[1] == tree])) > 1:
+            params_conflict = True
             break
 
     return render_template(
@@ -87,8 +87,8 @@ def analysis_progress(study_id=None):
         study=study,
         study_id=study.id,
         chart_columns=chart_columns,
-        status_choices=ForestTracker.Status,
-        metadata_conflict=metadata_conflict,
+        status_choices=ForestTask.Status,
+        params_conflict=params_conflict,
         start_date=start_date,
         end_date=end_date,
         chart=chart  # this uses the jinja safe filter and should never involve user input
@@ -142,16 +142,16 @@ class CreateTasksForm(forms.Form):
         for participant_id in self.cleaned_data["participant_ids"]:
             for tree in self.cleaned_data["trees"]:
                 forest_trackers.append(
-                    ForestTracker(
+                    ForestTask(
                         participant_id=participant_id,
                         forest_tree=tree,
                         data_date_start=self.cleaned_data["date_start"],
                         data_date_end=self.cleaned_data["date_end"],
-                        status=ForestTracker.Status.QUEUED,
-                        metadata=self.study.forest_metadata,
+                        status=ForestTask.Status.queued,
+                        forest_param=self.study.forest_param,
                     )
                 )
-        ForestTracker.objects.bulk_create(forest_trackers)
+        ForestTask.objects.bulk_create(forest_trackers)
 
 
 @forest_pages.route('/studies/<string:study_id>/forest/tasks/create', methods=['GET', 'POST'])
@@ -214,7 +214,7 @@ def _render_create_tasks(study):
 def task_log(study_id=None):
     study = Study.objects.get(pk=study_id)
     forest_trackers = (
-        ForestTracker
+        ForestTask
             .objects
             .filter(participant__study_id=study_id)
             .order_by("-created_on")
@@ -224,7 +224,7 @@ def task_log(study_id=None):
         study=study,
         study_id=study_id,
         is_site_admin=get_session_researcher().site_admin,
-        status_choices=ForestTracker.Status,
+        status_choices=ForestTask.Status,
         forest_log=ForestTrackerSerializer(forest_trackers, many=True).data,
     )
 
@@ -234,11 +234,11 @@ def task_log(study_id=None):
 @forest_enabled
 def cancel_task(study_id, forest_tracker_external_id):
     number_updated = (
-        ForestTracker
+        ForestTask
             .objects
-            .filter(external_id=forest_tracker_external_id, status=ForestTracker.Status.QUEUED)
+            .filter(external_id=forest_tracker_external_id, status=ForestTask.Status.queued)
             .update(
-                status=ForestTracker.Status.CANCELLED,
+                status=ForestTask.Status.cancelled,
                 stacktrace=f"Canceled by {get_session_researcher().username} on {datetime.date.today()}",
             )
     )
@@ -255,11 +255,11 @@ def cancel_task(study_id, forest_tracker_external_id):
 @forest_enabled
 def download_task_data(study_id, forest_tracker_external_id):
     try:
-        tracker = ForestTracker.objects.get(
+        tracker = ForestTask.objects.get(
             external_id=forest_tracker_external_id,
             participant__study_id=study_id,
         )
-    except ForestTracker.DoesNotExist:
+    except ForestTask.DoesNotExist:
         return abort(404)
 
     chunks = ChunkRegistry.objects.filter(participant=tracker.participant).values(*chunk_fields)

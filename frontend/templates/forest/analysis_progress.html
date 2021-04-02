@@ -12,19 +12,19 @@
           'rowsGroup': [0],
           'createdRow': function(row, data, index) {
             for (let i = 2; i < data.length; i++) {
-                if (data[i] == '{{ status_choices.RUNNING }}') {
+                if (data[i] == '{{ status_choices.running }}') {
                     $($('td', row).get(i)).addClass('bg-primary');
                 }
-                if (data[i] == '{{ status_choices.QUEUED }}') {
+                if (data[i] == '{{ status_choices.queued }}') {
                     $($('td', row).get(i)).addClass('bg-info');
                 }
-                if (data[i] == '{{ status_choices.SUCCESS }}') {
+                if (data[i] == '{{ status_choices.success }}') {
                     $($('td', row).get(i)).addClass('bg-success');
                 }
-                if (data[i] == '{{ status_choices.ERROR }}') {
+                if (data[i] == '{{ status_choices.error }}') {
                     $($('td', row).get(i)).addClass('bg-danger');
                 }
-                if (data[i] == '{{ status_choices.CANCELLED }}') {
+                if (data[i] == '{{ status_choices.cancelled }}') {
                     $($('td', row).get(i)).addClass('bg-warning');
                 }
             }
@@ -43,7 +43,7 @@
 {% block title %}Forest Analysis Progress{% endblock %}
 
 {% block content %}
-  {% if metadata_conflict %}
+  {% if params_conflict %}
     <div class="alert alert-warning">
       Warning: There are analyses on this study that were computed using different Forest parameters.
     </div>

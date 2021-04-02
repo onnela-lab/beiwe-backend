@@ -11,7 +11,7 @@ class ForestTree:
     
     @classmethod
     def values(cls):
-        return [ForestTree.jasmine, ForestTree.willow]
+        return [cls.jasmine, cls.willow]
 
 
 # the following dictionary maps pairs of tree names and CSV fields to summary statistic names
@@ -36,11 +36,4 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     (ForestTree.jasmine, 'av_flight_duration'): ('flight_duration_average', None),
     (ForestTree.jasmine, 'sd_flight_duration'): ('flight_duration_standard_deviation', None),
     (ForestTree.jasmine, 'diameter'): ('distance_diameter', None),
-    # ('gps', ''): ('', None),
-    # ('gps', ''): ('', None),
-    # ('gps', ''): ('', None),
-    # ('gps', ''): ('', None),
-    # ('gps', ''): ('', None),
-    # ('gps', ''): ('', None),
-
 }

@@ -14,7 +14,7 @@ from pkg_resources import get_distribution
 from api.data_access_api import chunk_fields
 from config.constants import FOREST_QUEUE
 from database.data_access_models import ChunkRegistry
-from database.tableau_api_models import ForestTracker
+from database.tableau_api_models import ForestTask
 from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.forest_integration.constants import ForestTree
 from libs.forest_integration.forest_data_interpretation import construct_summary_statistics
@@ -32,7 +32,7 @@ TREE_TO_FOREST_FUNCTION = {
 
 
 def create_forest_celery_tasks():
-    pending_trackers = ForestTracker.objects.filter(status=ForestTracker.Status.QUEUED)
+    pending_trackers = ForestTask.objects.filter(status=ForestTask.Status.queued)
 
     # with make_error_sentry(sentry_type=SentryTypes.data_processing):  # add a new type?
     with NullErrorHandler():  # for debugging, does not suppress errors
@@ -45,31 +45,40 @@ def create_forest_celery_tasks():
 @forest_celery_app.task(queue=FOREST_QUEUE)
 def celery_run_forest(forest_tracker_id):
     with transaction.atomic():
-        tracker = ForestTracker.objects.filter(id=forest_tracker_id).first()
+        tracker = ForestTask.objects.filter(id=forest_tracker_id).first()
 
         participant = tracker.participant
         forest_tree = tracker.forest_tree
         
-        # If there is already a running task for this participant and tree, requeue and exit
-        trackers = ForestTracker.objects.select_for_update().filter(participant=participant, forest_tree=forest_tree)
-        if trackers.filter(status=ForestTracker.Status.RUNNING).exists():
+        # Check if there already is a running task for this participant and tree, handling
+        # concurrency and requeuing of the ask if necessary
+        trackers = (
+            ForestTask
+                .objects
+                .select_for_update()
+                .filter(participant=participant, forest_tree=forest_tree)
+        )
+        if trackers.filter(status=ForestTask.Status.running).exists():
             enqueue_forest_task(args=[tracker.id])
             return
         
         # Get the chronologically earliest tracker that's queued
         tracker = (
             trackers
-                .filter(status=ForestTracker.Status.QUEUED)
+                .filter(status=ForestTask.Status.queued)
                 .order_by("-data_date_start")
                 .first()
         )
         if tracker is None:
             return
-        tracker.status = ForestTracker.Status.RUNNING
+        
+        # Set metadata on the tracker
+        tracker.status = ForestTask.Status.running
         tracker.forest_version = get_distribution("forest").version
         tracker.process_start_time = timezone.now()
         tracker.save(update_fields=["status", "forest_version", "process_start_time"])
 
+    # Save file size data
     chunks = ChunkRegistry.objects.filter(participant=participant)
     tracker.total_file_size = chunks.aggregate(Sum('file_size')).get('file_size__sum')
     tracker.save(update_fields=["total_file_size"])
@@ -79,14 +88,15 @@ def celery_run_forest(forest_tracker_id):
         tracker.process_download_end_time = timezone.now()
         tracker.save(update_field=["process_download_end_time"])
 
-        TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**tracker.forest_params())
+        TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**tracker.params_dict())
         construct_summary_statistics(tracker)
+        save_cached_files(tracker)
     
     except Exception:
-        tracker.status = tracker.Status.ERROR
+        tracker.status = tracker.Status.error
         tracker.stacktrace = traceback.format_exc()
     else:
-        tracker.status = tracker.Status.SUCCESS
+        tracker.status = tracker.Status.success
     tracker.process_end_time = timezone.now()
     tracker.save()
     
@@ -115,3 +125,12 @@ def enqueue_forest_task(**kwargs):
         **kwargs,
     }
     safe_apply_async(celery_run_forest, **updated_kwargs)
+
+
+def save_cached_files(tracker):
+    if os.path.exists(tracker.all_bv_set_path):
+        with open(tracker.all_bv_set_path, "rb") as f:
+            tracker.save_all_bv_set_bytes(f.read())
+    if os.path.exists(tracker.all_memory_dict_path):
+        with open(tracker.all_memory_dict_path, "rb") as f:
+            tracker.save_all_memory_dict_bytes(f.read())

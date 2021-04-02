@@ -1,5 +1,6 @@
 import json
 import os
+import pickle
 import shutil
 import uuid
 
@@ -7,6 +8,200 @@ from django.db import models
 from database.common_models import TimestampedModel
 from database.user_models import Participant
 from libs.forest_integration.constants import ForestTree
+
+
+class ForestParam(TimestampedModel):
+    """
+    Model for tracking params used in Forest analyses. There is one object for all trees.
+    
+    When adding support for a new tree, make sure to add a migration to populate existing
+    ForestMetadata objects with the default metadata for the new tree. This way, all existing
+    ForestTrackers are still associated to the same ForestMetadata object and we don't have to give
+    a warning to users that the metadata have changed.
+    """
+    # Note: making a NullBooleanField unique=True allows us to ensure only one object can have
+    #       default=True at any time (null is considered unique). This means this field should be
+    #       consumed as True or falsy (null is false), as the value should never be actually set to
+    #       `False`.
+    default = models.NullBooleanField(unique=True)
+    notes = models.TextField(blank=True)
+    name = models.TextField(blank=True)
+    
+    jasmine_json_string = models.TextField()
+    willow_json_string = models.TextField()
+    
+    def params_for_tree(self, tree_name):
+        if tree_name not in ForestTree.values():
+            raise KeyError(f"Invalid tree \"{tree_name}\". Must be one of {ForestTree.values()}.")
+        json_string_field_name = f"{tree_name}_json_string"
+        return json.loads(getattr(self, json_string_field_name))
+
+
+class ForestTask(TimestampedModel):
+    participant = models.ForeignKey(
+        'Participant', on_delete=models.PROTECT, db_index=True
+    )
+    # the external id is used for endpoints that refer to forest trackers to avoid exposing the
+    # primary keys of the model. it is intentionally not the primary key
+    external_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    
+    forest_param = models.ForeignKey(ForestParam, on_delete=models.PROTECT)
+    
+    forest_tree = models.TextField(choices=ForestTree.choices())
+    data_date_start = models.DateField()  # inclusive
+    data_date_end = models.DateField()  # inclusive
+    
+    total_file_size = models.IntegerField(blank=True, null=True)  # input file size sum for accounting
+    process_start_time = models.DateTimeField(null=True, blank=True)
+    process_download_end_time = models.DateField(null=True, blank=True)
+    process_end_time = models.DateTimeField(null=True, blank=True)
+    
+    class Status:
+        queued = 'queued'
+        running = 'running'
+        success = 'success'
+        error = 'error'
+        cancelled = 'cancelled'
+        
+        @classmethod
+        def choices(cls):
+            return [(choice, choice.title()) for choice in cls.values()]
+        
+        @classmethod
+        def values(cls):
+            return [cls.queued, cls.running, cls.success, cls.error, cls.cancelled]
+    
+    status = models.TextField(choices=Status.choices())
+    stacktrace = models.TextField(null=True, blank=True, default=None)  # for logs
+    forest_version = models.CharField(blank=True, max_length=10)
+    
+    all_bv_set_s3_key = models.TextField(blank=True)
+    all_memory_dict_s3_key = models.TextField(blank=True)
+
+    @property
+    def all_bv_set_path(self):
+        return os.path.join(self.data_output_path, "all_BV_set.pkl")
+    
+    @property
+    def all_memory_dict_path(self):
+        return os.path.join(self.data_output_path, "all_memory_dict.pkl")
+    
+    def clean_up_files(self):
+        """
+        Delete temporary input and output files from this Forest run.
+        """
+        shutil.rmtree(self.data_base_path)
+    
+    @property
+    def data_base_path(self):
+        """
+        Return the path to the base data folder, creating it if it doesn't already exist.
+        """
+        return os.path.join("/tmp", str(self.external_id), self.forest_tree)
+    
+    @property
+    def data_input_path(self):
+        """
+        Return the path to the input data folder, creating it if it doesn't already exist.
+        """
+        return os.path.join(self.data_base_path, "data")
+    
+    @property
+    def data_output_path(self):
+        """
+        Return the path to the output data folder, creating it if it doesn't already exist.
+        """
+        return os.path.join(self.data_base_path, "output")
+    
+    def params_dict(self):
+        """
+        Return a dict of params to pass into the forest function.
+        """
+        other_params = {
+            "output_folder": self.data_output_path,
+            "study_folder": self.data_input_path,
+            "time_end": self.data_date_end,
+            "time_start": self.data_date_start,
+        }
+        if self.forest_tree == ForestTree.jasmine:
+            other_params["all_BV_set"] = self.get_all_bv_set_dict()
+            other_params["all_memory_dict"] = self.get_all_memory_dict_dict()
+        return {**self.forest_param.params_for_tree(self.forest_tree), **other_params}
+    
+    def generate_all_bv_set_s3_key(self):
+        """
+        Generate the S3 key that all_bv_set_s3_key should live in (whereas the direct
+        all_bv_set_s3_key field on the instance is where it currently lives, regardless
+        of how generation changes).
+        """
+        return os.path.join(self.s3_base_folder, 'all_bv_set.pkl')
+    
+    def generate_all_memory_dict_s3_key(self):
+        """
+        Generate the S3 key that all_memory_dict_s3_key should live in (whereas the direct
+        all_memory_dict_s3_key field on the instance is where it currently lives, regardless
+        of how generation changes).
+        """
+        return os.path.join(self.s3_base_folder, 'all_memory_dict.pkl')
+    
+    def get_all_bv_set_dict(self):
+        """
+        Return the unpickled all_bv_set dict.
+        """
+        if not self.all_bv_set_s3_key:
+            return None  # Forest expects None if it doesn't exist
+        from libs.s3 import s3_retrieve
+        bytes = s3_retrieve(self.all_bv_set_s3_key, self.participant.study.object_id, raw_path=True)
+        return pickle.loads(bytes)
+    
+    def get_all_memory_dict_dict(self):
+        """
+        Return the unpickled all_memory_dict dict.
+        """
+        if not self.all_memory_dict_s3_key:
+            return None  # Forest expects None if it doesn't exist
+        from libs.s3 import s3_retrieve
+        bytes = s3_retrieve(
+            self.all_memory_dict_s3_key,
+            self.participant.study.object_id,
+            raw_path=True,
+        )
+        return pickle.loads(bytes)
+    
+    def get_slug(self):
+        """
+        Return a human-readable identifier.
+        """
+        parts = [
+            "data",
+            self.participant.patient_id,
+            self.forest_tree,
+            str(self.data_date_start),
+            str(self.data_date_end),
+        ]
+        return "_".join(parts)
+    
+    @property
+    def s3_base_folder(self):
+        return os.path.join(self.participant.study.object_id, "forest")
+    
+    def save_all_bv_set_bytes(self, all_bv_set_bytes):
+        from libs.s3 import s3_upload
+        s3_upload(
+            self.generate_all_bv_set_s3_key(),
+            all_bv_set_bytes,
+            self.participant.study.object_id,
+            raw_path=True,
+        )
+    
+    def save_all_memory_dict_bytes(self, all_memory_dict_bytes):
+        from libs.s3 import s3_upload
+        s3_upload(
+            self.generate_all_memory_dict_s3_key(),
+            all_memory_dict_bytes,
+            self.participant.study.object_id,
+            raw_path=True,
+        )
 
 
 class SummaryStatisticDaily(TimestampedModel):
@@ -54,122 +249,5 @@ class SummaryStatisticDaily(TimestampedModel):
     sleep_duration = models.IntegerField(null=True, blank=True)
     sleep_onset_time = models.DateTimeField(null=True, blank=True)
 
-    jasmine_tracker = models.ForeignKey("ForestMetadata", null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
-    willow_tracker = models.ForeignKey("ForestMetadata", null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
-
-
-class ForestTracker(TimestampedModel):
-    participant = models.ForeignKey(
-        'Participant', on_delete=models.PROTECT, db_index=True
-    )
-    # the external id is used for endpoints that refer to forest trackers to avoid exposing the
-    # primary keys of the model. it is intentionally not the primary key
-    external_id = models.UUIDField(default=uuid.uuid4, editable=False)
-    
-    metadata = models.ForeignKey("ForestMetadata", on_delete=models.PROTECT)
-
-    forest_tree = models.TextField(choices=ForestTree.choices())
-    data_date_start = models.DateField()  # inclusive
-    data_date_end = models.DateField()  # inclusive
-
-    total_file_size = models.IntegerField(blank=True, null=True)  # input file size sum for accounting
-    process_start_time = models.DateTimeField(null=True, blank=True)
-    process_download_end_time = models.DateField(null=True, blank=True)
-    process_end_time = models.DateTimeField(null=True, blank=True)
-
-    class Status:
-        QUEUED = 'Queued'
-        RUNNING = 'Running'
-        SUCCESS = 'Success'
-        ERROR = 'Error'
-        CANCELLED = 'Cancelled'
-
-    STATUS_CHOICES = (
-        (Status.QUEUED, Status.QUEUED),
-        (Status.RUNNING, Status.RUNNING),
-        (Status.SUCCESS, Status.SUCCESS),
-        (Status.ERROR, Status.ERROR),
-        (Status.CANCELLED, Status.CANCELLED),
-    )
-    status = models.TextField(choices=STATUS_CHOICES)
-    stacktrace = models.TextField(null=True, blank=True, default=None)  # for logs
-    forest_version = models.CharField(blank=True, max_length=10)
-    
-    def clean_up_files(self):
-        """
-        Delete temporary input and output files from this Forest run.
-        """
-        shutil.rmtree(self.data_base_path)
-    
-    @property
-    def data_base_path(self):
-        """
-        Return the path to the base data folder, creating it if it doesn't already exist.
-        """
-        return os.path.join("/tmp", str(self.external_id), self.forest_tree)
-    
-    @property
-    def data_input_path(self):
-        """
-        Return the path to the input data folder, creating it if it doesn't already exist.
-        """
-        return os.path.join(self.data_base_path, "data")
-    
-    @property
-    def data_output_path(self):
-        """
-        Return the path to the output data folder, creating it if it doesn't already exist.
-        """
-        return os.path.join(self.data_base_path, "output")
-    
-    def forest_params(self):
-        """
-        Return a dict of params to pass into the forest function.
-        """
-        params = {
-            "output_folder": self.data_output_path,
-            "study_folder": self.data_input_path,
-            "time_end": self.data_date_end,
-            "time_start": self.data_date_start,
-        }
-        return {**self.metadata.metadata_for_tree(self.forest_tree), **params}
-    
-    def get_slug(self):
-        """
-        Return a human-readable identifier.
-        """
-        parts = [
-            "data",
-            self.participant.patient_id,
-            self.forest_tree,
-            str(self.data_date_start),
-            str(self.data_date_end),
-        ]
-        return "_".join(parts)
-
-
-class ForestMetadata(TimestampedModel):
-    """
-    Model for tracking metadata used in Forest analyses. There is one object for all trees.
-    
-    When adding support for a new tree, make sure to add a migration to populate existing
-    ForestMetadata objects with the default metadata for the new tree. This way, all existing
-    ForestTrackers are still associated to the same ForestMetadata object and we don't have to give
-    a warning to users that the metadata have changed.
-    """
-    # Note: making a NullBooleanField unique=True allows us to ensure only one object can have
-    #       default=True at any time (null is considered unique). This means this field should be
-    #       consumed as True or falsy (null is false), as the value should never be actually set to
-    #       `False`.
-    default = models.NullBooleanField(unique=True)
-    notes = models.TextField(blank=True)
-    name = models.TextField(blank=True)
-    
-    jasmine_json_string = models.TextField()
-    willow_json_string = models.TextField()
-    
-    def metadata_for_tree(self, tree_name):
-        if tree_name not in ForestTree.values():
-            raise KeyError(f"Invalid tree \"{tree_name}\". Must be one of {ForestTree.values()}.")
-        json_string_field_name = f"{tree_name}_json_string"
-        return json.loads(getattr(self, json_string_field_name))
+    jasmine_tracker = models.ForeignKey(ForestParam, null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
+    willow_tracker = models.ForeignKey(ForestParam, null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
