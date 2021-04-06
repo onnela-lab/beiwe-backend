@@ -20,10 +20,8 @@ class ApiKeySerializer(serializers.ModelSerializer):
         ]
 
 
-class ForestTrackerSerializer(serializers.ModelSerializer):
-    cancel_url = serializers.SerializerMethodField()
+class ForestTaskBaseSerializer(serializers.ModelSerializer):
     created_on_display = serializers.SerializerMethodField()
-    download_url = serializers.SerializerMethodField()
     forest_tree_display = serializers.SerializerMethodField()
     forest_param_name = serializers.SerializerMethodField()
     forest_param_notes = serializers.SerializerMethodField()
@@ -33,11 +31,10 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
     class Meta:
         model = ForestTask
         fields = [
-            "cancel_url",
             "created_on_display",
             "data_date_end",
             "data_date_start",
-            "download_url",
+            "id",
             "forest_tree_display",
             "forest_param_name",
             "forest_param_notes",
@@ -46,27 +43,13 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
             "process_download_end_time",
             "process_start_time",
             "process_end_time",
-            "stacktrace",
             "status",
             "total_file_size",
         ]
-
-    def get_cancel_url(self, instance):
-        return url_for(
-            "forest_pages.cancel_task",
-            study_id=instance.participant.study_id,
-            forest_tracker_external_id=instance.external_id,
-        )
+    
     
     def get_created_on_display(self, instance):
         return instance.created_on.strftime(DEV_TIME_FORMAT)
-    
-    def get_download_url(self, instance):
-        return url_for(
-            "forest_pages.download_task_data",
-            study_id=instance.participant.study_id,
-            forest_tracker_external_id=instance.external_id,
-        )
     
     def get_forest_tree_display(self, instance):
         return instance.forest_tree.title()
@@ -84,3 +67,35 @@ class ForestTrackerSerializer(serializers.ModelSerializer):
     
     def get_patient_id(self, instance):
         return instance.participant.patient_id
+
+
+class ForestTaskCsvSerializer(ForestTaskBaseSerializer):
+    pass
+
+
+class ForestTaskSerializer(ForestTaskBaseSerializer):
+    cancel_url = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ForestTaskBaseSerializer.Meta.model
+        fields = [
+            *ForestTaskBaseSerializer.Meta.fields,
+            "cancel_url",
+            "download_url",
+            "stacktrace",
+        ]
+    
+    def get_cancel_url(self, instance):
+        return url_for(
+            "forest_pages.cancel_task",
+            study_id=instance.participant.study_id,
+            forest_task_external_id=instance.external_id,
+        )
+
+    def get_download_url(self, instance):
+        return url_for(
+            "forest_pages.download_task_data",
+            study_id=instance.participant.study_id,
+            forest_task_external_id=instance.external_id,
+        )

@@ -16,7 +16,7 @@ class ForestParam(TimestampedModel):
     
     When adding support for a new tree, make sure to add a migration to populate existing
     ForestMetadata objects with the default metadata for the new tree. This way, all existing
-    ForestTrackers are still associated to the same ForestMetadata object and we don't have to give
+    ForestTasks are still associated to the same ForestMetadata object and we don't have to give
     a warning to users that the metadata have changed.
     """
     # Note: making a NullBooleanField unique=True allows us to ensure only one object can have

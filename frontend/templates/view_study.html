@@ -116,6 +116,15 @@
               View Forest Analysis Progress
             </a>
           </p>
+          {% if is_site_admin %}
+            <p>
+              <b>Download Forest Task Log (for all studies)</b>
+              <br>
+              <a class="btn btn-info" href="{{ url_for('forest_pages.download_task_log') }}">
+                Download Forest Task Log
+              </a>
+            </p>
+          {% endif %}
         </div>
       {% endif %}
 

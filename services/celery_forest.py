@@ -43,9 +43,9 @@ def create_forest_celery_tasks():
 
 #run via celery as long as tasks exist
 @forest_celery_app.task(queue=FOREST_QUEUE)
-def celery_run_forest(forest_tracker_id):
+def celery_run_forest(forest_task_id):
     with transaction.atomic():
-        tracker = ForestTask.objects.filter(id=forest_tracker_id).first()
+        tracker = ForestTask.objects.filter(id=forest_task_id).first()
 
         participant = tracker.participant
         forest_tree = tracker.forest_tree

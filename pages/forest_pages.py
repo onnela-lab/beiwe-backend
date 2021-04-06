@@ -1,3 +1,4 @@
+import csv
 import datetime
 from collections import defaultdict
 
@@ -15,7 +16,7 @@ from database.study_models import Study
 from database.tableau_api_models import ForestTask
 from database.user_models import Participant
 from libs.forest_integration.constants import ForestTree
-from libs.serializers import ForestTrackerSerializer
+from libs.serializers import ForestTaskSerializer, ForestTaskCsvSerializer
 from libs.streaming_zip import zip_generator
 from libs.utils.date_utils import daterange
 from libs.utils.form_utils import CommaSeparatedListCharField, CommaSeparatedListChoiceField
@@ -137,10 +138,10 @@ class CreateTasksForm(forms.Form):
         return [participant["patient_id"] for participant in participants]
 
     def save(self):
-        forest_trackers = []
+        forest_tasks = []
         for participant_id in self.cleaned_data["participant_ids"]:
             for tree in self.cleaned_data["trees"]:
-                forest_trackers.append(
+                forest_tasks.append(
                     ForestTask(
                         participant_id=participant_id,
                         forest_tree=tree,
@@ -150,7 +151,7 @@ class CreateTasksForm(forms.Form):
                         forest_param=self.study.forest_param,
                     )
                 )
-        ForestTask.objects.bulk_create(forest_trackers)
+        ForestTask.objects.bulk_create(forest_tasks)
 
 
 @forest_pages.route('/studies/<string:study_id>/forest/tasks/create', methods=['GET', 'POST'])
@@ -211,7 +212,7 @@ def _render_create_tasks(study):
 @forest_enabled
 def task_log(study_id=None):
     study = Study.objects.get(pk=study_id)
-    forest_trackers = (
+    forest_tasks = (
         ForestTask
             .objects
             .filter(participant__study_id=study_id)
@@ -222,18 +223,53 @@ def task_log(study_id=None):
         study=study,
         is_site_admin=get_session_researcher().site_admin,
         status_choices=ForestTask.Status,
-        forest_log=ForestTrackerSerializer(forest_trackers, many=True).data,
+        forest_log=ForestTaskSerializer(forest_tasks, many=True).data,
     )
 
 
-@forest_pages.route("/studies/<string:study_id>/forest/tasks/<string:forest_tracker_external_id>/cancel", methods=["POST"])
+
+class CSVBuffer:
+    line = ""
+    
+    def read(self):
+        return self.line
+    
+    def write(self, line):
+        self.line = line
+
+
+def stream_forest_task_log_csv(forest_tasks):
+    buffer = CSVBuffer()
+    writer = csv.DictWriter(buffer, fieldnames=ForestTaskCsvSerializer.Meta.fields)
+    writer.writeheader()
+    yield buffer.read()
+    from app import app
+    with app.test_request_context():
+        for forest_task in forest_tasks:
+            writer.writerow(ForestTaskCsvSerializer(forest_task).data)
+            yield buffer.read()
+
+
+@forest_pages.route('/forest/tasks/download', methods=["GET"])
+@authenticate_admin
+def download_task_log():
+    filename = f"forest_task_log_{timezone.now().isoformat()}.csv"
+    forest_tasks = ForestTask.objects.order_by("created_on")
+    return Response(
+        stream_forest_task_log_csv(forest_tasks),
+        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""},
+        mimetype="text/csv",
+    )
+
+
+@forest_pages.route("/studies/<string:study_id>/forest/tasks/<string:forest_task_external_id>/cancel", methods=["POST"])
 @authenticate_admin
 @forest_enabled
-def cancel_task(study_id, forest_tracker_external_id):
+def cancel_task(study_id, forest_task_external_id):
     number_updated = (
         ForestTask
             .objects
-            .filter(external_id=forest_tracker_external_id, status=ForestTask.Status.queued)
+            .filter(external_id=forest_task_external_id, status=ForestTask.Status.queued)
             .update(
                 status=ForestTask.Status.cancelled,
                 stacktrace=f"Canceled by {get_session_researcher().username} on {datetime.date.today()}",
@@ -247,13 +283,13 @@ def cancel_task(study_id, forest_tracker_external_id):
     return redirect(url_for("forest_pages.task_log", study_id=study_id))
 
 
-@forest_pages.route("/studies/<string:study_id>/forest/tasks/<string:forest_tracker_external_id>/download", methods=["GET"])
+@forest_pages.route("/studies/<string:study_id>/forest/tasks/<string:forest_task_external_id>/download", methods=["GET"])
 @authenticate_admin
 @forest_enabled
-def download_task_data(study_id, forest_tracker_external_id):
+def download_task_data(study_id, forest_task_external_id):
     try:
         tracker = ForestTask.objects.get(
-            external_id=forest_tracker_external_id,
+            external_id=forest_task_external_id,
             participant__study_id=study_id,
         )
     except ForestTask.DoesNotExist:
