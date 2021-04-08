@@ -4,6 +4,7 @@ import traceback
 from datetime import datetime, timedelta
 
 from cronutils.error_handler import NullErrorHandler
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -89,7 +90,7 @@ def celery_run_forest(forest_task_id):
         tracker.save(update_fields=["process_download_end_time"])
 
         params_dict = tracker.params_dict()
-        tracker.params_dict_cache = json.dumps(params_dict)
+        tracker.params_dict_cache = json.dumps(params_dict, cls=DjangoJSONEncoder)
         tracker.save(update_fields=["params_dict_cache"])
         TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**params_dict)
         construct_summary_statistics(tracker)
