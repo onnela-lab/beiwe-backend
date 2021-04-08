@@ -86,11 +86,11 @@ def celery_run_forest(forest_task_id):
     try:
         create_local_data_files(tracker, chunks)
         tracker.process_download_end_time = timezone.now()
-        tracker.save(update_field=["process_download_end_time"])
+        tracker.save(update_fields=["process_download_end_time"])
 
         params_dict = tracker.params_dict()
         tracker.params_dict_cache = json.dumps(params_dict)
-        tracker.save(update_field=["params_dict_cache"])
+        tracker.save(update_fields=["params_dict_cache"])
         TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**params_dict)
         construct_summary_statistics(tracker)
         save_cached_files(tracker)
