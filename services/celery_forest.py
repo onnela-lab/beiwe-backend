@@ -101,10 +101,10 @@ def celery_run_forest(forest_task_id):
         tracker.stacktrace = traceback.format_exc()
     else:
         tracker.status = tracker.Status.success
+    tracker.clean_up_files()
     tracker.process_end_time = timezone.now()
     tracker.save()
     
-    tracker.clean_up_files()
 
 
 def create_local_data_files(tracker, chunks):
