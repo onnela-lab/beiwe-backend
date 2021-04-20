@@ -115,8 +115,8 @@ def create_local_data_files(tracker, chunks):
             determine_file_name(chunk),
         )
         os.makedirs(os.path.dirname(file_name), exist_ok=True)
-        with open(file_name, "x") as f:
-            f.write(contents.decode("utf-8"))
+        with open(file_name, "xb") as f:
+            f.write(contents)
 
 
 def enqueue_forest_task(**kwargs):
