@@ -91,6 +91,17 @@
                     </label>
                 </div>
             </div>
+
+            <div class="form-group">
+                <label for="background_audio" class="col-xs-8 control-label">Background Audio:</label>
+                <div class="col-xs-4 checkbox checkbox-custom">
+                    <label>
+                        <input name="background_audio" id="background_audio" type="checkbox" {{ "checked" if settings["background_audio"] }} {{ "disabled" if readonly }}/>
+                    </label>
+                </div>
+            </div>
+
+
             <div class="form-group">
                 <label for="reachability" class="col-xs-8 control-label">Reachability:</label>
                 <div class="col-xs-4 checkbox checkbox-custom">
