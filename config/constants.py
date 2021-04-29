@@ -90,6 +90,7 @@ GYRO = "gyro"
 MAGNETOMETER = "magnetometer"
 DEVICEMOTION = "devicemotion"
 REACHABILITY = "reachability"
+AMBIENT_AUDIO = "ambient_audio"
 
 # dictionary for printing PROCESSED data streams for frontend
 # necessary even with the complete data stream dict for parsing data from the backend
@@ -163,6 +164,7 @@ COMPLETE_DATA_STREAM_DICT = {
     TEXTS_LOG: "Text Log (bytes)",
     VOICE_RECORDING: "Audio Recordings (bytes)",
     WIFI: "Wifi (bytes)",
+    AMBIENT_AUDIO: "Ambient Audio Recording (bytes)",
 }
 
 ALL_DATA_STREAMS = [
@@ -185,6 +187,7 @@ ALL_DATA_STREAMS = [
     TEXTS_LOG,
     VOICE_RECORDING,
     WIFI,
+    AMBIENT_AUDIO,
 ]
 
 SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
@@ -208,6 +211,7 @@ UPLOAD_FILE_TYPE_MAPPING = {
     "proximity": PROXIMITY,
     "ios_log": IOS_LOG_FILE,
     "imageSurvey": IMAGE_FILE,
+    "ambientAudio": AMBIENT_AUDIO,
     "identifiers": IDENTIFIERS,  # not processed through data upload.
 }
 
@@ -234,7 +238,8 @@ DATA_STREAM_TO_S3_FILE_NAME_STRING = {
     DEVICEMOTION: "devicemotion",
     REACHABILITY: "reachability",
     IOS_LOG_FILE: "ios/log",
-    IMAGE_FILE: "imageSurvey"
+    IMAGE_FILE: "imageSurvey",
+    AMBIENT_AUDIO: "ambientAudio",
 }
 
 CHUNKABLE_FILES = {
