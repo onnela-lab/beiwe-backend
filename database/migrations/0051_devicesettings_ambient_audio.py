@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='devicesettings',
-            name='background_audio',
+            name='ambient_audio',
             field=models.BooleanField(default=False),
         ),
     ]

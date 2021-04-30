@@ -193,7 +193,7 @@ class DeviceSettings(TimestampedModel):
     use_gps_fuzzing = models.BooleanField(default=False)
     call_clinician_button_enabled = models.BooleanField(default=True)
     call_research_assistant_button_enabled = models.BooleanField(default=True)
-    background_audio = models.BooleanField(default=False)
+    ambient_audio = models.BooleanField(default=False)
 
     # Whether iOS-specific data streams are turned on
     proximity = models.BooleanField(default=False)
