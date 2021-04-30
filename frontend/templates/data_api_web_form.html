@@ -67,7 +67,7 @@
               <div class="form-group">
                 <label for="data_stream_selector">Data Types</label>
                 <select class="form-control" name="data_streams" id="data_stream_selector" size=12 multiple>
-                  {% for data_stream in ALL_DATA_STREAMS %}
+                  {% for data_stream in ALL_DATA_STREAMS | sort %}
                     <option>{{ data_stream }}</option>
                   {% endfor %}
                 </select>
