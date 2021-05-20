@@ -96,7 +96,8 @@ def celery_run_forest(forest_task_id):
         TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**params_dict)
         
         # Save data
-        tracker.construct_summary_statistics()
+        tracker.forest_output_exists = tracker.construct_summary_statistics()
+        tracker.save(update_fields=["forest_output_exists"])
         save_cached_files(tracker)
     except Exception:
         tracker.status = tracker.Status.error

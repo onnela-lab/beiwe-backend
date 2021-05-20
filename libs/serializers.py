@@ -38,6 +38,7 @@ class ForestTaskBaseSerializer(serializers.ModelSerializer):
             "forest_tree_display",
             "forest_param_name",
             "forest_param_notes",
+            "forest_output_exists",
             "params_dict",
             "patient_id",
             "process_download_end_time",

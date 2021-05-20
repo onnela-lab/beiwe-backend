@@ -60,6 +60,9 @@ class ForestTask(TimestampedModel):
     process_download_end_time = models.DateField(null=True, blank=True)
     process_end_time = models.DateTimeField(null=True, blank=True)
     
+    # Whether or not there was any data output by Forest (None indicates unknown)
+    forest_output_exists = models.NullBooleanField()
+    
     class Status:
         queued = 'queued'
         running = 'running'
