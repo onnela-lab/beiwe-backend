@@ -18,7 +18,6 @@ from database.data_access_models import ChunkRegistry
 from database.tableau_api_models import ForestTask
 from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.forest_integration.constants import ForestTree
-from libs.forest_integration.forest_data_interpretation import construct_summary_statistics
 
 
 # run via cron every five minutes
@@ -85,17 +84,20 @@ def celery_run_forest(forest_task_id):
     tracker.save(update_fields=["total_file_size"])
     
     try:
+        # Download data
         create_local_data_files(tracker, chunks)
         tracker.process_download_end_time = timezone.now()
         tracker.save(update_fields=["process_download_end_time"])
 
+        # Run Forest
         params_dict = tracker.params_dict()
         tracker.params_dict_cache = json.dumps(params_dict, cls=DjangoJSONEncoder)
         tracker.save(update_fields=["params_dict_cache"])
         TREE_TO_FOREST_FUNCTION[tracker.forest_tree](**params_dict)
-        construct_summary_statistics(tracker)
+        
+        # Save data
+        tracker.construct_summary_statistics()
         save_cached_files(tracker)
-    
     except Exception:
         tracker.status = tracker.Status.error
         tracker.stacktrace = traceback.format_exc()

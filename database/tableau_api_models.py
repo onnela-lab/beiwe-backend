@@ -1,3 +1,4 @@
+import csv
 import datetime
 import json
 import os
@@ -8,7 +9,7 @@ import uuid
 from django.db import models
 from database.common_models import TimestampedModel
 from database.user_models import Participant
-from libs.forest_integration.constants import ForestTree
+from libs.forest_integration.constants import ForestTree, TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS
 from libs.utils.date_utils import datetime_to_list
 
 
@@ -88,7 +89,45 @@ class ForestTask(TimestampedModel):
     @property
     def all_memory_dict_path(self):
         return os.path.join(self.data_output_path, "all_memory_dict.pkl")
+
+    def construct_summary_statistics(self):
+        """
+        Construct summary statistics from forest output, returning whether or not any
+        SummaryStatisticDaily has potentially been created or updated.
+        """
+        if not os.path.exists(self.forest_results_path):
+            return False
+        with open(self.forest_results_path, "rb") as f:
+            reader = csv.DictReader(f)
+            data = list(reader)
+            has_data = False
     
+            for line in data:
+                has_data = True
+                summary_date = datetime.date(year=line['year'], month=line['month'], day=line['day'])
+                if not (self.data_date_start < summary_date < self.data_date_end):
+                    continue
+                updates = {}
+                for column_name, value in line.items():
+                    if (self.forest_tree, column_name) in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS:
+                        summary_stat_field, interpretation_function = TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS[(self.forest_tree, column_name)]
+                        if interpretation_function is not None:
+                            updates[summary_stat_field] = interpretation_function(value, line)
+                        else:
+                            updates[summary_stat_field] = value
+            
+                if len(updates) != len([k for k in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS.keys() if k[0] == self.forest_tree]):
+                    # error instead? to error log?
+                    print('some fields not found in forest data output, possible missing data. '
+                          'Check if you are using an outdated version of Forest')
+            
+                SummaryStatisticDaily.objects.update_or_create(
+                    participant=self.participant,
+                    date=summary_date,
+                    defaults=updates
+                )
+        return has_data
+
     def clean_up_files(self):
         """
         Delete temporary input and output files from this Forest run.
@@ -115,6 +154,13 @@ class ForestTask(TimestampedModel):
         Return the path to the output data folder, creating it if it doesn't already exist.
         """
         return os.path.join(self.data_base_path, "output")
+    
+    @property
+    def forest_results_path(self):
+        """
+        Return the path to the file that contains the output of Forest.
+        """
+        return os.path.join(self.data_output_path, f"{self.participant.patient_id}.csv")
     
     def params_dict(self):
         """
