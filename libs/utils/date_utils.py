@@ -1,4 +1,5 @@
 import datetime
+from typing import List
 
 
 def daterange(start, stop, step=datetime.timedelta(days=1), inclusive=False):
@@ -16,3 +17,20 @@ def daterange(start, stop, step=datetime.timedelta(days=1), inclusive=False):
             start = start + step
     if inclusive and start == stop:
         yield start
+
+
+def datetime_to_list(datetime_object: datetime.date) -> List[int]:
+    """
+    Takes in a `datetime.date` or `datetime.datetime` and returns a list of datetime components.
+    """
+    datetime_component_list = [datetime_object.year, datetime_object.month, datetime_object.day]
+    if isinstance(datetime_object, datetime.datetime):
+        datetime_component_list.extend([
+            datetime_object.hour,
+            datetime_object.minute,
+            datetime_object.second,
+            datetime_object.microsecond,
+        ])
+    else:
+        datetime_component_list.extend([0, 0, 0, 0])
+    return datetime_component_list

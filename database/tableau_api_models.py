@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import pickle
@@ -8,6 +9,7 @@ from django.db import models
 from database.common_models import TimestampedModel
 from database.user_models import Participant
 from libs.forest_integration.constants import ForestTree
+from libs.utils.date_utils import datetime_to_list
 
 
 class ForestParam(TimestampedModel):
@@ -116,13 +118,15 @@ class ForestTask(TimestampedModel):
     
     def params_dict(self):
         """
-        Return a dict of params to pass into the forest function.
+        Return a dict of params to pass into the Forest function.
         """
         other_params = {
             "output_folder": self.data_output_path,
             "study_folder": self.data_input_path,
-            "time_end": self.data_date_end,
-            "time_start": self.data_date_start,
+            # Need to add a day since this model tracks time end inclusively, but Forest expects
+            # it exclusively
+            "time_end": datetime_to_list(self.data_date_end + datetime.timedelta(days=1)),
+            "time_start": datetime_to_list(self.data_date_start),
         }
         if self.forest_tree == ForestTree.jasmine:
             other_params["all_BV_set"] = self.get_all_bv_set_dict()
