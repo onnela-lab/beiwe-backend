@@ -72,7 +72,7 @@ def analysis_progress(study_id=None):
 
     for participant in participants:
         for tree in ForestTree.values():
-            row = [participant.id, tree] + [results[(participant.id, tree, date)] for date in dates]
+            row = [participant.patient_id, tree] + [results[(participant.id, tree, date)] for date in dates]
             chart.append(row)
 
     params_conflict = False
