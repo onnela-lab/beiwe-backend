@@ -124,11 +124,18 @@ class ForestTask(TimestampedModel):
                     print('some fields not found in forest data output, possible missing data. '
                           'Check if you are using an outdated version of Forest')
             
-                SummaryStatisticDaily.objects.update_or_create(
-                    participant=self.participant,
-                    date=summary_date,
-                    defaults=updates
-                )
+                data = {
+                    "date": summary_date,
+                    "defaults": updates,
+                    "participant": self.participant,
+                }
+                if self.forest_tree == ForestTree.jasmine:
+                    data["jasmine_task"] = self
+                elif self.forest_tree == ForestTree.willow:
+                    data["willow_task"] = self
+                else:
+                    raise Exception("Unknown tree")
+                SummaryStatisticDaily.objects.update_or_create(**data)
         return has_data
 
     def clean_up_files(self):
@@ -307,5 +314,5 @@ class SummaryStatisticDaily(TimestampedModel):
     sleep_duration = models.IntegerField(null=True, blank=True)
     sleep_onset_time = models.DateTimeField(null=True, blank=True)
 
-    jasmine_tracker = models.ForeignKey(ForestParam, null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
-    willow_tracker = models.ForeignKey(ForestParam, null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
+    jasmine_task = models.ForeignKey(ForestParam, blank=True, null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
+    willow_task = models.ForeignKey(ForestParam, blank=True, null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
