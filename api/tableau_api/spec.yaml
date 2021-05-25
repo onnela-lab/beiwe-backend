@@ -167,38 +167,46 @@ components:
             distance_diameter:
               # MaxDiam_km
               description: Largest distance between any two places visited (meters)
-              type: integer
+              format: float
+              type: number
             distance_from_home:
               # MaxHomeDist_km
               description: Maximum distance from home (meters)
-              type: integer
+              format: float
+              type: number
             distance_traveled:
               # DistTravelled_km
               description: Distance traveled (meters)
-              type: integer
+              format: float
+              type: number
             flight_distance_average:
               # AvgFlightLen_km
               description: Average distance of straight line movement (meters)
-              type: integer
+              format: float
+              type: number
             flight_distance_standard_deviation:
               # StdFlightLen_km
               description: Standard deviation of straight line movement (meters)
-              type: integer
+              format: float
+              type: number
             flight_duration_average:
               # AvgFlightDur_min
               description: Average duration of straight line movement (minutes)
-              type: integer
+              format: float
+              type: number
             flight_duration_standard_deviation:
               # StdFlightDur_min
               description: Standard deviation of straight line movement (minutes)
-              type: integer
+              format: float
+              type: number
             gps_data_missing_duration:
               description: Duration of GPS data missing (minutes)
               type: integer
             home_duration:
               # Hometime_hrs
               description: Duration of time spent at home (hours)
-              type: integer
+              format: float
+              type: number
             physical_circadian_rhythm:
               description: Continuous measurement of routine in the interval [0, 1] where 1 is a complete break from routine
               type: number
