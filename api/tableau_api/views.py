@@ -22,16 +22,19 @@ class SummaryStatisticDailySerializer(serializers.ModelSerializer):
     participant_id = serializers.SlugRelatedField(
         slug_field="patient_id", source="participant", read_only=True
     )
-    study_id = serializers.SlugRelatedField(slug_field="object_id", source="study", read_only=True)
+    study_id = serializers.SerializerMethodField()
 
     def __init__(self, *args, fields=None, **kwargs):
         """ dynamically modify the subset of fields on instantiation """
         super().__init__(*args, **kwargs)
-
+    
         if fields is not None:
             for field_name in set(self.fields) - set(fields):
                 # is this pop valid? the value is a cached property... this needs to be tested.
                 self.fields.pop(field_name)
+
+    def get_study_id(self, obj):
+        return obj.participant.study.object_id
 
 
 class SummaryStatisticDailyStudyView(TableauApiView):
