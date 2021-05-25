@@ -90,9 +90,12 @@ def celery_run_forest(forest_task_id):
                 .filter(time_bin__gte=min_datetime)
                 .filter(time_bin__lte=max_datetime)
         )
-        task.total_file_size = chunks.aggregate(Sum('file_size')).get('file_size__sum')
+        file_size = chunks.aggregate(Sum('file_size')).get('file_size__sum')
+        if file_size is None:
+            raise Exception('No chunked data found for participant for the dates specified.')
+        task.total_file_size = file_size
         task.save(update_fields=["total_file_size"])
-    
+        
         # Download data
         create_local_data_files(task, chunks)
         task.process_download_end_time = timezone.now()
