@@ -78,12 +78,21 @@ def celery_run_forest(forest_task_id):
         tracker.process_start_time = timezone.now()
         tracker.save(update_fields=["status", "forest_version", "process_start_time"])
 
-    # Save file size data
-    chunks = ChunkRegistry.objects.filter(participant=participant)
-    tracker.total_file_size = chunks.aggregate(Sum('file_size')).get('file_size__sum')
-    tracker.save(update_fields=["total_file_size"])
-    
     try:
+        # Save file size data
+        # The largest UTC offsets are -12 and +14
+        min_datetime = datetime.combine(tracker.data_date_start, datetime.min.time()) - timedelta(hours=12)
+        max_datetime = datetime.combine(tracker.data_date_end, datetime.max.time()) + timedelta(hours=14)
+        chunks = (
+            ChunkRegistry
+                .objects
+                .filter(participant=participant)
+                .filter(time_bin__gte=min_datetime)
+                .filter(time_bin__lte=max_datetime)
+        )
+        tracker.total_file_size = chunks.aggregate(Sum('file_size')).get('file_size__sum')
+        tracker.save(update_fields=["total_file_size"])
+    
         # Download data
         create_local_data_files(tracker, chunks)
         tracker.process_download_end_time = timezone.now()
