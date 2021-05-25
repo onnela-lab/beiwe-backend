@@ -48,10 +48,12 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         if not form.is_valid():
             return self._render_errors(form.errors.get_json_data())
 
-        query = form.cleaned_data
-        field_names = query.pop("fields", SERIALIZABLE_FIELD_NAMES)
-        queryset = self._query_database(study_id=study_id, **query)
-        serializer = SummaryStatisticDailySerializer(queryset, many=True, fields=field_names)
+        queryset = self._query_database(study_id=study_id, **form.cleaned_data)
+        serializer = SummaryStatisticDailySerializer(
+            queryset,
+            fields=form.cleaned_data["fields"],
+            many=True,
+        )
         return JSONRenderer().render(serializer.data)
 
     @staticmethod
@@ -136,6 +138,7 @@ class ApiQueryForm(forms.Form):
 
     fields = CommaSeparatedListChoiceField(
         choices=SERIALIZABLE_FIELD_NAMES_DROPDOWN,
+        default=SERIALIZABLE_FIELD_NAMES,
         required=False,
         error_messages={"invalid_choice": "%(value)s is not a valid field"},
     )

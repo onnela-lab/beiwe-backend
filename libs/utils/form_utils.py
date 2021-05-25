@@ -9,7 +9,8 @@ class CommaSeparatedListFieldMixin(forms.Field):
         value as input, and is applied to each value individually) """
     NONSTRING_ERROR_MESSAGE = "Please supply only string arguments to a CommaSeparatedListField"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, default=None, **kwargs):
+        self.default = default if default is not None else []
         super().__init__(*args, **kwargs)
 
     def clean(self, value) -> list:
@@ -19,7 +20,7 @@ class CommaSeparatedListFieldMixin(forms.Field):
             if self.required:
                 raise ValidationError(self.error_messages['required'], code='required')
             else:
-                value = ""
+                return self.default
                 
         if not isinstance(value, str):
             raise ValidationError(self.NONSTRING_ERROR_MESSAGE)
