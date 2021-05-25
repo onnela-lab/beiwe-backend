@@ -100,14 +100,17 @@ class ForestTask(TimestampedModel):
         """
         if not os.path.exists(self.forest_results_path):
             return False
-        with open(self.forest_results_path, "rb") as f:
+        with open(self.forest_results_path, "r") as f:
             reader = csv.DictReader(f)
-            data = list(reader)
             has_data = False
     
-            for line in data:
+            for line in reader:
                 has_data = True
-                summary_date = datetime.date(year=line['year'], month=line['month'], day=line['day'])
+                summary_date = datetime.date(
+                    int(float(line['year'])),
+                    int(float(line['month'])),
+                    int(float(line['day'])),
+                )
                 if not (self.data_date_start < summary_date < self.data_date_end):
                     continue
                 updates = {}
