@@ -100,6 +100,14 @@ class ForestTask(TimestampedModel):
         """
         if not os.path.exists(self.forest_results_path):
             return False
+
+        if self.forest_tree == ForestTree.jasmine:
+            task_attribute = "jasmine_task"
+        elif self.forest_tree == ForestTree.willow:
+            task_attribute = "willow_task"
+        else:
+            raise Exception("Unknown tree")
+        
         with open(self.forest_results_path, "r") as f:
             reader = csv.DictReader(f)
             has_data = False
@@ -127,17 +135,13 @@ class ForestTask(TimestampedModel):
                     print('some fields not found in forest data output, possible missing data. '
                           'Check if you are using an outdated version of Forest')
             
+                updates[task_attribute] = self
+                
                 data = {
                     "date": summary_date,
                     "defaults": updates,
                     "participant": self.participant,
                 }
-                if self.forest_tree == ForestTree.jasmine:
-                    data["jasmine_task"] = self
-                elif self.forest_tree == ForestTree.willow:
-                    data["willow_task"] = self
-                else:
-                    raise Exception("Unknown tree")
                 SummaryStatisticDaily.objects.update_or_create(**data)
         return has_data
 
@@ -317,5 +321,10 @@ class SummaryStatisticDaily(TimestampedModel):
     sleep_duration = models.IntegerField(null=True, blank=True)
     sleep_onset_time = models.DateTimeField(null=True, blank=True)
 
-    jasmine_task = models.ForeignKey(ForestParam, blank=True, null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
-    willow_task = models.ForeignKey(ForestParam, blank=True, null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
+    jasmine_task = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
+    willow_task = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['date', 'participant'], name="unique_summary_statistic")
+        ]
