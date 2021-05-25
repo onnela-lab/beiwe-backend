@@ -127,13 +127,10 @@ class ForestTask(TimestampedModel):
                         summary_stat_field, interpretation_function = TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS[(self.forest_tree, column_name)]
                         if interpretation_function is not None:
                             updates[summary_stat_field] = interpretation_function(value, line)
+                        elif value == '':
+                            updates[summary_stat_field] = None
                         else:
                             updates[summary_stat_field] = value
-            
-                if len(updates) != len([k for k in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS.keys() if k[0] == self.forest_tree]):
-                    # error instead? to error log?
-                    print('some fields not found in forest data output, possible missing data. '
-                          'Check if you are using an outdated version of Forest')
             
                 updates[task_attribute] = self
                 
