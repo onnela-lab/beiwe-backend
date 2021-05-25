@@ -57,10 +57,8 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         return JSONRenderer().render(serializer.data)
 
     @staticmethod
-    def _query_database(
-            study_id, end_date=None, start_date=None, limit=None, order_by="date",
-            order_direction="descending", participant_ids=None,
-    ) -> QuerySet:
+    def _query_database(study_id, end_date=None, start_date=None, limit=None, order_by="date",
+                        order_direction="descending", participant_ids=None, **kwargs) -> QuerySet:
         """
         Args:
             study_id (str): study in which to find data
