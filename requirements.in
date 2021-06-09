@@ -1,5 +1,5 @@
 # core libraries
-Django==2.2.19
+Django==2.2.22
 firebase-admin==4.5.1
 
 # Lock Flask and related dependencies

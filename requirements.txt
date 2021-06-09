@@ -38,7 +38,7 @@ django-extensions==3.1.0
     # via -r requirements.in
 django-timezone-field==4.1.1
     # via -r requirements.in
-django==2.2.19
+django==2.2.22
     # via
     #   -r requirements.in
     #   django-timezone-field
@@ -97,8 +97,6 @@ httplib2==0.19.1
     #   google-auth-httplib2
 idna==2.10
     # via requests
-importlib-metadata==4.0.1
-    # via pep517
 ipython-genutils==0.2.0
     # via traitlets
 ipython==7.1.1
@@ -211,8 +209,6 @@ toml==0.10.2
     # via pep517
 traitlets==4.3.3
     # via ipython
-typing-extensions==3.10.0.0
-    # via importlib-metadata
 uritemplate==3.0.1
     # via google-api-python-client
 urllib3==1.26.4
@@ -225,10 +221,6 @@ werkzeug==1.0.1
     # via
     #   -r requirements.in
     #   flask
-zipp==3.4.1
-    # via
-    #   importlib-metadata
-    #   pep517
 zstd==1.4.9.1
     # via -r requirements.in
 
