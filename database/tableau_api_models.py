@@ -276,6 +276,8 @@ class ForestTask(TimestampedModel):
 class SummaryStatisticDaily(TimestampedModel):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     date = models.DateField(db_index=True)
+    
+    # GPS
     distance_diameter = models.FloatField(null=True, blank=True)
     distance_from_home = models.FloatField(null=True, blank=True)
     distance_traveled = models.FloatField(null=True, blank=True)
@@ -291,6 +293,8 @@ class SummaryStatisticDaily(TimestampedModel):
     significant_location_count = models.IntegerField(null=True, blank=True)
     significant_location_entropy = models.IntegerField(null=True, blank=True)
     stationary_fraction = models.TextField(null=True, blank=True)
+    
+    # Texts
     text_incoming_count = models.IntegerField(null=True, blank=True)
     text_incoming_degree = models.IntegerField(null=True, blank=True)
     text_incoming_length = models.IntegerField(null=True, blank=True)
@@ -299,6 +303,8 @@ class SummaryStatisticDaily(TimestampedModel):
     text_outgoing_degree = models.IntegerField(null=True, blank=True)
     text_outgoing_length = models.IntegerField(null=True, blank=True)
     text_reciprocity = models.IntegerField(null=True, blank=True)
+    
+    # Calls
     call_incoming_count = models.IntegerField(null=True, blank=True)
     call_incoming_degree = models.IntegerField(null=True, blank=True)
     call_incoming_duration = models.IntegerField(null=True, blank=True)
@@ -306,14 +312,20 @@ class SummaryStatisticDaily(TimestampedModel):
     call_outgoing_count = models.IntegerField(null=True, blank=True)
     call_outgoing_degree = models.IntegerField(null=True, blank=True)
     call_outgoing_duration = models.IntegerField(null=True, blank=True)
+    
+    # Accelerometer
     acceleration_direction = models.TextField(null=True, blank=True)
     accelerometer_coverage_fraction = models.TextField(null=True, blank=True)
     accelerometer_signal_variability = models.TextField(null=True, blank=True)
     accelerometer_univariate_summaries = models.FloatField(null=True, blank=True)
     device_proximity = models.BooleanField(null=True, blank=True)
+    
+    # Power state
     total_power_events = models.IntegerField(null=True, blank=True)
     total_screen_events = models.IntegerField(null=True, blank=True)
     total_unlock_events = models.IntegerField(null=True, blank=True)
+    
+    # Multiple domains
     awake_onset_time = models.DateTimeField(null=True, blank=True)
     sleep_duration = models.IntegerField(null=True, blank=True)
     sleep_onset_time = models.DateTimeField(null=True, blank=True)

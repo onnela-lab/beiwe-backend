@@ -209,9 +209,11 @@ components:
               type: number
             physical_circadian_rhythm:
               description: Continuous measurement of routine in the interval [0, 1] where 1 is a complete break from routine
+              format: float
               type: number
             physical_circadian_rhythm_stratified:
               description: Same as physical_circadian_rhythm but calculated separately for weekdays and weekends
+              format: float
               type: number
             radius_of_gyration:
               # RoG_km
