@@ -60,11 +60,12 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         return JSONRenderer().render(serializer.data)
 
     @staticmethod
-    def _query_database(study_id, end_date=None, start_date=None, limit=None, order_by="date",
-                        order_direction="descending", participant_ids=None, **kwargs) -> QuerySet:
+    def _query_database(study_object_id, end_date=None, start_date=None, limit=None,
+                        order_by="date", order_direction="descending", participant_ids=None,
+                        **kwargs) -> QuerySet:
         """
         Args:
-            study_id (str): study in which to find data
+            study_object_id (str): study in which to find data
             end_date (optional[date]): last date to include in search
             start_date (optional[date]): first date to include in search
             limit (optional[int]): maximum number of data points to return
@@ -76,8 +77,7 @@ class SummaryStatisticDailyStudyView(TableauApiView):
         """
         if order_direction == "descending":
             order_by = "-" + order_by
-        # TODO: change to be based participant studies
-        queryset = SummaryStatisticDaily.objects.filter(participant__study__object_id=study_id)
+        queryset = SummaryStatisticDaily.objects.filter(participant__study__object_id=study_object_id)
         if participant_ids:
             queryset = queryset.filter(participant__patient_id__in=participant_ids)
         if end_date:
