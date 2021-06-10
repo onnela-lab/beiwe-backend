@@ -1,0 +1,42 @@
+# core libraries
+Django==2.2.22
+firebase-admin==4.5.1
+
+# Lock Flask and related dependencies
+Flask==1.1.2
+Werkzeug==1.0.1
+itsdangerous==1.1.0
+Jinja2==2.11.3
+
+# various extensions
+djangorestframework==3.12.2
+django-extensions==3.1.0
+flask_cors==3.0.10
+
+python-dateutil==2.8.1
+factory-boy==3.2.0
+
+#pycryptodome>=3.9.0
+pycryptodomex==3.9.9
+pycrypto
+zstd
+
+# error reporting
+raven[flask]>=6.10.0
+cronutils>=0.3.0
+
+# server requirement
+psycopg2==2.8.6
+
+# ipython has problems past 7.1.1, python for python 3.6.12 the highest compatible version is 7.16.x (as of 2021/1/1)
+ipython==7.1.1
+
+# Keep these dependencies up to date
+boto3
+pytz
+
+# Ug due to pytz.timezone("America/New_York") being off by 4 minutes (aka ... wrong) we had to abandon
+# this library. but we can't remove it because it is used in migrations.
+django-timezone-field==4.1.1
+
+pip-tools

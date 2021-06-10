@@ -29,14 +29,13 @@
                 debug:true
             }).install();
             </script>
-            
-            {# TODO: get a favicon #}
-            <link rel="icon" type="image/ico" href="/frontend/static/img/favicon_64.ico">
         {% endif %}
         
         <!-- Load Angular -->
         <script src="/static/javascript/app/app.module.js"></script>
-        
+
+        <link rel="icon" href="/static/images/favicon-32x32.png" sizes="32x32">
+        <link rel="icon" href="/static/images/favicon-192x192.png" sizes="192x192">
         <title>Beiwe | {% block title %}{% endblock %}</title>
     {% endblock %}
 </head>
