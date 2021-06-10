@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('database', '0054_foresttask_forest_output_exists'),
+        ('database', '0053_foresttask_forest_output_exists'),
     ]
 
     operations = [
