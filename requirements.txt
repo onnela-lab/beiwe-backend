@@ -38,7 +38,7 @@ django-extensions==3.1.0
     # via -r requirements.in
 django-timezone-field==4.1.1
     # via -r requirements.in
-django==2.2.22
+django==2.2.24
     # via
     #   -r requirements.in
     #   django-timezone-field
