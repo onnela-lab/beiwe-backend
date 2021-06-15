@@ -23,6 +23,7 @@ class ApiKeySerializer(serializers.ModelSerializer):
 class ForestTaskBaseSerializer(serializers.ModelSerializer):
     created_on_display = serializers.SerializerMethodField()
     forest_tree_display = serializers.SerializerMethodField()
+    forest_output_exists_display = serializers.SerializerMethodField()
     forest_param_name = serializers.SerializerMethodField()
     forest_param_notes = serializers.SerializerMethodField()
     params_dict = serializers.SerializerMethodField()
@@ -39,6 +40,7 @@ class ForestTaskBaseSerializer(serializers.ModelSerializer):
             "forest_param_name",
             "forest_param_notes",
             "forest_output_exists",
+            "forest_output_exists_display",
             "params_dict",
             "patient_id",
             "process_download_end_time",
@@ -54,6 +56,14 @@ class ForestTaskBaseSerializer(serializers.ModelSerializer):
     
     def get_forest_tree_display(self, instance):
         return instance.forest_tree.title()
+    
+    def get_forest_output_exists_display(self, instance):
+        if instance.forest_output_exists is True:
+            return "Yes"
+        elif instance.forest_output_exists is False:
+            return "No"
+        else:
+            return "Unknown"
     
     def get_forest_param_name(self, instance):
         return instance.forest_param.name

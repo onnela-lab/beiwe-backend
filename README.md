@@ -103,3 +103,8 @@ see https://github.com/onnela-lab/beiwe-backend/wiki/Deployment-Instructions---S
 5. Set the filename of your Firebase credentials JSON file in `libs/push_notifications.py` line 16 (this is a temporary solution)
 6. Run celery: `celery -A services.celery_push_notifications worker -Q push_notifications --loglevel=info -Ofair --hostname=%%h_notifications --concurrency=20 --pool=threads`
 7. Run `python services/cron.py five_minutes`
+
+
+### Forest
+
+Warning: The Forest integration is still in beta; running Forest may cause significant data processing costs.

@@ -30,8 +30,11 @@
 {% block content %}
   <h1>Run Forest</h1>
   <div class="container">
-      <br><br>
-
+      <br>
+      <div class="alert alert-info">
+        Warning: The Forest integration is still in beta; running Forest may cause significant data processing costs.
+      </div>
+      <br>
       <div class="row well">
       <h3>Queue analysis for {{ study.name }}</h3>
         <form action="" method="POST">
