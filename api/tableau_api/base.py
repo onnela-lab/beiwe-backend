@@ -4,8 +4,10 @@ from flask import jsonify, request
 from flask.views import MethodView
 
 from api.tableau_api.constants import (APIKEY_NO_ACCESS_MESSAGE, HEADER_IS_REQUIRED,
-    NO_STUDY_FOUND_MESSAGE, NO_STUDY_PROVIDED_MESSAGE, RESEARCHER_NOT_ALLOWED, RESOURCE_NOT_FOUND,
-    STUDY_HAS_FOREST_DISABLED_MESSAGE, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
+                                       NO_STUDY_FOUND_MESSAGE, NO_STUDY_PROVIDED_MESSAGE,
+                                       RESEARCHER_NOT_ALLOWED, RESOURCE_NOT_FOUND,
+                                       STUDY_HAS_FOREST_DISABLED_MESSAGE, X_ACCESS_KEY_ID,
+                                       X_ACCESS_KEY_SECRET, CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models import StudyRelation
@@ -40,7 +42,7 @@ class TableauApiView(MethodView):
     specific to this API.
     """
 
-    def check_permissions(self, *args, study_id=None, **kwargs):
+    def check_permissions(self, *args, study_object_id=None, **kwargs):
         """
         Authenticate API key and check permissions for access to a study/participant data.
         """
@@ -52,28 +54,28 @@ class TableauApiView(MethodView):
                 access_key_id=form.cleaned_data[X_ACCESS_KEY_ID], is_active=True,
             )
         except ApiKey.DoesNotExist:
-            raise AuthenticationFailed(self.CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
+            raise AuthenticationFailed(CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
 
         if not api_key.proposed_secret_key_is_valid(form.cleaned_data[X_ACCESS_KEY_SECRET]):
-            raise AuthenticationFailed(self.CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
+            raise AuthenticationFailed(CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
 
         # Authorization
         if not api_key.has_tableau_api_permissions:
             raise PermissionDenied(APIKEY_NO_ACCESS_MESSAGE)
 
-        if study_id is None:
+        if study_object_id is None:
             raise PermissionDenied(NO_STUDY_PROVIDED_MESSAGE)
-        if not Study.objects.filter(object_id=study_id).exists():
+        if not Study.objects.filter(object_id=study_object_id).exists():
             raise PermissionDenied(NO_STUDY_FOUND_MESSAGE)
 
-        if not Study.objects.get(object_id=study_id).forest_enabled:
+        if not Study.objects.get(object_id=study_object_id).forest_enabled:
             raise PermissionDenied(STUDY_HAS_FOREST_DISABLED_MESSAGE)
 
         if api_key.researcher.site_admin:
             return True
 
         try:
-            StudyRelation.objects.filter(study__object_id=study_id).get(researcher=api_key.researcher)
+            StudyRelation.objects.filter(study__object_id=study_object_id).get(researcher=api_key.researcher)
         except ObjectDoesNotExist:
             raise PermissionDenied(RESEARCHER_NOT_ALLOWED)
 

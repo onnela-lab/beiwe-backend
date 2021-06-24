@@ -15,7 +15,7 @@
 
           var tableSchema = {
                 id: "StudyData",
-                alias: "Data from the Beiwe WDC on study with id: '{{ study_id }}'",
+                alias: "Data from the Beiwe WDC on study with id: '{{ study_object_id }}'",
                 columns: cols
             };
           schemaCallback([tableSchema]);
@@ -24,7 +24,7 @@
         myConnector.getData = function (table, doneCallback) {
             $.ajax({
               dataType: "json",
-              url: "{{ url_for('summary_statistics_daily_study_view', study_id=study_id) }}" + tableau.connectionData,
+              url: "{{ url_for('summary_statistics_daily_study_view', study_object_id=study_object_id) }}" + tableau.connectionData,
               headers: {
                 "X-Access-Key-Id": tableau.username,
                 "X-Access-Key-Secret": tableau.password
@@ -46,7 +46,7 @@
             $("#submitButton").click(function() {
                 tableau.username = document.getElementById('access_key_id').value
                 tableau.password = document.getElementById('access_key_secret').value
-                tableau.connectionName = "Study: {{ study_id }}"; // This will be the data source name in Tableau
+                tableau.connectionName = "Study: {{ study_object_id }}"; // This will be the data source name in Tableau
                 tableau.connectionData = window.location.search; //save the query string which contains parameters for the api call
                 tableau.submit(); // This sends the connector object to Tableau
             });
@@ -56,7 +56,7 @@
   <head/>
   <body>
     <h1>Beiwe Study Web Data Connector</h1>
-    <div>For the study with ID: {{ study_id }}</div>
+    <div>For the study with ID: {{ study_object_id }}</div>
     <div class="container container-table">
       <div class="row vertical-center-row">
         <div class="text-center col-md-4 col-md-offset-4">

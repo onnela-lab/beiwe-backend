@@ -22,7 +22,7 @@ class SummaryStatisticDailySerializer(serializers.ModelSerializer):
     participant_id = serializers.SlugRelatedField(
         slug_field="patient_id", source="participant", read_only=True
     )
-    study_id = serializers.SerializerMethodField()
+    study_id = serializers.SerializerMethodField()  # Study object id
 
     def __init__(self, *args, fields=None, **kwargs):
         """ dynamically modify the subset of fields on instantiation """
@@ -42,16 +42,16 @@ class SummaryStatisticDailyStudyView(TableauApiView):
     API endpoint for retrieving SummaryStatisticsDaily objects for a study.
     """
 
-    path = "/api/v0/studies/<string:study_id>/summary-statistics/daily"
+    path = "/api/v0/studies/<string:study_object_id>/summary-statistics/daily"
 
     @cross_origin()
-    def get(self, study_id) -> dict:
+    def get(self, study_object_id) -> dict:
         # validate,  assemble data and serialize
         form = ApiQueryForm(data=request.values)
         if not form.is_valid():
             return self._render_errors(form.errors.get_json_data())
 
-        queryset = self._query_database(study_id=study_id, **form.cleaned_data)
+        queryset = self._query_database(study_object_id=study_object_id, **form.cleaned_data)
         serializer = SummaryStatisticDailySerializer(
             queryset,
             fields=form.cleaned_data["fields"],

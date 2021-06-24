@@ -8,7 +8,7 @@ from database.tableau_api_models import SummaryStatisticDaily
 
 class WebDataConnector(MethodView):
 
-    path = '/api/v0/studies/<string:study_id>/summary-statistics/daily/wdc'
+    path = '/api/v0/studies/<string:study_object_id>/summary-statistics/daily/wdc'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

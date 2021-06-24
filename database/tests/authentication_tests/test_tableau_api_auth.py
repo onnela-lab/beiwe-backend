@@ -7,6 +7,7 @@ from api.tableau_api.views import SummaryStatisticDailySerializer
 from app import app
 from database.security_models import ApiKey
 from database.study_models import DeviceSettings, Study
+from database.tableau_api_models import ForestParam
 from database.tests.authentication_tests.django_flask_hybrid_test_framework import HybridTest
 from database.tests.authentication_tests.testing_constants import (BASE_URL, TEST_PASSWORD,
     TEST_STUDY_ENCRYPTION_KEY, TEST_STUDY_NAME, TEST_USERNAME)
@@ -38,9 +39,16 @@ class TableauApiAuthTests(HybridTest):
             self.api_key_public = self.api_key.access_key_id
             self.api_key_private = self.api_key.access_key_secret_plaintext
         if study:
+            ForestParam.objects.get_or_create(
+                default=True,
+                defaults={
+                    "jasmine_json_string": "{}",
+                    "willow_json_string": "{}",
+                })
             self.study = Study.create_with_object_id(
                 device_settings=DeviceSettings(),
                 encryption_key=TEST_STUDY_ENCRYPTION_KEY,
+                forest_enabled=True,
                 name=TEST_STUDY_NAME,
             )
             if researcher:
@@ -54,7 +62,7 @@ class TableauApiAuthTests(HybridTest):
         if session is None:
             session = requests.Session()
         session.post(
-            self.url_for("admin_pages.login"),
+            self.url_for("login_pages.login"),
             data={"username": TEST_USERNAME, "password": TEST_PASSWORD},
         )
         return session
@@ -112,21 +120,21 @@ class TableauApiAuthTests(HybridTest):
         self.setup(researcher=True, apikey=True, study=True)
         with app.test_request_context(headers=self.default_header):
             self.assertTrue(
-                TableauApiView().check_permissions(study_id=self.study.object_id)
+                TableauApiView().check_permissions(study_object_id=self.study.object_id)
             )
 
     def test_check_permissions_none(self):
         self.setup(researcher=True, apikey=True, study=True)
         with self.assertRaises(AuthenticationFailed) as cm:
             with app.test_request_context(headers={}):
-                TableauApiView().check_permissions(study_id=self.study.object_id)
+                TableauApiView().check_permissions(study_object_id=self.study.object_id)
 
     def test_check_permissions_inactive(self):
         self.setup(researcher=True, apikey=True, study=True)
         self.api_key.update(is_active=False)
         with self.assertRaises(AuthenticationFailed) as cm:
             with app.test_request_context(headers=self.default_header):
-                TableauApiView().check_permissions(study_id=self.study.object_id)
+                TableauApiView().check_permissions(study_object_id=self.study.object_id)
 
     def test_check_permissions_bad_secret(self):
         self.setup(researcher=True, apikey=True, study=True)
@@ -138,7 +146,7 @@ class TableauApiAuthTests(HybridTest):
         }
         with self.assertRaises(AuthenticationFailed) as cm:
             with app.test_request_context(headers=headers):
-                TableauApiView().check_permissions(study_id=self.study.object_id)
+                TableauApiView().check_permissions(study_object_id=self.study.object_id)
 
     def test_check_permissions_no_tableau(self):
         self.setup(researcher=True, apikey=True, study=True)
@@ -147,14 +155,14 @@ class TableauApiAuthTests(HybridTest):
         )
         with self.assertRaises(PermissionDenied) as cm:
             with app.test_request_context(headers=self.default_header):
-                TableauApiView().check_permissions(study_id=self.study.object_id)
+                TableauApiView().check_permissions(study_object_id=self.study.object_id)
 
     def test_check_permissions_bad_study(self):
         self.setup(researcher=True, apikey=True, study=True)
         self.assertFalse(ApiKey.objects.filter(access_key_id=" bad study id ").exists())
         with self.assertRaises(PermissionDenied) as cm:
             with app.test_request_context(headers=self.default_header):
-                TableauApiView().check_permissions(study_id=" bad study id ")
+                TableauApiView().check_permissions(study_object_id=" bad study id ")
 
     def test_check_permissions_no_study_permission(self):
         self.setup(researcher=True, apikey=True, study=True)
@@ -163,7 +171,7 @@ class TableauApiAuthTests(HybridTest):
         ).delete()
         with self.assertRaises(PermissionDenied) as cm:
             with app.test_request_context(headers=self.default_header):
-                TableauApiView().check_permissions(study_id=self.study.object_id)
+                TableauApiView().check_permissions(study_object_id=self.study.object_id)
 
     def test_tableau_api_dispatch(self):
         """
@@ -186,8 +194,8 @@ class TableauApiAuthTests(HybridTest):
         session = requests.Session()
         response = session.get(
             BASE_URL
-            + "/api/v0/studies/<string:study_id>/summary-statistics/daily".replace(
-                "<string:study_id>", self.study.object_id
+            + "/api/v0/studies/<string:study_object_id>/summary-statistics/daily".replace(
+                "<string:study_object_id>", self.study.object_id
             ),
             headers=self.default_header,
         )
