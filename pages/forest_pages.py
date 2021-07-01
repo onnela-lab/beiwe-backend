@@ -43,14 +43,8 @@ def analysis_progress(study_id=None):
     # generate chart of study analysis progress logs
     trackers = ForestTask.objects.filter(participant__in=participants).order_by("created_on")
 
-    try:
-        start_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
-        end_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
-        start_date = start_date.time_bin.date()
-        end_date = end_date.time_bin.date()
-    except ChunkRegistry.DoesNotExist:
-        start_date = study.created_on.date()
-        end_date = datetime.date.today()
+    start_date = (study.get_earliest_data_time_bin() or study.created_on).date()
+    end_date = (study.get_latest_data_time_bin() or timezone.now()).date()
 
     # this code simultaneously builds up the chart of most recent forest results for date ranges
     # by participant and tree, and tracks the metadata
