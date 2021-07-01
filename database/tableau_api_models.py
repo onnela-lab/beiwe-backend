@@ -55,7 +55,7 @@ class ForestTask(TimestampedModel):
     data_date_start = models.DateField()  # inclusive
     data_date_end = models.DateField()  # inclusive
     
-    total_file_size = models.IntegerField(blank=True, null=True)  # input file size sum for accounting
+    total_file_size = models.BigIntegerField(blank=True, null=True)  # input file size sum for accounting
     process_start_time = models.DateTimeField(null=True, blank=True)
     process_download_end_time = models.DateTimeField(null=True, blank=True)
     process_end_time = models.DateTimeField(null=True, blank=True)
