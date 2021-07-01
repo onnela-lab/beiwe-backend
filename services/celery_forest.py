@@ -116,9 +116,10 @@ def celery_run_forest(forest_task_id):
         task.stacktrace = traceback.format_exc()
     else:
         task.status = task.Status.success
+    task.save(update_fields=["status", "stacktrace"])
     task.clean_up_files()
     task.process_end_time = timezone.now()
-    task.save()
+    task.save(update_fields=["process_end_time"])
     
 
 
