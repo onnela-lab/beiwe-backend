@@ -2,6 +2,8 @@ import functools
 from datetime import datetime, timedelta
 from typing import Dict, List
 
+from django.utils import timezone
+from django.utils.timezone import is_naive
 from flask import flash, redirect, request, session
 from werkzeug.exceptions import abort
 
@@ -49,9 +51,17 @@ def logout_researcher():
 
 def is_logged_in():
     """ automatically logs out the researcher if their session is timed out. """
-    if EXPIRY_NAME in session and session[EXPIRY_NAME] > datetime.now():
-        return SESSION_UUID in session
+    if EXPIRY_NAME in session:
+        expiry_datetime = session[EXPIRY_NAME]
+        if is_naive(expiry_datetime):
+            if expiry_datetime > datetime.now():
+                return SESSION_UUID in session
+        else:
+            if expiry_datetime > timezone.now():
+                return SESSION_UUID in session
+
     logout_researcher()
+    return False
 
 
 def get_session_researcher() -> Researcher:
@@ -258,10 +268,10 @@ def forest_enabled(func):
             study = Study.objects.get(id=kwargs.get("study_id", None))
         except Study.DoesNotExist:
             return abort(404)
-        
+
         if not study.forest_enabled:
             return abort(404)
-        
+
         return func(*args, **kwargs)
-    
+
     return wrapped
