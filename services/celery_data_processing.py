@@ -102,10 +102,10 @@ def celery_process_file_chunks(participant_id):
     except Exception as e:
         print(f"Error running data processing: {e}")
     finally:
-        # print(
-        #     "IGNORE 'ConnectionResetError: [Errno 104] Connection reset by peer'\n"
-        #     "WE EXIT IN ORDER TO FIX A MEMORY LEAK THAT SO FAR DEFIES ANALYSIS. CELERY COMPLAINS."
-        # )
+        print(
+            "Data processing task completed. Exiting to clean up memory. You can safely ignore the "
+            "immediately following \"Worker exited prematurely: exitcode 0\" error message."
+        )
         exit(0)
 
 

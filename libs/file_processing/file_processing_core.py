@@ -118,7 +118,7 @@ def do_process_user_file_chunks(
     ftps_to_remove = set()
     # The ThreadPool enables downloading multiple files simultaneously from the network, and continuing
     # to download files as other files are being processed, making the code as a whole run faster.
-    pool = ThreadPool(CONCURRENT_NETWORK_OPS)
+    pool = ThreadPool(CONCURRENT_NETWORK_OPS)  # Todo: make pool more global to prevent OS memory hogging
     survey_id_dict = {}
 
     # A Django query with a slice (e.g. .all()[x:y]) makes a LIMIT query, so it
