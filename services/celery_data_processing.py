@@ -99,12 +99,13 @@ def celery_process_file_chunks(participant_id):
             # put maximum time limit per user
             if (time_start - datetime.now()).total_seconds() > 60*60*3:
                     break
-
+    except Exception as e:
+        print(f"Error running data processing: {e}")
     finally:
-        print(
-            "IGNORE 'ConnectionResetError: [Errno 104] Connection reset by peer'\n"
-            "WE EXIT IN ORDER TO FIX A MEMORY LEAK THAT SO FAR DEFIES ANALYSIS. CELERY COMPLAINS."
-        )
+        # print(
+        #     "IGNORE 'ConnectionResetError: [Errno 104] Connection reset by peer'\n"
+        #     "WE EXIT IN ORDER TO FIX A MEMORY LEAK THAT SO FAR DEFIES ANALYSIS. CELERY COMPLAINS."
+        # )
         exit(0)
 
 
