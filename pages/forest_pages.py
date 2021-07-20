@@ -43,8 +43,8 @@ def analysis_progress(study_id=None):
     # generate chart of study analysis progress logs
     trackers = ForestTask.objects.filter(participant__in=participants).order_by("created_on")
 
-    start_date = (study.get_earliest_data_time_bin() or study.created_on).date()
-    end_date = (study.get_latest_data_time_bin() or timezone.now()).date()
+    start_date = study.get_inferred_start_date()
+    end_date = study.get_inferred_latest_date()
 
     # this code simultaneously builds up the chart of most recent forest results for date ranges
     # by participant and tree, and tracks the metadata
@@ -181,15 +181,8 @@ def create_tasks(study_id=None):
 
 
 def _render_create_tasks(study):
-    try:
-        participants = Participant.objects.filter(study=study)
-        start_date = ChunkRegistry.objects.filter(participant__in=participants).earliest("time_bin")
-        end_date = ChunkRegistry.objects.filter(participant__in=participants).latest("time_bin")
-        start_date = start_date.time_bin.date()
-        end_date = end_date.time_bin.date()
-    except ChunkRegistry.DoesNotExist:
-        start_date = study.created_on.date()
-        end_date = timezone.now().date()
+    start_date = study.get_inferred_start_date()
+    end_date = study.get_inferred_latest_date()
     return render_template(
         "forest/create_tasks.html",
         study=study,

@@ -1,7 +1,8 @@
 import operator
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
+import pytz
 from dateutil.tz import gettz
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
@@ -103,8 +104,37 @@ class Study(TimestampedModel):
         ret.pop("encryption_key")
         return ret
 
+    def get_inferred_start_date(self, use_study_timezone=True) -> date:
+        """
+        Return the date of the earliest ChunkRegistry time bin for this study, or the date the
+        study was created if no ChunkRegistry exists yet.
+        
+        Args:
+             use_study_timezone: if False, returns the UTC datetime date instead
+        """
+        start_datetime = self.get_earliest_data_time_bin() or self.created_on
+        if use_study_timezone:
+            start_datetime = start_datetime.astimezone(pytz.timezone(self.timezone_name))
+        return start_datetime.date()
+    
+    def get_inferred_latest_date(self, use_study_timezone=True) -> date:
+        """
+        Return the date of the latest ChunkRegistry time bin for this study, or today's date if no
+        ChunkRegistry exists yet. This is _not_ necessary equivalent to the study's end date.
+        
+        Args:
+            use_study_timezone: if False, returns the UTC datetime date instead
+        """
+        end_datetime = self.get_latest_data_time_bin() or timezone.now()
+        if use_study_timezone:
+            end_datetime = end_datetime.astimezone(pytz.timezone(self.timezone_name))
+        return end_datetime.date()
+
     def get_earliest_data_time_bin(self, only_after_epoch: bool = True,
                                    only_before_now: bool = True) -> Optional[datetime]:
+        """
+        Return the earliest ChunkRegistry time bin datetime for this study.
+        """
         return self._get_data_time_bin(
             earliest=True,
             only_after_epoch=only_after_epoch,
@@ -113,6 +143,9 @@ class Study(TimestampedModel):
     
     def get_latest_data_time_bin(self, only_after_epoch: bool = True,
                                  only_before_now: bool = True) -> Optional[datetime]:
+        """
+        Return the latest ChunkRegistry time bin datetime for this study.
+        """
         return self._get_data_time_bin(
             earliest=False,
             only_after_epoch=only_after_epoch,
@@ -122,7 +155,7 @@ class Study(TimestampedModel):
     def _get_data_time_bin(self, earliest=True, only_after_epoch: bool = True,
                            only_before_now: bool = True) -> Optional[datetime]:
         """
-        Return the earliest ChunkRegistry time bin datetime for this study.
+        Return the earliest/latest ChunkRegistry time bin datetime for this study.
         
         Note: As of 2021-07-01, running the query as a QuerySet filter or sorting the QuerySet can
               take upwards of 30 seconds. Doing the logic in python speeds this up tremendously.
