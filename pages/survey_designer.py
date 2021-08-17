@@ -6,7 +6,8 @@ from authentication.admin_authentication import (authenticate_researcher_study_a
     get_researcher_allowed_studies, researcher_is_an_admin)
 from config.settings import DOMAIN_NAME
 from database.survey_models import Survey
-from libs.push_notification_config import check_firebase_instance
+from libs.firebase_config import check_firebase_instance
+
 
 survey_designer = Blueprint('survey_designer', __name__)
 

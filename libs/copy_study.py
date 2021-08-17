@@ -8,7 +8,8 @@ from database.common_models import JSONTextField
 from database.schedule_models import AbsoluteSchedule, RelativeSchedule, WeeklySchedule
 from database.study_models import Study
 from database.survey_models import Survey
-from libs.push_notification_config import repopulate_all_survey_scheduled_events
+from libs.push_notification_helpers import repopulate_all_survey_scheduled_events
+
 
 NoneType = type(None)
 
@@ -74,13 +75,13 @@ def update_device_settings(new_device_settings, study, filename):
     if request.form.get('device_settings', None) == 'true':
         # Don't copy the PK to the device settings to be updated
         purge_unnecessary_fields(new_device_settings)
-        
+
         # ah, it looks like the bug we had was that you can just send dictionary directly
         # into a textfield and it uses the __repr__ or __str__ or __unicode__ function, causing
         # weirdnesses if as_unpacked_native_python is called because json does not want to use double quotes.
         if isinstance(new_device_settings['consent_sections'], dict):
             new_device_settings['consent_sections'] = json.dumps(new_device_settings['consent_sections'])
-        
+
         study.device_settings.update(**new_device_settings)
         return f"Overwrote {study.name}'s App Settings with the values from {filename}."
     else:

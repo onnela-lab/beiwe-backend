@@ -7,6 +7,7 @@ from database.schedule_models import Intervention, InterventionDate
 from database.study_models import Study, StudyField
 from database.user_models import ParticipantFieldValue
 
+
 study_api = Blueprint('study_api', __name__)
 
 

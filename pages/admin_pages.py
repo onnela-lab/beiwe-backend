@@ -1,5 +1,4 @@
-from flask import (Blueprint, flash, Markup, redirect, render_template, request, session,
-                   url_for)
+from flask import Blueprint, flash, Markup, redirect, render_template, request, session, url_for
 
 from authentication import admin_authentication
 from authentication.admin_authentication import (authenticate_researcher_login,
@@ -11,9 +10,10 @@ from constants.admin_pages import (DisableApiKeyForm, NEW_API_KEY_MESSAGE, NewAp
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models import Researcher
-from libs.push_notification_config import check_firebase_instance
+from libs.firebase_config import check_firebase_instance
 from libs.security import check_password_requirements
 from libs.serializers import ApiKeySerializer
+
 
 admin_pages = Blueprint('admin_pages', __name__)
 

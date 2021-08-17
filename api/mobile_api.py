@@ -20,12 +20,12 @@ from database.profiling_models import DecryptionKeyError, UploadTracking
 from database.system_models import FileAsText
 from libs.encryption import decrypt_device_file, DecryptionKeyInvalidError, HandledError
 from libs.http_utils import determine_os_api
-from libs.push_notification_config import repopulate_all_survey_scheduled_events
+from libs.push_notification_helpers import repopulate_all_survey_scheduled_events
 from libs.s3 import get_client_public_key_string, s3_upload
 from libs.sentry import make_sentry_client, SentryTypes
 
-mobile_api = Blueprint('mobile_api', __name__)
 
+mobile_api = Blueprint('mobile_api', __name__)
 
 ################################################################################
 ################################ UPLOADS #######################################

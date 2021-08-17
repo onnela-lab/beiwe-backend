@@ -9,9 +9,10 @@ from config.constants import ResearcherRole
 from config.settings import DOMAIN_NAME, DOWNLOADABLE_APK_URL, IS_STAGING
 from database.study_models import Study
 from database.user_models import Researcher, StudyRelation
-from libs.push_notification_config import repopulate_all_survey_scheduled_events
+from libs.push_notification_helpers import repopulate_all_survey_scheduled_events
 from libs.security import check_password_requirements
 from libs.timezone_dropdown import ALL_TIMEZONES
+
 
 admin_api = Blueprint('admin_api', __name__)
 

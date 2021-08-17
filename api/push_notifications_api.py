@@ -9,10 +9,10 @@ from flask import Blueprint, request
 from authentication.user_authentication import authenticate_user, get_session_participant
 from config import constants
 from database.user_models import ParticipantFCMHistory
-from libs.push_notification_config import check_firebase_instance
+from libs.firebase_config import check_firebase_instance
+
 
 push_notifications_api = Blueprint('push_notifications_api', __name__)
-
 
 ################################################################################
 ########################### NOTIFICATION FUNCTIONS #############################

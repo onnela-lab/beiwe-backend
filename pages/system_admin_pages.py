@@ -3,7 +3,7 @@ import plistlib
 from collections import defaultdict
 
 from django.core.exceptions import ValidationError
-from flask import (abort, Blueprint, escape, flash, Markup, redirect, render_template, request)
+from flask import abort, Blueprint, escape, flash, Markup, redirect, render_template, request
 
 from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
     authenticate_admin, authenticate_researcher_study_access, get_researcher_allowed_studies,
@@ -14,9 +14,8 @@ from database.study_models import Study
 from database.system_models import FileAsText
 from database.user_models import Researcher, StudyRelation
 from libs.copy_study import copy_existing_study
+from libs.firebase_config import get_firebase_credential_errors, update_firebase_instance
 from libs.http_utils import checkbox_to_boolean, string_to_int
-from libs.push_notification_config import (get_firebase_credential_errors,
-    update_firebase_instance)
 from libs.sentry import make_error_sentry, SentryTypes
 from libs.timezone_dropdown import ALL_TIMEZONES_DROPDOWN
 from pages.message_strings import (ALERT_ANDROID_DELETED_TEXT, ALERT_ANDROID_SUCCESS_TEXT,
@@ -24,6 +23,7 @@ from pages.message_strings import (ALERT_ANDROID_DELETED_TEXT, ALERT_ANDROID_SUC
     ALERT_FIREBASE_DELETED_TEXT, ALERT_IOS_DELETED_TEXT, ALERT_IOS_SUCCESS_TEXT,
     ALERT_IOS_VALIDATION_FAILED_TEXT, ALERT_MISC_ERROR_TEXT, ALERT_SPECIFIC_ERROR_TEXT,
     ALERT_SUCCESS_TEXT)
+
 
 system_admin_pages = Blueprint('system_admin_pages', __name__)
 SITE_ADMIN = "Site Admin"

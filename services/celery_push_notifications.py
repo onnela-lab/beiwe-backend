@@ -14,7 +14,8 @@ from config.study_constants import OBJECT_ID_ALLOWED_CHARS
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.user_models import Participant, ParticipantFCMHistory, PushNotificationDisabledEvent
 from libs.celery_control import push_send_celery_app, safe_apply_async
-from libs.push_notification_config import check_firebase_instance, set_next_weekly
+from libs.firebase_config import check_firebase_instance
+from libs.push_notification_helpers import set_next_weekly
 from libs.sentry import make_error_sentry, SentryTypes
 
 
