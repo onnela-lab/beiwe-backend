@@ -2,10 +2,6 @@ import json
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 
-from firebase_admin import (delete_app as delete_firebase_instance,
-    get_app as get_firebase_app, initialize_app as initialize_firebase_app)
-from firebase_admin.credentials import Certificate as FirebaseCertificate
-
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     FIREBASE_APP_TEST_NAME, IOS_FIREBASE_CREDENTIALS)
 from database.schedule_models import ArchivedEvent, ScheduledEvent, WeeklySchedule
@@ -13,11 +9,19 @@ from database.study_models import Study
 from database.survey_models import Survey
 from database.system_models import FileAsText
 from database.user_models import Participant
+from firebase_admin import delete_app as delete_firebase_instance
+from firebase_admin import get_app as get_firebase_app
+from firebase_admin import initialize_app as initialize_firebase_app
+from firebase_admin.credentials import Certificate as FirebaseCertificate
 
 
 class FirebaseMisconfigured(Exception): pass
 class NoSchedulesException(Exception): pass
 
+#
+# Firebase app object instantiation and credential tests
+# (This code can probably be simplified with a threading.Lock object.)
+#
 
 def safely_get_db_credential(credential_type: str) -> str or None:
     """ just a wrapper to handle ugly code """
@@ -55,6 +59,7 @@ def test_firebase_credential_errors(credentials: str) -> None:
 def check_firebase_instance(require_android=False, require_ios=False) -> bool:
     """ Test the database state for the various creds. If creds are present determine whether
     the firebase app is already instantiated, if not call update_firebase_instance. """
+
     active_creds = list(FileAsText.objects.filter(
         tag__in=[BACKEND_FIREBASE_CREDENTIALS, ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS]
     ).values_list("tag", flat=True))
@@ -88,7 +93,7 @@ def update_firebase_instance(rucur_depth=3) -> None:
 
     try:
         encoded_credentials = json.loads(safely_get_db_credential(BACKEND_FIREBASE_CREDENTIALS))
-    except (JSONDecodeError, TypeError) as e:
+    except (JSONDecodeError, TypeError):
         junk_creds = True
 
     try:
@@ -118,6 +123,10 @@ def update_firebase_instance(rucur_depth=3) -> None:
             + str(e)
         )
 
+
+#
+# Event scheduling
+#
 
 def set_next_weekly(participant: Participant, survey: Survey) -> None:
     ''' Create a next ScheduledEvent for a survey for a particular participant. Uses get_or_create. '''
