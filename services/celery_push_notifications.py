@@ -6,7 +6,7 @@ from typing import List
 
 from django.utils import timezone
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
-    send as send_notification, ThirdPartyAuthError, UnregisteredError)
+    send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
 
 from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, ScheduleTypes
 from config.settings import PUSH_NOTIFICATION_ATTEMPT_COUNT
@@ -133,6 +133,9 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str], sch
                 return
             else:
                 raise
+        except SenderIdMismatchError as e:
+            raise
+            # this catches the sender id mismatch exception...
 
         success_send_handler(participant, fcm_token, schedules)
 
