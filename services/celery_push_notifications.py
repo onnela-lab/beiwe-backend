@@ -6,7 +6,7 @@ from typing import List
 
 from django.utils import timezone
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
-    send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
+    send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)  
 
 from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, ScheduleTypes
 from config.settings import PUSH_NOTIFICATION_ATTEMPT_COUNT
@@ -125,6 +125,14 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str], sch
                 raise
             return
 
+        except SenderIdMismatchError as e:
+            # TODO: need text of error message certainty of multiple similar error cases.
+            # (but behavior shouldn't be broken anymore, failed_send_handler executes.)
+            print("SenderIdMismatchError:")
+            print(e)
+            failed_send_handler(participant, fcm_token, str(e), schedules)
+            return
+
         except ValueError as e:
             # This case occurs ever? is tested for in check_firebase_instance... weird race condition?
             # Error should be transient, and like all other cases we enqueue the next weekly surveys regardless.
@@ -133,9 +141,10 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str], sch
                 return
             else:
                 raise
-        except SenderIdMismatchError as e:
-            raise
-            # this catches the sender id mismatch exception...
+
+        except Exception as e:
+            failed_send_handler(participant, fcm_token, str(e), schedules)
+            return
 
         success_send_handler(participant, fcm_token, schedules)
 
