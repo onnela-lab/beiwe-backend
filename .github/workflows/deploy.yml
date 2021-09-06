@@ -1,30 +1,81 @@
-# This is a basic workflow to help you get started with Actions
-
+# Deploy the latest version of the code to all our Elastic Beanstalk environments
 name: Deploy
 
-# Controls when the workflow will run
 on:
+  push:
+    branches:
+      - main
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    strategy:
+      matrix:
+        include:
+          - environment: PROD_DEPLOYMENT
+            aws_access_key_id: PROD_AWS_ACCESS_KEY_ID
+            aws_secret_access_key: PROD_AWS_SECRET_ACCESS_KEY
+            aws_region: PROD_AWS_REGION
+            application_name: PROD_APPLICATION_NAME
+            environment_name: PROD_ENVIRONMENT_NAME
+            worker_hostname: PROD_WORKER_HOSTNAME
+            ssh_key: PROD_SSH_KEY
+          - environment: NHS_DEPLOYMENT
+            aws_access_key_id: NHS_AWS_ACCESS_KEY_ID
+            aws_secret_access_key: NHS_AWS_SECRET_ACCESS_KEY
+            aws_region: NHS_AWS_REGION
+            application_name: NHS_APPLICATION_NAME
+            environment_name: NHS_ENVIRONMENT_NAME
+            worker_hostname: NHS_WORKER_HOSTNAME
+            ssh_key: NHS_SSH_KEY
+          - environment: EU_DEPLOYMENT
+            aws_access_key_id: EU_AWS_ACCESS_KEY_ID
+            aws_secret_access_key: EU_AWS_SECRET_ACCESS_KEY
+            aws_region: EU_AWS_REGION
+            application_name: EU_APPLICATION_NAME
+            environment_name: EU_ENVIRONMENT_NAME
+            worker_hostname: EU_WORKER_HOSTNAME
+            ssh_key: EU_SSH_KEY
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets[matrix.aws_access_key_id] }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets[matrix.aws_secret_access_key] }}
+      AWS_REGION: ${{ secrets[matrix.aws_region] }}
+      APPLICATION_NAME: ${{ secrets[matrix.application_name] }}
+      ENVIRONMENT_NAME: ${{ secrets[matrix.environment_name] }}
+      WORKER_HOSTNAME: ${{ secrets[matrix.worker_hostname] }}
+      SSH_KEY: ${{ secrets[matrix.ssh_key] }}
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Create the deployment package
+        run: zip -r deploy.zip . -x '*.git*'
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: Get version label and description
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          echo "VERSION_LABEL=$(git rev-parse --short HEAD)_$(date '+%Y-%m-%dT%H:%M:%S')" >> $GITHUB_ENV
+          echo "VERSION_DESCRIPTION=$(git log -1 --pretty=format:%h\ %as\ %cn\:\ %s HEAD)" >> $GITHUB_ENV
+
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v18
+        with:
+          aws_access_key: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ env.APPLICATION_NAME }}
+          environment_name: ${{ env.ENVIRONMENT_NAME }}
+          version_label: ${{ env.VERSION_LABEL }}
+          version_description: ${{ env.VERSION_DESCRIPTION }}
+          region: ${{ env.AWS_REGION }}
+          deployment_package: deploy.zip
+
+      - name: Deploy to worker server a.k.a. data processing server
+        run: |
+          echo ${{ matrix.node }}
+          mkdir -p ~/.ssh/
+          echo "$SSH_KEY" > ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          ssh -i ~/.ssh/staging.key -o StrictHostKeyChecking=no ubuntu@"$WORKER_HOSTNAME" 'cd beiwe-backend;git pull;pkill -HUP supervisord'
