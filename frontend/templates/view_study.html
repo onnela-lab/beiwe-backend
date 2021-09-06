@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 
+{% block head %}
+  {{ super() }}
+  <script type="text/javascript">
+    let studyId = "{{ study.id }}";
+  </script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.1/css/jquery.dataTables.css">
+  <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.1/js/jquery.dataTables.js"></script>
+  <script src="/static/javascript/participants_table.js" type="text/javascript"></script>
+{% endblock %}
+
 {% block title %}View Study{% endblock %}
 
 {% block content %}
@@ -25,7 +35,7 @@
         <h3>Participants</h3>
       </div>
 
-      <table class="table" id="participant_list">
+      <table class="table" id="participantList">
         <thead>
         <tr>
           <th>Creation Date</th>
@@ -42,42 +52,6 @@
           {% endfor %}
         </tr>
         </thead>
-        <tbody id="users-table-body">
-
-        {% for participant in participants %}
-          <tr>
-            <td> {{ participant.created_on.date().isoformat() }} </td>
-            <td>
-              <b><a href="/view_study/{{ study.id }}/participant/{{ participant.id }}">{{ participant.patient_id }}</a></b>
-            </td>
-            <td>
-              {% if participant.device_id %}
-                <form action="/reset_device" method="post">
-                  Smartphone registered
-                </form>
-              {% else %}
-                No smartphone registered
-              {% endif %}
-            </td>
-            <td>
-              {% if participant.os_type %}
-                {{ participant.os_type }}
-              {% else %}
-                <i>unknown</i>
-              {% endif %}
-            </td>
-            {% if push_notifications_enabled %}
-              {% for intervention in interventions | sort(case_sensitive=False) %}
-                <td>{{ participant.intervention_dict[intervention]  or "" }}</td>
-              {% endfor %}
-            {% endif %}
-            {% for field in study_fields | sort(case_sensitive=False) %}
-              <td>{{ participant.field_dict[field] or "" }}</td>
-            {% endfor %}
-          </tr>
-        {% endfor %}
-
-        </tbody>
       </table>
       <form action="/create_new_participant" method="post">
         <div class="form-inline pull-left">
@@ -87,7 +61,7 @@
       </form>
 
       <button type="button" class="btn btn-warning add_many_patients_button" data-toggle="modal" data-target="#addManyPatientsModal" title="Enable a number of new participants to enroll in {{ study.name }}: download a file of new Patient IDs and registration passwords">Add many new participants</button>
-      {% include 'create_many_patients_modal.html' %}
+      {% include 'create_many_participants_modal.html' %}
 
       {% if study.forest_enabled %}
         <div class="row">

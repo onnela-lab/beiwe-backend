@@ -24,11 +24,11 @@ def inject_html_params():
     }
 
 
-@participant_pages.route('/view_study/<string:study_id>/participant/<string:participant_id>/notification_history', methods=['GET'])
+@participant_pages.route('/view_study/<string:study_id>/participant/<string:patient_id>/notification_history', methods=['GET'])
 @authenticate_researcher_study_access
-def notification_history(study_id, participant_id):
+def notification_history(study_id, patient_id):
     try:
-        participant = Participant.objects.get(pk=participant_id)
+        participant = Participant.objects.get(patient_id=patient_id)
         study = participant.study
     except Participant.DoesNotExist:
         return abort(404)
@@ -36,7 +36,7 @@ def notification_history(study_id, participant_id):
     per_page = request.args.get('per_page', 100)
     survey_names = get_survey_names_dict(study)
     notification_attempts = []
-    archived_events = ArchivedEvent.get_values_for_notification_history_paginated(participant_id, per_page=per_page)
+    archived_events = ArchivedEvent.get_values_for_notification_history_paginated(participant.id, per_page=per_page)
     try:
         archived_events_page = archived_events.page(page_number)
     except EmptyPage:
@@ -48,11 +48,11 @@ def notification_history(study_id, participant_id):
                            notification_attempts=notification_attempts, study=study, last_page_number=last_page_number)
 
 
-@participant_pages.route('/view_study/<string:study_id>/participant/<string:participant_id>', methods=['GET', 'POST'])
+@participant_pages.route('/view_study/<string:study_id>/participant/<string:patient_id>', methods=['GET', 'POST'])
 @authenticate_researcher_study_access
-def participant(study_id, participant_id):
+def participant(study_id, patient_id):
     try:
-        participant = Participant.objects.get(pk=participant_id)
+        participant = Participant.objects.get(patient_id=patient_id)
         study = participant.study
     except Participant.DoesNotExist:
         return abort(404)
@@ -83,7 +83,7 @@ def participant(study_id, participant_id):
     repopulate_all_survey_scheduled_events(study, participant)
 
     flash('Successfully edited participant {}.'.format(participant.patient_id), 'success')
-    return redirect('/view_study/{:d}/participant/{:d}'.format(study.id, participant.id))
+    return redirect(request.referrer)
 
 
 def render_participant_page(participant: Participant, study: Study):

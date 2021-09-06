@@ -1,6 +1,7 @@
 from django.core.validators import MinLengthValidator
 from django.db import models
-from django.db.models import F, Func
+from django.db.models import BooleanField, ExpressionWrapper, F, Func, Q
+from django.db.models.functions import Lower
 
 from config.constants import ResearcherRole
 from database.common_models import UtilityModel
@@ -80,11 +81,11 @@ class Participant(AbstractPasswordUser):
     participants in the study, as well as information about the device the participant is using.
     A Participant uses mobile, so their passwords are hashed accordingly.
     """
-    
+
     IOS_API = "IOS"
     ANDROID_API = "ANDROID"
     NULL_OS = ''
-    
+
     OS_TYPE_CHOICES = (
         (IOS_API, IOS_API),
         (ANDROID_API, ANDROID_API),
@@ -166,6 +167,53 @@ class Participant(AbstractPasswordUser):
     def get_private_key(self):
         from libs.s3 import get_client_private_key  # weird import triangle
         return get_client_private_key(self.patient_id, self.study.object_id)
+
+    @classmethod
+    def filtered_participants_for_study(cls, study_id, contains_string):
+        return (
+            cls.objects.filter(study_id=study_id)
+            .filter(Q(patient_id__icontains=contains_string) | Q(os_type__icontains=contains_string))
+        )
+
+    @classmethod
+    def get_values_for_view_study_table(
+            cls,
+            study_id,
+            start,
+            length,
+            sort_by_column_index,
+            sort_in_descending_order,
+            contains_string
+    ):
+        basic_columns = ['created_on', 'patient_id', 'registered', 'os_type']
+        sort_by_column = basic_columns[sort_by_column_index]
+        if sort_in_descending_order:
+            sort_by_column = '-' + sort_by_column
+        query = (
+            cls.filtered_participants_for_study(study_id, contains_string)
+            .order_by(sort_by_column)
+            .annotate(registered=ExpressionWrapper(~Q(device_id__exact=''), output_field=BooleanField()))
+            [start: start + length])
+
+        participants_data = []
+        for participant in query:
+            participant_values = []
+            # Get the list of the basic columns, which are present in every study
+            [participant_values.append(getattr(participant, field)) for field in basic_columns]
+            # Convert the datetime object into a string in YYYY-MM-DD format
+            participant_values[0] = participant_values[0].strftime('%Y-%m-%d')
+            # Add all values for intervention dates
+            for intervention_date in participant.intervention_dates.order_by(Lower('intervention__name')):
+                if intervention_date.date is not None:
+                    participant_values.append(intervention_date.date.strftime('%Y-%m-%d'))
+                else:
+                    participant_values.append(None)
+            # Add all values for custom fields
+            for custom_field_val in participant.field_values.order_by(Lower('field__field_name')):
+                participant_values.append(custom_field_val.value)
+            participants_data.append(participant_values)
+
+        return participants_data
 
     def __str__(self):
         return '{} {} of Study {}'.format(self.__class__.__name__, self.patient_id, self.study.name)

@@ -61,17 +61,10 @@ def choose_study():
 @authenticate_researcher_study_access
 def view_study(study_id=None):
     study = Study.objects.get(pk=study_id)
-    participants = study.participants.all()
-
-    # creates dicts of Custom Fields and Interventions to be easily accessed in the template
-    for p in participants:
-        p.field_dict = {tag.field.field_name: tag.value for tag in p.field_values.all()}
-        p.intervention_dict = {tag.intervention.name: tag.date for tag in p.intervention_dates.all()}
 
     return render_template(
         'view_study.html',
         study=study,
-        participants=participants,
         audio_survey_ids=study.get_survey_ids_and_object_ids('audio_survey'),
         image_survey_ids=study.get_survey_ids_and_object_ids('image_survey'),
         tracking_survey_ids=study.get_survey_ids_and_object_ids('tracking_survey'),

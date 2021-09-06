@@ -5,7 +5,7 @@ from authentication.admin_authentication import (authenticate_researcher_study_a
     get_researcher_allowed_studies, researcher_is_an_admin)
 from database.schedule_models import Intervention, InterventionDate
 from database.study_models import Study, StudyField
-from database.user_models import ParticipantFieldValue
+from database.user_models import Participant, ParticipantFieldValue
 
 study_api = Blueprint('study_api', __name__)
 
@@ -17,6 +17,32 @@ def inject_html_params():
         "allowed_studies": get_researcher_allowed_studies(),
         "is_admin": researcher_is_an_admin(),
     }
+
+
+@study_api.route('/study/<string:study_id>/get_participants_api', methods=['GET'])
+def get_participants_api(study_id):
+    study = Study.objects.get(pk=study_id)
+    # `draw` is passed by DataTables. It's automatically incremented, starting with 1 on the page
+    # load, and then 2 with the next call to this API endpoint, and so on.
+    draw = int(request.args.get('draw'))
+    start = int(request.args.get('start'))
+    length = int(request.args.get('length'))
+    sort_by_column_index = int(request.args.get('order[0][column]'))
+    sort_in_descending_order = request.args.get('order[0][dir]') == 'desc'
+    contains_string = request.args.get('search[value]')
+    total_participants_count = Participant.objects.filter(study_id=study_id).count()
+    filtered_participants_count = (Participant
+                                   .filtered_participants_for_study(study_id, contains_string)
+                                   .count())
+    data = Participant.get_values_for_view_study_table(study_id, start, length, sort_by_column_index,
+                                                       sort_in_descending_order, contains_string)
+    table_data = {
+        "draw": draw,
+        "recordsTotal": total_participants_count,
+        "recordsFiltered": filtered_participants_count,
+        "data": data
+    }
+    return table_data
 
 
 @study_api.route('/interventions/<string:study_id>', methods=['GET', 'POST'])

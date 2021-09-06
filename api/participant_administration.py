@@ -27,14 +27,13 @@ def reset_participant_password():
         flash(f'The participant {patient_id} does not exist', 'danger')
         return redirect(f'/view_study/{study_id}/')
 
-    redirect_obj = redirect(f'/view_study/{participant.study_id}/participant/{participant.id}')
     if participant.study.id != int(study_id):
         flash(f'Participant {patient_id} is not in study {Study.objects.get(id=study_id).name}', 'danger')
-        return redirect_obj
+        return redirect(request.referrer)
 
     new_password = participant.reset_password()
     flash(f'Patient {patient_id}\'s password has been reset to {new_password}.', 'success')
-    return redirect_obj
+    return redirect(request.referrer)
 
 
 @participant_administration.route('/reset_device', methods=["POST"])
@@ -54,22 +53,20 @@ def reset_device():
         flash(f'The participant {patient_id} does not exist', 'danger')
         return redirect(f'/view_study/{study_id}/')
 
-    redirect_obj = redirect(f'/view_study/{participant.study_id}/participant/{participant.id}')
     if participant.study.id != int(study_id):
         flash(f'Participant {patient_id} is not in study {Study.objects.get(id=study_id).name}', 'danger')
-        return redirect_obj
+        return redirect(request.referrer)
 
     participant.device_id = ""
     participant.save()
     flash(f'For patient {patient_id}, device was reset; password is untouched. ', 'success')
-    return redirect_obj
+    return redirect(request.referrer)
 
 @participant_administration.route('/unregister_participant', methods=["POST"])
 @authenticate_researcher_study_access
 def unregister_participant():
     """
-    Resets a participant's device. The participant will not be able to connect until they
-    register a new device.
+    Block participant from uploading further data
     """
 
     patient_id = request.values['patient_id']
@@ -81,19 +78,18 @@ def unregister_participant():
         flash(f'The participant {patient_id} does not exist', 'danger')
         return redirect(f'/view_study/{study_id}/')
 
-    redirect_obj = redirect(request.referrer)
     if participant.study.id != int(study_id):
         flash(f'Participant {patient_id} is not in study {Study.objects.get(id=study_id).name}', 'danger')
-        return redirect_obj
+        return redirect(request.referrer)
 
     if participant.unregistered:
         flash(f'Participant {patient_id} is already unregistered', 'danger')
-        return redirect_obj
+        return redirect(request.referrer)
 
     participant.unregistered = True
     participant.save()
     flash(f'{patient_id} was successfully unregisted from the study. They will not be able to upload further data. ', 'danger')
-    return redirect_obj
+    return redirect(request.referrer)
 
 
 @participant_administration.route('/create_new_participant', methods=["POST"])
