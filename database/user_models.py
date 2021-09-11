@@ -197,9 +197,8 @@ class Participant(AbstractPasswordUser):
 
         participants_data = []
         for participant in query:
-            participant_values = []
             # Get the list of the basic columns, which are present in every study
-            [participant_values.append(getattr(participant, field)) for field in basic_columns]
+            participant_values = [getattr(participant, field) for field in basic_columns]
             # Convert the datetime object into a string in YYYY-MM-DD format
             participant_values[0] = participant_values[0].strftime('%Y-%m-%d')
             # Add all values for intervention dates
