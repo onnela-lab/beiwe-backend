@@ -169,7 +169,7 @@ class Participant(AbstractPasswordUser):
         return get_client_private_key(self.patient_id, self.study.object_id)
 
     @classmethod
-    def filtered_participants_for_study(cls, study_id, contains_string):
+    def filtered_participants_for_study(cls, study_id: int, contains_string: str):
         return (
             cls.objects.filter(study_id=study_id)
             .filter(Q(patient_id__icontains=contains_string) | Q(os_type__icontains=contains_string))
@@ -178,12 +178,12 @@ class Participant(AbstractPasswordUser):
     @classmethod
     def get_values_for_view_study_table(
             cls,
-            study_id,
-            start,
-            length,
-            sort_by_column_index,
-            sort_in_descending_order,
-            contains_string
+            study_id: int,
+            start: int,
+            length: int,
+            sort_by_column_index: int,
+            sort_in_descending_order: bool,
+            contains_string: str
     ):
         basic_columns = ['created_on', 'patient_id', 'registered', 'os_type']
         sort_by_column = basic_columns[sort_by_column_index]
