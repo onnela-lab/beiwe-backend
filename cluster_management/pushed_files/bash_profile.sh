@@ -116,11 +116,19 @@ function runloop ()
     done
 }
 
-
 function backup () {
     # parameter order: username, host, then it will prompt for password
-    # this is at least a hundred times faster than the django dumpdata command
-    pg_dump -F d -Z 9 -f /home/ubuntu/beiwe-backend/pg_dump --username=$1 --dbname=$2 --host=$3 --verbose
+    if [ -f ~/.pgpass ]
+    then
+        # this is at least a hundred times faster than the django dumpdata command
+        pg_dump -F d -Z 9 -f /home/ubuntu/beiwe-backend/pg_dump --username=$1 --dbname=$2 --host=$3 --verbose
+    else
+        echo you have not created a ~/.pgpass file.
+        echo pg_dumps password prompt does not like pasting, so use .pgpass.
+        echo it is a text file of the form \"hostname:port:database:username:password\"
+        echo the default postgres port is 5432
+        echo Dont forget to include username, dbname, and host as parameters to this helper function when you run it.  They are required.
+    fi
 }
 
 alias apt="sudo apt"
