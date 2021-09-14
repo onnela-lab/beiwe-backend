@@ -31,11 +31,9 @@ def get_participants_api(study_id):
     sort_in_descending_order = request.args.get('order[0][dir]') == 'desc'
     contains_string = request.args.get('search[value]')
     total_participants_count = Participant.objects.filter(study_id=study_id).count()
-    filtered_participants_count = (Participant
-                                   .filtered_participants_for_study(study_id, contains_string)
-                                   .count())
-    data = Participant.get_values_for_view_study_table(study_id, start, length, sort_by_column_index,
-                                                       sort_in_descending_order, contains_string)
+    filtered_participants_count = (study.filtered_participants(contains_string).count())
+    data = study.get_values_for_participants_table(start, length, sort_by_column_index,
+                                                   sort_in_descending_order, contains_string)
     table_data = {
         "draw": draw,
         "recordsTotal": total_participants_count,

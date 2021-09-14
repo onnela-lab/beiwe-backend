@@ -5,7 +5,8 @@ from typing import Optional
 from dateutil.tz import gettz
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import F, Func
+from django.db.models import BooleanField, ExpressionWrapper, F, Func, Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.timezone import localtime
 
@@ -14,7 +15,7 @@ from config.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from database.models import JSONTextField, TimestampedModel
 from database.tableau_api_models import ForestParam
-from database.user_models import Researcher
+from database.user_models import Participant, Researcher
 from database.validators import LengthValidator
 
 
@@ -149,7 +150,6 @@ class Study(TimestampedModel):
             desired_time_bin = time_bin
         return desired_time_bin
 
-
     def notification_events(self, **archived_event_filter_kwargs):
         from database.schedule_models import ArchivedEvent
         return ArchivedEvent.objects.filter(
@@ -165,6 +165,48 @@ class Study(TimestampedModel):
         """ So pytz.timezone("America/New_York") provides a tzinfo-like object that is wrong by 4
         minutes.  That's insane.  The dateutil gettz function doesn't have that fun insanity. """
         return gettz(self.timezone_name)
+
+    def filtered_participants(self, contains_string: str):
+        return (
+            Participant.objects.filter(study_id=self.id)
+                       .filter(Q(patient_id__icontains=contains_string) |
+                               Q(os_type__icontains=contains_string))
+        )
+
+    def get_values_for_participants_table(
+            self,
+            start: int,
+            length: int,
+            sort_by_column_index: int,
+            sort_in_descending_order: bool,
+            contains_string: str
+    ):
+        basic_columns = ['created_on', 'patient_id', 'registered', 'os_type']
+        sort_by_column = basic_columns[sort_by_column_index]
+        if sort_in_descending_order:
+            sort_by_column = f"-{sort_by_column}"
+        query = (
+            self.filtered_participants(contains_string)
+            .order_by(sort_by_column)
+            .annotate(registered=ExpressionWrapper(~Q(device_id=''), output_field=BooleanField()))
+            [start: start + length])
+        participants_data = []
+        for participant in query:
+            # Get the list of the basic columns, which are present in every study
+            participant_values = [getattr(participant, field) for field in basic_columns]
+            # Convert the datetime object into a string in YYYY-MM-DD format
+            participant_values[0] = participant_values[0].strftime('%Y-%m-%d')
+            # Add all values for intervention dates
+            for intervention_date in participant.intervention_dates.order_by(Lower('intervention__name')):
+                if intervention_date.date is not None:
+                    participant_values.append(intervention_date.date.strftime('%Y-%m-%d'))
+                else:
+                    participant_values.append(None)
+            # Add all values for custom fields
+            for custom_field_val in participant.field_values.order_by(Lower('field__field_name')):
+                participant_values.append(custom_field_val.value)
+            participants_data.append(participant_values)
+        return participants_data
 
 
 class StudyField(models.Model):
