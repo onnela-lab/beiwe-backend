@@ -188,7 +188,7 @@ class Participant(AbstractPasswordUser):
         basic_columns = ['created_on', 'patient_id', 'registered', 'os_type']
         sort_by_column = basic_columns[sort_by_column_index]
         if sort_in_descending_order:
-            sort_by_column = '-' + sort_by_column
+            sort_by_column = f"-{sort_by_column}"
         query = (
             cls.filtered_participants_for_study(study_id, contains_string)
             .order_by(sort_by_column)
