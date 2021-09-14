@@ -192,7 +192,7 @@ class Participant(AbstractPasswordUser):
         query = (
             cls.filtered_participants_for_study(study_id, contains_string)
             .order_by(sort_by_column)
-            .annotate(registered=ExpressionWrapper(~Q(device_id__exact=''), output_field=BooleanField()))
+            .annotate(registered=ExpressionWrapper(~Q(device_id=''), output_field=BooleanField()))
             [start: start + length])
 
         participants_data = []
