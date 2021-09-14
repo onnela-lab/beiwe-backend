@@ -7,7 +7,7 @@
 
     <p><b>Page of results:</b></p>
     <ul class="pagination" style="margin-top:0px;">
-      {% set urlbase = "/view_study/" + study.id|string + "/participant/" + participant.patient_id|string + "/notification_history?page=" %}
+      {% set urlbase = "/view_study/" + study.id|string + "/participant/" + participant.patient_id + "/notification_history?page=" %}
       {% if page.has_previous() %}
         <li><a href="{{ urlbase }}{{ page.previous_page_number() }}">&laquo;</a></li>
         {% if page.previous_page_number() > 1 %}
