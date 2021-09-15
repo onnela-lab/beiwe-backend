@@ -5,7 +5,7 @@ from typing import Optional
 from dateutil.tz import gettz
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import BooleanField, ExpressionWrapper, F, Func, Q
+from django.db.models import BooleanField, ExpressionWrapper, F, Func, Prefetch, Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.timezone import localtime
@@ -14,8 +14,9 @@ from config.constants import ResearcherRole
 from config.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from database.models import JSONTextField, TimestampedModel
+from database.schedule_models import InterventionDate
 from database.tableau_api_models import ForestParam
-from database.user_models import Participant, Researcher
+from database.user_models import Participant, Researcher, ParticipantFieldValue
 from database.validators import LengthValidator
 
 
@@ -189,6 +190,12 @@ class Study(TimestampedModel):
             self.filtered_participants(contains_string)
             .order_by(sort_by_column)
             .annotate(registered=ExpressionWrapper(~Q(device_id=''), output_field=BooleanField()))
+            # Prefetch intervention dates, and sort them alphabetically (case-insensitive) by intervention date name
+            .prefetch_related(Prefetch('intervention_dates',
+                                       queryset=InterventionDate.objects.order_by(Lower('intervention__name'))))
+            # Prefetch custom fields, and sort them alphabetically (case-insensitive) by the field name
+            .prefetch_related(Prefetch('field_values',
+                                       queryset=ParticipantFieldValue.objects.order_by(Lower('field__field_name'))))
             [start: start + length])
         participants_data = []
         for participant in query:
@@ -196,14 +203,14 @@ class Study(TimestampedModel):
             participant_values = [getattr(participant, field) for field in basic_columns]
             # Convert the datetime object into a string in YYYY-MM-DD format
             participant_values[0] = participant_values[0].strftime('%Y-%m-%d')
-            # Add all values for intervention dates
-            for intervention_date in participant.intervention_dates.order_by(Lower('intervention__name')):
+            # Add all values for intervention dates (sorted in prefetch_related)
+            for intervention_date in participant.intervention_dates.all():
                 if intervention_date.date is not None:
                     participant_values.append(intervention_date.date.strftime('%Y-%m-%d'))
                 else:
                     participant_values.append(None)
-            # Add all values for custom fields
-            for custom_field_val in participant.field_values.order_by(Lower('field__field_name')):
+            # Add all values for custom fields (sorted in prefetch_related)
+            for custom_field_val in participant.field_values.all():
                 participant_values.append(custom_field_val.value)
             participants_data.append(participant_values)
         return participants_data
