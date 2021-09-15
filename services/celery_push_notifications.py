@@ -6,10 +6,10 @@ from typing import List
 
 from django.utils import timezone
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
-    send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)  
+    send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
 
 from config.constants import API_TIME_FORMAT, PUSH_NOTIFICATION_SEND_QUEUE, ScheduleTypes
-from config.settings import PUSH_NOTIFICATION_ATTEMPT_COUNT
+from config.settings import BLOCK_QUOTA_EXCEEDED_ERROR, PUSH_NOTIFICATION_ATTEMPT_COUNT
 from config.study_constants import OBJECT_ID_ALLOWED_CHARS
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.user_models import Participant, ParticipantFCMHistory, PushNotificationDisabledEvent
@@ -88,7 +88,8 @@ def create_push_notification_tasks():
 
 @push_send_celery_app.task(queue=PUSH_NOTIFICATION_SEND_QUEUE)
 def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str], schedule_pks: List[int]):
-    ''' Celery task that sends push notifications.   Note that this list of pks may contain duplicates.'''
+    ''' Celery task that sends push notifications. Note that this list of pks may contain duplicates.'''
+    # Oh.  The reason we need the patient_id is so that we can debug anything ever. lol...
     patient_id = ParticipantFCMHistory.objects.filter(token=fcm_token) \
         .values_list("participant__patient_id", flat=True).get()
 
@@ -107,16 +108,25 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str], sch
         try:
             send_push_notification(participant, reference_schedule, survey_obj_ids, fcm_token)
         # error types are documented at firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
-        except UnregisteredError as e:
-            # is an internal 404 http response, it means the token used was wrong.
-            # mark the fcm history as out of date.
+        except UnregisteredError:
+            print("\nUnregisteredError\n")
+            # Is an internal 404 http response, it means the token that was used has been disabled.
+            # Mark the fcm history as out of date, return early.
+            ParticipantFCMHistory.objects.filter(token=fcm_token).update(unregistered=timezone.now())
             return
 
-        except QuotaExceededError:
-            # limits are very high, this is effectively impossible, but it is possible, so we catch it.
-            raise
+        except QuotaExceededError as e:
+            # Limits are very high, this should be impossible. Reraise because this requires
+            # sysadmin attention and probably new development to allow multiple firebase
+            # credentials. Read comments in settings.py if toggling.
+            if BLOCK_QUOTA_EXCEEDED_ERROR:
+                failed_send_handler(participant, fcm_token, str(e), schedules)
+                return
+            else:
+                raise
 
         except ThirdPartyAuthError as e:
+            print("\nThirdPartyAuthError\n")
             failed_send_handler(participant, fcm_token, str(e), schedules)
             # This means the credentials used were wrong for the target app instance.  This can occur
             # both with bad server credentials, and with bad device credentials.
@@ -128,12 +138,13 @@ def celery_send_push_notification(fcm_token: str, survey_obj_ids: List[str], sch
         except SenderIdMismatchError as e:
             # TODO: need text of error message certainty of multiple similar error cases.
             # (but behavior shouldn't be broken anymore, failed_send_handler executes.)
-            print("SenderIdMismatchError:")
+            print("\nSenderIdMismatchError:\n")
             print(e)
             failed_send_handler(participant, fcm_token, str(e), schedules)
             return
 
         except ValueError as e:
+            print("\nValueError\n")
             # This case occurs ever? is tested for in check_firebase_instance... weird race condition?
             # Error should be transient, and like all other cases we enqueue the next weekly surveys regardless.
             if "The default Firebase app does not exist" in str(e):
