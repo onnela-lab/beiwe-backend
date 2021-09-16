@@ -307,7 +307,7 @@ RDS_DATABASE_SEC_GROUP_NAME_OVERRIDE = get_env("RDS_DATABASE_SEC_GROUP_NAME_OVER
 ###################################### UI Strings ##################################################
 ####################################################################################################
 
-DO_SETUP_EB_UPDATE_OPEN = "This command prepares the selected version of the codebase for deployment.  \n\nTo download the most recent version of the code base go to\nhttps://github.com/onnela-lab/beiwe-backend/tree/production\nand download the zip file version of the github repository, then place it into the staged_files folder.\n"
+DO_SETUP_EB_UPDATE_OPEN = "This command prepares the selected version of the codebase for deployment.  \n\nTo download the most recent version of the code base go to\nhttps://github.com/onnela-lab/beiwe-backend\nand download the zip file version of the github repository, then place it into the staged_files folder.\n"
 
 ENVIRONMENT_NAME_RESTRICTIONS = "Names must be 4 to 40 characters in length.\n" \
 "Names can only contain letters, numbers, and hyphens, and cannot start or end with a hyphen.\n"
@@ -339,9 +339,9 @@ HELP_SETUP_NEW_ENVIRONMENT_HELP = "assists in creation of configuration files fo
 
 FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP = "sometimes deployment operations fail stating that health checks do not have sufficient permissions, run this command to fix that."
 
-DEV_HELP = "Worker and Manager deploy operations will swap the server over to the development branch instead of master (or you can set the branch explicitly by setting the 'DEV_BRANCH' environment variable)."
+DEV_HELP = "Worker and Manager deploy operations will swap the server over to the development branch instead of main (or you can set the branch explicitly by setting the 'DEV_BRANCH' environment variable)."
 
-PROD_HELP = "Worker and Manager deploy operations will swap the server over to the production branch instead of master."
+PROD_HELP = "Worker and Manager deploy operations will swap the server over to the production branch instead of main."
 
 PURGE_INSTANCE_PROFILES_HELP = PURGE_COMMAND_BLURB
 

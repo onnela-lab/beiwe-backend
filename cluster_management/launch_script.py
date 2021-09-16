@@ -130,7 +130,7 @@ def load_git_repo():
     elif PROD_MODE:
         branch = "production"
     else:
-        branch = "master"
+        branch = "main"
 
     run(f'cd {REMOTE_HOME_DIR}/beiwe-backend; git checkout {branch} 1>> {LOG_FILE} 2>> {LOG_FILE}')
 
