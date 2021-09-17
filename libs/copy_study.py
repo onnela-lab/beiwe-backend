@@ -145,34 +145,22 @@ def add_new_surveys(new_survey_settings: List[Dict], study: Study, filename: str
 def create_relative_schedules_by_name(timings: List[List[int]], survey: Survey) -> bool:
     """ This function is based off RelativeSchedule.create_relative_schedules, but contains special
     casing to maintain forwards compatibility with data exported from older versions of Beiwe.
-    (the typing on timings is wrong and I don't know how to correct it.)
     """
     survey.relative_schedules.all().delete()
     if survey.deleted or not timings:
         return
 
     # Older versions of beiwe failed to export interventions and instead provide integer database
-    # keys.  Json is strongly typed (ints won't have quotes) so the de/serialization process
-    # preserves them as integers, and we can detect that case. In that case valid intervention
-    # data must come from only a single other study. This is restrictive enough that we can probably
-    # get away with it. (Do not bother with bulk_create, the required factoring is _even worse_.)
+    # keys.  We can detect this case because json preserves the typing of numerics.  You can check
+    # the prior commit for a method to identify possible cases where we would populate existing
+    # data, but it turns out there aren't generally enough interventions per study to do that.
     if isinstance(timings[0][0], int):
         interventions_lookup = {}
-        intervention_query = Intervention.objects.filter(pk__in=[pk for pk, _, _ in timings])
-
-        # this is the number of distinct studies
-        if intervention_query.values_list("study__pk").distinct().count() == 1:
-            # copy those intervention names
-            for old_intervention_name in intervention_query.values_list("name", flat=True):
-                new_intervention = Intervention(name=old_intervention_name, study=survey.study)
-                new_intervention.save()
-                interventions_lookup[new_intervention.name] = new_intervention
-        else:
-            # create new intervention objects using the number of distinct pks, populated with pks.
-            for i, pk in enumerate({pk for pk, _, _ in timings}):
-                new_intervention = Intervention(name=f"Intervention {i}", study=survey.study)
-                new_intervention.save()
-                interventions_lookup[pk] = new_intervention
+        # count the distinct number of keys, use pks for the lookup dict key
+        for i, pk in enumerate({pk for pk, _, _ in timings}):
+            new_intervention = Intervention(name=f"Intervention {i}", study=survey.study)
+            new_intervention.save()
+            interventions_lookup[pk] = new_intervention
     else:
         # The normal case, where the interventions were present in the json.
         interventions_lookup = {
