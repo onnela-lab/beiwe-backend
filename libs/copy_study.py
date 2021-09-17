@@ -5,7 +5,7 @@ from typing import Dict, List
 from flask import flash, request
 
 from database.common_models import JSONTextField
-from database.schedule_models import AbsoluteSchedule, RelativeSchedule, WeeklySchedule
+from database.schedule_models import AbsoluteSchedule, Intervention, RelativeSchedule, WeeklySchedule
 from database.study_models import Study
 from database.survey_models import Survey
 from libs.push_notification_helpers import repopulate_all_survey_scheduled_events
@@ -16,6 +16,7 @@ NoneType = type(None)
 WEEKLY_SCHEDULE_KEY = "timings"  # predates the other schedules
 ABSOLUTE_SCHEDULE_KEY = "absolute_timings"
 RELATIVE_SCHEDULE_KEY = "relative_timings"
+INTERVENTIONS_KEY = "interventions"
 
 # keys used if various places, pulled out into constants for consistency.
 DEVICE_SETTINGS_KEY = 'device_settings'
@@ -43,8 +44,14 @@ def allowed_file_extension(filename: str):
 def copy_existing_study(new_study: Study, old_study: Study):
     """ Copy logic for an existing study.  This study cannot have users, so we don't need to
     run the repopulate logics. """
+    Intervention.objects.bulk_create(
+        [Intervention(name=name, study=new_study) for name in
+            old_study.interventions.values_list("name", flat=True)]
+    )
+
     # get, drop the foreign key.
     old_device_settings = old_study.device_settings.as_dict()
+
     old_device_settings.pop(STUDY_KEY)
     msg = update_device_settings(old_device_settings, new_study, old_study.name)
 
@@ -88,7 +95,7 @@ def update_device_settings(new_device_settings, study, filename):
         return f"Did not alter {study.name}'s App Settings."
 
 
-def add_new_surveys(new_survey_settings: List[Dict], study: Study, filename: str):
+def add_new_surveys(new_survey_settings: List[Dict], study: Study, filename: str, from_json=False):
     # surveys are always provided, there is a checkbox about whether to import them
     if request.form.get('surveys', None) != 'true':
         return "Copied 0 Surveys and 0 Audio Surveys from %s to %s." % (filename, study.name)
@@ -119,8 +126,11 @@ def add_new_surveys(new_survey_settings: List[Dict], study: Study, filename: str
         # create survey, schedules, schedule events.
         survey = Survey.create_with_object_id(study=study, **survey_settings)
         AbsoluteSchedule.create_absolute_schedules(absolute_schedules, survey)
-        RelativeSchedule.create_relative_schedules(relative_schedules, survey)
         WeeklySchedule.create_weekly_schedules(weekly_schedules, survey)
+        if from_json:
+            create_relative_schedules_by_name(relative_schedules, survey)
+        else:
+            RelativeSchedule.create_relative_schedules(relative_schedules, survey)
         repopulate_all_survey_scheduled_events(study)
 
         # count...
@@ -130,3 +140,52 @@ def add_new_surveys(new_survey_settings: List[Dict], study: Study, filename: str
 
     return "Copied %i Surveys and %i Audio Surveys from %s to %s." % \
            (surveys_added, audio_surveys_added, filename, study.name)
+
+
+def create_relative_schedules_by_name(timings: List[List[int]], survey: Survey) -> bool:
+    """ This function is based off RelativeSchedule.create_relative_schedules, but contains special
+    casing to maintain forwards compatibility with data exported from older versions of Beiwe.
+    (the typing on timings is wrong and I don't know how to correct it.)
+    """
+    survey.relative_schedules.all().delete()
+    if survey.deleted or not timings:
+        return
+
+    # Older versions of beiwe failed to export interventions and instead provide integer database
+    # keys.  Json is strongly typed (ints won't have quotes) so the de/serialization process
+    # preserves them as integers, and we can detect that case. In that case valid intervention
+    # data must come from only a single other study. This is restrictive enough that we can probably
+    # get away with it. (Do not bother with bulk_create, the required factoring is _even worse_.)
+    if isinstance(timings[0][0], int):
+        interventions_lookup = {}
+        intervention_query = Intervention.objects.filter(pk__in=[pk for pk, _, _ in timings])
+
+        # this is the number of distinct studies
+        if intervention_query.values_list("study__pk").distinct().count() == 1:
+            # copy those intervention names
+            for old_intervention_name in intervention_query.values_list("name", flat=True):
+                new_intervention = Intervention(name=old_intervention_name, study=survey.study)
+                new_intervention.save()
+                interventions_lookup[new_intervention.name] = new_intervention
+        else:
+            # create new intervention objects using the number of distinct pks, populated with pks.
+            for i, pk in enumerate({pk for pk, _, _ in timings}):
+                new_intervention = Intervention(name=f"Intervention {i}", study=survey.study)
+                new_intervention.save()
+                interventions_lookup[pk] = new_intervention
+    else:
+        # The normal case, where the interventions were present in the json.
+        interventions_lookup = {
+            intervention.name: intervention
+            for intervention in Intervention.objects.filter(study=survey.study)
+        }
+
+    for intervention_name, days_after, num_seconds in timings:
+        # should be all ints, use integer division.
+        RelativeSchedule.objects.create(
+            survey=survey,
+            intervention=interventions_lookup[intervention_name],
+            days_after=days_after,
+            hour=num_seconds // 3600,
+            minute=num_seconds % 3600 // 60,
+        )

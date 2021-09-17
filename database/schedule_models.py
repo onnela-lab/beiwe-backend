@@ -79,6 +79,7 @@ class RelativeSchedule(TimestampedModel):
     def create_relative_schedules(timings: List[List[int]], survey: Survey) -> bool:
         """
         Creates new RelativeSchedule objects from a frontend-style list of interventions and times
+        If you modify this please update create_relative_schedules_by_name in libs.copy_study too.
         """
         survey.relative_schedules.all().delete()
         if survey.deleted or not timings:
@@ -86,16 +87,13 @@ class RelativeSchedule(TimestampedModel):
 
         duplicated = False
         for intervention_id, days_after, num_seconds in timings:
-            # should be all ints, use integer division.
-            hour = num_seconds // 3600
-            minute = num_seconds % 3600 // 60
             # using get_or_create to catch duplicate schedules
             _, created = RelativeSchedule.objects.get_or_create(
                 survey=survey,
                 intervention=Intervention.objects.get(id=intervention_id),
                 days_after=days_after,
-                hour=hour,
-                minute=minute,
+                hour=num_seconds // 3600,
+                minute=num_seconds % 3600 // 60,
             )
             if not created:
                 duplicated = True
@@ -286,7 +284,7 @@ class ScheduledEvent(TimestampedModel):
             sched_time = localtime(a.scheduled_time, tz)
             sched_time_print = datetime.strftime(sched_time, DEV_TIME_FORMAT)
             print(
-                f"  {a.get_schedule_type()} FOR {TxtClr.CYAN}{a.participant.patient_id}{TxtClr.BLACK}" 
+                f"  {a.get_schedule_type()} FOR {TxtClr.CYAN}{a.participant.patient_id}{TxtClr.BLACK}"
                 f" AT {TxtClr.GREEN}{sched_time_print}{TxtClr.BLACK}",
             )
 
