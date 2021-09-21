@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from dateutil import tz
 
 from django.db import models
 from django.utils import timezone
@@ -51,7 +52,7 @@ class ChunkRegistry(TimestampedModel):
     # unnecessarily, so it has been removed.  This has no side effects.
     data_type = models.CharField(max_length=32, db_index=True)
     time_bin = models.DateTimeField(db_index=True)
-    file_size = models.IntegerField(null=True, default=None)
+    file_size = models.IntegerField(null=True, default=None)  # Size (in bytes) of the uncompressed file
     study = models.ForeignKey(
         'Study', on_delete=models.PROTECT, related_name='chunk_registries', db_index=True
     )
@@ -62,6 +63,15 @@ class ChunkRegistry(TimestampedModel):
         'Survey', blank=True, null=True, on_delete=models.PROTECT, related_name='chunk_registries',
         db_index=True
     )
+
+    @classmethod
+    def get_data_qty(cls, participant_id: int, day: datetime.date, study_timezone: datetime.tzinfo):
+        """ Return the data quantity, in bytes, for a specific participant, data stream, and day. """
+        start_time_local = datetime(day.year, day.month, day.day, tzinfo=study_timezone)
+        end_time_local = start_time_local + timedelta(days=1)
+        start_time = start_time_local.astimezone(tz.UTC)
+        end_time = end_time_local.astimezone(tz.UTC)
+        return cls.objects.filter(participant_id=participant_id, time_bin__gte=start_time, time_bin__lt=end_time)
 
     def s3_retrieve(self):
         return s3_retrieve(self.chunk_path, self.study.object_id, raw_path=True)
