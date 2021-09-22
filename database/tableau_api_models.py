@@ -337,3 +337,16 @@ class SummaryStatisticDaily(TimestampedModel):
         constraints = [
             models.UniqueConstraint(fields=['date', 'participant'], name="unique_summary_statistic")
         ]
+
+
+class DataQuantityDaily(TimestampedModel):
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
+    date = models.DateField(db_index=True)
+
+    accelerometer_bytes = models.IntegerField(null=True, blank=True)
+    app_log_bytes = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['date', 'participant'], name="unique_data_quantity")
+        ]

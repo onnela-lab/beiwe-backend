@@ -6,6 +6,7 @@ from database.user_models import Participant
 from libs.celery_control import (get_processing_active_job_ids, processing_celery_app,
     safe_apply_async)
 from libs.file_processing.file_processing_core import do_process_user_file_chunks
+from libs.file_processing.data_qty_stats import calculate_data_quantity_stats
 from libs.sentry import make_error_sentry, SentryTypes
 
 
@@ -98,7 +99,8 @@ def celery_process_file_chunks(participant_id):
 
             # put maximum time limit per user
             if (time_start - datetime.now()).total_seconds() > 60*60*3:
-                    break
+                break
+        calculate_data_quantity_stats(participant_id)
     except Exception as e:
         print(f"Error running data processing: {e}")
     finally:
