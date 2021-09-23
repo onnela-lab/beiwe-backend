@@ -339,12 +339,15 @@ class SummaryStatisticDaily(TimestampedModel):
         ]
 
 
-class DataQuantityDaily(TimestampedModel):
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
+class DataQuantity(TimestampedModel):
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name='data_quantities'
+    )
     date = models.DateField(db_index=True)
 
     accelerometer_bytes = models.IntegerField(null=True, blank=True)
     app_log_bytes = models.IntegerField(null=True, blank=True)
+    # TODO: add more data streams
 
     class Meta:
         constraints = [
