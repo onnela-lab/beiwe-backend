@@ -100,7 +100,7 @@ def celery_process_file_chunks(participant_id):
             # put maximum time limit per user
             if (time_start - datetime.now()).total_seconds() > 60*60*3:
                 break
-        calculate_data_quantity_stats(participant_id)
+        calculate_data_quantity_stats(participant)
     except Exception as e:
         print(f"Error running data processing: {e}")
     finally:

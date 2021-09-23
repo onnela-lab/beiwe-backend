@@ -72,25 +72,25 @@ CHUNKS_FOLDER = "CHUNKED_DATA"
 
 ## Constants for for the keys in DATA_STREAM_TO_S3_FILE_NAME_STRING
 ACCELEROMETER = "accelerometer"
+AMBIENT_AUDIO = "ambient_audio"
+ANDROID_LOG_FILE = "app_log"
 BLUETOOTH = "bluetooth"
 CALL_LOG = "calls"
+DEVICEMOTION = "devicemotion"
 GPS = "gps"
+GYRO = "gyro"
 IDENTIFIERS = "identifiers"
-ANDROID_LOG_FILE = "app_log"
+IMAGE_FILE = "image_survey"
 IOS_LOG_FILE = "ios_log"
+MAGNETOMETER = "magnetometer"
 POWER_STATE = "power_state"
+PROXIMITY = "proximity"
+REACHABILITY = "reachability"
 SURVEY_ANSWERS = "survey_answers"
 SURVEY_TIMINGS = "survey_timings"
 TEXTS_LOG = "texts"
 VOICE_RECORDING = "audio_recordings"
-IMAGE_FILE = "image_survey"
 WIFI = "wifi"
-PROXIMITY = "proximity"
-GYRO = "gyro"
-MAGNETOMETER = "magnetometer"
-DEVICEMOTION = "devicemotion"
-REACHABILITY = "reachability"
-AMBIENT_AUDIO = "ambient_audio"
 
 # dictionary for printing PROCESSED data streams for frontend
 # necessary even with the complete data stream dict for parsing data from the backend
@@ -146,6 +146,7 @@ COMPLETE_DATA_STREAM_DICT = {
     "StdFlightLen_km": "Standard Flight Length (km)",
     "MaxHomeDist_km": "Maximum Home Distance (km)",
     ACCELEROMETER: "Accelerometer (bytes)",
+    AMBIENT_AUDIO: "Ambient Audio Recording (bytes)",
     ANDROID_LOG_FILE: "Android Log File (bytes)",
     BLUETOOTH: "Bluetooth (bytes)",
     CALL_LOG: "Call Log (bytes)",
@@ -164,11 +165,11 @@ COMPLETE_DATA_STREAM_DICT = {
     TEXTS_LOG: "Text Log (bytes)",
     VOICE_RECORDING: "Audio Recordings (bytes)",
     WIFI: "Wifi (bytes)",
-    AMBIENT_AUDIO: "Ambient Audio Recording (bytes)",
 }
 
 ALL_DATA_STREAMS = [
     ACCELEROMETER,
+    AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
     BLUETOOTH,
     CALL_LOG,
@@ -187,7 +188,6 @@ ALL_DATA_STREAMS = [
     TEXTS_LOG,
     VOICE_RECORDING,
     WIFI,
-    AMBIENT_AUDIO,
 ]
 
 SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
