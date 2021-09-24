@@ -5,6 +5,28 @@ SERIALIZABLE_FIELD_NAMES = [
     "date",
     "participant_id",
     "study_id",
+
+    # Data quantities
+    "accelerometer_bytes",
+    "ambient_audio_bytes",
+    "app_log_bytes",
+    "bluetooth_bytes",
+    "calls_bytes",
+    "devicemotion_bytes",
+    "gps_bytes",
+    "gyro_bytes",
+    "identifiers_bytes",
+    "image_survey_bytes",
+    "ios_log_bytes",
+    "magnetometer_bytes",
+    "power_state_bytes",
+    "proximity_bytes",
+    "reachability_bytes",
+    "survey_answers_bytes",
+    "survey_timings_bytes",
+    "texts_bytes",
+    "audio_recordings_bytes",
+    "wifi_bytes",
     
     # GPS
     "distance_diameter",

@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from config.constants import ALL_DATA_STREAMS
 from database.data_access_models import ChunkRegistry
-from database.tableau_api_models import DataQuantity
+from database.tableau_api_models import SummaryStatisticDaily
 from database.user_models import Participant
 
 
@@ -17,7 +17,7 @@ def calculate_data_quantity_stats(participant: Participant):
         day = chunkregistry['time_bin'].astimezone(study_timezone).date()
         daily_data_qtys[day][chunkregistry['data_type']] += chunkregistry['file_size']
     # Delete all existing DataQuantity objects for the participant
-    DataQuantity.objects.filter(participant=participant).delete()
+    SummaryStatisticDaily.objects.filter(participant=participant).delete()
     # For each date, create a DataQuantity object
     data_qty_objects_to_be_created = []
     for day in daily_data_qtys:
@@ -28,8 +28,8 @@ def calculate_data_quantity_stats(participant: Participant):
         for data_type in daily_data_qtys[day]:
             if data_type in ALL_DATA_STREAMS:
                 data_qty[data_type + '_bytes'] = daily_data_qtys[day][data_type]
-        data_qty_objects_to_be_created.append(DataQuantity(**data_qty))
-    DataQuantity.objects.bulk_create(data_qty_objects_to_be_created)
+        data_qty_objects_to_be_created.append(SummaryStatisticDaily(**data_qty))
+    SummaryStatisticDaily.objects.bulk_create(data_qty_objects_to_be_created)
     # TODO: if this needs to be optimized in the future, we could improve performance by only
     # querying ChunkRegistry objects that are newer than the last time we calculated all the
     # DataQuantity objects. But that would make the code significantly more complicated.

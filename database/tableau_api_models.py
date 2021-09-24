@@ -276,6 +276,28 @@ class ForestTask(TimestampedModel):
 class SummaryStatisticDaily(TimestampedModel):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     date = models.DateField(db_index=True)
+
+    # Data quantities
+    accelerometer_bytes = models.IntegerField(null=True, blank=True)
+    ambient_audio_bytes = models.IntegerField(null=True, blank=True)
+    app_log_bytes = models.IntegerField(null=True, blank=True)
+    bluetooth_bytes = models.IntegerField(null=True, blank=True)
+    calls_bytes = models.IntegerField(null=True, blank=True)
+    devicemotion_bytes = models.IntegerField(null=True, blank=True)
+    gps_bytes = models.IntegerField(null=True, blank=True)
+    gyro_bytes = models.IntegerField(null=True, blank=True)
+    identifiers_bytes = models.IntegerField(null=True, blank=True)
+    image_survey_bytes = models.IntegerField(null=True, blank=True)
+    ios_log_bytes = models.IntegerField(null=True, blank=True)
+    magnetometer_bytes = models.IntegerField(null=True, blank=True)
+    power_state_bytes = models.IntegerField(null=True, blank=True)
+    proximity_bytes = models.IntegerField(null=True, blank=True)
+    reachability_bytes = models.IntegerField(null=True, blank=True)
+    survey_answers_bytes = models.IntegerField(null=True, blank=True)
+    survey_timings_bytes = models.IntegerField(null=True, blank=True)
+    texts_bytes = models.IntegerField(null=True, blank=True)
+    audio_recordings_bytes = models.IntegerField(null=True, blank=True)
+    wifi_bytes = models.IntegerField(null=True, blank=True)
     
     # GPS
     distance_diameter = models.FloatField(null=True, blank=True)
@@ -336,37 +358,4 @@ class SummaryStatisticDaily(TimestampedModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['date', 'participant'], name="unique_summary_statistic")
-        ]
-
-
-class DataQuantity(TimestampedModel):
-    participant = models.ForeignKey(
-        Participant, on_delete=models.CASCADE, related_name='data_quantities'
-    )
-    date = models.DateField(db_index=True)
-
-    accelerometer_bytes = models.IntegerField(null=True, blank=True)
-    ambient_audio_bytes = models.IntegerField(null=True, blank=True)
-    app_log_bytes = models.IntegerField(null=True, blank=True)
-    bluetooth_bytes = models.IntegerField(null=True, blank=True)
-    calls_bytes = models.IntegerField(null=True, blank=True)
-    devicemotion_bytes = models.IntegerField(null=True, blank=True)
-    gps_bytes = models.IntegerField(null=True, blank=True)
-    gyro_bytes = models.IntegerField(null=True, blank=True)
-    identifiers_bytes = models.IntegerField(null=True, blank=True)
-    image_survey_bytes = models.IntegerField(null=True, blank=True)
-    ios_log_bytes = models.IntegerField(null=True, blank=True)
-    magnetometer_bytes = models.IntegerField(null=True, blank=True)
-    power_state_bytes = models.IntegerField(null=True, blank=True)
-    proximity_bytes = models.IntegerField(null=True, blank=True)
-    reachability_bytes = models.IntegerField(null=True, blank=True)
-    survey_answers_bytes = models.IntegerField(null=True, blank=True)
-    survey_timings_bytes = models.IntegerField(null=True, blank=True)
-    texts_bytes = models.IntegerField(null=True, blank=True)
-    audio_recordings_bytes = models.IntegerField(null=True, blank=True)
-    wifi_bytes = models.IntegerField(null=True, blank=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['date', 'participant'], name="unique_data_quantity")
         ]
