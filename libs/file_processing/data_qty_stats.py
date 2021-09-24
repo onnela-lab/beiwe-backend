@@ -8,13 +8,14 @@ from database.user_models import Participant
 
 def calculate_data_quantity_stats(participant: Participant):
     """ Update the daily DataQuantity stats for a participant, using ChunkRegistry data """
-    chunkregistries = ChunkRegistry.objects.filter(participant=participant).all()
+    chunkregistries = (ChunkRegistry.objects.filter(participant=participant)
+                       .values('time_bin', 'data_type', 'file_size'))
     daily_data_qtys = defaultdict(lambda: defaultdict(lambda: 0))
     study_timezone = participant.study.timezone
     # Construct a dict formatted like this: dict[date][data_type] = total_bytes
     for chunkregistry in chunkregistries:
-        day = chunkregistry.time_bin.astimezone(study_timezone).date()
-        daily_data_qtys[day][chunkregistry.data_type] += chunkregistry.file_size
+        day = chunkregistry['time_bin'].astimezone(study_timezone).date()
+        daily_data_qtys[day][chunkregistry['data_type']] += chunkregistry['file_size']
     # Delete all existing DataQuantity objects for the participant
     DataQuantity.objects.filter(participant=participant).delete()
     # For each date, create a DataQuantity object
