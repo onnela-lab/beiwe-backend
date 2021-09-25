@@ -18,6 +18,7 @@ from database.user_models import Participant
 from libs.file_processing.batched_network_operations import batch_upload
 from libs.file_processing.data_fixes import (fix_app_log_file, fix_call_log_csv, fix_identifier_csv,
     fix_survey_timings, fix_wifi_csv)
+from libs.file_processing.data_qty_stats import calculate_data_quantity_stats
 from libs.file_processing.exceptions import (BadTimecodeError, ChunkFailedToExist,
     HeaderMismatchException, ProcessingOverlapError)
 from libs.file_processing.file_for_processing import FileForProcessing
@@ -157,6 +158,9 @@ def do_process_user_file_chunks(
 
     # Actually delete the processed FTPs from the database
     FileToProcess.objects.filter(pk__in=ftps_to_remove).delete()
+
+    # Update the data quantity stats
+    calculate_data_quantity_stats(participant)
     return number_bad_files
 
 
