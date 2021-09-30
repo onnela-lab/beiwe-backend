@@ -133,6 +133,9 @@
         <h5>
           DO NOT CHANGE THE STUDY TIMEZONE AFTER YOU HAVE ALREADY SENT SURVEYS OUT TO PARTICIPANTS.  If you change the Study Timezone, Beiwe will immediately resend all previously sent absolute-date and relative-date surveys.
         </h5>
+        <h5>
+          ALSO BEWARE CHANGING THE STUDY TIMEZONE AFTER ANY DATA HAS BEEN COLLECTED.  Data quantity statistics for each participant are calculated from midnight to midnight in the study's time zone.  But changing the time zone here will NOT recalculate old data quantity statistics based on the new midnight.
+        </h5>
         <select class="form-control" name="new_timezone_name">
           {% for name, value in timezones %}
             <option value="{{ name }}" {% if name == study.timezone_name %}selected{% endif %}>{{ value }} </option>
