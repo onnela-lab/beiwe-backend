@@ -24,23 +24,23 @@ SERIALIZABLE_FIELD_NAMES = [
     # "stationary_fraction",
     
     # Texts
-    # "text_incoming_count",
-    # "text_incoming_degree",
-    # "text_incoming_length",
-    # "text_incoming_responsiveness",
-    # "text_outgoing_count",
-    # "text_outgoing_degree",
-    # "text_outgoing_length",
-    # "text_reciprocity",
+    "text_incoming_count",
+    "text_incoming_degree",
+    "text_incoming_length",
+    "text_incoming_responsiveness",
+    "text_outgoing_count",
+    "text_outgoing_degree",
+    "text_outgoing_length",
+    "text_reciprocity",
     
     # Calls
-    # "call_incoming_count",
-    # "call_incoming_degree",
-    # "call_incoming_duration",
-    # "call_incoming_responsiveness",
-    # "call_outgoing_count",
-    # "call_outgoing_degree",
-    # "call_outgoing_duration",
+    "call_incoming_count",
+    "call_incoming_degree",
+    "call_incoming_duration",
+    "call_incoming_responsiveness",
+    "call_outgoing_count",
+    "call_outgoing_degree",
+    "call_outgoing_duration",
     
     # Accelerometer
     # "acceleration_direction",
