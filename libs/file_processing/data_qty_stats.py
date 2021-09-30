@@ -49,7 +49,7 @@ def calculate_data_quantity_stats(
         for data_type in daily_data_qtys[day]:
             if data_type in ALL_DATA_STREAMS:
                 data_qty['defaults'][data_type + '_bytes'] = daily_data_qtys[day][data_type]
-        SummaryStatisticDaily.objects.get_or_create(**data_qty)
+        SummaryStatisticDaily.objects.update_or_create(**data_qty)
 
 
 def _utc_datetime_of_local_midnight_date(local_date, local_timezone):
