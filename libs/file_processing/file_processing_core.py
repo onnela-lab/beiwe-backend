@@ -156,13 +156,14 @@ def do_process_user_file_chunks(
     )
     ftps_to_remove.update(more_ftps_to_remove)
 
+    # Update the data quantity stats, if it actually processed any files
+    if len(files_to_process) > 0:
+        calculate_data_quantity_stats(participant,
+                                      earliest_time_bin_number=earliest_time_bin,
+                                      latest_time_bin_number=latest_time_bin)
+
     # Actually delete the processed FTPs from the database
     FileToProcess.objects.filter(pk__in=ftps_to_remove).delete()
-
-    # Update the data quantity stats
-    calculate_data_quantity_stats(participant,
-                                  earliest_time_bin_number=earliest_time_bin,
-                                  latest_time_bin_number=latest_time_bin)
     return number_bad_files
 
 
