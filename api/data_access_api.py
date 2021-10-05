@@ -14,6 +14,20 @@ data_access_api = Blueprint('data_access_api', __name__)
 chunk_fields = ("pk", "participant_id", "data_type", "chunk_path", "time_bin", "chunk_hash",
                 "participant__patient_id", "study_id", "survey_id", "survey__object_id")
 
+
+@data_access_api.route("/get-participants/", methods=['POST', "GET"])
+@api_study_credential_check(conditionally_block_test_studies=False)
+def get_participants():
+    """ This endpoint entirely uses the built-in api content, just provide the api keys and the
+    study id or study pk. """
+    participants = list(
+        get_api_study()
+        .participants.order_by("patient_id")
+        .values_list("patient_id", flat=True)
+    )
+    return Response(json.dumps(participants), mimetype="json/text")
+
+
 @data_access_api.route("/get-data/v1", methods=['POST', "GET"])
 @api_study_credential_check(conditionally_block_test_studies=True)
 def get_data():
