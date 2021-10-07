@@ -47,7 +47,7 @@ If any of these environment options are not provided, Beiwe will not run. Empty 
     S3_ACCESS_CREDENTIALS_KEY - the secret key for s3 access for your deployment
 ```
 
-There are additional settings that you will find documented in the (config/settings.py)[https://github.com/onnela-lab/beiwe-backend/blob/main/config/settings.py] file.
+There are additional settings that you will find documented in the [config/settings.py](https://github.com/onnela-lab/beiwe-backend/blob/main/config/settings.py) file.
 
 ***
 
