@@ -1,7 +1,5 @@
-# from os import getenv
 from os.path import join as path_join
 
-from config.settings import DOMAIN_NAME
 
 # This string will be printed into non-error hourly reports to improve error filtering.
 DATA_PROCESSING_NO_ERROR_STRING = "2HEnBwlawY"
@@ -321,11 +319,6 @@ PASSWORD_REQUIREMENT_REGEX_LIST = [SYMBOL_REGEX, LOWERCASE_REGEX, UPPERCASE_REGE
 # Encryption constants
 ASYMMETRIC_KEY_LENGTH = 2048  # length of private/public keys
 ITERATIONS = 1000  # number of SHA iterations in password hashing
-
-# Error reporting send-from emails
-E500_EMAIL_ADDRESS = 'e500_error@{}'.format(DOMAIN_NAME)
-OTHER_EMAIL_ADDRESS = 'telegram_service@{}'.format(DOMAIN_NAME)
-
 
 # Researcher User Types
 class ResearcherRole(object):
