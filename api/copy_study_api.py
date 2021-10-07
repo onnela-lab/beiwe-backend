@@ -45,7 +45,7 @@ def export_study_settings_file(study_id):
     output = {
         SURVEYS_KEY: surveys,
         DEVICE_SETTINGS_KEY: device_settings,
-        INTERVENTIONS_KEY: list(study.interventions.value_list("name", flat=True))
+        INTERVENTIONS_KEY: list(study.interventions.values_list("name", flat=True))
     }
 
     filename = study.name.replace(' ', '_') + "_surveys_and_settings.json"
