@@ -33,7 +33,7 @@ def calculate_data_quantity_stats(
         query = query.filter(time_bin__lt=_utc_datetime_of_local_midnight_date(end_date, study_timezone))
 
     chunkregistries = query.values('time_bin', 'data_type', 'file_size')
-    daily_data_qtys = defaultdict(lambda: defaultdict(lambda: 0))
+    daily_data_qtys = defaultdict(lambda: defaultdict(int))
     # Construct a dict formatted like this: dict[date][data_type] = total_bytes
     for chunkregistry in chunkregistries:
         day = chunkregistry['time_bin'].astimezone(study_timezone).date()
