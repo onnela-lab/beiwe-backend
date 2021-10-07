@@ -14,7 +14,7 @@ def calculate_data_quantity_stats(
         earliest_time_bin_number: Optional[int] = None,
         latest_time_bin_number: Optional[int] = None,
 ):
-    """ Update the daily DataQuantity stats for a participant, using ChunkRegistry data
+    """ Update the SummaryStatisticDaily  stats for a participant, using ChunkRegistry data
     earliest_time_bin_number -- expressed in hours since 1/1/1970
     latest_time_bin_number -- expressed in hours since 1/1/1970 """
     study_timezone = participant.study.timezone
@@ -32,24 +32,22 @@ def calculate_data_quantity_stats(
         end_date = end_datetime.astimezone(study_timezone).date() + timedelta(days=1)
         query = query.filter(time_bin__lt=_utc_datetime_of_local_midnight_date(end_date, study_timezone))
 
-    chunkregistries = query.values('time_bin', 'data_type', 'file_size')
-    daily_data_qtys = defaultdict(lambda: defaultdict(int))
+    daily_data_quantities = defaultdict(lambda: defaultdict(int))
     # Construct a dict formatted like this: dict[date][data_type] = total_bytes
-    for chunkregistry in chunkregistries:
-        day = chunkregistry['time_bin'].astimezone(study_timezone).date()
-        daily_data_qtys[day][chunkregistry['data_type']] += chunkregistry['file_size']
+    for chunkregistry in query.values_list('time_bin', 'data_type', 'file_size'):
+        day = chunkregistry[0].astimezone(study_timezone).date()
+        daily_data_quantities[day][chunkregistry[1]] += chunkregistry[2]
     # For each date, create a DataQuantity object
-    data_qty_objects_to_be_created = []
-    for day in daily_data_qtys:
-        data_qty = {
+    for day, day_data in daily_data_quantities.items():
+        data_quantity = {
             "participant": participant,
             "date": day,
             "defaults": {}
         }
-        for data_type in daily_data_qtys[day]:
+        for data_type, total_bytes in day_data.items():
             if data_type in ALL_DATA_STREAMS:
-                data_qty['defaults'][data_type + '_bytes'] = daily_data_qtys[day][data_type]
-        SummaryStatisticDaily.objects.update_or_create(**data_qty)
+                data_quantity["defaults"][f"{data_type}_bytes"] = total_bytes
+        SummaryStatisticDaily.objects.update_or_create(**data_quantity)
 
 
 def _utc_datetime_of_local_midnight_date(local_date, local_timezone):

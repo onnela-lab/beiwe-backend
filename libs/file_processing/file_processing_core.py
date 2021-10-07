@@ -246,18 +246,15 @@ def upload_binified_data(binified_data, error_handler, survey_id_dict):
     earliest_time_bin = None
     latest_time_bin = None
 
-    def update_earliest_and_latest_time_bins(new_time_bin: int):
-        nonlocal earliest_time_bin, latest_time_bin
-        if earliest_time_bin is None or new_time_bin < earliest_time_bin:
-            earliest_time_bin = new_time_bin
-        if latest_time_bin is None or new_time_bin > latest_time_bin:
-            latest_time_bin = new_time_bin
-
     for data_bin, (data_rows_list, ftp_list) in binified_data.items():
         with error_handler:
             try:
                 study_object_id, user_id, data_type, time_bin, original_header = data_bin
-                update_earliest_and_latest_time_bins(time_bin)
+                # Update earliest and latest time bins
+                if earliest_time_bin is None or time_bin < earliest_time_bin:
+                    earliest_time_bin = time_bin
+                if latest_time_bin is None or time_bin > latest_time_bin:
+                    latest_time_bin = time_bin
                 # data_rows_list may be a generator; here it is evaluated
                 rows = data_rows_list
                 updated_header = convert_unix_to_human_readable_timestamps(original_header, rows)
