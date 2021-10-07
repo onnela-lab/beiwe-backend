@@ -27,7 +27,6 @@ if SENTRY_DISABLED:
 MANDATORY_VARS = {
     'DOMAIN_NAME',
     'FLASK_SECRET_KEY',
-    'IS_STAGING',
     'S3_BUCKET',
     'SYSADMIN_EMAILS',
 }
@@ -79,10 +78,6 @@ if settings.SYSADMIN_EMAILS:
         _email_address.strip() for _email_address in settings.SYSADMIN_EMAILS.split(",")
     ]
 
-# IS_STAGING needs to resolve to False except under specific settings.
-# The default needs to be production.
-settings.IS_STAGING = True if settings.IS_STAGING is True or settings.IS_STAGING.upper() == "TRUE" else False
-
 #
 # Stick any warning about environment variables that may have changed here
 #
@@ -93,7 +88,7 @@ old_credentials_warning = \
 
 if os.getenv("S3_ACCESS_CREDENTIALS_USER") and not os.getenv("BEIWE_SERVER_AWS_ACCESS_KEY_ID"):
     print(old_credentials_warning % ("S3_ACCESS_CREDENTIALS_USER", "BEIWE_SERVER_AWS_ACCESS_KEY_ID"))
-    
+
 
 if os.getenv("S3_ACCESS_CREDENTIALS_KEY") and not os.getenv("BEIWE_SERVER_AWS_SECRET_ACCESS_KEY"):
     print(old_credentials_warning % ("S3_ACCESS_CREDENTIALS_KEY", "BEIWE_SERVER_AWS_SECRET_ACCESS_KEY"))

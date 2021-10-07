@@ -6,7 +6,7 @@ from authentication.admin_authentication import (assert_admin, assert_researcher
     authenticate_admin, authenticate_researcher_login, get_researcher_allowed_studies,
     get_session_researcher, researcher_is_an_admin)
 from config.constants import ResearcherRole
-from config.settings import DOMAIN_NAME, DOWNLOADABLE_APK_URL, IS_STAGING
+from config.settings import DOMAIN_NAME, DOWNLOADABLE_APK_URL
 from database.study_models import Study
 from database.user_models import Researcher, StudyRelation
 from libs.push_notification_helpers import repopulate_all_survey_scheduled_events
@@ -160,11 +160,3 @@ def download_beta_release():
 @admin_api.route("/privacy_policy")
 def download_privacy_policy():
     return redirect("https://s3.amazonaws.com/beiwe-app-backups/Beiwe+Data+Privacy+and+Security.pdf")
-
-"""########################## Debugging Code ###########################"""
-
-# This is here to check whether staging is correctly configured
-if IS_STAGING:
-    @admin_api.route("/is_staging")
-    def is_staging():
-        return "yes"

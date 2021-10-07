@@ -29,11 +29,10 @@ SENTRY_DATA_PROCESSING_DSN = getenv("SENTRY_DATA_PROCESSING_DSN")
 SENTRY_ELASTIC_BEANSTALK_DSN = getenv("SENTRY_ELASTIC_BEANSTALK_DSN")
 SENTRY_JAVASCRIPT_DSN = getenv("SENTRY_JAVASCRIPT_DSN")
 
-# Production/Staging: set to "TRUE" if this is a staging/testing/development server to enable some
-# extra features.
-IS_STAGING = getenv("IS_STAGING") or "PRODUCTION"
-REPORT_DECRYPTION_KEY_ERRORS = bool(getenv("REPORT_DECRYPTION_KEY_ERRORS", False))
-STORE_DECRYPTION_KEY_ERRORS = bool(getenv("STORE_DECRYPTION_KEY_ERRORS", False))
+# Developer debugging parameters for decryption issues
+REPORT_DECRYPTION_KEY_ERRORS = getenv('REPORT_DECRYPTION_KEY_ERRORS', 'false').lower() == 'true'
+STORE_DECRYPTION_KEY_ERRORS = getenv('STORE_DECRYPTION_KEY_ERRORS', 'false').lower() == 'true'
+STORE_DECRYPTION_LINE_ERRORS = getenv('STORE_DECRYPTION_LINE_ERRORS', 'false').lower() == 'true'
 
 # S3 region (not all regions have S3, so this value may need to be specified)
 S3_REGION_NAME = getenv("S3_REGION_NAME", "us-east-1")
@@ -44,6 +43,7 @@ DOWNLOADABLE_APK_URL = getenv("DOWNLOADABLE_APK_URL", "https://s3.amazonaws.com/
 # File processing directives
 # Used in data download and data processing, base this on CPU core count.
 CONCURRENT_NETWORK_OPS = getenv("CONCURRENT_NETWORK_OPS") or cpu_count() * 2
+
 # Used in file processing, number of files to be pulled in and processed simultaneously. Mostly this
 # changes the ram utilization of file processing, higher is more efficient on network bandwidth, but
 # will use more memory.  Individual file size ranges from bytes to tens of megabytes.
