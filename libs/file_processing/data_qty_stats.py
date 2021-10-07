@@ -36,7 +36,10 @@ def calculate_data_quantity_stats(
     # Construct a dict formatted like this: dict[date][data_type] = total_bytes
     for chunkregistry in query.values_list('time_bin', 'data_type', 'file_size'):
         day = chunkregistry[0].astimezone(study_timezone).date()
-        daily_data_quantities[day][chunkregistry[1]] += chunkregistry[2]
+        filesize = chunkregistry[2]
+        if filesize is None:
+            filesize = 0
+        daily_data_quantities[day][chunkregistry[1]] += filesize
     # For each date, create a DataQuantity object
     for day, day_data in daily_data_quantities.items():
         data_quantity = {
