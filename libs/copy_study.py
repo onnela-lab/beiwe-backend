@@ -56,7 +56,7 @@ def copy_existing_study(new_study: Study, old_study: Study):
     msg = update_device_settings(old_device_settings, new_study, old_study.name)
 
     surveys_to_copy = []
-    for survey in old_study.surveys.all():
+    for survey in old_study.surveys.filter(deleted=False):
         survey_as_dict = survey.as_dict()
 
         # purge and then special case purge
