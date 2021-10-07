@@ -1,17 +1,18 @@
 from collections import defaultdict
+from dateutil.tz import gettz
 from django.db import migrations
 
 from config.constants import ALL_DATA_STREAMS
 
 
 def populate_historical_data_qty_stats(apps, schema_editor):
-    ChunkRegistry = apps.get_model("ChunkRegistry")
-    Participant = apps.get_model("Participant")
-    SummaryStatisticDaily = apps.get_model("SummaryStatisticDaily")
+    ChunkRegistry = apps.get_model('database', 'ChunkRegistry')
+    Participant = apps.get_model('database', 'Participant')
+    SummaryStatisticDaily = apps.get_model('database', 'SummaryStatisticDaily')
 
     def calculate_data_quantity_stats(participant: Participant):
         """ Update the SummaryStatisticDaily  stats for a participant, using ChunkRegistry data """
-        study_timezone = participant.study.timezone
+        study_timezone = gettz(participant.study.timezone_name)
         query = ChunkRegistry.objects.filter(participant=participant)
 
         daily_data_quantities = defaultdict(lambda: defaultdict(int))
