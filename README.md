@@ -30,7 +30,8 @@ Rename the file firebase_cloud_messaging_credentials.json and place it in the pr
 
 # Configuration settings
 
-Mandatory Settings
+### Mandatory Settings
+
 If any of these environment options are not provided, Beiwe will not run. Empty strings and None  are considered invalid.
 
 ```
@@ -47,7 +48,10 @@ If any of these environment options are not provided, Beiwe will not run. Empty 
     S3_ACCESS_CREDENTIALS_KEY - the secret key for s3 access for your deployment
 ```
 
+### Optional Settings
 There are additional settings that you will find documented in the [config/settings.py](https://github.com/onnela-lab/beiwe-backend/blob/main/config/settings.py) file.
+
+We _strongly_ recommend adding Sentry DSNs to all your Beiwe servers.  Without these there is very little data to work with when something goes wrong, and we won't be able to assist.
 
 ***
 
