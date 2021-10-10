@@ -1,13 +1,11 @@
-from json import dumps, loads
 
 from flask import abort, Blueprint, flash, redirect, request, Response
 
 from authentication.admin_authentication import authenticate_admin
-from database.schedule_models import Intervention
 from database.study_models import Study
-from libs.copy_study import (ABSOLUTE_SCHEDULE_KEY, add_new_surveys, allowed_file_extension,
-    DEVICE_SETTINGS_KEY, INTERVENTIONS_KEY, purge_unnecessary_fields, RELATIVE_SCHEDULE_KEY,
-    SURVEYS_KEY, update_device_settings, WEEKLY_SCHEDULE_KEY)
+from database.survey_models import Survey
+from libs.copy_study import (allowed_file_extension, copy_study_from_json, format_study,
+    unpack_json_study)
 
 
 copy_study_api = Blueprint('copy_study_api', __name__)
@@ -21,36 +19,14 @@ JSON structure for exporting and importing study surveys and settings:
     Also, purge all id keys
 """
 
-
 @copy_study_api.route('/export_study_settings_file/<string:study_id>', methods=['GET'])
 @authenticate_admin
 def export_study_settings_file(study_id):
     """ Endpoint that returns a json representation of a study. """
     study = Study.objects.get(pk=study_id)
-
-    # get only the necessary information for the survey and settings representation.
-    surveys = []
-    for survey in study.surveys.filter(deleted=False):
-        # content, cleanup, then schedules.
-        survey_content = survey.as_unpacked_native_python()
-        purge_unnecessary_fields(survey_content)
-        survey_content[WEEKLY_SCHEDULE_KEY] = survey.weekly_timings()
-        survey_content[ABSOLUTE_SCHEDULE_KEY] = survey.absolute_timings()
-        survey_content[RELATIVE_SCHEDULE_KEY] = survey.relative_timings_by_name()
-        surveys.append(survey_content)
-
-    device_settings = study.device_settings.as_unpacked_native_python()
-    purge_unnecessary_fields(device_settings)
-
-    output = {
-        SURVEYS_KEY: surveys,
-        DEVICE_SETTINGS_KEY: device_settings,
-        INTERVENTIONS_KEY: list(study.interventions.values_list("name", flat=True))
-    }
-
     filename = study.name.replace(' ', '_') + "_surveys_and_settings.json"
     return Response(
-        dumps(output),
+        format_study(study),
         mimetype="application/json",
         headers={'Content-Disposition': 'attachment;filename=' + filename}
     )
@@ -69,21 +45,29 @@ def import_study_settings_file(study_id):
         flash("You can only upload .json files!", 'danger')
         return redirect(request.referrer)
 
-    study_data = loads(file.read())
-    device_settings = study_data.pop(DEVICE_SETTINGS_KEY, None)
-    surveys = study_data.pop(SURVEYS_KEY, None)
-    interventions = study_data.pop(INTERVENTIONS_KEY, None)
+    copy_device_settings = request.form.get('device_settings', None) == 'true'
+    copy_surveys = request.form.get('surveys', None) == 'true'
+    device_settings, surveys, interventions = unpack_json_study(file.read())
 
-    # create all interventions in the json that don't already exist.
-    if interventions and isinstance(interventions, list):
-        extant_interventions = set(study.interventions.values_list("name", flat=True))
-        Intervention.objects.bulk_create(
-            [Intervention(name=name, study=study)
-             for name in interventions if name not in extant_interventions]
-        )
-
-    # these functions return a message to construct for the user
-    msg = update_device_settings(device_settings, study, file.filename)
-    msg += " \n" + add_new_surveys(surveys, study, file.filename, from_json=True)
-    flash(msg, 'success')
+    initial_tracking_surveys = study.surveys.filter(survey_type=Survey.TRACKING_SURVEY).count()
+    initial_audio_surveys = study.surveys.filter(survey_type=Survey.AUDIO_SURVEY).count()
+    # initial_image_surveys = study.objects.filter(survey_type=Survey.IMAGE_SURVEY).count()
+    copy_study_from_json(
+        study,
+        device_settings if copy_device_settings else {},
+        surveys if copy_surveys else [],
+        interventions,
+    )
+    end_tracking_surveys = study.surveys.filter(survey_type=Survey.TRACKING_SURVEY).count()
+    end_audio_surveys = study.surveys.filter(survey_type=Survey.AUDIO_SURVEY).count()
+    # end_image_surveys = study.objects.filter(survey_type=Survey.IMAGE_SURVEY).count()
+    flash(
+        f"Copied {end_tracking_surveys-initial_tracking_surveys} " +
+        f"Surveys and {end_audio_surveys-initial_audio_surveys} Audio Surveys",
+        'success',
+    )
+    if copy_device_settings:
+        flash(f"Overwrote {study.name}'s App Settings with custom values.", 'success')
+    else:
+        flash(f"Did not alter {study.name}'s App Settings.", 'success')
     return redirect('/edit_study/{:s}'.format(study_id))

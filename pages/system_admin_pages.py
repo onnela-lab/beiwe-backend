@@ -11,9 +11,10 @@ from authentication.admin_authentication import (assert_admin, assert_researcher
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     CHECKBOX_TOGGLES, IOS_FIREBASE_CREDENTIALS, ResearcherRole, TIMER_VALUES)
 from database.study_models import Study
+from database.survey_models import Survey
 from database.system_models import FileAsText
 from database.user_models import Researcher, StudyRelation
-from libs.copy_study import copy_existing_study
+from libs.copy_study import copy_study_from_json, format_study, unpack_json_study
 from libs.firebase_config import get_firebase_credential_errors, update_firebase_instance
 from libs.http_utils import checkbox_to_boolean, string_to_int
 from libs.sentry import make_error_sentry, SentryTypes
@@ -312,10 +313,36 @@ def create_study():
         return abort(400)
 
     try:
-        new_study = Study.create_with_object_id(name=name, encryption_key=encryption_key, is_test=is_test, forest_enabled=forest_enabled)
+        new_study = Study.create_with_object_id(
+            name=name, encryption_key=encryption_key, is_test=is_test, forest_enabled=forest_enabled
+        )
         if duplicate_existing_study:
+            # surveys are always provided, there is a checkbox about whether to import them
+            copy_device_settings = request.form.get('device_settings', None) == 'true'
+            copy_surveys = request.form.get('surveys', None) == 'true'
             old_study = Study.objects.get(pk=request.form.get('existing_study_id', None))
-            copy_existing_study(new_study, old_study)
+            device_settings, surveys, interventions = unpack_json_study(format_study(old_study))
+
+            copy_study_from_json(
+                new_study,
+                device_settings if copy_device_settings else {},
+                surveys if copy_surveys else [],
+                interventions,
+            )
+            Survey.TRACKING_SURVEY
+            tracking_surveys_added = new_study.surveys.filter(survey_type=Survey.TRACKING_SURVEY).count()
+            audio_surveys_added = new_study.surveys.filter(survey_type=Survey.AUDIO_SURVEY).count()
+            # image_surveys_added = new_study.objects.filter(survey_type=Survey.IMAGE_SURVEY).count()
+            flash(
+                f"Copied {tracking_surveys_added} Surveys and {audio_surveys_added} " +
+                f"Audio Surveys from {old_study.name} to {new_study.name}.",
+                'success'
+            )
+            if copy_device_settings:
+                flash(f"Overwrote {new_study.name}'s App Settings with custom values.", 'success')
+            else:
+                flash(f"Did not alter {new_study.name}'s App Settings.", 'success')
+
         flash(f'Successfully created study {name}.', 'success')
         return redirect('/device_settings/{:d}'.format(new_study.pk))
 

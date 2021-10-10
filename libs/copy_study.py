@@ -1,11 +1,13 @@
 import json
 from os import path
-from typing import Dict, List
+from typing import Dict, List, Union
 
-from flask import flash, request
-
+from constants.copy_study_constants import (ABSOLUTE_SCHEDULE_KEY, DEVICE_SETTINGS_KEY,
+    INTERVENTIONS_KEY, NEVER_EXPORT_THESE, RELATIVE_SCHEDULE_KEY, STUDY_KEY, SURVEY_CONTENT_KEY,
+    SURVEYS_KEY, WEEKLY_SCHEDULE_KEY)
 from database.common_models import JSONTextField
-from database.schedule_models import AbsoluteSchedule, Intervention, RelativeSchedule, WeeklySchedule
+from database.schedule_models import (AbsoluteSchedule, Intervention, RelativeSchedule,
+    WeeklySchedule)
 from database.study_models import Study
 from database.survey_models import Survey
 from libs.push_notification_helpers import repopulate_all_survey_scheduled_events
@@ -13,25 +15,46 @@ from libs.push_notification_helpers import repopulate_all_survey_scheduled_event
 
 NoneType = type(None)
 
-WEEKLY_SCHEDULE_KEY = "timings"  # predates the other schedules
-ABSOLUTE_SCHEDULE_KEY = "absolute_timings"
-RELATIVE_SCHEDULE_KEY = "relative_timings"
-INTERVENTIONS_KEY = "interventions"
 
-# keys used if various places, pulled out into constants for consistency.
-DEVICE_SETTINGS_KEY = 'device_settings'
-STUDY_KEY = 'study'
-SURVEY_CONTENT_KEY = 'content'
-SURVEY_SETTINGS_KEY = 'settings'
-SURVEYS_KEY = 'surveys'
+def unpack_json_study(json_string: str) -> Union[dict, List[str], List[dict]]:
+    """ Deserializes the data structure of a serialized study """
+    study_settings = json.loads(json_string)
+    device_settings = study_settings.pop(DEVICE_SETTINGS_KEY, {})
+    surveys = study_settings.pop(SURVEYS_KEY, [])
+    interventions = study_settings.pop(INTERVENTIONS_KEY, [])
+    return device_settings, surveys, interventions
 
-# "_id" is legacy, pk shouldn't occur naturally.  This list applies to Surveys and Studies.
-FIELDS_TO_PURGE = ('_id', 'id', 'pk',  'created_on', 'last_updated', 'object_id', "deleted")
+
+def format_study(study: Study) -> str:
+    """ Serializes a study, including surveys, their schedules, device settings, and interventions. """
+    device_settings = study.device_settings.as_unpacked_native_python()
+    purge_unnecessary_fields(device_settings)
+    return json.dumps(
+        {
+            SURVEYS_KEY: format_surveys(study),
+            DEVICE_SETTINGS_KEY: device_settings,
+            INTERVENTIONS_KEY: list(study.interventions.values_list("name", flat=True))
+        }
+    )
+
+
+def format_surveys(study: Study) -> List[dict]:
+    """ Serializes a survey and its schedule. """
+    surveys = []
+    for survey in study.surveys.filter(deleted=False):
+        # content, cleanup, then schedules.
+        survey_content = survey.as_unpacked_native_python()
+        purge_unnecessary_fields(survey_content)
+        survey_content[WEEKLY_SCHEDULE_KEY] = survey.weekly_timings()
+        survey_content[ABSOLUTE_SCHEDULE_KEY] = survey.absolute_timings()
+        survey_content[RELATIVE_SCHEDULE_KEY] = survey.relative_timings_by_name()
+        surveys.append(survey_content)
+    return surveys
 
 
 def purge_unnecessary_fields(d: dict):
     """ removes fields that we don't want re-imported, does so silently. """
-    for field in FIELDS_TO_PURGE:
+    for field in NEVER_EXPORT_THESE:
         d.pop(field, None)
 
 
@@ -41,79 +64,61 @@ def allowed_file_extension(filename: str):
     return path.splitext(filename)[1].lower() == '.json'
 
 
-def copy_existing_study(new_study: Study, old_study: Study):
-    """ Copy logic for an existing study.  This study cannot have users, so we don't need to
-    run the repopulate logics. """
-    Intervention.objects.bulk_create(
-        [Intervention(name=name, study=new_study) for name in
-            old_study.interventions.values_list("name", flat=True)]
-    )
+def copy_study_from_json(
+    new_study: Study, old_device_settings: dict, surveys_to_copy: List[dict], interventions: List[str]
+):
+    """ Takes the JSON-deserialized data structures (from unpack_json_study) and creates all
+    underlying database structures and relations. """
+    if old_device_settings:
+        if STUDY_KEY in old_device_settings:
+            old_device_settings.pop(STUDY_KEY)
+        update_device_settings(old_device_settings, new_study)
 
-    # get, drop the foreign key.
-    old_device_settings = old_study.device_settings.as_dict()
+    if interventions:
+        # The "key" value for intervention on relative survey schedule exports is the name,
+        # we can't have duplicate Interventions.  Behavior is that they get merged.
+        extant_interventions = set(new_study.interventions.values_list("name", flat=True))
+        Intervention.objects.bulk_create(
+            [Intervention(name=name, study=new_study)
+                for name in interventions if name not in extant_interventions]
+        )
 
-    old_device_settings.pop(STUDY_KEY)
-    msg = update_device_settings(old_device_settings, new_study, old_study.name)
-
-    surveys_to_copy = []
-    for survey in old_study.surveys.filter(deleted=False):
-        survey_as_dict = survey.as_dict()
-
-        # purge and then special case purge
-        purge_unnecessary_fields(survey_as_dict)
-        survey_as_dict.pop(STUDY_KEY, None)
-
-        # survey timings information
-        survey_as_dict[WEEKLY_SCHEDULE_KEY] = survey.weekly_timings()
-        survey_as_dict[ABSOLUTE_SCHEDULE_KEY] = survey.absolute_timings()
-        survey_as_dict[RELATIVE_SCHEDULE_KEY] = survey.relative_timings()
-
-        surveys_to_copy.append(survey_as_dict)
-
-    msg += " \n" + add_new_surveys(surveys_to_copy, new_study, old_study.name)
-    flash(msg, 'success')
+    if surveys_to_copy:
+        add_new_surveys(new_study, surveys_to_copy)
 
 
-def update_device_settings(new_device_settings, study, filename):
+def update_device_settings(new_device_settings: dict, study: Study):
     """ Takes the provided loaded json serialization of a study's device settings and
     updates the provided study's device settings.  Handles the cases of different legacy
     serialization of the consent_sections parameter. """
+    purge_unnecessary_fields(new_device_settings)
 
-    if request.form.get('device_settings', None) == 'true':
-        # Don't copy the PK to the device settings to be updated
-        purge_unnecessary_fields(new_device_settings)
-
-        # ah, it looks like the bug we had was that you can just send dictionary directly
-        # into a textfield and it uses the __repr__ or __str__ or __unicode__ function, causing
-        # weirdnesses if as_unpacked_native_python is called because json does not want to use double quotes.
-        if isinstance(new_device_settings['consent_sections'], dict):
-            new_device_settings['consent_sections'] = json.dumps(new_device_settings['consent_sections'])
-
-        study.device_settings.update(**new_device_settings)
-        return f"Overwrote {study.name}'s App Settings with the values from {filename}."
-    else:
-        return f"Did not alter {study.name}'s App Settings."
+    # ah, it looks like the bug we had was that you can just send dictionary directly
+    # into a textfield and it uses the __repr__ or __str__ or __unicode__ function, causing
+    # weirdnesses if as_unpacked_native_python is called because json does not want to use double quotes.
+    if isinstance(new_device_settings['consent_sections'], dict):
+        new_device_settings['consent_sections'] = json.dumps(new_device_settings['consent_sections'])
+    study.device_settings.update(**new_device_settings)
 
 
-def add_new_surveys(new_survey_settings: List[Dict], study: Study, filename: str, from_json=False):
-    # surveys are always provided, there is a checkbox about whether to import them
-    if request.form.get('surveys', None) != 'true':
-        return "Copied 0 Surveys and 0 Audio Surveys from %s to %s." % (filename, study.name)
+def schedules_bug_type_check(weekly_schedules, absolute_schedules, relative_schedules):
+    # The codepoth code accepts json input, and there was a bug  involving typing once.
+    # (this is almost definitely unnecessary.)
+    assert isinstance(weekly_schedules, (list, NoneType)), f"weekly_schedule was a {type(weekly_schedules)}."
+    assert isinstance(absolute_schedules, (list, NoneType)), f"absolute_schedule was a {type(absolute_schedules)}."
+    assert isinstance(relative_schedules, (list, NoneType)), f"relative_schedule was a {type(relative_schedules)}."
 
-    surveys_added, audio_surveys_added, image_surveys_added = 0, 0, 0
+
+def add_new_surveys(study: Study, new_survey_settings: List[Dict]):
     for survey_settings in new_survey_settings:
         # clean out the keys we don't want/need and pop the schedules.
         purge_unnecessary_fields(survey_settings)
         weekly_schedules = survey_settings.pop(WEEKLY_SCHEDULE_KEY, None)
         absolute_schedules = survey_settings.pop(ABSOLUTE_SCHEDULE_KEY, None)
         relative_schedules = survey_settings.pop(RELATIVE_SCHEDULE_KEY, None)
+        schedules_bug_type_check(weekly_schedules, absolute_schedules, relative_schedules)
 
-        # some sanity typechecking here
-        assert isinstance(weekly_schedules, (list, NoneType)), f"weekly_schedule was a {type(weekly_schedules)}."
-        assert isinstance(absolute_schedules, (list, NoneType)), f"absolute_schedule was a {type(absolute_schedules)}."
-        assert isinstance(relative_schedules, (list, NoneType)), f"relative_schedule was a {type(relative_schedules)}."
-
-        # convert JSONTextFields to json.
+        # convert JSONTextFields to json
         for field in Survey._meta.fields:
             if isinstance(field, JSONTextField):
                 survey_settings[field.name] = json.dumps(survey_settings[field.name])
@@ -127,26 +132,16 @@ def add_new_surveys(new_survey_settings: List[Dict], study: Study, filename: str
         survey = Survey.create_with_object_id(study=study, **survey_settings)
         AbsoluteSchedule.create_absolute_schedules(absolute_schedules, survey)
         WeeklySchedule.create_weekly_schedules(weekly_schedules, survey)
-        if from_json:
-            create_relative_schedules_by_name(relative_schedules, survey)
-        else:
-            RelativeSchedule.create_relative_schedules(relative_schedules, survey)
+        create_relative_schedules_by_name(relative_schedules, survey)
+
+        # and if the context is adding surveys to an existing study this must execute.
         repopulate_all_survey_scheduled_events(study)
-
-        # count...
-        surveys_added += 1 if survey.survey_type == Survey.TRACKING_SURVEY else 0
-        audio_surveys_added += 1 if survey.survey_type == Survey.AUDIO_SURVEY else 0
-        image_surveys_added += 1 if survey.survey_type == Survey.IMAGE_SURVEY else 0
-
-    return "Copied %i Surveys and %i Audio Surveys from %s to %s." % \
-           (surveys_added, audio_surveys_added, filename, study.name)
 
 
 def create_relative_schedules_by_name(timings: List[List[int]], survey: Survey) -> bool:
     """ This function is based off RelativeSchedule.create_relative_schedules, but contains special
-    casing to maintain forwards compatibility with data exported from older versions of Beiwe.
-    """
-    survey.relative_schedules.all().delete()
+    casing to maintain forwards compatibility with data exported from older versions of Beiwe. """
+    survey.relative_schedules.all().delete()  # should always be empty
     if survey.deleted or not timings:
         return
 
@@ -158,16 +153,14 @@ def create_relative_schedules_by_name(timings: List[List[int]], survey: Survey) 
         interventions_lookup = {}
         # count the distinct number of keys, use pks for the lookup dict key
         for i, pk in enumerate({pk for pk, _, _ in timings}):
-            new_intervention = Intervention(name=f"Intervention {i}", study=survey.study)
-            new_intervention.save()
-            interventions_lookup[pk] = new_intervention
+            interventions_lookup[pk] = Intervention(name=f"Intervention {i}", study=survey.study)
+            interventions_lookup[pk].save()
     else:
         # The normal case, where the interventions were present in the json.
         interventions_lookup = {
             intervention.name: intervention
             for intervention in Intervention.objects.filter(study=survey.study)
         }
-
     for intervention_name, days_after, num_seconds in timings:
         # should be all ints, use integer division.
         RelativeSchedule.objects.create(
