@@ -10,6 +10,7 @@ from authentication.admin_authentication import (assert_admin, assert_researcher
     get_session_researcher, researcher_is_an_admin)
 from config.constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     CHECKBOX_TOGGLES, IOS_FIREBASE_CREDENTIALS, ResearcherRole, TIMER_VALUES)
+from database.data_access_models import FileToProcess
 from database.study_models import Study
 from database.survey_models import Survey
 from database.system_models import FileAsText
@@ -253,6 +254,7 @@ def create_new_researcher():
 def manage_studies():
     return render_template(
         'manage_studies.html',
+        unprocessed_files_count=FileToProcess.objects.count(),
         studies=[study.as_unpacked_native_python() for study in get_administerable_studies_by_name()]
     )
 
