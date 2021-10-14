@@ -78,4 +78,14 @@ jobs:
           mkdir -p ~/.ssh/
           echo "$SSH_KEY" > ~/.ssh/staging.key
           chmod 600 ~/.ssh/staging.key
-          ssh -i ~/.ssh/staging.key -o StrictHostKeyChecking=no ubuntu@"$WORKER_HOSTNAME" 'cd beiwe-backend;git pull;pkill -HUP supervisord'
+          # SSH into the remote server, cd into beiwe-backend, run git pull, then restart supervisord.
+          # If `git pull` fails, exit the SSH session, and percolate that up into killing this script.
+          if ! ssh -i ~/.ssh/staging.key -o StrictHostKeyChecking=no ubuntu@"$WORKER_HOSTNAME" \
+            'cd beiwe-backend; \
+            if ! git pull; \
+              then exit 1; \
+            fi; \
+            pkill -HUP supervisord;'; \
+          then \
+            exit 1; \
+          fi
