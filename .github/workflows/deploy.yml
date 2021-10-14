@@ -85,7 +85,7 @@ jobs:
             if ! git pull; \
               then exit 1; \
             fi; \
-            pkill -HUP supervisord;'; \
+            sudo pkill -HUP supervisord;'; \
           then \
             exit 1; \
           fi
