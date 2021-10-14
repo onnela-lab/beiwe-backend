@@ -28,9 +28,9 @@ from deployment_helpers.aws.iam import iam_purge_instance_profiles
 from deployment_helpers.aws.rds import create_new_rds_instance
 from deployment_helpers.configuration_utils import (are_aws_credentials_present,
     create_finalized_configuration, create_processing_server_configuration_file,
-    create_rabbit_mq_password_file, get_rabbit_mq_password,
-    is_global_configuration_valid, reference_data_processing_server_configuration,
-    reference_environment_configuration_file, validate_beiwe_environment_config)
+    create_rabbit_mq_password_file, get_rabbit_mq_password, is_global_configuration_valid,
+    reference_data_processing_server_configuration, reference_environment_configuration_file,
+    validate_beiwe_environment_config)
 from deployment_helpers.constants import (APT_MANAGER_INSTALLS, APT_SINGLE_SERVER_AMI_INSTALLS,
     APT_WORKER_INSTALLS, CREATE_ENVIRONMENT_HELP, CREATE_MANAGER_HELP, CREATE_WORKER_HELP,
     DEPLOYMENT_ENVIRON_SETTING_REMOTE_FILE_PATH, DEPLOYMENT_SPECIFIC_CONFIG_FOLDER, DEV_HELP,
@@ -43,10 +43,9 @@ from deployment_helpers.constants import (APT_MANAGER_INSTALLS, APT_SINGLE_SERVE
     LOCAL_APACHE_CONFIG_FILE_PATH, LOCAL_CRONJOB_MANAGER_FILE_PATH,
     LOCAL_CRONJOB_SINGLE_SERVER_AMI_FILE_PATH, LOCAL_CRONJOB_WORKER_FILE_PATH,
     LOCAL_INSTALL_CELERY_WORKER, LOCAL_RABBIT_MQ_CONFIG_FILE_PATH, LOG_FILE,
-    MANAGER_SERVER_INSTANCE_TYPE, PROD_HELP, PROD_MODE, PURGE_COMMAND_BLURB,
-    PURGE_INSTANCE_PROFILES_HELP, PUSHED_FILES_FOLDER, RABBIT_MQ_PORT,
-    REMOTE_APACHE_CONFIG_FILE_PATH, REMOTE_CRONJOB_FILE_PATH, REMOTE_HOME_DIR,
-    REMOTE_INSTALL_CELERY_WORKER, REMOTE_RABBIT_MQ_CONFIG_FILE_PATH,
+    MANAGER_SERVER_INSTANCE_TYPE, PURGE_COMMAND_BLURB, PURGE_INSTANCE_PROFILES_HELP,
+    PUSHED_FILES_FOLDER, RABBIT_MQ_PORT, REMOTE_APACHE_CONFIG_FILE_PATH, REMOTE_CRONJOB_FILE_PATH,
+    REMOTE_HOME_DIR, REMOTE_INSTALL_CELERY_WORKER, REMOTE_RABBIT_MQ_CONFIG_FILE_PATH,
     REMOTE_RABBIT_MQ_FINAL_CONFIG_FILE_PATH, REMOTE_RABBIT_MQ_PASSWORD_FILE_PATH, REMOTE_USERNAME,
     STAGED_FILES, TERMINATE_PROCESSING_SERVERS_HELP, WORKER_SERVER_INSTANCE_TYPE)
 from deployment_helpers.general_utils import current_time_string, do_zip_reduction, EXIT, log, retry
@@ -127,8 +126,6 @@ def load_git_repo():
 
     if DEV_MODE:
         branch = environ.get("DEV_BRANCH", "development")
-    elif PROD_MODE:
-        branch = "production"
     else:
         branch = "main"
 
@@ -547,7 +544,6 @@ def cli_args_validation():
     parser.add_argument("-help-setup-new-environment", action="count", help=HELP_SETUP_NEW_ENVIRONMENT_HELP)
     parser.add_argument("-fix-health-checks-blocking-deployment", action="count", help=FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP)
     parser.add_argument("-dev", action="count", help=DEV_HELP)
-    parser.add_argument("-prod", action="count", help=PROD_HELP)
     parser.add_argument("-purge-instance-profiles", action="count", help=PURGE_INSTANCE_PROFILES_HELP)
     parser.add_argument("-terminate-processing-servers", action="count", help=TERMINATE_PROCESSING_SERVERS_HELP)
     parser.add_argument('-get-manager-ip', action="count", help=GET_MANAGER_IP_ADDRESS_HELP)
@@ -577,14 +573,7 @@ if __name__ == "__main__":
     # get CLI arguments, see function for details
     arguments = cli_args_validation()
 
-    if arguments.prod:
-        log.warning("RUNNING IN PROD MODE")
-        PROD_MODE.set(True)
-
     if arguments.dev:
-        if PROD_MODE:
-            log.error("You cannot provide -prod and -dev at the same time.")
-            EXIT(1)
         DEV_MODE.set(True)
         log.warning("RUNNING IN DEV MODE")
 
