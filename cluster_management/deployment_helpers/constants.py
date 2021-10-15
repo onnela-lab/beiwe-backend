@@ -15,8 +15,8 @@ class TRUE_FALSE:
     def __bool__(self): return self._is_true
     def __repr__(self): return str(self._is_true)
 
+
 DEV_MODE = TRUE_FALSE()
-PROD_MODE = TRUE_FALSE()
 
 ####################################################################################################
 ##################################### General Constants ############################################
@@ -340,8 +340,6 @@ HELP_SETUP_NEW_ENVIRONMENT_HELP = "assists in creation of configuration files fo
 FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP = "sometimes deployment operations fail stating that health checks do not have sufficient permissions, run this command to fix that."
 
 DEV_HELP = "Worker and Manager deploy operations will swap the server over to the development branch instead of main (or you can set the branch explicitly by setting the 'DEV_BRANCH' environment variable)."
-
-PROD_HELP = "Worker and Manager deploy operations will swap the server over to the production branch instead of main."
 
 PURGE_INSTANCE_PROFILES_HELP = PURGE_COMMAND_BLURB
 
