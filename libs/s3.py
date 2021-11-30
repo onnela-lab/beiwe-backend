@@ -2,7 +2,7 @@ import boto3
 import Crypto
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
-    S3_BUCKET, S3_REGION_NAME)
+    S3_BUCKET, S3_REGION_NAME, S3_ENDPOINT)
 from libs.encryption import (decrypt_server, encrypt_for_server, generate_key_pairing,
     get_RSA_cipher, prepare_X509_key_for_java)
 
@@ -31,7 +31,8 @@ conn = boto3.client(
     's3',
     aws_access_key_id=BEIWE_SERVER_AWS_ACCESS_KEY_ID,
     aws_secret_access_key=BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
-    region_name=S3_REGION_NAME
+    region_name=S3_REGION_NAME,
+    endpoint_url=S3_ENDPOINT
 )
 
 

@@ -74,6 +74,20 @@ While it is possible to run your development environment inside of the system Py
     ```
     I usually store it at `private/environment.sh`.  Load up these environment variables by running `source private/environment.sh` at the Bash prompt.
 
+#### MacOS Install 
+
+1. `brew update; brew install postgresql`
+2. `pip install --upgrade pip setuptools wheel`
+3. `pip install -r requirements.txt`
+4. Create a file for your environment variables that contains at least these:
+    ```
+    export DOMAIN_NAME="localhost://8080"
+    export FLASK_SECRET_KEY="asdf"
+    export S3_BUCKET="a"
+    export SYSADMIN_EMAILS="sysadmin@localhost"
+    ```
+    I usually store it at `private/environment.sh`.  Load up these environment variables by running `source private/environment.sh` at the Bash prompt.
+
 For additional tips on running a local development enironment please see [this wiki page](https://github.com/onnela-lab/beiwe-backend/wiki/Tips-For-Local-Beiwe-Development).  If you are having difficulty getting started, or believe you could assist with any issues of documentation, please [post an issue with a documentation tag](https://github.com/onnela-lab/beiwe-backend/labels/documentation).
 
 ### Local Celery setup
@@ -93,7 +107,7 @@ For those souls brave enough to run the entire broker queue and Celery task disp
 2. `pip install -r requirements_data_processing.txt` (this will install Celery using pip)
 3. Create a file called `manager_ip` in the top level of your `beiwe-backend` repo, and enter these two lines in it.  Do not provide a trailing new-line character.
     ```
-    127.0.0.1:50000
+    mq:50000
     [YOUR DESIRED PASSWORD]
     ```
     Where the password is the one you set when setting up RabbitMQ
