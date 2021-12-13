@@ -34,7 +34,7 @@ decorator==5.0.7
     # via
     #   ipython
     #   traitlets
-django==2.2.24
+django==2.2.25
     # via
     #   -r requirements.in
     #   django-timezone-field
