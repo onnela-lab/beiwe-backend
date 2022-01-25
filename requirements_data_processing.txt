@@ -1,5 +1,5 @@
 # data processing
-celery==4.4.7
+celery==5.2.2
 
 # This is temporary until forest is open-sourced
 git+https://git@github.com/onnela-lab/forest@e72ac1d4fd36698a050867218fd5894c5ea16e9d
