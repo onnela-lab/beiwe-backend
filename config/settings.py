@@ -26,6 +26,7 @@ FLASK_SECRET_KEY = getenv("FLASK_SECRET_KEY")
 
 # The name of the S3 bucket that will be used to store user generated data.
 S3_BUCKET = getenv("S3_BUCKET")
+S3_ENDPOINT = getenv("S3_ENDPOINT", None)
 
 # Domain name for the server, this is used for various details, and should be match the address of
 #  the frontend server.

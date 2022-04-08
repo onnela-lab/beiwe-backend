@@ -1,0 +1,30 @@
+version: "3.8"
+services:
+#  db:
+#    image: "postgresql:14"
+  mq:
+    image: "rabbitmq:latest"
+    environment:
+      - RABBITMQ_DEFAULT_USER=beiwe
+      - RABBITMQ_DEFAULT_PASS=beiwe
+      - RABBITMQ_ERLANG_COOKIE='takeMyCookies'
+  storage:
+    image: minio/minio
+    environment:
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    ports:
+      - "9000:9000"
+    command: server /data
+  backend:
+    build: .
+    environment:
+      - DOMAIN_NAME=localhost://8080
+      - FLASK_SECRET_KEY=asdf
+      - S3_BUCKET=beiwe
+      - S3_ENDPOINT=http://storage:9000
+      - SYSADMIN_EMAILS=sysadmin@localhost
+      - BEIWE_SERVER_AWS_ACCESS_KEY_ID=minioadmin
+      - BEIWE_SERVER_AWS_SECRET_ACCESS_KEY=minioadmin
+    ports:
+      - "8080:8080"
