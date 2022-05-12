@@ -143,7 +143,7 @@ pyasn1==0.4.8
     #   rsa
 pyasn1-modules==0.2.8
     # via google-auth
-pycrypto==2.6.1
+pycryptodome==3.11.0
     # via -r requirements.in
 pycryptodomex==3.11.0
     # via -r requirements.in

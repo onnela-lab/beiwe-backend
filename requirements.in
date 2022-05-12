@@ -14,7 +14,7 @@ python-dateutil==2.8.2
 # We used to use pycrypto, now we use pycryptodome, but we can't get pycryptodome to decrypt RSA
 # stuff backwards-compatibly.  Pycrypto RSA decryption is not compatible with Python versions
 # greater than 3.7 without a patch to the time library.  There are Fixmes for expunging it elsewhere.
-pycrypto==2.6.1
+pycryptodome==3.11.0
 pycryptodomex==3.11.0  # locked version
 
 # error reporting

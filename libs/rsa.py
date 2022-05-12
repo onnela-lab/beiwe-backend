@@ -37,7 +37,7 @@ def prepare_X509_key_for_java(exported_key) -> bytes:
     return b"".join(exported_key.split(b'\n')[1:-1])
 
 
-def get_RSA_cipher(key: bytes) -> old_RSA._RSAobj:
+def get_RSA_cipher(key: bytes) -> old_RSA.RsaKey:
     return old_RSA.importKey(key)
 
 
