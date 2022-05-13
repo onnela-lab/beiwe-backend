@@ -112,6 +112,8 @@ path(
     participant_pages.notification_history
 )
 path('view_study/<int:study_id>/participant/<str:patient_id>', participant_pages.participant_page)
+path('view_study/<int:study_id>/participant/<str:patient_id>/message/schedule', participant_pages.schedule_message)
+path('view_study/<int:study_id>/participant/<str:patient_id>/message/<str:participant_message_uuid>/cancel', participant_pages.cancel_message)
 
 # copy study api
 path('export_study_settings_file/<str:study_id>', copy_study_api.export_study_settings_file)

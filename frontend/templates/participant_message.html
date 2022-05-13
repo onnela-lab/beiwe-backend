@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Schedule Participant Message{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <h2>Schedule Participant Message</h2>
+    <p>Use the form below to schedule a message to be sent to the participant.</p>
+    <dl>
+      <dt>Study:</dt>
+      <dd>{{ participant.study.name }}</dd>
+      <dt>Participant Patient ID:</dt>
+      <dd>{{ participant.patient_id }}</dd>
+    </dl>
+    <form action="" method="post">
+      {# Todo: once we migrate frontend serving via Django we should use crispy forms #}
+      {# Todo: once we upgrade bootstrap to v4+, we should update this integration #}
+      <div class="form-group {{ 'has-error' if 'message' in form.errors }}">
+        <label for="message">Message:</label>
+        <p><i>Limited to about 3900 bytes; anything larger won't fit in the Firebase Cloud Messaging push notification data payload.  This is equivalent to 3900 ASCII characters, or fewer if using Unicode.</i></p>
+        <textarea class="form-control" name="message" rows="3">{{ form.message.value() or '' }}</textarea>
+        {% for error in form.errors.message %}
+          <span class="help-block">{{ error }}</span>
+        {% endfor %}
+      </div>
+      <div class="form-group {{ 'has-error' if 'schedule_type' in form.errors }}">
+        <label for="schedule_type">Send message:</label>
+        <select class="form-control" name="schedule_type" ng-model="scheduleType" ng-init="scheduleType = '{{ form.schedule_type.value() }}'">
+          {% for value, label in form.schedule_type.field.choices %}
+            <option {{ 'selected' if form.schedule_type.value() == value }} value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% for error in form.errors.schedule_type %}
+          <span class="help-block">{{ error }}</span>
+        {% endfor %}
+      </div>
+      <div class="form-group" ng-cloak ng-if="scheduleType == 'absolute'">
+        <div class="help-block">
+          <p>Please specify the date and time (in the study's timezone) to schedule this message for.</p>
+          <p>Study time zone: {{ participant.study.timezone_name }}</p>
+        </div>
+        <div class="form-group {{ 'has-error' if 'date' in form.errors }}">
+          <label for="date">Date:</label>
+          <input class="form-control" name="date" type="date" value="{{ form.date.value() or '' }}">
+          {% for error in form.errors.date %}
+            <span class="help-block">{{ error }}</span>
+          {% endfor %}
+        </div>
+        <div class="form-group {{ 'has-error' if 'time' in form.errors }}">
+          <label for="time">Time:</label>
+          <input class="form-control" name="time" type="time" value="{{ form.time.value() or '' }}">
+          {% for error in form.errors.time %}
+            <span class="help-block">{{ error }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <button class="btn btn-success" type="submit">Submit</button>
+    </form>
+  </div>
+{% endblock %}

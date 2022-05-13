@@ -3,6 +3,7 @@ from typing import Dict
 
 from django.contrib import messages
 from django.core.paginator import EmptyPage, Paginator
+from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods
@@ -10,10 +11,11 @@ from django.views.decorators.http import require_GET, require_http_methods
 from api.participant_administration import add_fields_and_interventions
 from authentication.admin_authentication import authenticate_researcher_study_access
 from constants.common_constants import API_DATE_FORMAT
-from database.schedule_models import ArchivedEvent
+from database.schedule_models import ArchivedEvent, ParticipantMessage, ParticipantMessageStatus
 from database.study_models import Study
 from database.user_models import Participant
 from libs.firebase_config import check_firebase_instance
+from libs.forms import ParticipantMessageForm
 from libs.http_utils import easy_url
 from libs.internal_types import ArchivedEventQuerySet, ResearcherRequest
 from libs.push_notification_helpers import repopulate_all_survey_scheduled_events
@@ -127,11 +129,19 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
         get_survey_names_dict(study)
     )
     
+    participant_messages = (
+        participant
+            .participant_messages
+            .prefetch_related("participant__study")
+            .order_by("-created_on")
+    )
+
     return render(
         request,
         'participant.html',
         context=dict(
             participant=participant,
+            participant_messages=participant_messages,
             study=study,
             intervention_data=intervention_data,
             field_values=field_data,
@@ -186,6 +196,87 @@ def get_notification_details(archived_event: Dict, study_timezone: str, survey_n
         notification['status'] = archived_event['status']
     
     return notification
+
+
+@require_http_methods(['GET', 'POST'])
+@authenticate_researcher_study_access
+def schedule_message(request: ResearcherRequest, study_id: int, patient_id: str):
+    participant = get_object_or_404(Participant, patient_id=patient_id)
+    study = get_object_or_404(Study, pk=study_id)
+    # TODO: confirm that participant and study match
+    # TODO: check that request.values and request.method work
+    form = ParticipantMessageForm(request.values or None, participant=participant)
+    if request.method == "GET":
+        return render_schedule_message(request, form, participant)
+    if not form.is_valid():
+        return render_schedule_message(request, form, participant)
+    form.save()
+    messages.success(
+        request,
+        f"Your message to participant \"{participant.patient_id}\" was successfully scheduled."
+    )
+    return redirect(
+        easy_url(
+            "participant_pages.participant_page",
+            study_id=participant.study_id,
+            patient_id=participant.patient_id,
+        )
+    )
+
+  
+# FIXME: convert this function from Flask to Django
+def render_schedule_message(request, form, participant):
+    return render(
+        request,
+        "participant_message.html",
+        context=dict(
+            form=form,
+            participant=participant,
+        )
+    )
+
+
+# FIXME: convert this function from Flask to Django
+@require_http_methods(['GET', 'POST'])
+@authenticate_researcher_study_access
+def cancel_message(request: ResearcherRequest, study_id: int, patient_id: str, participant_message_uuid):
+    # TODO: confirm that participant and study match
+    with transaction.atomic():
+        # Lock to prevent message from being sent while we're cancelling (or cancelling while it's
+        # being sent)
+        try:
+            participant_message = ParticipantMessage.objects.select_for_update().get(
+                uuid=participant_message_uuid,
+                participant__study__id=study_id,
+            )
+        except ParticipantMessage.DoesNotExist:
+            messages.warning(request, "Sorry, could not find the message specified.")
+        else:
+            if participant_message.status == ParticipantMessageStatus.sent:
+                messages.danger(
+                    request,
+                    "Sorry, could not cancel because the message was already sent."
+                )
+            elif participant_message.status == ParticipantMessageStatus.error:
+                messages.danger(
+                    request,
+                    "Sorry, could not cancel because the message status is \"error\" and it may "
+                    "have already been sent."
+                )
+            elif participant_message.status in ParticipantMessageStatus.scheduled:
+                if participant_message.status == ParticipantMessageStatus.scheduled:
+                    participant_message.status = ParticipantMessageStatus.cancelled
+                    participant_message.save(update_fields=["status"])
+                messages.success(request, "The message was successfully cancelled.")
+            elif participant_message.status in ParticipantMessageStatus.cancelled:
+                messages.success(request, "The message was successfully cancelled.")
+    return redirect(
+        easy_url(
+            "participant_pages.participant_page",
+            study_id=participant_message.participant.study_id,
+            patient_id=participant_message.participant.patient_id,
+        )
+    )
 
 
 def format_date_or_none(d: date) -> str:

@@ -150,6 +150,47 @@
 
   <br><hr><br>
 
+  <h2>Messages</h2>
+  <a class="btn btn-primary"
+     href="{{ url_for("participant_pages.schedule_message", study_object_id=study.object_id, participant_patient_id=participant.patient_id) }}">
+    Schedule New Message
+  </a>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Scheduled For</th>
+        <th>Status</th>
+        <th>Date Sent</th>
+        <th>Message</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for participant_message in participant_messages %}
+        <tr>
+          <td>{{ participant_message.scheduled_for }}</td>
+          <td>{{ participant_message.status }}</td>
+          <td>{{ participant_message.datetime_sent_display }}</td>
+          <td>
+            {% for message_part in participant_message.message_as_list() %}
+              {{ message_part }}<br>
+            {% endfor %}
+          </td>
+          <td>
+            {% if participant_message.status == 'scheduled' %}
+              <form action="{{ url_for("participant_pages.cancel_message", participant_message_uuid=participant_message.uuid, study_object_id=study.object_id) }}"
+                    method="post">
+                <button class="btn btn-sm btn-danger" type="submit">Cancel</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <br><hr><br>
+
   <form action="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}" class="form-horizontal" method="POST">
 
     {% if push_notifications_enabled_for_ios or push_notifications_enabled_for_android %}

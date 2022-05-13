@@ -1,10 +1,12 @@
 from datetime import date, datetime, time, timedelta, tzinfo
 from typing import List, Tuple
 
+import pytz
+import uuid
 from dateutil.tz import gettz
 from django.core.validators import MaxValueValidator
 from django.db import models
-from django.utils.timezone import localtime, make_aware
+from django.utils import timezone
 
 from constants.celery_constants import ScheduleTypes
 from constants.common_constants import DEV_TIME_FORMAT
@@ -64,14 +66,14 @@ class RelativeSchedule(TimestampedModel):
     def scheduled_time(self, intervention_date: date, tz: tzinfo) -> datetime:
         # timezone should be determined externally and passed in
 
-        # There is a small difference between applying the timezone via make_aware and
+        # There is a small difference between applying the timezone via timezone.make_aware and
         # via the tzinfo keyword.  Make_aware seems less weird, so we use that one
-        # example order is make_aware and then tzinfo, input was otherwise identical:
+        # example order is timezone.make_aware and then tzinfo, input was otherwise identical:
         # datetime.datetime(2020, 12, 5, 14, 30, tzinfo=<DstTzInfo 'America/New_York' EST-1 day, 19:00:00 STD>)
         # datetime.datetime(2020, 12, 5, 14, 30, tzinfo=<DstTzInfo 'America/New_York' LMT-1 day, 19:04:00 STD>)
 
         # the time of day (hour, minute) are not offsets, they are absolute.
-        return make_aware(
+        return timezone.make_aware(
             datetime.combine(intervention_date, time(self.hour, self.minute)), tz
         )
 
@@ -281,7 +283,7 @@ class ScheduledEvent(TimestampedModel):
                 survey_id = a.survey.object_id
 
             # data points of interest for sending information
-            sched_time = localtime(a.scheduled_time, tz)
+            sched_time = timezone.localtime(a.scheduled_time, tz)
             sched_time_print = datetime.strftime(sched_time, DEV_TIME_FORMAT)
             print(
                 f"  {a.get_schedule_type()} FOR {TxtClr.CYAN}{a.participant.patient_id}{TxtClr.BLACK}"
@@ -350,8 +352,8 @@ class ArchivedEvent(TimestampedModel):
                 survey_id = a.survey.object_id
 
             # data points of interest for sending information
-            sched_time = localtime(a.scheduled_time, tz)
-            sent_time = localtime(a.created_on, tz)
+            sched_time = timezone.localtime(a.scheduled_time, tz)
+            sent_time = timezone.localtime(a.created_on, tz)
             time_diff_minutes = (sent_time - sched_time).total_seconds() / 60
             sched_time_print = datetime.strftime(sched_time, DEV_TIME_FORMAT)
             sent_time_print = datetime.strftime(sent_time, DEV_TIME_FORMAT)
@@ -386,3 +388,102 @@ class InterventionDate(TimestampedModel):
 
     class Meta:
         unique_together = ('participant', 'intervention',)
+
+
+class ParticipantMessageScheduleType:
+    absolute = "absolute"
+    asap = "asap"
+    # relative = "relative"  # Relative to InterventionDate
+    
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.asap, "as soon as possible"),
+            (cls.absolute, "at a specific date/time"),
+        ]
+    
+    @classmethod
+    def values(cls):
+        return [cls.absolute, cls.asap]  #, cls.relative]
+
+
+class ParticipantMessageStatus:
+    cancelled = "cancelled"
+    error = "error"
+    scheduled = "scheduled"
+    sent = "sent"
+    
+    @classmethod
+    def choices(cls):
+        return [(choice, choice.title()) for choice in cls.values()]
+    
+    @classmethod
+    def values(cls):
+        return [cls.cancelled, cls.error, cls.scheduled, cls.sent]
+
+
+class ParticipantMessage(TimestampedModel):
+    """
+    Model for scheduling messages to be sent to a Participant
+    """
+    message = models.CharField(max_length=3900)
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="participant_messages")
+    schedule_type = models.TextField(choices=ParticipantMessageScheduleType.choices())
+    uuid = models.UUIDField(default=uuid.uuid4)
+    
+    scheduled_send_datetime = models.DateTimeField(blank=True, null=True)
+    # intervention = models.ForeignKey(Intervention, blank=True, null=True, on_delete=models.PROTECT, related_name="participant_messages")
+    # timedelta_after_intervention = models.DurationField(blank=True, null=True)
+    
+    datetime_sent = models.DateTimeField(blank=True, null=True)
+    status = models.TextField(choices=ParticipantMessageStatus.choices(), default=ParticipantMessageStatus.scheduled)
+    error_message = models.TextField(blank=True, null=True)
+    
+    @property
+    def datetime_sent_display(self):
+        return self.datetime_sent.strftime(DEV_TIME_FORMAT)
+    
+    def message_as_list(self) -> List[str]:
+        """
+        Returns the message as a list of text where it's split on newline characters. This is to
+        help facilitate safe rendering.
+        """
+        return self.message.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    
+    @property
+    def scheduled_for(self):
+        if self.schedule_type == ParticipantMessageScheduleType.asap:
+            return "ASAP"
+        else:
+            localized_datetime = self.scheduled_send_datetime.astimezone(
+                pytz.timezone(self.participant.study.timezone_name)
+            )
+            return localized_datetime.strftime(DEV_TIME_FORMAT)
+
+    def record_successful_send(self):
+        self.status = ParticipantMessageStatus.sent
+        self.datetime_sent = timezone.now()
+        self.save()
+
+    def record_error(self, error_msg):
+        self.status = ParticipantMessageStatus.error
+        self.error_message = error_msg
+        self.save()
+
+    # def clean(self):
+    #     if not self.schedule_type:
+    #         pass
+    #     elif self.schedule_type == ParticipantMessageScheduleType.relative:
+    #         self._validate_fields_as_required(["intervention", "timedelta_after_intervention"])
+    #     elif self.schedule_type in [ParticipantMessageScheduleType.absolute, ParticipantMessageScheduleType.asap]:
+    #         self._validate_fields_as_required(["scheduled_send_datetime"])
+    #     else:
+    #         raise NotImplementedError()
+    #
+    # def _validate_fields_as_required(self, field_names: List[str]):
+    #     errors = {}
+    #     for field_name in field_names:
+    #         if getattr(self, field_name) in EMPTY_VALUES:
+    #             errors[field_name] = ValidationError(self._meta.fields[field_name].error_messages["null"], code="null")
+    #     if errors:
+    #         raise ValidationError(errors)

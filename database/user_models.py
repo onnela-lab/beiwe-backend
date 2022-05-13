@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import Tuple
 
+from django.conf import settings
 from django.core.validators import MinLengthValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F, Func
 from django.db.models.query import QuerySet
+from django.utils import timezone
 
 from constants.participant_constants import ANDROID_API, IOS_API, OS_TYPE_CHOICES
 from constants.researcher_constants import ResearcherRole
@@ -97,7 +99,9 @@ class Participant(AbstractPasswordUser):
     timezone_name = models.CharField(  # Warning: this is not used yet.
         max_length=256, default="America/New_York", null=False, blank=False
     )
-    
+
+    # Todo: This field is deprecated and should be removed once production data in this field is verified to be
+    #       no longer necessary
     push_notification_unreachable_count = models.SmallIntegerField(default=0, null=False, blank=False)
     
     deleted = models.BooleanField(default=False)
@@ -167,6 +171,9 @@ class Participant(AbstractPasswordUser):
 
 
 class PushNotificationDisabledEvent(UtilityModel):
+    # Todo: This model currently on tracks some instances of push notifications being disabled. We
+    #       should either remove this model if we no longer need to track this information, or we
+    #       should generalize this into a more versatile logging model.
     # There may be many events
     # this is (currently) purely for record keeping.
     participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT)
@@ -180,6 +187,42 @@ class ParticipantFCMHistory(TimestampedModel):
     token = models.CharField(max_length=256, blank=False, null=False, db_index=True, unique=True,
                              validators=[MinLengthValidator(1)])
     unregistered = models.DateTimeField(null=True, blank=True)
+    failure_count = models.IntegerField(default=0)
+    
+    def handle_failure(self):
+        """
+        Handle push notification failure.
+        """
+        if self.failure_count < settings.PUSH_NOTIFICATION_ATTEMPT_COUNT:
+            self.failure_count += 1
+            self.save()
+        else:
+            self.unregister()
+    
+    def handle_success(self):
+        """
+        Handle push notification success.
+        """
+        self.failure_count = 0
+        # We should never need to set unregistered back to None, but it's left in because "this
+        # case would be super stupid to diagnose"
+        self.unregistered = None
+        self.save()
+    
+    def unregister(self):
+        """
+        Unregister (disable) this token.
+        """
+        now = timezone.now()
+        with transaction.atomic():
+            # Mark this object as unregistered
+            self.__class__.objects.filter(id=self.id).update(unregistered=now)
+            # Log event
+            PushNotificationDisabledEvent.objects.create(
+                count=self.failure_count,
+                participant=self.participant,
+                timestamp=now,
+            )
 
 
 class ParticipantFieldValue(UtilityModel):
