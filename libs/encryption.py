@@ -141,9 +141,17 @@ class DeviceDataDecryptor():
         except (TypeError, PaddingException, Base64LengthException) as decode_error:
             raise DecryptionKeyInvalidError(f"Invalid decryption key: {decode_error}")
         
-        # run RSA decryption
+        # Run RSA decryption
         try:
-            base64_key: bytes = self.private_key_cipher.decrypt(decoded_key)
+            # PyCryptodome deprecated the old PyCrypto method RSA.decrypt() which could decrypt
+            # textbook/raw RSA without key padding, which is what the Android & iOS apps write.
+            # This (github.com/Legrandin/pycryptodome/issues/434#issuecomment-660701725) presents
+            # a plain-math implementation of RSA.decrypt(), which we use instead.
+            ciphertext_int = int.from_bytes(decoded_key, 'big')
+            plaintext_int = pow(ciphertext_int, self.private_key_cipher.d, self.private_key_cipher.n)
+            base64_key: bytes = plaintext_int.to_bytes(
+                self.private_key_cipher.size_in_bytes(), 'big'
+            ).lstrip(b'\x00')
             decrypted_key: bytes = decode_base64(base64_key)
             if not decrypted_key:
                 raise TypeError(f"decoded key was '{decrypted_key}'")
