@@ -17,7 +17,7 @@
 
   {# Go to Dashboard button  #}
   <a class="btn btn-info"
-    href={{ easy_url('dashboard_api.dashboard_participant_page', study_id=study.id, patient_id=participant.patient_id) }}>
+    href="{{ easy_url('dashboard_api.dashboard_participant_page', study_id=study.id, patient_id=participant.patient_id) }}">
     Go to Participant Dashboard
   </a>&nbsp;
 
@@ -138,7 +138,7 @@
       </tr>
     </table>
 
-    <form action="{{ easy_url("push_notifications_api.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}" method="post">
+    <form action="{{ easy_url('push_notifications_api.resend_push_notification', study_id=study.id, patient_id=participant.patient_id) }}" method="post">
      {% if participant.participant_push_enabled %} 
       <input type="hidden" name="survey_id" value="{{ latest_notification_attempt.survey_id }}">
       <button class="btn btn-danger" type="submit">
@@ -152,7 +152,7 @@
 
   <h2>Messages</h2>
   <a class="btn btn-primary"
-     href="{{ url_for("participant_pages.schedule_message", study_object_id=study.object_id, participant_patient_id=participant.patient_id) }}">
+     href="{{ easy_url('participant_pages.schedule_message', study_id=study.id, patient_id=participant.patient_id) }}">
     Schedule New Message
   </a>
   <table class="table">
@@ -170,7 +170,13 @@
         <tr>
           <td>{{ participant_message.scheduled_for }}</td>
           <td>{{ participant_message.status }}</td>
-          <td>{{ participant_message.datetime_sent_display }}</td>
+          <td>
+            {% if participant_message.datetime_sent %}
+              {{ participant_message.datetime_sent.strftime(date_format) }}
+            {% else %}
+              Not sent
+            {% endif %}
+          </td>
           <td>
             {% for message_part in participant_message.message_as_list() %}
               {{ message_part }}<br>
@@ -178,7 +184,7 @@
           </td>
           <td>
             {% if participant_message.status == 'scheduled' %}
-              <form action="{{ url_for("participant_pages.cancel_message", participant_message_uuid=participant_message.uuid, study_object_id=study.object_id) }}"
+              <form action="{{ easy_url('participant_pages.cancel_message', study_id=study.id, patient_id=participant.patient_id, participant_message_uuid=participant_message.uuid) }}"
                     method="post">
                 <button class="btn btn-sm btn-danger" type="submit">Cancel</button>
               </form>

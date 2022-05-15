@@ -6,11 +6,11 @@ from django.core.paginator import EmptyPage, Paginator
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from api.participant_administration import add_fields_and_interventions
 from authentication.admin_authentication import authenticate_researcher_study_access
-from constants.common_constants import API_DATE_FORMAT
+from constants.common_constants import API_DATE_FORMAT, DISPLAY_TIME_FORMAT
 from database.schedule_models import ArchivedEvent, ParticipantMessage, ParticipantMessageStatus
 from database.study_models import Study
 from database.user_models import Participant
@@ -95,6 +95,7 @@ def participant_page(request: ResearcherRequest, study_id: int, patient_id: str)
         "participant_pages.participant_page", study_id=study_id, patient_id=patient_id
     ))
 
+
 def render_participant_page(request: ResearcherRequest, participant: Participant, study: Study):
     # to reduce database queries we get all the data across 4 queries and then merge it together.
     # dicts of intervention id to intervention date string, and of field names to value
@@ -140,6 +141,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
         request,
         'participant.html',
         context=dict(
+            date_format=DISPLAY_TIME_FORMAT,
             participant=participant,
             participant_messages=participant_messages,
             study=study,
@@ -151,6 +153,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
             push_notifications_enabled_for_android=check_firebase_instance(require_android=True),
         )
     )
+
 
 def query_values_for_notification_history(participant_id) -> ArchivedEventQuerySet:
     return (
@@ -164,6 +167,7 @@ def query_values_for_notification_history(participant_id) -> ArchivedEventQueryS
             'scheduled_time', 'created_on', 'survey_id', 'survey_version', 'schedule_type', 'status'
         )
     )
+
 
 def get_survey_names_dict(study: Study):
     survey_names = {}
@@ -204,8 +208,7 @@ def schedule_message(request: ResearcherRequest, study_id: int, patient_id: str)
     participant = get_object_or_404(Participant, patient_id=patient_id)
     study = get_object_or_404(Study, pk=study_id)
     # TODO: confirm that participant and study match
-    # TODO: check that request.values and request.method work
-    form = ParticipantMessageForm(request.values or None, participant=participant)
+    form = ParticipantMessageForm(request.POST or None, participant=participant)
     if request.method == "GET":
         return render_schedule_message(request, form, participant)
     if not form.is_valid():
@@ -224,7 +227,6 @@ def schedule_message(request: ResearcherRequest, study_id: int, patient_id: str)
     )
 
   
-# FIXME: convert this function from Flask to Django
 def render_schedule_message(request, form, participant):
     return render(
         request,
@@ -236,8 +238,7 @@ def render_schedule_message(request, form, participant):
     )
 
 
-# FIXME: convert this function from Flask to Django
-@require_http_methods(['GET', 'POST'])
+@require_POST
 @authenticate_researcher_study_access
 def cancel_message(request: ResearcherRequest, study_id: int, patient_id: str, participant_message_uuid):
     # TODO: confirm that participant and study match

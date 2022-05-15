@@ -439,10 +439,6 @@ class ParticipantMessage(TimestampedModel):
     status = models.TextField(choices=ParticipantMessageStatus.choices(), default=ParticipantMessageStatus.scheduled)
     error_message = models.TextField(blank=True, null=True)
     
-    @property
-    def datetime_sent_display(self):
-        return self.datetime_sent.strftime(DEV_TIME_FORMAT)
-    
     def message_as_list(self) -> List[str]:
         """
         Returns the message as a list of text where it's split on newline characters. This is to
