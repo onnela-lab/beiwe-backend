@@ -142,7 +142,7 @@ def send_push_notification(
             return
         
         # use the earliest timed schedule as our reference for the sent_time parameter.  (why?)
-        fcm_token = participant.get_fcm_token().token
+        fcm_token = participant.get_valid_fcm_token().token
         if schedule_pks is not None:
             schedules = participant.scheduled_events.filter(id__in=schedule_pks).prefetch_related('survey')
 
