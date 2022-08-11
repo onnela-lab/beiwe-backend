@@ -34,7 +34,7 @@ cronutils==0.3.2
     # via -r requirements.in
 decorator==5.1.0
     # via ipython
-django==3.2.14
+django==3.2.15
     # via
     #   -r requirements.in
     #   django-extensions
