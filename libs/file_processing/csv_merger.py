@@ -1,7 +1,9 @@
+from multiprocessing.pool import ThreadPool
 from typing import Dict, List, Set, Tuple
 
 from botocore.exceptions import ReadTimeoutError
 from cronutils import ErrorHandler
+from config.settings import CONCURRENT_NETWORK_OPS
 
 from constants.common_constants import RUNNING_TEST_OR_IN_A_SHELL
 from constants.data_processing_constants import (CHUNK_EXISTS_CASE, CHUNK_TIMESLICE_QUANTUM,
@@ -27,6 +29,7 @@ class CsvMerger:
         participant: Participant
     ):
         self.participant = participant
+        self.study_object_id = self.participant.study.object_id
         
         self.failed_ftps = set()
         self.ftps_to_retire = set()
@@ -42,6 +45,7 @@ class CsvMerger:
         self.error_handler = error_handler
         self.survey_id_dict = survey_id_dict
         self.iterate()
+        # self.threaded_iterate()  # in development
     
     def get_retirees(self) -> Tuple[Set[int], int, int, int]:
         """ returns the ftp pks that have succeeded, the number of ftps that have failed, 
@@ -57,36 +61,61 @@ class CsvMerger:
             with self.error_handler:
                 self.inner_iterate(data_bin, data_rows_list, ftp_list)
     
+    def threaded_iterate(self):
+        binified_items = [
+            (self, data_bin, data_rows_list, ftp_list)
+            for data_bin, (data_rows_list, ftp_list) in self.binified_data.items()
+        ]
+        # using a threadpool and a with statement doesn't ensure that close() is called
+        # pool = ThreadPool(CONCURRENT_NETWORK_OPS)
+        pool = ThreadPool(1)
+        try:
+            pool.imap_unordered(self.threaded_inner_iterate, binified_items).__iter__()
+        except BaseException:
+            raise
+        finally:
+            pool.close()
+            pool.terminate
+    
+    def threaded_inner_iterate(self, data_bin, data_rows_list, ftp_list: List[int]):
+        with self.error_handler:
+            data_bin
+            return self.inner_iterate(data_bin, data_rows_list, ftp_list)
+    
+    def get_basics(self, data_bin, data_rows_list):
+        data_stream, time_bin, original_header = data_bin
+        # Update earliest and latest time bins
+        if self.earliest_time_bin is None or time_bin < self.earliest_time_bin:
+            self.earliest_time_bin = time_bin
+        if self.latest_time_bin is None or time_bin > self.latest_time_bin:
+            self.latest_time_bin = time_bin
+        
+        # data_rows_list may be a generator; here it is evaluated
+        updated_header = convert_unix_to_human_readable_timestamps(
+            original_header, data_rows_list
+        )
+        chunk_path = construct_s3_chunk_path(
+            self.study_object_id, self.participant.patient_id, data_stream, time_bin
+        )
+        return data_stream, chunk_path, updated_header
+    
+    
     def inner_iterate(self, data_bin, data_rows_list, ftp_list: List[int]):
-        study_object_id: str
-        patient_id: str
-        data_stream: str
-        time_bin: int
-        original_header: bytes
+        # time_bin: int
+        # original_header: bytes
         
         try:
-            study_object_id, patient_id, data_stream, time_bin, original_header = data_bin
-            # Update earliest and latest time bins
-            if self.earliest_time_bin is None or time_bin < self.earliest_time_bin:
-                self.earliest_time_bin = time_bin
-            if self.latest_time_bin is None or time_bin > self.latest_time_bin:
-                self.latest_time_bin = time_bin
-            
-            # data_rows_list may be a generator; here it is evaluated
-            updated_header = convert_unix_to_human_readable_timestamps(
-                original_header, data_rows_list
-            )
-            chunk_path = construct_s3_chunk_path(study_object_id, patient_id, data_stream, time_bin)
+            data_stream, chunk_path, updated_header = self.get_basics(self, data_bin, data_rows_list)
             
             # two core cases
             if ChunkRegistry.objects.filter(chunk_path=chunk_path).exists():
                 self.chunk_exists_case(
-                    chunk_path, study_object_id, updated_header, data_rows_list, data_stream
+                    chunk_path, self.study_object_id, updated_header, data_rows_list, data_stream
                 )
             else:
                 self.chunk_not_exists_case(
-                    chunk_path, study_object_id, updated_header, patient_id, data_stream,
-                    original_header, time_bin, data_rows_list
+                    chunk_path, self.study_object_id, updated_header, self.participant.patient_id,
+                    data_stream, original_header, time_bin, data_rows_list
                 )
         
         except Exception as e:
@@ -142,12 +171,9 @@ class CsvMerger:
             (chunk_params, chunk_path, compress(new_contents), study_object_id)
         )
     
-    def chunk_exists_case(
-        self, chunk_path: str, study_object_id: str, updated_header: str, rows: List[bytes],
-        data_stream: str
-    ):
+    def chunk_exists_bit(self, chunk_path: str, study_object_id: str):
         try:
-            s3_file_data = s3_retrieve(chunk_path, study_object_id, raw_path=True)
+            return s3_retrieve(chunk_path, study_object_id, raw_path=True)
         except ReadTimeoutError as e:
             # The following check was correct for boto 2, still need to hit with boto3 test.
             if "The specified key does not exist." == str(e):
@@ -162,7 +188,14 @@ class CsvMerger:
                     % chunk_path
                 )
             raise  # Raise original error
-        
+    
+    def chunk_exists_case(
+        self, chunk_path: str, study_object_id: str, updated_header: str, rows: List[bytes],
+        data_stream: str
+    ):
+        print("downloading intermediate file", chunk_path)
+        s3_file_data = self.chunk_exists_bit(chunk_path, study_object_id)
+        print(f"its size was {len(s3_file_data)}")
         old_header, old_rows = csv_to_list(s3_file_data)
         final_header = self.validate_two_headers(old_header, updated_header, data_stream)
         
@@ -210,8 +243,6 @@ class CsvMerger:
         else:
             with self.error_handler:
                 raise e
-
-
 
 
 # unused, result of brainstorming how to validate a header as viable.

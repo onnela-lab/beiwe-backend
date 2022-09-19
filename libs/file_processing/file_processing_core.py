@@ -58,26 +58,23 @@ def do_process_user_file_chunks(
     (some conflicts can be most easily resolved by just delaying a file until the next processing
     period, and it solves )
     """
-    # Declare a defaultdict of a tuple of 2 lists
-    all_binified_data = defaultdict(lambda: ([], []))
-    ftps_to_remove = set()
     # The ThreadPool enables downloading multiple files simultaneously from the network, and continuing
     # to download files as other files are being processed, making the code as a whole run faster.
     # In principle we could make a global pool that is free-memory aware.
-    pool = ThreadPool(CONCURRENT_NETWORK_OPS)
+    pool = ThreadPool(1)
     survey_id_dict = {}
     
     # A Django query with a slice (e.g. .all()[x:y]) makes a LIMIT query, so it
     # only gets from the database those FTPs that are in the slice.
     # print(participant.as_unpacked_native_python())
-    print(len(participant.files_to_process.exclude(deleted=True).all()))
+    print(len(participant.files_to_process.exclude(deleted=False).all()))
     print(page_size)
     print(position)
     
     # TODO: investigate, comment.  ordering by path results in files grouped by type and
     # chronological order, which is perfect for download efficiency... right? would it break anthing?
     files_to_process = participant.files_to_process \
-        .exclude(deleted=True)  #.order_by("s3_file_path", "created_on")
+        .exclude(deleted=False)  #.order_by("s3_file_path", "created_on")
     
     # This pool pulls in data for each FileForProcessing on a background thread and instantiates it.
     # Instantiating a FileForProcessing object queries S3 for the File's data. (network request))
@@ -85,13 +82,22 @@ def do_process_user_file_chunks(
         FileForProcessing, files_to_process[position: position + page_size], chunksize=1
     )
     
-    for file_for_processing in files_for_processing:
-        with error_handler:
-            process_one_file(
-                file_for_processing, survey_id_dict, all_binified_data, ftps_to_remove
-            )
-    pool.close()
-    pool.terminate()
+    # Declare a defaultdict of a tuple of 2 lists
+    all_binified_data = defaultdict(lambda: ([], []))
+    ftps_to_remove = set()
+    
+    # using a threadpool and a with statement doesn't ensure that close() is called
+    try:
+        for file_for_processing in files_for_processing:
+            with error_handler:
+                process_one_file(
+                    file_for_processing, survey_id_dict, all_binified_data, ftps_to_remove
+                )
+    except BaseException:
+        raise
+    finally:
+        pool.close()
+        pool.terminate()
     
     # there are several failure modes and success modes, information for what to do with different
     # files percolates back to here.  Delete various database objects accordingly.
@@ -216,7 +222,10 @@ def upload_binified_data(binified_data, error_handler, survey_id_dict, participa
 
 """############################## Standard CSVs #############################"""
 
-def binify_csv_rows(rows_list: list, study_id: str, user_id: str, data_type: str, header: bytes) -> DefaultDict[tuple, list]:
+calss BinifiedData:
+    def __init__(self, )
+
+def binify_csv_rows(rows_list: list, data_type: str, header: bytes) -> DefaultDict[tuple, list]:
     """ Assumes a clean csv with element 0 in the rows column as a unix(ish) timestamp.
         Sorts data points into the appropriate bin based on the rounded down hour
         value of the entry's unix(ish) timestamp. (based CHUNK_TIMESLICE_QUANTUM)
@@ -231,12 +240,13 @@ def binify_csv_rows(rows_list: list, study_id: str, user_id: str, data_type: str
                 timecode = binify_from_timecode(row[0])
             except BadTimecodeError:
                 continue
-            ret[(study_id, user_id, data_type, timecode, header)].append(row)
+            ret[(data_type, timecode, header)].append(row)
+    print("done binifying")
     return ret
 
 def append_binified_csvs(old_binified_rows: DefaultDict[tuple, list],
                          new_binified_rows: DefaultDict[tuple, list],
-                         file_for_processing:  FileToProcess):
+                         file_for_processing: FileToProcess):
     """ Appends binified rows to an existing binified row data structure.
         Should be in-place. """
     for data_bin, rows in new_binified_rows.items():
@@ -249,7 +259,7 @@ def process_csv_data(file_for_processing: FileForProcessing):
     """ Constructs a binified dict of a given list of a csv rows,
         catches csv files with known problems and runs the correct logic.
         Returns None If the csv has no data in it. """
-    
+    print(file_for_processing.data_type)
     if file_for_processing.file_to_process.os_type == ANDROID_API:
         # Do fixes for Android
         if file_for_processing.data_type == ANDROID_LOG_FILE:
@@ -284,24 +294,14 @@ def process_csv_data(file_for_processing: FileForProcessing):
     if file_for_processing.data_type == SURVEY_TIMINGS:
         header = fix_survey_timings(header, csv_rows_list, file_for_processing.file_to_process.s3_file_path)
     
+    print("fixes applied")
     header = b",".join([column_name.strip() for column_name in header.split(b",")])
     if csv_rows_list:
         return (
             # return item 1: the data as a defaultdict
-            binify_csv_rows(
-                csv_rows_list,
-                file_for_processing.file_to_process.study.object_id,
-                file_for_processing.file_to_process.participant.patient_id,
-                file_for_processing.data_type,
-                header
-            ),
+            binify_csv_rows(csv_rows_list, file_for_processing.data_type, header),
             # return item 2: the tuple that we use as a key for the defaultdict
-            (
-                file_for_processing.file_to_process.study.object_id,
-                file_for_processing.file_to_process.participant.patient_id,
-                file_for_processing.data_type,
-                header
-            )
+            (file_for_processing.data_type, header)
         )
     else:
         return None, None

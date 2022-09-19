@@ -36,6 +36,7 @@ class FileForProcessing():
         """ Handles network errors and updates state accordingly """
         # Try to retrieve the file contents. If any errors are raised, store them to be raised by the
         # parent function
+        print("downloading", self.file_to_process.s3_file_path)
         try:
             self.file_contents = s3_retrieve(
                 self.file_to_process.s3_file_path,
@@ -47,6 +48,7 @@ class FileForProcessing():
             self.traceback = sys.exc_info()
             self.exception = e
             raise SomeException(e)
+        print("done.")
     
     def raise_data_processing_error(self):
         """
