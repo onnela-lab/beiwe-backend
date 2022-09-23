@@ -128,7 +128,7 @@ prompt-toolkit==3.0.24
     # via ipython
 proto-plus==1.19.8
     # via google-cloud-firestore
-protobuf==3.19.1
+protobuf==3.19.5
     # via
     #   google-api-core
     #   google-cloud-storage
@@ -160,7 +160,6 @@ python-dateutil==2.8.2
     #   botocore
 pytz==2021.3
     # via
-    #   -r requirements.in
     #   django
     #   django-timezone-field
     #   djangorestframework
