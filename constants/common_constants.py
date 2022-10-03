@@ -17,6 +17,9 @@ RUNNING_TESTS = "test" in _argv
 EARLIEST_POSSIBLE_DATA_DATE = date(2014, 8, 1)
 EARLIEST_POSSIBLE_DATA_DATETIME = datetime(year=2014, month=8, day=1, tzinfo=UTC)
 
+# this is the integer output of time.mktime(EARLIEST_POSSIBLE_DATA_DATETIME.timetuple())
+EARLIEST_POSSIBLE_DATA_TIMESTAMP = 1406851200
+
 # The format that dates should be in throughout the codebase
 # 1990-01-31T07:30:04 gets you jan 31 1990 at 7:30:04am
 # human string is YYYY-MM-DDThh:mm:ss

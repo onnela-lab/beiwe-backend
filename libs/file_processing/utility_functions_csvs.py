@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Generator, List, Tuple
 
-from constants.common_constants import API_TIME_FORMAT
+from constants.common_constants import API_TIME_FORMAT, EARLIEST_POSSIBLE_DATA_TIMESTAMP
 from libs.file_processing.exceptions import BadTimecodeError
 
 
@@ -63,7 +63,7 @@ def construct_csv_string(header: bytes, rows_list: List[bytes]) -> bytes:
     rows = [b",".join(row_items) for row_items in rows_list]
     # we need to ensure no duplicates
     rows = deduplicate(rows)
-
+    
     # the .join is at least 100x faster than a +=ing a ret string - I don't know how it made it
     # as long as it did as a += operation, I knew that was slow because of repeated calls to alloc.
     return header + b"\n" + b"\n".join(rows)
@@ -72,10 +72,15 @@ def construct_csv_string(header: bytes, rows_list: List[bytes]) -> bytes:
 def clean_java_timecode(java_time_code_string: bytes or str) -> int:
     """ converts millisecond time (string) to an integer normal unix time. """
     try:
-        return int(java_time_code_string[:10])
+        timestamp = int(java_time_code_string[:10])
     except ValueError as e:
         # we need a custom error type to handle this error case
         raise BadTimecodeError(str(e))
+    
+    if timestamp < EARLIEST_POSSIBLE_DATA_TIMESTAMP:
+        raise BadTimecodeError("data too early")
+        
+    return timestamp
 
 
 def unix_time_to_string(unix_time: int) -> bytes:
