@@ -34,7 +34,7 @@ cronutils==0.3.2
     # via -r requirements.in
 decorator==5.1.1
     # via ipython
-django==3.2.15
+django==3.2.16
     # via
     #   -r requirements.in
     #   django-extensions
@@ -191,10 +191,6 @@ sqlparse==0.4.3
     # via django
 stack-data==0.5.1
     # via ipython
-tomli==2.0.1
-    # via
-    #   build
-    #   pep517
 traitlets==5.5.0
     # via
     #   ipython
