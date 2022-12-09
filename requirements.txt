@@ -24,7 +24,7 @@ cachecontrol==0.12.11
     # via firebase-admin
 cachetools==5.2.0
     # via google-auth
-certifi==2022.9.24
+certifi==2022.12.7
     # via requests
 charset-normalizer==2.1.1
     # via requests
@@ -191,10 +191,6 @@ sqlparse==0.4.3
     # via django
 stack-data==0.6.0
     # via ipython
-tomli==2.0.1
-    # via
-    #   build
-    #   pep517
 traitlets==5.5.0
     # via
     #   ipython
