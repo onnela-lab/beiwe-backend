@@ -190,20 +190,14 @@ six==1.16.0
     #   google-auth
     #   google-auth-httplib2
     #   python-dateutil
-sqlparse==0.4.3
+sqlparse==0.4.4
     # via django
 stack-data==0.6.2
     # via ipython
-tomli==2.0.1
-    # via
-    #   build
-    #   pyproject-hooks
 traitlets==5.9.0
     # via
     #   ipython
     #   matplotlib-inline
-typing-extensions==4.5.0
-    # via ipython
 uritemplate==4.1.1
     # via google-api-python-client
 urllib3==1.26.15
