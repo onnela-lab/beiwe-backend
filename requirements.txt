@@ -34,7 +34,7 @@ cronutils==0.3.2
     # via -r requirements.in
 decorator==5.1.1
     # via ipython
-django==3.2.18
+django==3.2.19
     # via
     #   -r requirements.in
     #   django-extensions
@@ -194,16 +194,10 @@ sqlparse==0.4.3
     # via django
 stack-data==0.6.2
     # via ipython
-tomli==2.0.1
-    # via
-    #   build
-    #   pyproject-hooks
 traitlets==5.9.0
     # via
     #   ipython
     #   matplotlib-inline
-typing-extensions==4.5.0
-    # via ipython
 uritemplate==4.1.1
     # via google-api-python-client
 urllib3==1.26.15
