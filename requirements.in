@@ -1,5 +1,5 @@
 # core libraries
-Django==3.2.19
+Django==3.2.20
 firebase-admin==5.4.0
 Jinja2==3.1.2
 zstd==1.5.5.1  # This one seems to require manual pinning, version 1.5+ contains performance improvements
