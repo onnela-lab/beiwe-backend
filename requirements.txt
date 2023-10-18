@@ -96,8 +96,6 @@ httplib2==0.22.0
     #   google-auth-httplib2
 idna==3.4
     # via requests
-importlib-metadata==6.8.0
-    # via build
 ipython==8.12.2
     # via -r requirements.in
 jedi==0.19.0
@@ -194,22 +192,13 @@ sqlparse==0.4.4
     # via django
 stack-data==0.6.2
     # via ipython
-tomli==2.0.1
-    # via
-    #   build
-    #   pip-tools
-    #   pyproject-hooks
 traitlets==5.10.0
     # via
     #   ipython
     #   matplotlib-inline
-typing-extensions==4.8.0
-    # via
-    #   asgiref
-    #   ipython
 uritemplate==4.1.1
     # via google-api-python-client
-urllib3==1.26.16
+urllib3==1.26.18
     # via
     #   botocore
     #   google-auth
@@ -222,8 +211,6 @@ webencodings==0.5.1
     # via bleach
 wheel==0.41.2
     # via pip-tools
-zipp==3.17.0
-    # via importlib-metadata
 zstd==1.5.5.1
     # via -r requirements.in
 
