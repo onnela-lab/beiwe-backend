@@ -34,7 +34,7 @@ cronutils==0.3.2
     # via -r requirements.in
 decorator==5.1.1
     # via ipython
-django==3.2.20
+django==3.2.23
     # via
     #   -r requirements.in
     #   django-extensions
@@ -53,6 +53,7 @@ firebase-admin==5.4.0
 google-api-core[grpc]==2.11.1
     # via
     #   firebase-admin
+    #   google-api-core
     #   google-api-python-client
     #   google-cloud-core
     #   google-cloud-firestore
