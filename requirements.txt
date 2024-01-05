@@ -60,7 +60,7 @@ executing==2.0.1
     # via stack-data
 firebase-admin==5.4.0
     # via -r requirements.in
-forest @ git+https://git@github.com/onnela-lab/forest@fcc49a74057f98b1b26079a0257b3e9d7c27a98f
+forest @ git+https://git@github.com/onnela-lab/forest@0d73099c9c5e7129739563b01998810cee65befa
     # via -r requirements.in
 google-api-core[grpc]==2.12.0
     # via
@@ -210,7 +210,7 @@ pyasn1-modules==0.3.0
     # via google-auth
 pycparser==2.21
     # via cffi
-pycryptodomex==3.19.0
+pycryptodomex==3.19.1
     # via -r requirements.in
 pygments==2.16.1
     # via ipython
