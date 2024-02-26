@@ -4,8 +4,6 @@
 #
 #    pip-compile requirements.in
 #
-appnope==0.1.4
-    # via ipython
 asgiref==3.7.2
     # via django
 asttokens==2.4.1
@@ -167,7 +165,7 @@ numpy==1.24.4
     #   timezonefinder
 openrouteservice==2.3.3
     # via forest
-orjson==3.9.5
+orjson==3.9.15
     # via -r requirements.in
 packaging==23.2
     # via

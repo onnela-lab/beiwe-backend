@@ -3,7 +3,7 @@ Django==3.2.24
 firebase-admin==5.4.0
 Jinja2 # used to require pinning, I guess review if there is a major version bump.
 zstd # used to require it be pinned to get 1.5.5.1
-orjson==3.9.5
+orjson==3.9.15
 
 # various extensions
 djangorestframework==3.14.0
