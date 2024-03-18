@@ -123,7 +123,8 @@ def load_git_repo():
     """ Get a local copy of the git repository """
     # Git clone the repository into the remote beiwe-backend folder
     # git operations print to both stderr *and* stdout, so redirect them both to the log file
-    run(f'cd {REMOTE_HOME_DIR}; git clone https://github.com/onnela-lab/beiwe-backend.git 2>> {LOG_FILE}')
+    log.info("Cloning the git repository into the remote server, supressing more spam...")
+    run(f'cd {REMOTE_HOME_DIR}; git clone https://github.com/onnela-lab/beiwe-backend.git 2>> {LOG_FILE}', quiet=True)
     
     if DEV_MODE:
         branch = environ.get("DEV_BRANCH", "main")
@@ -138,7 +139,8 @@ def setup_python():
     pyenv = "/home/ubuntu/.pyenv/bin/pyenv"
     python = "/home/ubuntu/.pyenv/versions/beiwe/bin/python"
     
-    run(f"curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash >> {LOG_FILE}")
+    log.info("downloading and setting up pyenv. This has a bunch of suppressed spam.")
+    run(f"curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash >> {LOG_FILE}", quiet=True)
     run(f"{pyenv} update >> {LOG_FILE}", quiet=True)
     log.warning("For technical reasons we need to compile python. This will take some time.")
     # /home/ubuntu/.pyenv/bin/pyenv install --list
@@ -182,8 +184,14 @@ def manager_fix():
     # has other triggers too, this is just a reliable way to trigger it.)
     try_sudo("shutdown -r now")
     log.warning("rebooting server to fix rabbitmq bugs...")
-    sleep(5)
-    retry(run, "# waiting for server to reboot, this might take a while.")
+    log.info(
+        "ignore the scary red stack trace that about 'Error reading SSH protocol banner' and "
+        "the message about 'Low level socket error'...\n\n"
+        "If you get asked for the Login password for ubuntu... um... it connected before SSH"
+        "finished loading and... you will have to terminate the server and then rerun this... sorry"
+    )
+    sleep(10)
+    retry(run, "# waiting for server to reboot, this might take a while... ")
     
     # we need to re-enable the swap after the reboot, then we can finally start supervisor without
     # creating zombie celery threads.
@@ -500,6 +508,8 @@ def do_create_manager():
     manager_fix()
     run("supervisord")
     push_home_directory_files2()
+    
+    log.info("======== Server is up and running! ========")
 
 
 def do_create_worker():
