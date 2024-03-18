@@ -43,10 +43,12 @@ PYTHON_COMPILE_REQUIREMENTS = [
     'libsqlite3-dev',
     'libssl-dev',
     'make',
-    'tk-dev',
     'wget',
     'xz-utils',
     'zlib1g-dev',
+    
+    # 'tk-dev', # this causes some services to need a restart and that causes apt to prompt the user
+    # for... anything at all, so we don't install it.
 ]
 
 ## EC2 Instance Deployment Variables
@@ -82,10 +84,13 @@ APT_SINGLE_SERVER_AMI_INSTALLS.extend([
 # Files to push from the local server before the rest of launch
 # This is a list of 2-tuples of (local_path, remote_path) where local_path is located in
 # PUSHED_FILES_FOLDER and remote_path is located in REMOTE_HOME_DIRECTORY.
-FILES_TO_PUSH = [
-    ('bash_profile.sh', '.profile'),  # standard bash profile
-    ('.inputrc', '.inputrc'),  # modifies what up-arrow, tab etc. do
+FILES_TO_PUSH_EARLY = [
     ('known_hosts', '.ssh/known_hosts'),  # allows git clone without further prompting
+    ('.inputrc', '.inputrc'),  # modifies what up-arrow, tab etc. do
+]
+
+FILES_TO_PUSH_LATE = [
+    ('bash_profile.sh', '.profile'),  # standard bash profile
 ]
 
 

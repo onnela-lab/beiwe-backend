@@ -100,10 +100,19 @@ def get_worker_instances(eb_environment_name):
 ####################################################################################################
 
 def get_most_recent_ubuntu():
-    """ Unfortunately the different fundamental ec2 server types require a specific image type.
-    All the ubuntu xenial prefixe matches are defined below, the currently selected is known to
-    function for T2, M4, and C4 server classes.  Other server types may require testing the
-    different classes,  (seems to work with t3, c5, m5)
+    """ The different fundamental ec2 server types require a specific image classification
+    based on the storage, hvm-ssd-gp3
+    
+    There are three possible results (for mantic), they will look like this
+    1) ubuntu/images/hvm-ssd-gp3/ubuntu-mantic-23.10-amd64-server-20240123
+    2) ubuntu/images/hvm-ssd-gp3/ubuntu-mantic-23.10-amd64-server-20240123-prod-tx7uupluohrfk
+    3) ubuntu/images/hvm-ssd-gp3/ubuntu-mantic-23.10-amd64-server-20240123.1
+    
+    3 is only present sometimes, presumably it is a revision, they seem to have creation dates after
+    a corresponding instance of type 1, so it is preferable to 1. (fortunately python sorting
+    will do the right thing with these strings.)
+    
+    2 appears to be non-free-$$$ versions available on aws-marketplace, exclude them
     """
     ec2_client = create_ec2_client()
     images = ec2_client.describe_images(
@@ -111,12 +120,13 @@ def get_most_recent_ubuntu():
                 {"Name": 'state', "Values": ['available']},
                 {
                     "Name": 'name',
-                    "Values": ["ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server*"]
+                    "Values": ["ubuntu/images/hvm-ssd-gp3/ubuntu-mantic-23.10-amd64-server*"]
                 },
             ]
     )['Images']
-    # The names are time-sortable, we want the most recent one, it is at the bottom of a sorted list
+    # exclude the for-pay versions of ubuntu
     images = [image for image in images if "aws-marketplace" not in image["ImageLocation"]]
+    # The names are time-sortable, we want the most recent one, it is at the bottom of a sorted list
     images.sort(key=lambda x: x['Name'])
     log.info("Using AMI '%s'" % images[-1]['Name'])
     return images[-1]

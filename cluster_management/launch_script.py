@@ -25,7 +25,7 @@ from deployment_helpers.constants import (APT_MANAGER_INSTALLS, APT_SINGLE_SERVE
     CREATE_WORKER_HELP, DEPLOYMENT_ENVIRON_SETTING_REMOTE_FILE_PATH,
     DEPLOYMENT_SPECIFIC_CONFIG_FOLDER, DEV_HELP, DEV_MODE, DO_CREATE_CLONE, DO_CREATE_ENVIRONMENT,
     DO_SETUP_EB_UPDATE_OPEN, ENVIRONMENT_NAME_RESTRICTIONS, EXTANT_ENVIRONMENT_PROMPT,
-    FILES_TO_PUSH, FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP,
+    FILES_TO_PUSH_EARLY, FILES_TO_PUSH_LATE, FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP,
     get_beiwe_environment_variables_file_path, get_db_credentials_file_path,
     get_finalized_settings_file_path, get_finalized_settings_variables, get_global_config,
     GET_MANAGER_IP_ADDRESS_HELP, get_pushed_full_processing_server_env_file_path,
@@ -105,8 +105,15 @@ def push_manager_private_ip_and_password(eb_environment_name):
     run(f"printf {password} >> {REMOTE_RABBIT_MQ_PASSWORD_FILE_PATH}")
 
 
-def push_home_directory_files():
-    for local_relative_file, remote_relative_file in FILES_TO_PUSH:
+def push_home_directory_files1():
+    for local_relative_file, remote_relative_file in FILES_TO_PUSH_EARLY:
+        local_file_path = path_join(PUSHED_FILES_FOLDER, local_relative_file)
+        remote_file_path = path_join(REMOTE_HOME_DIR, remote_relative_file)
+        put(local_file_path, remote_file_path)
+
+
+def push_home_directory_files2():
+    for local_relative_file, remote_relative_file in FILES_TO_PUSH_LATE:
         local_file_path = path_join(PUSHED_FILES_FOLDER, local_relative_file)
         remote_file_path = path_join(REMOTE_HOME_DIR, remote_relative_file)
         put(local_file_path, remote_file_path)
@@ -132,12 +139,21 @@ def setup_python():
     python = "/home/ubuntu/.pyenv/versions/beiwe/bin/python"
     
     run(f"curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash >> {LOG_FILE}")
-    run(f"{pyenv} update >> {LOG_FILE}")
+    run(f"{pyenv} update >> {LOG_FILE}", quiet=True)
     log.warning("For technical reasons we need to compile python. This will take some time.")
-    run(f"{pyenv} install -v 3.8.13 >> {LOG_FILE}")
-    run(f"{pyenv} virtualenv 3.8.13 beiwe >> {LOG_FILE}")
-    run(f"{python} -m pip install --upgrade pip setuptools wheel >> {LOG_FILE}")
-    run(f'{python} -m pip install -r {REMOTE_HOME_DIR}/beiwe-backend/requirements.txt >> {LOG_FILE}')
+    # /home/ubuntu/.pyenv/bin/pyenv install --list
+    # this list is in order of release, so we can just grab the last one
+    log.info("Determining the most up-to-date version of python 3.8...")
+    versions: str = run(f"{pyenv} install --list", quiet=True)  # its a weird string-like object
+    versions = [v.strip() for v in versions.splitlines() if v.strip().startswith("3.8")]
+    most_recent_three_point_eight = versions[-1]
+    log.info(f"It is {most_recent_three_point_eight}!, installing... (Supressing a lot of spam, this will take a while.)")
+    run(f"{pyenv} install -v {most_recent_three_point_eight} >> {LOG_FILE}", quiet=True)
+    run(f"{pyenv} virtualenv {most_recent_three_point_eight} beiwe >> {LOG_FILE}", quiet=True)
+    log.info("It installed successfully! Now installing python requirements... (again with the spam and the suppressing.)")
+    run(f"{python} -m pip install --upgrade pip setuptools wheel >> {LOG_FILE}", quiet=True)
+    run(f'{python} -m pip install -r {REMOTE_HOME_DIR}/beiwe-backend/requirements.txt >> {LOG_FILE}', quiet=True)
+    log.info("Done installing python!")
 
 
 def run_custom_ondeploy_script():
@@ -214,15 +230,16 @@ def apt_installs(manager=False, single_server_ami=False):
     installs_failed = True
     for i in range(10):
         try:
-            sudo(f'apt-get -y update >> {LOG_FILE}')
-            sudo(f'apt-get -y install {installs_string} >> {LOG_FILE}')
+            sudo(f'apt-get -yq update >> {LOG_FILE}')
+            sudo(f'apt-get -yq install {installs_string} >> {LOG_FILE}')
             installs_failed = False
             break
         except FabricExecutionError:
             log.warning(
                 "WARNING: encountered problems when trying to run apt installs.\n"
                 "Usually this means the server is running a software upgrade in the background.\n"
-                "Will try 10 times, waiting 5 seconds each time."
+                "Will try 10 times, waiting 5 seconds each time.\n"
+                "There's going to be a lot of spam here, if I suppress it everything breaks ¯\\_(ツ)_/¯"
             )
             sleep(5)
     
@@ -470,7 +487,7 @@ def do_create_manager():
     
     configure_fabric(name, public_ip)
     create_swap()
-    push_home_directory_files()
+    push_home_directory_files1()
     apt_installs(manager=True)
     setup_rabbitmq(name)
     load_git_repo()
@@ -482,6 +499,7 @@ def do_create_manager():
     run_custom_ondeploy_script()
     manager_fix()
     run("supervisord")
+    push_home_directory_files2()
 
 
 def do_create_worker():
@@ -512,7 +530,7 @@ def do_create_worker():
     
     configure_fabric(name, instance_ip)
     create_swap()
-    push_home_directory_files()
+    push_home_directory_files1()
     apt_installs()
     load_git_repo()
     setup_python()
@@ -524,27 +542,29 @@ def do_create_worker():
     log.warning("Server is almost up.  Waiting 20 seconds to avoid a race condition...")
     sleep(20)
     run("supervisord")
+    push_home_directory_files2()
 
 
-def do_create_single_server_ami(ip_address, key_filename):
-    """
-    Set up a beiwe-backend deployment on a single server suitable for turning into an AMI
-    :param ip_address: IP address of the server you're setting up as an AMI
-    :param key_filename: Full filepath of the key that lets you SSH into that server
-    """
-    configure_fabric(None, ip_address, key_filename=key_filename)
-    push_home_directory_files()
-    apt_installs(single_server_ami=True)
-    load_git_repo()
-    setup_python()
-    push_beiwe_configuration(None, single_server_ami=True)
-    configure_local_postgres()
-    python = "/home/ubuntu/.pyenv/versions/beiwe/bin/python"
-    manage_script_filepath = path_join(REMOTE_HOME_DIR, "beiwe-backend/manage.py")
-    run(f'{python} {manage_script_filepath} migrate')
-    setup_single_server_ami_cron()
-    configure_apache()
-    remove_unneeded_ssh_keys()
+# def do_create_single_server_ami(ip_address, key_filename):
+#     """
+#     Set up a beiwe-backend deployment on a single server suitable for turning into an AMI
+#     :param ip_address: IP address of the server you're setting up as an AMI
+#     :param key_filename: Full filepath of the key that lets you SSH into that server
+#     """
+#     configure_fabric(None, ip_address, key_filename=key_filename)
+#     push_home_directory_files1()
+#     apt_installs(single_server_ami=True)
+#     load_git_repo()
+#     setup_python()
+#     push_beiwe_configuration(None, single_server_ami=True)
+#     configure_local_postgres()
+#     python = "/home/ubuntu/.pyenv/versions/beiwe/bin/python"
+#     manage_script_filepath = path_join(REMOTE_HOME_DIR, "beiwe-backend/manage.py")
+#     run(f'{python} {manage_script_filepath} migrate')
+#     setup_single_server_ami_cron()
+#     configure_apache()
+#     remove_unneeded_ssh_keys()
+#     push_home_directory_files2()  # ??
 
 
 def do_fix_health_checks():
