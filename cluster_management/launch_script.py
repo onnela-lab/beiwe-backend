@@ -123,7 +123,7 @@ def load_git_repo():
     """ Get a local copy of the git repository """
     # Git clone the repository into the remote beiwe-backend folder
     # git operations print to both stderr *and* stdout, so redirect them both to the log file
-    log.info("Cloning the git repository into the remote server, supressing more spam...")
+    log.info("Cloning the git repository into the remote server, suppressing more spam...")
     run(f'cd {REMOTE_HOME_DIR}; git clone https://github.com/onnela-lab/beiwe-backend.git 2>> {LOG_FILE}', quiet=True)
     
     if DEV_MODE:
@@ -149,7 +149,7 @@ def setup_python():
     versions: str = run(f"{pyenv} install --list", quiet=True)  # its a weird string-like object
     versions = [v.strip() for v in versions.splitlines() if v.strip().startswith("3.8")]
     most_recent_three_point_eight = versions[-1]
-    log.info(f"It is {most_recent_three_point_eight}!, installing... (Supressing a lot of spam, this will take a while.)")
+    log.info(f"It is {most_recent_three_point_eight}!, installing... (Suppressing a lot of spam, this will take a while.)")
     run(f"{pyenv} install -v {most_recent_three_point_eight} >> {LOG_FILE}", quiet=True)
     run(f"{pyenv} virtualenv {most_recent_three_point_eight} beiwe >> {LOG_FILE}", quiet=True)
     log.info("It installed successfully! Now installing python requirements... (again with the spam and the suppressing.)")

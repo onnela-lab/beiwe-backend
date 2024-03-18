@@ -1,13 +1,25 @@
-# Defaults to rabbit. This can be useful if you want to run more than one node
-# per machine - RABBITMQ_NODENAME should be unique per erlang-node-and-machine
-# combination. See the clustering on a single machine guide for details:
+# We use the environment-variable-like configuration for RabbitMQ.
+# documentation for all the environment variable options can be found at
+# https://www.rabbitmq.com/docs/configure#supported-environment-variables
+
+# these extra comments are from an ancient version of the default rabbitmq.conf file.
+
+# Defaults to rabbit. This can be useful if you want to run more than one node per machine -
+# RABBITMQ_NODENAME should be unique per erlang-node-and-machine combination. See the clustering on
+# a single machine guide for details:
 # http://www.rabbitmq.com/clustering.html#single-machine
 #NODENAME=rabbit
 
-# By default RabbitMQ will bind to all interfaces, on IPv4 and IPv6 if
-# available. Set this if you only want to bind to one network interface or#
-# address family.
+# By default RabbitMQ will bind to all interfaces, on IPv4 and IPv6 if available. Set this if you
+# only want to bind to one network interface or# address family.
 #NODE_IP_ADDRESS=127.0.0.1
 
 # Defaults to 5672; we use port 50000.
 NODE_PORT=50000
+
+# 50001 is used by supervisord, so we will use 50002.
+# Task distribution works without needing to modify the security groups, not 100% clear
+# what this port is used for - its the erlang distribution port.
+# if not present you get a "invalid_dist_port_range,70000" error because by default it takes the
+# node port and adds 20k.  Sure.  Whatever.
+RABBITMQ_DIST_PORT=50002
