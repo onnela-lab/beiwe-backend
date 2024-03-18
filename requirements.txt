@@ -4,8 +4,6 @@
 #
 #    pip-compile requirements.in
 #
-appnope==0.1.4
-    # via ipython
 asgiref==3.7.2
     # via django
 asttokens==2.4.1
@@ -46,7 +44,7 @@ decorator==5.1.1
     # via
     #   ipython
     #   librosa
-django==3.2.24
+django==3.2.25
     # via
     #   -r requirements.in
     #   django-extensions
@@ -67,7 +65,6 @@ forest @ git+https://git@github.com/onnela-lab/forest@1c0e7bcc9bed574b0392db7004
 google-api-core[grpc]==2.17.1
     # via
     #   firebase-admin
-    #   google-api-core
     #   google-api-python-client
     #   google-cloud-core
     #   google-cloud-firestore
