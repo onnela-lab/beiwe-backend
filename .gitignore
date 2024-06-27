@@ -22,3 +22,6 @@ private/*
 
 # Celery local config
 manager_ip
+
+# Ignore all .env files
+.env*
