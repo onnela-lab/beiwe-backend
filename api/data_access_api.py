@@ -38,8 +38,8 @@ def get_data(request: ApiStudyResearcherRequest):
     Strings: date-start, date-end - format as "YYYY-MM-DDThh:mm:ss"
     optional: top-up = a file (registry.dat)
     cases handled:
-        missing creds or study, invalid researcher or study, researcher does not have access
-        researcher creds are invalid
+        missing credentials or study, invalid researcher or study, researcher does not have access
+        researcher credentials are invalid
     Returns a zip file of all data files found by the query. """
     query_args = {}
     

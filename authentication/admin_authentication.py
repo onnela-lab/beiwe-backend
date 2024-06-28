@@ -345,6 +345,12 @@ def authenticate_admin(some_function):
                     log("not study admin on study")
                     return abort(403)
         
+        # validate the study_id if it is present
+        if 'study_id' in kwargs:
+            if not Study.objects.filter(id=kwargs['study_id']).exists():
+                log("no such study")
+                return abort(404)
+        
         # determine whether to redirect to password the password reset page
         goto_redirect = determine_any_redirects(request)
         return goto_redirect if goto_redirect else some_function(*args, **kwargs)
