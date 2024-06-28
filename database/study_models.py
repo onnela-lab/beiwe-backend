@@ -51,6 +51,10 @@ class Study(TimestampedModel, ObjectIDModel):
     timezone_name = models.CharField(
         max_length=256, default="America/New_York", null=False, blank=False
     )
+    
+    end_date = models.DateField(null=True, blank=True)
+    manually_stopped = models.BooleanField(default=False)
+    
     deleted = models.BooleanField(default=False)
     forest_enabled = models.BooleanField(default=False)
     
@@ -143,7 +147,7 @@ class Study(TimestampedModel, ObjectIDModel):
         self, earliest=True, only_after_epoch: bool = True, only_before_now: bool = True
     ) -> Optional[datetime]:
         """ Return the earliest ChunkRegistry time bin datetime for this study.
-
+        
         Note: As of 2021-07-01, running the query as a QuerySet filter or sorting the QuerySet can
               take upwards of 30 seconds. Doing the logic in python speeds this up tremendously.
         Args:
@@ -185,6 +189,20 @@ class Study(TimestampedModel, ObjectIDModel):
         minutes.  That's insane.  The dateutil gettz function doesn't have that fun insanity. """
         # profiling info: gettz takes on the order of 10s of microseconds
         return gettz(self.timezone_name)
+    
+    @property
+    def end_date_is_in_the_past(self) -> bool:
+        """ Returns True if the study end date is in the past. """
+        end_date = self.end_date
+        if end_date is None:
+            return False
+        
+        # actual_end is the start of the day after the end date
+        actual_end = (
+            datetime(end_date.year, end_date.month, end_date.day, tzinfo=self.timezone)
+            + timezone.timedelta(days=1)
+        )
+        return actual_end < timezone.now() 
     
     @property
     def data_quantity_metrics(self):
