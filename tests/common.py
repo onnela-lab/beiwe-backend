@@ -53,23 +53,6 @@ s3.S3_BUCKET = Exception   # force disable potentially active s3 connections.
 logging.getLogger("django.request").setLevel(logging.ERROR)
 
 
-# extra printout of calls to the messages library
-if VERBOSE_2_OR_3:
-    def monkeypatch_messages(function: callable):
-        """ This function wraps the messages library and directs it to the terminal for easy
-        behavior identification, the original function is then called. """
-        def intercepted(request, message, extra_tags='', fail_silently=False):
-            print(f"from messages.{function.__name__}(): '{message}'")
-            return function(request, message, extra_tags=extra_tags, fail_silently=fail_silently)
-        return intercepted
-    # this is equivalent to using a function wrapper
-    messages.debug = monkeypatch_messages(messages.debug)
-    messages.info = monkeypatch_messages(messages.info)
-    messages.success = monkeypatch_messages(messages.success)
-    messages.warning = monkeypatch_messages(messages.warning)
-    messages.error = monkeypatch_messages(messages.error)
-
-
 class MisconfiguredTestException(Exception):
     pass
 
@@ -85,7 +68,27 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
     """ This class contains the various test-oriented features, for example the assert_present
     method that handles a common case of some otherwise distracting type coersion. """
     
+    def monkeypatch_messages(self, function: callable):
+        """ This function wraps the messages library and directs it to the terminal for easy
+        behavior identification, the original function is then called. """
+        
+        def intercepted(request, message, extra_tags='', fail_silently=False):
+            if VERBOSE_2_OR_3:
+                print(f"from messages.{function.__name__}(): '{message}'")
+            self.messages.append(message)
+            return function(request, message, extra_tags=extra_tags, fail_silently=fail_silently)
+        
+        return intercepted
+    
     def setUp(self) -> None:
+        # Patch messages to print to stash any message text for later inspection. (extremely fast)
+        self.messages = []
+        messages.debug = self.monkeypatch_messages(messages.debug)
+        messages.info = self.monkeypatch_messages(messages.info)
+        messages.success = self.monkeypatch_messages(messages.success)
+        messages.warning = self.monkeypatch_messages(messages.warning)
+        messages.error = self.monkeypatch_messages(messages.error)
+        
         if VERBOSE_2_OR_3:
             print("\n==")
         return super().setUp()
@@ -94,6 +97,22 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         if VERBOSE_2_OR_3:
             print("==")
         return super().tearDown()
+    
+    def assert_message(self, expected_message: str):
+        """ Convenience assertion for whether messages was called with a value. """
+        self.assertIn(expected_message, self.messages)
+    
+    def assert_message_fragment(self, message_fragment):
+        """ Convenience assertion for whether messages was called with a value, but checks whether
+        any message contains a substring. """
+        for message in self.messages:
+            if message_fragment in message:
+                return
+        assert False, f"message fragment '{message_fragment}' not found in any messages."
+    
+    @property
+    def clear_messages(self):
+        self.messages = []
     
     def assert_response_url_equal(self, a: str, b: str):
         # when a url comes in from a response object (e.g. response.url) the / characters are
@@ -341,7 +360,7 @@ class SmartRequestsTestCase(BasicSessionTestCase):
     def smart_post_status_code(
         self, status_code: int, *reverse_args, reverse_kwargs=None, **post_params
     ) -> HttpResponse:
-        """ This helper function takes a status code in addition to post paramers, and tests for
+        """ This helper function takes a status code in addition to post parameters, and tests for
         it.  Use for writing concise tests. """
         # print(f"reverse_args: {reverse_args}\nreverse_kwargs: {reverse_kwargs}\npost_params: {post_params}")
         resp = self.smart_post(*reverse_args, reverse_kwargs=reverse_kwargs, **post_params)
@@ -438,7 +457,7 @@ class ParticipantSessionTest(SmartRequestsTestCase):
     def setUp(self) -> None:
         """ Populate the session participant variable. """
         self.session_participant = self.default_participant
-        self.INJECT_DEVICE_TRACKER_PARAMS = True
+        self.INJECT_DEVICE_TRACKER_PARAMS = True  # reset for every test
         return super().setUp()
     
     @property

@@ -1,4 +1,5 @@
 from copy import copy
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -845,3 +846,131 @@ class TestElevateResearcher(ResearcherSessionTest):
         r2 = self.generate_researcher(relation_to_session_study=ResearcherRole.site_admin)
         self.smart_post_status_code(403, researcher_id=r2.id, study_id=self.session_study.id)
         self.assertFalse(r2.study_relations.filter(study=self.session_study).exists())
+
+
+# update_end_date
+class TestUpdateEndDate(ResearcherSessionTest):
+    ENDPOINT_NAME = "system_admin_pages.update_end_date"
+    REDIRECT_ENDPOINT_NAME = "system_admin_pages.edit_study"
+    
+    invalid_message = "Invalid date format, expected YYYY-MM-DD."
+    
+    def test_researcher(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        self.smart_post_status_code(403, self.session_study.id)
+    
+    def test_study_admin(self):
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        self.smart_post_status_code(403, self.session_study.id)
+    
+    def test_site_admin(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.smart_post_redirect(self.session_study.id)
+    
+    def test_date_in_past(self):
+        # this is valid, you can set it to the past and immediately stop a study.
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.smart_post_redirect(self.session_study.id, end_date="2020-01-01")
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, date(2020, 1, 1))
+    
+    def test_has_valid_endpoint_name_and_is_placed_in_correct_file(self):
+        d = date.today()+timedelta(days=200)
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.smart_post_redirect(self.session_study.id, end_date=d.isoformat())
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, d)
+    
+    def test_bad_date_formats(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        
+        self.smart_post_redirect(self.session_study.id, end_date="2020-01-31 00:00:00")
+        self.assert_message(self.invalid_message)
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, None)
+        
+        self.smart_post_redirect(self.session_study.id, end_date="2020-02-31T00:00:00")
+        self.assert_message(self.invalid_message)
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, None)
+        
+        self.smart_post_redirect(self.session_study.id, end_date="2020-03-31T00:00:00Z")
+        self.assert_message(self.invalid_message)
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, None)
+        
+        self.smart_post_redirect(self.session_study.id, end_date="1-31-2020")
+        self.assert_message(self.invalid_message)
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, None)
+        
+        self.smart_post_redirect(self.session_study.id, end_date="1-31-2020")
+        self.assert_message(self.invalid_message)
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, None)
+        
+        self.smart_post_redirect(self.session_study.id, end_date="31-1-2020")
+        self.assert_message(self.invalid_message)
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, None)
+        
+        self.smart_post_redirect(self.session_study.id, end_date="2020/1/31")
+        self.assert_message(self.invalid_message)
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, None)
+        
+    def test_ok_date_formats(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        
+        # you don't need leading zeros
+        self.smart_post_redirect(self.session_study.id, end_date="2020-1-4")
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, date(2020, 1, 4))
+        self.assertTrue(self.session_study.end_date_is_in_the_past)  # might as well test...
+        
+        # clears the date
+        self.smart_post_redirect(self.session_study.id, end_date="")
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, None)
+        
+    def test_no_params(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.session_study.update_only(end_date=date(2020, 1, 1))
+        self.smart_post_redirect(self.session_study.id)
+        self.assert_message("No date provided.")
+        self.session_study.refresh_from_db()
+        self.assertEqual(self.session_study.end_date, date(2020, 1, 1))
+
+# toggle_end_study
+
+class TestToggleManuallyEndStudy(ResearcherSessionTest):
+    ENDPOINT_NAME = "system_admin_pages.toggle_end_study"
+    REDIRECT_ENDPOINT_NAME = "system_admin_pages.edit_study"
+    
+    def test_researcher(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        self.smart_post_status_code(403, self.session_study.id)
+        self.assertFalse(self.session_study.manually_stopped)
+    
+    def test_study_admin(self):
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        self.smart_post_status_code(403, self.session_study.id)
+        self.assertFalse(self.session_study.manually_stopped)
+    
+    def test_site_admin_end_study(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.assertFalse(self.session_study.manually_stopped)
+        self.smart_post_redirect(self.session_study.id)
+        self.session_study.refresh_from_db()
+        self.assertTrue(self.session_study.manually_stopped)
+        self.assert_message_fragment("has been manually stopped")
+    
+    def test_site_admin_unend_study(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.assertFalse(self.session_study.manually_stopped)
+        self.session_study.update_only(manually_stopped=True)
+        self.smart_post_redirect(self.session_study.id)
+        self.session_study.refresh_from_db()
+        self.assertFalse(self.session_study.manually_stopped)
+        self.assert_message_fragment("has been manually re-opened")
+        

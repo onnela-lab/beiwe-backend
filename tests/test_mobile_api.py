@@ -539,6 +539,7 @@ class TestGetLatestDeviceSettings(ParticipantSessionTest):
         self.INJECT_DEVICE_TRACKER_PARAMS = True
 
 
+#TODO: We don't have a success test because that is insanely complex. We should probably do that.
 class TestMobileUpload(ParticipantSessionTest):
     # FIXME: This test needs better coverage
     ENDPOINT_NAME = "mobile_api.upload"
@@ -592,6 +593,45 @@ class TestMobileUpload(ParticipantSessionTest):
         self.skip_next_device_tracker_params
         self.smart_post_status_code(400, file_name="whatever.csv")
         self.session_participant.update(permanently_retired=True)
+        self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_no_files_to_process
+    
+    def test_study_setting_upload_blocks(self):
+        # manual blocks
+        self.default_study.update_only(manually_stopped=True)
+        self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_no_files_to_process
+        # manual and end date 10 days ago blocks
+        self.default_study.update_only(manually_stopped=True, end_date=date.today() - timedelta(days=10))
+        self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_no_files_to_process
+        # just end date 10 days ago blocks
+        self.default_study.update_only(manually_stopped=False)
+        self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_no_files_to_process
+        # end date yesterday blocks
+        self.default_study.update_only(end_date=date.today() - timedelta(days=1))
+        self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_no_files_to_process
+        
+        # test that an end datedate in the future fully works (errors with missing file is sufficient)
+        self.skip_next_device_tracker_params
+        self.default_study.update_only(end_date=date.today() + timedelta(days=1))
+        resp = self.smart_post_status_code(400, file_name="whatever.csv")
+        self.assertEqual(b"file not present", resp.content)
+        self.assert_no_files_to_process
+        # end date _today_ works.... does this test fail afte if there is a test study timezone shift?
+        self.default_study.update_only(end_date=date.today())
+        resp = self.smart_post_status_code(400, file_name="whatever.csv")
+        self.assertEqual(b"file not present", resp.content)
+        self.assert_no_files_to_process
+        
+        # deleted overrides active study
+        self.default_study.update_only(deleted=True)
+        self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_no_files_to_process
+        # manual and deleted override end date
+        self.default_study.update_only(manually_stopped=True)
         self.smart_post_status_code(200, file_name="whatever.csv")
         self.assert_no_files_to_process
     

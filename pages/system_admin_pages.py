@@ -28,7 +28,7 @@ from database.study_models import DeviceSettings, Study
 from database.survey_models import Survey
 from database.system_models import FileAsText
 from database.user_models_researcher import Researcher, StudyRelation
-from forms.django_forms import StudySecuritySettingsForm
+from forms.django_forms import StudyEndDateForm, StudySecuritySettingsForm
 from libs.copy_study import copy_study_from_json, format_study, unpack_json_study
 from libs.firebase_config import get_firebase_credential_errors, update_firebase_instance
 from libs.http_utils import checkbox_to_boolean, easy_url, string_to_int
@@ -294,6 +294,8 @@ def manage_studies(request: ResearcherRequest):
 @require_GET
 @authenticate_admin
 def edit_study(request, study_id=None):
+    study = Study.objects.get(pk=study_id)  # already validated by the decorator
+    
     # get the data points for display for all researchers in this study
     query = Researcher.filter_alphabetical(study_relations__study_id=study_id).values_list(
         "id", "username", "study_relations__relationship", "site_admin"
@@ -313,14 +315,58 @@ def edit_study(request, study_id=None):
         request,
         'edit_study.html',
         context=dict(
-            study=Study.objects.get(pk=study_id),
+            study=study,
             administerable_researchers=get_administerable_researchers(request),
             listed_researchers=listed_researchers,
             redirect_url=f'/edit_study/{study_id}',
             timezones=ALL_TIMEZONES_DROPDOWN,
-            page_location="edit_study"
+            page_location="edit_study",
         )
     )
+
+@require_POST
+@authenticate_admin
+def update_end_date(request: ResearcherRequest, study_id=None):
+    assert_site_admin(request)
+    study = Study.objects.get(pk=study_id)  # already validated by the decorator
+    
+    if "end_date" not in request.POST:
+        messages.error(request, "No date provided.")
+        return redirect("system_admin_pages.edit_study", study_id=study.id)
+    
+    form = StudyEndDateForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Invalid date format, expected YYYY-MM-DD.")
+        return redirect("system_admin_pages.edit_study", study_id=study.id)
+    
+    study.end_date = form.cleaned_data["end_date"]    
+    study.save()
+    
+    if study.end_date:
+        messages.success(
+            request,
+            f"Study '{study.name}' has had its End Date updated to {study.end_date.isoformat()}."
+        )
+    else:
+        messages.success(request, f"Study '{study.name}' has had its End Date removed.")
+    
+    return redirect("system_admin_pages.edit_study", study_id=study.id)
+
+
+@require_POST
+@authenticate_admin
+def toggle_end_study(request: ResearcherRequest, study_id=None):
+    assert_site_admin(request)
+    study = Study.objects.get(pk=study_id)  # already validated by the decorator
+    
+    study.manually_stopped = not study.manually_stopped
+    study.save()
+    if study.manually_stopped:
+        messages.success(request, f"Study '{study.name}' has been manually stopped.")
+    else:
+        messages.success(request, f"Study '{study.name}' has been manually re-opened.")
+    
+    return redirect("system_admin_pages.edit_study", study_id=study.id)
 
 
 @require_http_methods(['GET', 'POST'])

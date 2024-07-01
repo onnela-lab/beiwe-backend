@@ -188,3 +188,7 @@ class ParticipantExperimentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field_name, description in self.EXPERIMENT_DESCRIPTIONS.items():
             self.fields[field_name].help_text = description
+
+
+class StudyEndDateForm(forms.Form):
+    end_date = forms.DateField(required=False)

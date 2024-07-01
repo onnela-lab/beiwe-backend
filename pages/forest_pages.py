@@ -319,7 +319,7 @@ def download_task_data(request: ResearcherRequest, study_id: int, forest_task_ex
         return HttpResponse(content="", status=404)
     
     # this time manipulation is copied right out of the celery forest task runner.
-    starttime_midnight = datetime.combine(
+    start_time_midnight = datetime.combine(
         forest_task.data_date_start, datetime.min.time(), forest_task.participant.study.timezone
     )
     endtime_11_59pm = datetime.combine(
@@ -328,7 +328,7 @@ def download_task_data(request: ResearcherRequest, study_id: int, forest_task_ex
     
     chunks: str = ChunkRegistry.objects.filter(
         participant=forest_task.participant,
-        time_bin__gte=starttime_midnight,
+        time_bin__gte=start_time_midnight,
         time_bin__lt=endtime_11_59pm,  # inclusive
         data_type__in=FOREST_TREE_REQUIRED_DATA_STREAMS[forest_task.forest_tree]
     ).values(*CHUNK_FIELDS)

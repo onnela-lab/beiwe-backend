@@ -3,6 +3,7 @@ import json
 import plistlib
 import time
 from datetime import datetime, timedelta
+from typing import Union
 
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUploadedFile
@@ -83,6 +84,11 @@ def upload(request: ParticipantRequest, OS_API=""):
         log(200, "participant permanently retired.")
         return HttpResponse(content=b"participant permantently retired.", status=200)
     
+    study = participant.study  # deleted, stopped, or ended studies should delete files participants upload.
+    if study.deleted or study.manually_stopped or study.end_date_is_in_the_past:
+        log(200, "study is deleted, stopped, or ended.")
+        return HttpResponse(content=b"study is deleted, stopped, or ended.", status=200)
+    
     # iOS can upload identically named files with different content (and missing decryption keys) so
     # we need to return a 400 to back off. The device can try again later when the extant FTP has
     # been processed. (ios files with bad decryption keys fail and don't create new FTPs.)
@@ -90,9 +96,12 @@ def upload(request: ParticipantRequest, OS_API=""):
         log("400, FileToProcess.test_file_path_exists")
         return HttpResponse(content="file already present, upload again later (your bug!)", status=400)
     
+    file_contents = get_uploaded_file(request)
+    if isinstance(file_contents, HttpResponse):
+        return file_contents  # return the error response with custom message
+    
     # attempt to decrypt, some scenarios delete remote files even if decryption fails
     try:
-        file_contents = get_uploaded_file(request)
         decryptor = DeviceDataDecryptor(s3_file_location, file_contents, participant)
     except RemoteDeleteFileScenario as e:
         log(200, "RemoteDeleteFileScenario")  # errors were unrecoverable, delete the file.
@@ -117,7 +126,7 @@ def upload(request: ParticipantRequest, OS_API=""):
 
 # FIXME: Device Testing. this function exists to handle some ancient behavior, it definitely has
 #  details that can be removed, and an error case that can probably go too.
-def get_uploaded_file(request: ParticipantRequest) -> bytes:
+def get_uploaded_file(request: ParticipantRequest) -> Union[bytes, HttpResponse]:
     # Slightly different values for iOS vs Android behavior.
     # Android sends the file data as standard form post parameter (request.POST)
     # iOS sends the file as a multipart upload (so ends up in request.FILES)
@@ -127,7 +136,7 @@ def get_uploaded_file(request: ParticipantRequest) -> bytes:
         uploaded_file = request.POST['file']  # android
     else:
         log("get_uploaded_file, file not present")
-        return abort(400)  # no uploaded file, bad request.
+        return HttpResponse(content="file not present", status=400)
     
     # okay for some reason we get different file-like types in different scenarios?
     if isinstance(uploaded_file, (ContentFile, InMemoryUploadedFile, TemporaryUploadedFile)):
