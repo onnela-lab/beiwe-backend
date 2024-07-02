@@ -24,4 +24,4 @@ private/*
 manager_ip
 
 # Ignore all .env files
-.env*
+.env.dev
