@@ -12,6 +12,7 @@ from config.settings import ENABLE_EXPERIMENTS
 from constants.common_constants import RUNNING_TESTS
 from constants.url_constants import (IGNORE, LOGIN_REDIRECT_IGNORE, LOGIN_REDIRECT_SAFE, SAFE,
     urlpatterns)
+from endpoints import study_endpoints
 from pages import (admin_pages, data_access_web_form, forest_pages, login_pages, mobile_pages,
     participant_pages, survey_designer, system_admin_pages)
 
@@ -62,7 +63,7 @@ def path(
 # session and login
 path("", login_pages.login_page)  # apparently don't need login_redirect=IGNORE...
 path("validate_login", login_pages.validate_login)  # and same here.
-path("choose_study", admin_pages.choose_study)
+path("choose_study", study_endpoints.choose_study_page)
 path("logout", admin_pages.logout_admin, login_redirect=IGNORE)
 
 # Researcher self administration

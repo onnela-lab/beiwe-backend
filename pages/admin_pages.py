@@ -7,8 +7,7 @@ from django.views.decorators.http import require_GET, require_POST
 from markupsafe import Markup
 
 from authentication.admin_authentication import (authenticate_researcher_login,
-    authenticate_researcher_study_access, get_researcher_allowed_studies_as_query_set,
-    logout_researcher)
+    authenticate_researcher_study_access, logout_researcher)
 from config.settings import DOMAIN_NAME
 from constants.common_constants import DISPLAY_TIME_FORMAT
 from constants.message_strings import (API_KEY_IS_DISABLED, API_KEY_NOW_DISABLED,
@@ -44,25 +43,6 @@ def logout_admin(request: ResearcherRequest):
 ####################################################################################################
 ###################################### Endpoints ###################################################
 ####################################################################################################
-
-
-@require_GET
-@authenticate_researcher_login
-def choose_study(request: ResearcherRequest):
-    allowed_studies = get_researcher_allowed_studies_as_query_set(request)
-    # If the admin is authorized to view exactly 1 study, redirect to that study,
-    # Otherwise, show the "Choose Study" page
-    if allowed_studies.count() == 1:
-        return redirect('/view_study/{:d}'.format(allowed_studies.values_list('pk', flat=True).get()))
-    
-    return render(
-        request,
-        'choose_study.html',
-        context=dict(
-            studies=list(allowed_studies.values("name", "id")),
-            is_admin=request.session_researcher.is_an_admin(),
-        )
-    )
 
 
 @require_GET

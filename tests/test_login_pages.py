@@ -47,7 +47,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.do_default_login()
         response = self.client.get(reverse("login_pages.login_page"))
         self.assertEqual(response.status_code, 302)
-        self.assert_response_url_equal(response.url, reverse("admin_pages.choose_study"))
+        self.assert_response_url_equal(response.url, reverse("study_endpoints.choose_study_page"))
         # this should uniquely identify the login page
         self.assertNotIn(b'<form method="POST" action="/validate_login">', response.content)
     
@@ -57,7 +57,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.assertIsNone(self.session_researcher.last_login_time)
         r = self.do_default_login()
         self.assertEqual(r.status_code, 302)
-        self.assert_response_url_equal(r.url, reverse("admin_pages.choose_study"))
+        self.assert_response_url_equal(r.url, reverse("study_endpoints.choose_study_page"))
         self.session_researcher.refresh_from_db()
         self.assertIsNotNone(self.session_researcher.last_login_time)
     
@@ -71,7 +71,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.session_researcher
         self.do_default_login()
         self.client.get(reverse("admin_pages.logout_admin"))
-        r = self.client.get(reverse("admin_pages.choose_study"))
+        r = self.client.get(reverse("study_endpoints.choose_study_page"))
         self.assertEqual(r.status_code, 302)
         self.assert_response_url_equal(r.url, reverse("login_pages.login_page"))
     
@@ -132,7 +132,7 @@ class TestLoginPages(BasicSessionTestCase):
     def _test_password_reset_redirect_logic(self, error_message: str):
         # password reset redirects initially to the choose study page, then to the manage credentials page
         response = self.do_default_login()
-        self.assert_response_url_equal(response.url, reverse("admin_pages.choose_study"))
+        self.assert_response_url_equal(response.url, reverse("study_endpoints.choose_study_page"))
         response2 = self.client.get(response.url)
         self.assert_response_url_equal(response2.url, reverse("admin_pages.manage_credentials"))
         response3 = self.client.get(reverse("admin_pages.manage_credentials"))
@@ -171,7 +171,7 @@ class TestLoginPages(BasicSessionTestCase):
         # ug this one bypasses all the special logic I put together and just loads the choose study
         # page with the message.
         response = self.do_default_login()
-        self.assert_response_url_equal(response.url, reverse("admin_pages.choose_study"))
+        self.assert_response_url_equal(response.url, reverse("study_endpoints.choose_study_page"))
         response2 = self.client.get(response.url)
         self.assertEqual(response2.status_code, 200)
         self.assert_present(PASSWORD_WILL_EXPIRE.format(days=5), response2.content)
@@ -202,7 +202,7 @@ class TestLoginPages(BasicSessionTestCase):
         # these tests are a distraction from the details of tests that run other logic, but it
         # still needs to be tested.  Most of the complexity is in determine_2nd_redirect
         response = self.do_default_login()
-        self.assert_response_url_equal(response.url, reverse("admin_pages.choose_study"))
+        self.assert_response_url_equal(response.url, reverse("study_endpoints.choose_study_page"))
         response2 = self.client.get(response.url)
         # its not always a redirect, sometimes it actually loads the page, but if it is a redirect
         # we run the logic to test it.
@@ -219,11 +219,11 @@ class TestLoginPages(BasicSessionTestCase):
             if Study.objects.count() == 1:
                 return easy_url("admin_pages.view_study", study_id=self.session_study.id)
             else:
-                return reverse("admin_pages.choose_study")
+                return reverse("study_endpoints.choose_study_page")
         if self.session_researcher.study_relations.count() == 1:
             return easy_url("admin_pages.view_study", study_id=self.session_study.id)
         else:
-            return reverse("admin_pages.choose_study")
+            return reverse("study_endpoints.choose_study_page")
     
     def test_password_redirect_ignored_endpoint_manage_credentials(self):
         # test that the password redirect is ignored for manage credentials page
@@ -280,11 +280,11 @@ class TestLoginPages(BasicSessionTestCase):
             # the +1 minute ensures we are passing the hour mark
             with time_machine.travel(start + timedelta(hours=hour, minutes=1)):
                 if hour < THE_TIMEOUT_HOURS_VARIABLE_YOU_ARE_LOOKING_FOR:
-                    resp = self.client.get(reverse("admin_pages.choose_study"))
+                    resp = self.client.get(reverse("study_endpoints.choose_study_page"))
                     self.assertEqual(resp.status_code, 200, msg=f"hour={hour}")
                     check_1_happened = True
                 else:
-                    resp = self.client.get(reverse("admin_pages.choose_study"))
+                    resp = self.client.get(reverse("study_endpoints.choose_study_page"))
                     self.assertEqual(resp.status_code, 302, msg=f"hour={hour}")
                     self.assertEqual(resp.url, reverse("login_pages.login_page"))
                     check_2_happened = True
@@ -312,14 +312,14 @@ class TestLoginPages(BasicSessionTestCase):
         # within 10 seconds:
         with time_machine.travel(original_expiry - timedelta(seconds=9)):
             # hit a page, confirm check expiry didn't change
-            resp = self.client.get(reverse("admin_pages.choose_study"))
+            resp = self.client.get(reverse("study_endpoints.choose_study_page"))
             self.assertEqual(resp.status_code, 200)
             new_expiry = self.client.session[EXPIRY_NAME]
             self.assertEqual(new_expiry, original_expiry)
         # after 10 seconds:
         with time_machine.travel(original_expiry + timedelta(seconds=1)):
             # hit a page, confirm check expiry deleted
-            resp: HttpResponseRedirect = self.easy_get("admin_pages.choose_study")
+            resp: HttpResponseRedirect = self.easy_get("study_endpoints.choose_study_page")
             self.assertEqual(resp.status_code, 302)
             self.assertEqual(resp.url, easy_url("login_pages.login_page"))
             try:
@@ -355,7 +355,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.set_session_study_relation(ResearcherRole.researcher)
         self.do_default_login()
         # random endpoint that will trigger a redirect
-        resp = self.simple_get(easy_url("admin_pages.choose_study"))
+        resp = self.simple_get(easy_url("study_endpoints.choose_study_page"))
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, reverse("admin_pages.manage_credentials"))
         page = self.simple_get(resp.url, status_code=200).content
@@ -373,7 +373,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.do_login(self.DEFAULT_RESEARCHER_NAME, "2short")
         
         # random endpoint that will trigger a redirect
-        resp = self.simple_get(easy_url("admin_pages.choose_study"))
+        resp = self.simple_get(easy_url("study_endpoints.choose_study_page"))
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, reverse("admin_pages.manage_credentials"))
         page = self.simple_get(resp.url, status_code=200).content
@@ -385,7 +385,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.session_researcher
         resp = self.do_default_login()
         self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp.url, reverse("admin_pages.choose_study"))
+        self.assertEqual(resp.url, reverse("study_endpoints.choose_study_page"))
         self.simple_get(resp.url, status_code=200)  # page loads as normal
         self.session_researcher.force_global_logout()
         resp = self.simple_get(resp.url, status_code=302)  # page redirects to login
@@ -425,7 +425,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.default_study.update_only(mfa_required=True)  # enable mfa
         self.set_session_study_relation()  # ensure researcher is on study
         resp = self.simple_get(
-            easy_url("admin_pages.choose_study"), status_code=302
+            easy_url("study_endpoints.choose_study_page"), status_code=302
         )  # page redirects
         self.assertEqual(resp.url, reverse("admin_pages.manage_credentials"))
         resp = self.simple_get(resp.url, status_code=200)  # page loads as normal
@@ -442,7 +442,7 @@ class TestLoginPages(BasicSessionTestCase):
         r1 = self.do_default_login()
         self.assertEqual(r1.status_code, 302)  # assert login failure
         # it redirects to choose study, choose study loads
-        self.assertEqual(r1.url, easy_url("admin_pages.choose_study"))
+        self.assertEqual(r1.url, easy_url("study_endpoints.choose_study_page"))
     
     @patch("authentication.admin_authentication.REQUIRE_SITE_ADMIN_MFA")
     @patch("database.user_models_researcher.REQUIRE_SITE_ADMIN_MFA")
@@ -453,9 +453,9 @@ class TestLoginPages(BasicSessionTestCase):
         r1 = self.do_default_login()
         self.assertEqual(r1.status_code, 302)  # assert login failure
         # it redirects to choose study, then choose study should redirect to manage credentials
-        self.assertEqual(r1.url, easy_url("admin_pages.choose_study"))
+        self.assertEqual(r1.url, easy_url("study_endpoints.choose_study_page"))
         r2 = self.simple_get(
-            easy_url("admin_pages.choose_study"), status_code=302
+            easy_url("study_endpoints.choose_study_page"), status_code=302
         )  # page redirects
         self.assertEqual(r2.url, reverse("admin_pages.manage_credentials"))  # correct redirect
         r3 = self.simple_get(r2.url, status_code=200)  # page loads as normal
