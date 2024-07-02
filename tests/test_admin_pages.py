@@ -1,5 +1,4 @@
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
 
 import time_machine
 from django.http import HttpResponseRedirect
@@ -15,59 +14,6 @@ from constants.user_constants import EXPIRY_NAME, ResearcherRole
 from database.security_models import ApiKey
 from libs.http_utils import easy_url
 from tests.common import ResearcherSessionTest, TableauAPITest
-
-
-# trunk-ignore-all(ruff/B018)
-
-#
-## admin_pages
-#
-
-
-class TestViewStudy(ResearcherSessionTest):
-    """ view_study is pretty simple, no custom content in the :
-    tests push_notifications_enabled, study.forest_enabled
-    populates html elements with custom field values
-    populates html elements of survey buttons """
-    
-    ENDPOINT_NAME = "admin_pages.view_study"
-    
-    def test_view_study_no_relation(self):
-        self.smart_get_status_code(403, self.session_study.id)
-    
-    def test_view_study_researcher(self):
-        # pretty much just tests that the page loads, removing is_test removed template customizations.
-        study = self.session_study
-        self.set_session_study_relation(ResearcherRole.researcher)
-        self.smart_get_status_code(200, study.id)
-    
-    def test_view_study_study_admin(self):
-        self.set_session_study_relation(ResearcherRole.study_admin)
-        self.smart_get_status_code(200, self.session_study.id)
-    
-    @patch('pages.admin_pages.check_firebase_instance')
-    def test_view_study_site_admin(self, check_firebase_instance: MagicMock):
-        study = self.session_study
-        self.set_session_study_relation(ResearcherRole.site_admin)
-        
-        # test rendering with several specifc values set to observe the rendering changes
-        study.update(forest_enabled=False)
-        check_firebase_instance.return_value = False
-        response = self.smart_get_status_code(200, study.id)
-        self.assertNotIn(
-            b"Configure Interventions for use with Relative survey schedules", response.content
-        )
-        self.assertNotIn(b"View Forest Task Log", response.content)
-        
-        check_firebase_instance.return_value = True
-        study.update(forest_enabled=True)
-        response = self.smart_get_status_code(200, study.id)
-        self.assertIn(
-            b"Configure Interventions for use with Relative survey schedules", response.content
-        )
-        self.assertIn(b"View Forest Task Log", response.content)
-        # assertInHTML is several hundred times slower but has much better output when it fails...
-        # self.assertInHTML("Configure Interventions for use with Relative survey schedules", response.content.decode())
 
 
 class TestManageCredentials(ResearcherSessionTest):

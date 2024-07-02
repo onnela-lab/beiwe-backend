@@ -75,7 +75,7 @@ path("reset_mfa_self", admin_pages.reset_mfa_self, login_redirect=IGNORE)
 path("test_mfa", admin_pages.test_mfa)
 
 # The point of the thing
-path("view_study/<int:study_id>", admin_pages.view_study, login_redirect=SAFE)
+path("view_study/<int:study_id>", study_endpoints.view_study_page, login_redirect=SAFE)
 
 # Dashboard
 path("dashboard/<int:study_id>", dashboard_api.dashboard_page, login_redirect=SAFE)

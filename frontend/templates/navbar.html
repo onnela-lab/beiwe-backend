@@ -46,7 +46,7 @@
 
           {% if page_location != 'view_study' %}
             <li role="presentation">
-              <a href="{{ easy_url('admin_pages.view_study', study_id=study.id) }}">View Study</a>
+              <a href="{{ easy_url('study_endpoints.view_study_page', study_id=study.id) }}">View Study</a>
             </li>
           {% endif %}
 

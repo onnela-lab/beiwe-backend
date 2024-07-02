@@ -6,10 +6,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 from markupsafe import Markup
 
-from authentication.admin_authentication import (authenticate_researcher_login,
-    authenticate_researcher_study_access, logout_researcher)
+from authentication.admin_authentication import authenticate_researcher_login, logout_researcher
 from config.settings import DOMAIN_NAME
-from constants.common_constants import DISPLAY_TIME_FORMAT
 from constants.message_strings import (API_KEY_IS_DISABLED, API_KEY_NOW_DISABLED,
     ENDED_STUDY_MESSAGE, HIDDEN_STUDY_MESSAGE, MANUALLY_STOPPED_STUDY_MESSAGE, MFA_CODE_6_DIGITS,
     MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING, MFA_SELF_BAD_PASSWORD, MFA_SELF_DISABLED,
@@ -17,12 +15,11 @@ from constants.message_strings import (API_KEY_IS_DISABLED, API_KEY_NOW_DISABLED
     NEW_API_KEY_MESSAGE, NEW_PASSWORD_MISMATCH, NO_MATCHING_API_KEY, PASSWORD_RESET_SUCCESS,
     WRONG_CURRENT_PASSWORD)
 from constants.security_constants import MFA_CREATED
-from constants.user_constants import EXPIRY_NAME, ResearcherRole
+from constants.user_constants import EXPIRY_NAME
 from database.security_models import ApiKey
 from database.study_models import Study
-from database.user_models_researcher import Researcher, StudyRelation
+from database.user_models_researcher import Researcher
 from forms.django_forms import DisableApiKeyForm, NewApiKeyForm
-from libs.firebase_config import check_firebase_instance
 from libs.http_utils import easy_url
 from libs.internal_types import ResearcherRequest
 from libs.password_validation import check_password_requirements, get_min_password_requirement
@@ -45,53 +42,12 @@ def logout_admin(request: ResearcherRequest):
 ####################################################################################################
 
 
-@require_GET
-@authenticate_researcher_study_access
-def view_study(request: ResearcherRequest, study_id=None):
-    study: Study = Study.objects.get(pk=study_id)
-    
-    def get_survey_info(survey_type: str):
-        survey_info = list(
-            study.surveys.filter(survey_type=survey_type, deleted=False)
-            .values('id', 'object_id', 'name', "last_updated")
-        )
-        for info in survey_info:
-            info["last_updated"] = \
-                 info["last_updated"].astimezone(study.timezone).strftime(DISPLAY_TIME_FORMAT)
-        return survey_info
-    
-    is_study_admin = StudyRelation.objects.filter(
-        researcher=request.session_researcher, study=study, relationship=ResearcherRole.study_admin
-    ).exists()
-    
-    conditionally_display_study_status_warnings(request, study)
-    
-    return render(
-        request,
-        template_name='view_study.html',
-        context=dict(
-            study=study,
-            participants_ever_registered_count=study.participants.exclude(os_type='').count(),
-            audio_survey_info=get_survey_info('audio_survey'),
-            tracking_survey_info=get_survey_info('tracking_survey'),
-            # these need to be lists because they will be converted to json.
-            study_fields=list(study.fields.all().values_list('field_name', flat=True)),
-            interventions=list(study.interventions.all().values_list("name", flat=True)),
-            page_location='view_study',
-            study_id=study_id,
-            is_study_admin=is_study_admin,
-            push_notifications_enabled=check_firebase_instance(require_android=True) or
-                                       check_firebase_instance(require_ios=True),
-        )
-    )
-
-
 @require_POST
 @authenticate_researcher_login
 def reset_mfa_self(request: ResearcherRequest):
     """ Endpoint either enables and creates a new, or clears the MFA toke for the researcher. 
     Sets a MFA_CREATED value in the session to force the QR code to be visible for one minute. """
-    # requires a passsword to change the mfa setting, basic error checking.
+    # requires a password to change the mfa setting, basic error checking.
     password = request.POST.get("mfa_password", None)
     if not password:
         messages.error(request, MFA_SELF_NO_PASSWORD)

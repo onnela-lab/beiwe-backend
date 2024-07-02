@@ -217,11 +217,11 @@ class TestLoginPages(BasicSessionTestCase):
         # 2 cases: site admin, or not site admin
         if self.session_researcher.site_admin:
             if Study.objects.count() == 1:
-                return easy_url("admin_pages.view_study", study_id=self.session_study.id)
+                return easy_url("study_endpoints.view_study_page", study_id=self.session_study.id)
             else:
                 return reverse("study_endpoints.choose_study_page")
         if self.session_researcher.study_relations.count() == 1:
-            return easy_url("admin_pages.view_study", study_id=self.session_study.id)
+            return easy_url("study_endpoints.view_study_page", study_id=self.session_study.id)
         else:
             return reverse("study_endpoints.choose_study_page")
     
@@ -489,7 +489,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
     # This is a set because there are 2 entries for every endpoint, with and without slashes.
     LOCAL_COPY_WHITELIST = set(
         [
-            "admin_pages.view_study",
+            "study_endpoints.view_study_page",
             "dashboard_api.dashboard_page",
             "dashboard_api.get_data_for_dashboard_datastream_display",
             "dashboard_api.dashboard_participant_page",

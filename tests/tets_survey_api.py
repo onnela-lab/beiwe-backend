@@ -36,7 +36,7 @@ class TestICreateSurvey(ResearcherSessionTest):
 # FIXME: add schedule removal tests to this test
 class TestDeleteSurvey(ResearcherSessionTest):
     ENDPOINT_NAME = "survey_api.delete_survey"
-    REDIRECT_ENDPOINT_NAME = "admin_pages.view_study"
+    REDIRECT_ENDPOINT_NAME = "study_endpoints.view_study_page"
     
     def test(self):
         self.assertEqual(Survey.objects.count(), 0)

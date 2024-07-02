@@ -46,7 +46,7 @@ class TestDeleteParticipant(ResearcherSessionTest):
         self.assert_present(
             "does not exist",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         self.default_participant.refresh_from_db()
@@ -201,7 +201,7 @@ class TestResetParticipantPassword(ResearcherSessionTest):
         self.assert_present(
             "password has been reset to",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         self.assertNotEqual(self.default_participant.password, old_password)
@@ -214,7 +214,7 @@ class TestResetParticipantPassword(ResearcherSessionTest):
         self.assert_present(
             "does not exist",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
     
@@ -227,7 +227,7 @@ class TestResetParticipantPassword(ResearcherSessionTest):
         self.assert_present(
             "is not in study",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         self.default_participant.refresh_from_db()
@@ -271,7 +271,7 @@ class TestResetDevice(ResearcherSessionTest):
         self.assert_present(
             "is not in study",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         self.assertEqual(Participant.objects.count(), 1)
@@ -286,7 +286,7 @@ class TestResetDevice(ResearcherSessionTest):
         self.assert_present(
             "does not exist",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         
@@ -302,7 +302,7 @@ class TestResetDevice(ResearcherSessionTest):
         self.assert_present(
             "device status has been cleared",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         self.default_participant.refresh_from_db()
@@ -404,7 +404,7 @@ class TestUnregisterParticipant(ResearcherSessionTest):
         self.assert_present(
             "is not in study",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         self.assertEqual(Participant.objects.count(), 1)
@@ -419,7 +419,7 @@ class TestUnregisterParticipant(ResearcherSessionTest):
         self.assert_present(
             "does not exist",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         # self.assert_present("does not exist", self.redirect_get_contents(self.session_study.id))
@@ -436,7 +436,7 @@ class TestUnregisterParticipant(ResearcherSessionTest):
         self.assert_present(
             "already permanently retired",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content,
         )
         self.default_participant.refresh_from_db()
@@ -451,7 +451,7 @@ class TestUnregisterParticipant(ResearcherSessionTest):
         self.assert_present(
             "was successfully retired from the study",
             self.easy_get(
-                "admin_pages.view_study", status_code=200, study_id=self.session_study.id
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
             ).content
         )
         self.default_participant.refresh_from_db()
@@ -477,7 +477,7 @@ class TestUnregisterParticipant(ResearcherSessionTest):
 # FIXME: test extended database effects of generating participants
 class CreateNewParticipant(ResearcherSessionTest):
     ENDPOINT_NAME = "participant_administration.create_new_participant"
-    REDIRECT_ENDPOINT_NAME = "admin_pages.view_study"
+    REDIRECT_ENDPOINT_NAME = "study_endpoints.view_study_page"
     
     @patch("api.participant_administration.s3_upload")
     @patch("api.participant_administration.create_client_key_pair")
