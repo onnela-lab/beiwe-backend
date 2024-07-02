@@ -146,7 +146,7 @@ MESSAGE_SEND_FAILED_PREFIX = "message send failed:"
 MESSAGE_SEND_FAILED_UNKNOWN = "message send failed: unknown"
 SUCCESSFULLY_SENT_NOTIFICATION_PREFIX = "Successfully sent notification to"
 BAD_DEVICE_OS = "bad device OS"
-BAD_PARTICPANT_OS = "This participant is not properly registered and cannot be sent push notifications until the re-register."
+BAD_PARTICIPANT_OS = "This participant is not properly registered and cannot be sent push notifications until the re-register."
 
 # particpant administration
 PARTICIPANT_LOCKED = "Participant {patient_id} is either already deleted or marked for deletion. No actions may be taken on this participant. Once data deletion has been completed this participant will no longer be visible in the study`s participant list."
@@ -156,3 +156,7 @@ NO_DELETION_PERMISSION = 'You do not have permission to delete participant {pati
 PARTICIPANT_RETIRED_SUCCESS = "{patient_id} was successfully retired from the study. They will not be able to upload further data."
 
 DEFAULT_HEARTBEAT_MESSAGE = "Beiwe may not be running correctly, please open the Beiwe app."
+
+HIDDEN_STUDY_MESSAGE = "This study is hidden. It should not show up anywhere on the website."
+MANUALLY_STOPPED_STUDY_MESSAGE = "This study has been manually stopped. No further data uploaded by participants in this study will be stored."
+ENDED_STUDY_MESSAGE = "This study ended at the end of the day on {}. No further data uploaded by participants in this study will be stored."

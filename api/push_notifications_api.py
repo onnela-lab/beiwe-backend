@@ -15,7 +15,7 @@ from firebase_admin.messaging import (AndroidConfig, Message, Notification,
 from authentication.admin_authentication import authenticate_researcher_study_access
 from authentication.participant_authentication import authenticate_participant
 from constants.common_constants import API_TIME_FORMAT, RUNNING_TEST_OR_IN_A_SHELL
-from constants.message_strings import (BAD_DEVICE_OS, BAD_PARTICPANT_OS,
+from constants.message_strings import (BAD_DEVICE_OS, BAD_PARTICIPANT_OS,
     DEVICE_HAS_NO_REGISTERED_TOKEN, MESSAGE_SEND_FAILED_PREFIX, MESSAGE_SEND_FAILED_UNKNOWN,
     MESSAGE_SEND_SUCCESS, PUSH_NOTIFICATIONS_NOT_CONFIGURED, RESEND_CLICKED,
     SUCCESSFULLY_SENT_NOTIFICATION_PREFIX)
@@ -191,7 +191,7 @@ def resend_push_notification(request: ResearcherRequest, study_id: int, patient_
         )
     else:
         unscheduled_archive.update(status=f"{MESSAGE_SEND_FAILED_PREFIX} {BAD_DEVICE_OS}")
-        messages.error(request, BAD_PARTICPANT_OS)
+        messages.error(request, BAD_PARTICIPANT_OS)
         return return_redirect
     
     # real error cases (raised directly when running locally, reported to sentry on a server)

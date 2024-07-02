@@ -15,6 +15,7 @@ from database.study_models import Study
 from database.user_models_participant import Participant
 from libs.internal_types import ParticipantQuerySet, ResearcherRequest
 from middleware.abort_middleware import abort
+from pages.admin_pages import conditionally_display_study_status_warnings
 
 
 DATETIME_FORMAT_ERROR = f"Dates and times provided to this endpoint must be formatted like this: " \
@@ -26,6 +27,7 @@ def dashboard_page(request: ResearcherRequest, study_id: int):
     """ information for the general dashboard view for a study """
     study = get_object_or_404(Study, pk=study_id)
     participants = list(Participant.objects.filter(study=study_id).values_list("patient_id", flat=True))
+    conditionally_display_study_status_warnings(request, study)
     return render(
         request,
         'dashboard/dashboard.html',

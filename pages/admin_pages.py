@@ -11,7 +11,8 @@ from authentication.admin_authentication import (authenticate_researcher_login,
     logout_researcher)
 from config.settings import DOMAIN_NAME
 from constants.common_constants import DISPLAY_TIME_FORMAT
-from constants.message_strings import (API_KEY_IS_DISABLED, API_KEY_NOW_DISABLED, MFA_CODE_6_DIGITS,
+from constants.message_strings import (API_KEY_IS_DISABLED, API_KEY_NOW_DISABLED,
+    ENDED_STUDY_MESSAGE, HIDDEN_STUDY_MESSAGE, MANUALLY_STOPPED_STUDY_MESSAGE, MFA_CODE_6_DIGITS,
     MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING, MFA_SELF_BAD_PASSWORD, MFA_SELF_DISABLED,
     MFA_SELF_NO_PASSWORD, MFA_SELF_SUCCESS, MFA_TEST_DISABLED, MFA_TEST_FAIL, MFA_TEST_SUCCESS,
     NEW_API_KEY_MESSAGE, NEW_PASSWORD_MISMATCH, NO_MATCHING_API_KEY, PASSWORD_RESET_SUCCESS,
@@ -34,7 +35,7 @@ from middleware.abort_middleware import abort
 ############################################# Basics ###############################################
 ####################################################################################################
 
-
+@require_GET
 def logout_admin(request: ResearcherRequest):
     """ clear session information for a researcher """
     logout_researcher(request)
@@ -82,6 +83,8 @@ def view_study(request: ResearcherRequest, study_id=None):
     is_study_admin = StudyRelation.objects.filter(
         researcher=request.session_researcher, study=study, relationship=ResearcherRole.study_admin
     ).exists()
+    
+    conditionally_display_study_status_warnings(request, study)
     
     return render(
         request,
@@ -283,3 +286,14 @@ def disable_api_key(request: ResearcherRequest):
     api_key.save()
     messages.success(request, API_KEY_NOW_DISABLED.format(key=api_key.access_key_id))
     return redirect("admin_pages.manage_credentials")
+
+
+def conditionally_display_study_status_warnings(request: ResearcherRequest, study: Study):
+    """ Uses the messages module to display warnings to the user about the status of a study. """
+    # deleted means hidden. This weird detail is because we never want to delete an encryption key.
+    if study.deleted:
+        messages.warning(request, HIDDEN_STUDY_MESSAGE)
+    if study.manually_stopped:
+        messages.warning(request, MANUALLY_STOPPED_STUDY_MESSAGE)
+    if study.end_date_is_in_the_past:
+        messages.warning(request, ENDED_STUDY_MESSAGE.format(study.end_date.isoformat()))

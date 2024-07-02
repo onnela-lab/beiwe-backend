@@ -36,6 +36,7 @@ from libs.internal_types import ResearcherRequest
 from libs.password_validation import get_min_password_requirement
 from libs.sentry import make_error_sentry, SentryTypes
 from libs.timezone_dropdown import ALL_TIMEZONES_DROPDOWN
+from pages.admin_pages import conditionally_display_study_status_warnings
 
 
 ####################################################################################################
@@ -311,6 +312,8 @@ def edit_study(request, study_id=None):
             site_admin
         ))
     
+    conditionally_display_study_status_warnings(request, study)
+    
     return render(
         request,
         'edit_study.html',
@@ -537,6 +540,7 @@ def device_settings(request: ResearcherRequest, study_id=None):
     
     # FIXME: get rid of dual endpoint pattern, it is a bad idea.
     if request.method == 'GET':
+        conditionally_display_study_status_warnings(request, study)
         return render(
             request,
             "study_device_settings.html",
