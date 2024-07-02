@@ -71,7 +71,7 @@ def summary_statistics_api_query_database(
     if start_date:
         filter_kwargs["date__gte"] = start_date
     
-    # particpant_id needs to be remapped to patient_id
+    # participant_id needs to be remapped to patient_id
     if ordered_by == "participant_id":
         ordered_by = "patient_id"  # participant__patient_id also works, participant_id does not
     

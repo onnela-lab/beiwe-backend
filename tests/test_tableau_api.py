@@ -190,7 +190,7 @@ class TestGetTableauDaily(TableauAPITest):
         self.assertEqual(len(response_object), 2)
         compare_me = self.full_response_dict
         assert compare_dictionaries(response_object[1], compare_me)
-        compare_me['participant_id'] = "22222222"  # set to particpant 2
+        compare_me['participant_id'] = "22222222"  # set to participant 2
         assert compare_dictionaries(response_object[0], compare_me)
         
         params["order_direction"] = "descending"

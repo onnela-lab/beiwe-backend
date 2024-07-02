@@ -133,19 +133,19 @@ def _send_notification(fcm_token: str, os_type: str, message: str):
 
 
 # @push_send_celery_app.task(queue=PUSH_NOTIFICATION_SEND_QUEUE)
-# def celery_resurrection_notification(particpant_id: int):
+# def celery_resurrection_notification(participant_id: int):
 #     if not check_firebase_instance():
 #         loge("Resurrection - Surveys - Firebase credentials are not configured.")
 #         return
 #     with make_error_sentry(sentry_type=SentryTypes.data_processing):
-#         resurrection_notification(particpant_id)
+#         resurrection_notification(participant_id)
 
 #TODO: add ParticipantActionLog
-# def resurrection_notification(particpant_id: int):
+# def resurrection_notification(participant_id: int):
 #     # check the most recent heartbeat and the most recent hard exit, if the hard exit is newer
 #     # send the notifications. We only need the most recent timestamp
 #     hard_exit_timestamp = (
-#         IOSHardExits.objects.filter(participant_id=particpant_id, handled=None)
+#         IOSHardExits.objects.filter(participant_id=participant_id, handled=None)
 #         .order_by("-timestamp")
 #         .values_list("timestamp", flat=True)
 #         .first()
@@ -159,17 +159,17 @@ def _send_notification(fcm_token: str, os_type: str, message: str):
 #     # exit early if there is a later heartbeat - this is potentially expensive? the index Should be
 #     # a timestamp ordering index, but it may not be?
 #     there_is_a_later_heartbeat = AppHeartbeats.objects.filter(
-#         participant_id=particpant_id, timestamp__gt=hard_exit_timestamp).exists()
+#         participant_id=participant_id, timestamp__gt=hard_exit_timestamp).exists()
 #    
 #     if there_is_a_later_heartbeat:
-#         log(f"Participant {particpant_id} already restarted app.")
-#         IOSHardExits.objects.filter(participant_id=particpant_id, handled=None).update(handled=timezone.now())
+#         log(f"Participant {participant_id} already restarted app.")
+#         IOSHardExits.objects.filter(participant_id=participant_id, handled=None).update(handled=timezone.now())
 #         return
 #    
 #     # get the fcm token and send them the notification to reopen the app:
 #     fcm_token = (
 #         ParticipantFCMHistory.objects
-#         .filter(participant_id=particpant_id, unregistered=None)
+#         .filter(participant_id=participant_id, unregistered=None)
 #         .values_list("token", flat=True)
 #         .first()
 #     )
@@ -177,7 +177,7 @@ def _send_notification(fcm_token: str, os_type: str, message: str):
 #     # just give up if they don't have a token and mark as handled because otherwise they are
 #     # impossible to get rid of.
 #     if not fcm_token:
-#         IOSHardExits.objects.filter(participant_id=particpant_id, handled=None).update(handled=timezone.now())
+#         IOSHardExits.objects.filter(participant_id=participant_id, handled=None).update(handled=timezone.now())
 #    
 #     send_notification_safely(fcm_token, IOS_API, "Resurrection")
 

@@ -148,7 +148,7 @@ SUCCESSFULLY_SENT_NOTIFICATION_PREFIX = "Successfully sent notification to"
 BAD_DEVICE_OS = "bad device OS"
 BAD_PARTICIPANT_OS = "This participant is not properly registered and cannot be sent push notifications until the re-register."
 
-# particpant administration
+# participant administration
 PARTICIPANT_LOCKED = "Participant {patient_id} is either already deleted or marked for deletion. No actions may be taken on this participant. Once data deletion has been completed this participant will no longer be visible in the study`s participant list."
 NOT_IN_STUDY = "Participant {patient_id} is not in study {study_name}"
 NO_DELETION_PERMISSION = 'You do not have permission to delete participant {patient_id}.'
