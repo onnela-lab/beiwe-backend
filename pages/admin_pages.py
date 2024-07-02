@@ -291,6 +291,7 @@ def disable_api_key(request: ResearcherRequest):
 def conditionally_display_study_status_warnings(request: ResearcherRequest, study: Study):
     """ Uses the messages module to display warnings to the user about the status of a study. """
     # deleted means hidden. This weird detail is because we never want to delete an encryption key.
+    # some pages simply will not load if the study is deleted.
     if study.deleted:
         messages.warning(request, HIDDEN_STUDY_MESSAGE)
     if study.manually_stopped:
