@@ -1,0 +1,104 @@
+services:
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    env_file:
+      - ../.env.dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: always
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker_config/backend/dev.Dockerfile
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET}
+      - SYSADMIN_EMAILS=${SYSADMIN_EMAILS}
+    env_file:
+      - ../.env.dev
+    command: uwsgi --yaml uwsgi-config.yml
+    volumes:
+      - static_volume:/home/app/web/staticfiles/
+    expose:
+      - 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  nginx:
+    build:
+      context: nginx
+      dockerfile: dev.Dockerfile
+    env_file:
+      - ../.env.dev
+    volumes:
+      - static_volume:/www/static/
+    ports:
+      - 80:80
+    depends_on:
+      - web
+    restart: always
+
+  rabbitmq:
+    build:
+      context: .
+      dockerfile: rabbitmq/dev.Dockerfile
+      args:
+        - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
+        - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    env_file:
+      - ../.env.dev
+    expose:
+      - 50000
+      - 50002
+    ports:
+      - 15672:15672
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: always
+
+  forest:
+    build:
+      context: .
+      dockerfile: forest/dev.Dockerfile
+      args:
+        - RABBITMQ_PORT=${RABBITMQ_PORT}
+        - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET}
+      - SYSADMIN_EMAILS=${SYSADMIN_EMAILS}
+    env_file:
+      - ../.env.dev
+    ports:
+      - 50001:50001
+    command: bash -c "/root/.pyenv/versions/beiwe/bin/python ./run_script.py run_custom_ondeploy_script processing && supervisord -c /etc/supervisord.conf && service cron start && tail -f /dev/null"
+    depends_on:
+      - nginx
+      - rabbitmq
+    restart: always
+
+volumes:
+  postgres_data:
+  static_volume:
