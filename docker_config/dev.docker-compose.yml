@@ -41,8 +41,8 @@ services:
 
   nginx:
     build:
-      context: nginx
-      dockerfile: dev.Dockerfile
+      context: ..
+      dockerfile: docker_config/nginx/dev.Dockerfile
     env_file:
       - ../.env.dev
     volumes:
