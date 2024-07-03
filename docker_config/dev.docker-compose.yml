@@ -79,8 +79,8 @@ services:
 
   forest:
     build:
-      context: .
-      dockerfile: forest/dev.Dockerfile
+      context: ..
+      dockerfile: docker_config/forest/dev.Dockerfile
       args:
         - RABBITMQ_PORT=${RABBITMQ_PORT}
         - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
