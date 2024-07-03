@@ -55,8 +55,8 @@ services:
 
   rabbitmq:
     build:
-      context: .
-      dockerfile: rabbitmq/dev.Dockerfile
+      context: ..
+      dockerfile: docker_config/rabbitmq/dev.Dockerfile
       args:
         - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
         - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
