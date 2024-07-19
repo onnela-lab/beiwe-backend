@@ -35,4 +35,4 @@ RUN cp /etc/supervisord.conf /etc/supervisor/supervisord.conf
 
 RUN cp ./cluster_management/pushed_files/bash_profile_docker.sh .profile
 
-COPY .env.dev .env
+COPY ./.envs/.env.dev .env

@@ -8,7 +8,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
       - S3_BUCKET=${S3_BUCKET}
     env_file:
-      - ../.env.dev
+      - ../.envs/.env.dev
     volumes:
       - storage_data:/data
     ports:
@@ -38,7 +38,7 @@ services:
       exit 0;
       "
     env_file:
-      - ../.env.dev
+      - ../.envs/.env.dev
     depends_on:
       - storage
 
@@ -49,7 +49,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     env_file:
-      - ../.env.dev
+      - ../.envs/.env.dev
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     ports:
@@ -74,7 +74,7 @@ services:
       - BEIWE_SERVER_AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
       - BEIWE_SERVER_AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY}
     env_file:
-      - ../.env.dev
+      - ../.envs/.env.dev
     command: uwsgi --yaml uwsgi-config.yml
     volumes:
       - static_volume:/home/app/web/staticfiles/
@@ -92,7 +92,7 @@ services:
       context: ..
       dockerfile: docker_config/nginx/dev.Dockerfile
     env_file:
-      - ../.env.dev
+      - ../.envs/.env.dev
     volumes:
       - static_volume:/www/static/
     ports:
@@ -112,7 +112,7 @@ services:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
     env_file:
-      - ../.env.dev
+      - ../.envs/.env.dev
     expose:
       - 50000
       - 50002
@@ -141,7 +141,7 @@ services:
       - BEIWE_SERVER_AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
       - BEIWE_SERVER_AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY}
     env_file:
-      - ../.env.dev
+      - ../.envs/.env.dev
     ports:
       - 50001:50001
     command: bash -c "/root/.pyenv/versions/beiwe/bin/python ./run_script.py run_custom_ondeploy_script processing && supervisord -c /etc/supervisord.conf && service cron start && tail -f /dev/null"
