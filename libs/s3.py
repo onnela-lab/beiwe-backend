@@ -3,16 +3,15 @@ from __future__ import annotations
 from typing import Generator, List, Optional, Tuple
 
 import boto3
+from Cryptodome.PublicKey import RSA
 from botocore.client import BaseClient, Paginator
 from cronutils import ErrorHandler
-from Cryptodome.PublicKey import RSA
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
-    S3_BUCKET, S3_REGION_NAME)
+                             S3_BUCKET, S3_REGION_NAME, S3_ENDPOINT)
 from constants.common_constants import CHUNKS_FOLDER
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.rsa import generate_key_pairing, get_RSA_cipher, prepare_X509_key_for_java
-
 
 # NOTE: S3_BUCKET is patched during tests to be the Exception class, which is (obviously) invalid.
 # The asserts in this file are protections for runninsg s3 commands inside tests.
@@ -32,6 +31,7 @@ conn: BaseClient = boto3.client(
     aws_access_key_id=BEIWE_SERVER_AWS_ACCESS_KEY_ID,
     aws_secret_access_key=BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     region_name=S3_REGION_NAME,
+    endpoint_url=S3_ENDPOINT
 )
 
 

@@ -1,4 +1,4 @@
-from os import cpu_count, getenv
+from os import getenv
 
 """
 Keep this document legible for non-developers, it is linked in the ReadMe and the wiki, and is the
@@ -31,6 +31,7 @@ FLASK_SECRET_KEY = getenv("FLASK_SECRET_KEY")
 
 # The name of the S3 bucket that will be used to store user generated data.
 S3_BUCKET = getenv("S3_BUCKET")
+S3_ENDPOINT = getenv("S3_ENDPOINT", None)
 
 # S3 region (not all regions have S3, so this value may need to be specified)
 #  Defaults to us-east-1, A.K.A. US East (N. Virginia),
