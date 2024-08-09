@@ -1,4 +1,4 @@
-from os import cpu_count, getenv
+from os import getenv
 
 """
 Keep this document legible for non-developers, it is linked in the ReadMe and the wiki, and is the
@@ -32,6 +32,9 @@ FLASK_SECRET_KEY = getenv("FLASK_SECRET_KEY")
 # The name of the S3 bucket that will be used to store user generated data.
 S3_BUCKET = getenv("S3_BUCKET")
 
+# The endpoint for the S3 bucket, this is used to specify a non-AWS S3 compatible service.
+S3_ENDPOINT = getenv("S3_ENDPOINT", None)
+
 # S3 region (not all regions have S3, so this value may need to be specified)
 #  Defaults to us-east-1, A.K.A. US East (N. Virginia),
 S3_REGION_NAME = getenv("S3_REGION_NAME", "us-east-1")
@@ -53,7 +56,8 @@ SENTRY_ELASTIC_BEANSTALK_DSN = getenv("SENTRY_ELASTIC_BEANSTALK_DSN")
 SENTRY_JAVASCRIPT_DSN = getenv("SENTRY_JAVASCRIPT_DSN")
 
 # Location of the downloadable Android APK file that'll be served from /download
-DOWNLOADABLE_APK_URL = getenv("DOWNLOADABLE_APK_URL", "https://beiwe-app-backups.s3.amazonaws.com/release/Beiwe-LATEST-commStatsCustomUrl.apk")
+DOWNLOADABLE_APK_URL = getenv("DOWNLOADABLE_APK_URL",
+                              "https://beiwe-app-backups.s3.amazonaws.com/release/Beiwe-LATEST-commStatsCustomUrl.apk")
 
 #
 # File processing and Data Access API options
@@ -82,7 +86,6 @@ PUSH_NOTIFICATION_ATTEMPT_COUNT = getenv("PUSH_NOTIFICATION_ATTEMPT_COUNT", 720)
 #   Expects (case-insensitive) "true" to block errors.
 BLOCK_QUOTA_EXCEEDED_ERROR = getenv('BLOCK_QUOTA_EXCEEDED_ERROR', 'false').lower() == 'true'
 
-
 #
 # User Authentication and Permissions
 #
@@ -93,13 +96,11 @@ BLOCK_QUOTA_EXCEEDED_ERROR = getenv('BLOCK_QUOTA_EXCEEDED_ERROR', 'false').lower
 # character password requirement so this is an opt-in, deployment-specific parameter.
 REQUIRE_SITE_ADMIN_MFA = getenv('REQUIRE_SITE_ADMIN_MFA', 'false').lower() == 'true'
 
-
 # Allow data deletion usertype setting
 # This setting restricts the type of user that can dispatch data deletion on a participant.
 # Valid values are study_admin, study_researcher, and site_admin.
 # (This feature will eventually be replaced with a database setting.)
 DATA_DELETION_USERTYPE = getenv('DATA_DELETION_USERTYPE', 'study_researcher')
-
 
 #
 # Developer options

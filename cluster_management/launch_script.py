@@ -8,40 +8,57 @@ from os import environ
 from os.path import abspath, join as path_join, relpath
 from time import sleep
 
+from fabric.api import cd, env as fabric_env, put, run, sudo
+
 from deployment_helpers.aws.elastic_beanstalk import (check_if_eb_environment_exists,
-    create_eb_environment, fix_deploy)
+                                                      create_eb_environment, fix_deploy)
 from deployment_helpers.aws.elastic_compute_cloud import (create_processing_control_server,
-    create_processing_server, get_manager_instance_by_eb_environment_name, get_manager_private_ip,
-    get_manager_public_ip, get_worker_public_ips, terminate_all_processing_servers)
+                                                          create_processing_server,
+                                                          get_manager_instance_by_eb_environment_name,
+                                                          get_manager_private_ip,
+                                                          get_manager_public_ip, get_worker_public_ips,
+                                                          terminate_all_processing_servers)
 from deployment_helpers.aws.iam import iam_purge_instance_profiles
 from deployment_helpers.aws.rds import create_new_rds_instance
 from deployment_helpers.configuration_utils import (are_aws_credentials_present,
-    create_finalized_configuration, create_processing_server_configuration_file,
-    create_rabbit_mq_password_file, get_rabbit_mq_password, is_global_configuration_valid,
-    reference_data_processing_server_configuration, reference_environment_configuration_file,
-    validate_beiwe_environment_config)
+                                                    create_finalized_configuration,
+                                                    create_processing_server_configuration_file,
+                                                    create_rabbit_mq_password_file, get_rabbit_mq_password,
+                                                    is_global_configuration_valid,
+                                                    reference_data_processing_server_configuration,
+                                                    reference_environment_configuration_file,
+                                                    validate_beiwe_environment_config)
 from deployment_helpers.constants import (APT_MANAGER_INSTALLS, APT_SINGLE_SERVER_AMI_INSTALLS,
-    APT_WORKER_INSTALLS, CLONE_ENVIRONMENT_HELP, CREATE_ENVIRONMENT_HELP, CREATE_MANAGER_HELP,
-    CREATE_WORKER_HELP, DEPLOYMENT_ENVIRON_SETTING_REMOTE_FILE_PATH,
-    DEPLOYMENT_SPECIFIC_CONFIG_FOLDER, DEV_HELP, DEV_MODE, DO_CREATE_CLONE, DO_CREATE_ENVIRONMENT,
-    DO_SETUP_EB_UPDATE_OPEN, ENVIRONMENT_NAME_RESTRICTIONS, EXTANT_ENVIRONMENT_PROMPT,
-    FILES_TO_PUSH_EARLY, FILES_TO_PUSH_LATE, FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP,
-    get_beiwe_environment_variables_file_path, get_db_credentials_file_path,
-    get_finalized_settings_file_path, get_finalized_settings_variables, get_global_config,
-    GET_MANAGER_IP_ADDRESS_HELP, get_pushed_full_processing_server_env_file_path,
-    get_server_configuration_variables, get_server_configuration_variables_path,
-    GET_WORKER_IP_ADDRESS_HELP, HELP_SETUP_NEW_ENVIRONMENT, HELP_SETUP_NEW_ENVIRONMENT_END,
-    HELP_SETUP_NEW_ENVIRONMENT_HELP, LOCAL_AMI_ENV_CONFIG_FILE_PATH, LOCAL_APACHE_CONFIG_FILE_PATH,
-    LOCAL_CRONJOB_MANAGER_FILE_PATH, LOCAL_CRONJOB_SINGLE_SERVER_AMI_FILE_PATH,
-    LOCAL_CRONJOB_WORKER_FILE_PATH, LOCAL_INSTALL_CELERY_WORKER, LOCAL_RABBIT_MQ_CONFIG_FILE_PATH,
-    LOG_FILE, MANAGER_SERVER_INSTANCE_TYPE, PURGE_COMMAND_BLURB, PURGE_INSTANCE_PROFILES_HELP,
-    PUSHED_FILES_FOLDER, RABBIT_MQ_PORT, REMOTE_APACHE_CONFIG_FILE_PATH, REMOTE_CRONJOB_FILE_PATH,
-    REMOTE_HOME_DIR, REMOTE_INSTALL_CELERY_WORKER, REMOTE_PROJECT_DIR,
-    REMOTE_RABBIT_MQ_CONFIG_FILE_PATH, REMOTE_RABBIT_MQ_FINAL_CONFIG_FILE_PATH,
-    REMOTE_RABBIT_MQ_PASSWORD_FILE_PATH, REMOTE_USERNAME, STAGED_FILES,
-    TERMINATE_PROCESSING_SERVERS_HELP, WORKER_SERVER_INSTANCE_TYPE)
+                                          APT_WORKER_INSTALLS, CLONE_ENVIRONMENT_HELP, CREATE_ENVIRONMENT_HELP,
+                                          CREATE_MANAGER_HELP,
+                                          CREATE_WORKER_HELP, DEPLOYMENT_ENVIRON_SETTING_REMOTE_FILE_PATH,
+                                          DEPLOYMENT_SPECIFIC_CONFIG_FOLDER, DEV_HELP, DEV_MODE, DO_CREATE_CLONE,
+                                          DO_CREATE_ENVIRONMENT,
+                                          DO_SETUP_EB_UPDATE_OPEN, ENVIRONMENT_NAME_RESTRICTIONS,
+                                          EXTANT_ENVIRONMENT_PROMPT,
+                                          FILES_TO_PUSH_EARLY, FILES_TO_PUSH_LATE,
+                                          FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP,
+                                          get_beiwe_environment_variables_file_path, get_db_credentials_file_path,
+                                          get_finalized_settings_file_path, get_finalized_settings_variables,
+                                          get_global_config,
+                                          GET_MANAGER_IP_ADDRESS_HELP, get_pushed_full_processing_server_env_file_path,
+                                          get_server_configuration_variables, get_server_configuration_variables_path,
+                                          GET_WORKER_IP_ADDRESS_HELP, HELP_SETUP_NEW_ENVIRONMENT,
+                                          HELP_SETUP_NEW_ENVIRONMENT_END,
+                                          HELP_SETUP_NEW_ENVIRONMENT_HELP, LOCAL_AMI_ENV_CONFIG_FILE_PATH,
+                                          LOCAL_APACHE_CONFIG_FILE_PATH,
+                                          LOCAL_CRONJOB_MANAGER_FILE_PATH, LOCAL_CRONJOB_SINGLE_SERVER_AMI_FILE_PATH,
+                                          LOCAL_CRONJOB_WORKER_FILE_PATH, LOCAL_INSTALL_CELERY_WORKER,
+                                          LOCAL_RABBIT_MQ_CONFIG_FILE_PATH,
+                                          LOG_FILE, MANAGER_SERVER_INSTANCE_TYPE, PURGE_COMMAND_BLURB,
+                                          PURGE_INSTANCE_PROFILES_HELP,
+                                          PUSHED_FILES_FOLDER, RABBIT_MQ_PORT, REMOTE_APACHE_CONFIG_FILE_PATH,
+                                          REMOTE_CRONJOB_FILE_PATH,
+                                          REMOTE_HOME_DIR, REMOTE_INSTALL_CELERY_WORKER, REMOTE_PROJECT_DIR,
+                                          REMOTE_RABBIT_MQ_CONFIG_FILE_PATH, REMOTE_RABBIT_MQ_FINAL_CONFIG_FILE_PATH,
+                                          REMOTE_RABBIT_MQ_PASSWORD_FILE_PATH, REMOTE_USERNAME, STAGED_FILES,
+                                          TERMINATE_PROCESSING_SERVERS_HELP, WORKER_SERVER_INSTANCE_TYPE)
 from deployment_helpers.general_utils import current_time_string, do_zip_reduction, EXIT, log, retry
-from fabric.api import cd, env as fabric_env, put, run, sudo
 
 
 # Fabric configuration
@@ -169,7 +186,7 @@ def setup_celery_worker():
     # make it executable and execute it.
     put(LOCAL_INSTALL_CELERY_WORKER, REMOTE_INSTALL_CELERY_WORKER)
     run(f'chmod +x {REMOTE_INSTALL_CELERY_WORKER}')
-    run(f'{REMOTE_INSTALL_CELERY_WORKER} >> {LOG_FILE}')
+    sudo(f'{REMOTE_INSTALL_CELERY_WORKER} >> {LOG_FILE}')
 
 
 def manager_fix():

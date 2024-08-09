@@ -26,11 +26,11 @@ PROJECT_PATH="/home/ubuntu/beiwe-backend/services"
 # Note: we actually run the"five_minutes" cron job every 15 minutes.
 
 # m h  dom mon dow   command
-*/6 * * * * : five_minutes; cd $PROJECT_PATH; chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py five_minutes
-0 */1 * * * : hourly; cd $PROJECT_PATH; chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py hourly
-30 */4 * * * : four_hourly; cd $PROJECT_PATH; chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py four_hourly
-@daily : daily; cd $PROJECT_PATH; chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py daily
+*/6 * * * * : five_minutes; cd $PROJECT_PATH; /usr/bin/chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py five_minutes
+0 */1 * * * : hourly; cd $PROJECT_PATH; /usr/bin/chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py hourly
+30 */4 * * * : four_hourly; cd $PROJECT_PATH; /usr/bin/chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py four_hourly
+@daily : daily; cd $PROJECT_PATH; /usr/bin/chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py daily
 @daily : daily; journalctl --vacuum-time=1w
-0 2 * * 0 : weekly; cd $PROJECT_PATH; chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py weekly
+0 2 * * 0 : weekly; cd $PROJECT_PATH; /usr/bin/chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python cron.py weekly
 29 4 * * *: pkill -HUP supervisord
 @daily : daily; apt autoclean

@@ -1,0 +1,164 @@
+name: beiwe-server
+
+services:
+  storage:
+    image: minio/minio
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET}
+    env_file:
+      - ../.envs/.env.dev
+    volumes:
+      - storage_data:/data
+    ports:
+      - 9001:9001
+    expose:
+      - 9000
+    command: minio server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  storage-client:
+    image: minio/mc
+    environment:
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add storage http://storage:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
+      /usr/bin/mc rm -r --force storage/${S3_BUCKET};
+      /usr/bin/mc mb storage/${S3_BUCKET};
+      /usr/bin/mc policy public storage/${S3_BUCKET};
+      exit 0;
+      "
+    env_file:
+      - ../.envs/.env.dev
+    depends_on:
+      storage:
+        condition: service_healthy
+
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    env_file:
+      - ${PWD}/.envs/.env.dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker_management/backend/dev.Dockerfile
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - SYSADMIN_EMAILS=${SYSADMIN_EMAILS}
+      - BEIWE_SERVER_AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
+      - BEIWE_SERVER_AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY}
+    env_file:
+      - ../.envs/.env.dev
+    command: uwsgi --yaml uwsgi-config.yml
+    volumes:
+      - static_volume:/home/app/web/staticfiles/
+    expose:
+      - 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage-client:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker_management/nginx/dev.Dockerfile
+    env_file:
+      - ../.envs/.env.dev
+    volumes:
+      - static_volume:/www/static/
+    ports:
+      - 80:80
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  rabbitmq:
+    build:
+      context: ..
+      dockerfile: docker_management/rabbitmq/dev.Dockerfile
+      args:
+        - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
+        - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    env_file:
+      - ../.envs/.env.dev
+    expose:
+      - 50000
+      - 50002
+    ports:
+      - 15672:15672
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  celery:
+    hostname: beiwe-celery
+    build:
+      context: ..
+      dockerfile: docker_management/celery/dev.Dockerfile
+      args:
+        - RABBITMQ_PORT=${RABBITMQ_PORT}
+        - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - SYSADMIN_EMAILS=${SYSADMIN_EMAILS}
+      - BEIWE_SERVER_AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
+      - BEIWE_SERVER_AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY}
+    env_file:
+      - ../.envs/.env.dev
+    ports:
+      - 50001:50001
+    command: >
+      bash -c "/home/ubuntu/.pyenv/versions/beiwe/bin/python ./run_script.py run_custom_ondeploy_script processing &&
+      supervisord -c /etc/supervisord.conf &&
+      service cron start && 
+      tail -f /dev/null"
+    depends_on:
+      - nginx
+      - rabbitmq
+    restart: unless-stopped
+
+volumes:
+  storage_data:
+  postgres_data:
+  static_volume:

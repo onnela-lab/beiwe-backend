@@ -7,37 +7,37 @@
 # tails the celery log, ctrl-c to exit the tail
 
 # This looks like overkill, but resetting logs and permissions is super helpful
-sudo mkdir -p /etc/supervisor/conf.d/
+mkdir -p /etc/supervisor/conf.d/
 
 # Files need to have permissions 666 in order for the supervisor and celery processes to have full
 # permissions to write regardless of the runtime user they occur under (supervisord may run as a
 # root service, causing problems).
-sudo rm -f /home/ubuntu/supervisord.log*
-sudo touch /home/ubuntu/supervisord.log
-sudo chmod 777 /home/ubuntu/supervisord.log
-sudo chgrp adm /home/ubuntu/supervisord.log
+rm -f /home/ubuntu/supervisord.log*
+touch /home/ubuntu/supervisord.log
+chmod 777 /home/ubuntu/supervisord.log
+chgrp adm /home/ubuntu/supervisord.log
 
-sudo rm -f /home/ubuntu/celery_processing.log*
-sudo touch /home/ubuntu/celery_processing.log
-sudo chmod 666 /home/ubuntu/celery_processing.log
-sudo chgrp adm /home/ubuntu/celery_processing.log
+rm -f /home/ubuntu/celery_processing.log*
+touch /home/ubuntu/celery_processing.log
+chmod 666 /home/ubuntu/celery_processing.log
+chgrp adm /home/ubuntu/celery_processing.log
 
-sudo rm -f /home/ubuntu/celery_push_send.log*
-sudo touch /home/ubuntu/celery_push_send.log
-sudo chmod 666 /home/ubuntu/celery_push_send.log
-sudo chgrp adm /home/ubuntu/celery_push_send.log
+rm -f /home/ubuntu/celery_push_send.log*
+touch /home/ubuntu/celery_push_send.log
+chmod 666 /home/ubuntu/celery_push_send.log
+chgrp adm /home/ubuntu/celery_push_send.log
 
-sudo rm -f /home/ubuntu/celery_scripts.log*
-sudo touch /home/ubuntu/celery_scripts.log
-sudo chmod 666 /home/ubuntu/celery_scripts.log
-sudo chgrp adm /home/ubuntu/celery_scripts.log
+rm -f /home/ubuntu/celery_scripts.log*
+touch /home/ubuntu/celery_scripts.log
+chmod 666 /home/ubuntu/celery_scripts.log
+chgrp adm /home/ubuntu/celery_scripts.log
 
-sudo rm -f /home/ubuntu/celery_forest.log*
-sudo touch /home/ubuntu/celery_forest.log
-sudo chmod 666 /home/ubuntu/celery_forest.log
-sudo chgrp adm /home/ubuntu/celery_forest.log
+rm -f /home/ubuntu/celery_forest.log*
+touch /home/ubuntu/celery_forest.log
+chmod 666 /home/ubuntu/celery_forest.log
+chgrp adm /home/ubuntu/celery_forest.log
 
-sudo tee /etc/supervisord.conf >/dev/null <<EOL
+tee /etc/supervisord.conf >/dev/null <<EOL
 [supervisord]
 logfile = /home/ubuntu/supervisord.log
 logfile_maxbytes = 10MB

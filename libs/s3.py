@@ -3,27 +3,31 @@ from __future__ import annotations
 from typing import Generator, List, Optional, Tuple
 
 import boto3
+from Cryptodome.PublicKey import RSA
 from botocore.client import BaseClient, Paginator
 from cronutils import ErrorHandler
-from Cryptodome.PublicKey import RSA
 
-from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
-    S3_BUCKET, S3_REGION_NAME)
+from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID,
+                             BEIWE_SERVER_AWS_SECRET_ACCESS_KEY, S3_BUCKET,
+                             S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import CHUNKS_FOLDER
 from libs.aes import decrypt_server, encrypt_for_server
-from libs.rsa import generate_key_pairing, get_RSA_cipher, prepare_X509_key_for_java
-
+from libs.rsa import (generate_key_pairing, get_RSA_cipher,
+                      prepare_X509_key_for_java)
 
 # NOTE: S3_BUCKET is patched during tests to be the Exception class, which is (obviously) invalid.
 # The asserts in this file are protections for runninsg s3 commands inside tests.
 
 try:
-    from libs.internal_types import StrOrParticipantOrStudy  # this is purely for ide assistance
+    from libs.internal_types import \
+        StrOrParticipantOrStudy  # this is purely for ide assistance
 except ImportError:
     pass
 
 
 class NoSuchKeyException(Exception): pass
+
+
 class S3DeleteException(Exception): pass
 
 
@@ -32,6 +36,7 @@ conn: BaseClient = boto3.client(
     aws_access_key_id=BEIWE_SERVER_AWS_ACCESS_KEY_ID,
     aws_secret_access_key=BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     region_name=S3_REGION_NAME,
+    endpoint_url=S3_ENDPOINT
 )
 
 
@@ -63,7 +68,7 @@ def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy):
 
 
 def s3_upload(
-    key_path: str, data_string: bytes, obj: StrOrParticipantOrStudy, raw_path=False
+        key_path: str, data_string: bytes, obj: StrOrParticipantOrStudy, raw_path=False
 ) -> None:
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
