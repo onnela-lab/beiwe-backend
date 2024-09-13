@@ -2,10 +2,9 @@
 
 import django.core.validators
 from django.db import migrations, models
-
 from django.db.migrations.state import StateApps
 
-from libs.security import to_django_password_components
+from libs.utils.security_utils import to_django_password_components
 
 
 def apply_password_transform(apps: StateApps, schema_editor):

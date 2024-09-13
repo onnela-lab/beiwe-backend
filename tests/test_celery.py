@@ -9,10 +9,10 @@ from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
 
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.testing_constants import (THURS_OCT_6_NOON_2022_NY, THURS_OCT_13_NOON_2022_NY,
-    THURS_OCT_20_NOON_2022_NY)
+    THURS_OCT_20_NOON_2022_NY, WEDNESDAY_JUNE_NOON_8_2022_EDT)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API
-from database.schedule_models import ScheduledEvent
-from database.user_models_participant import AppHeartbeats, Participant, ParticipantFCMHistory
+from database.schedule_models import AbsoluteSchedule, ScheduledEvent
+from database.user_models_participant import Participant, ParticipantFCMHistory
 from services.celery_push_notifications import (create_heartbeat_tasks, get_surveys_and_schedules,
     heartbeat_query)
 from tests.common import CommonTestCase
@@ -21,7 +21,7 @@ from tests.common import CommonTestCase
 # trunk-ignore-all(ruff/B018)
 
 class TestCelery(CommonTestCase):
-    pass
+    """ We don't actually have anything custom here (yet). """
 
 
 class TestGetSurveysAndSchedules(TestCelery):
@@ -50,33 +50,32 @@ class TestGetSurveysAndSchedules(TestCelery):
         self.populate_default_fcm_token
         the_past = timezone.now() + timedelta(days=-5)
         # an absolute survey 5 days in the past
-        schedule = self.generate_easy_absolute_schedule_event_with_schedule(the_past)
+        schedule = self.generate_easy_absolute_schedule_event_with_absolute_schedule(the_past)
         self.validate_basics(schedule)
     
     def test_absolute_fail(self):
         self.populate_default_fcm_token
         future = timezone.now() + timedelta(days=5)
         # an absolute survey 5 days in the future
-        self.generate_easy_absolute_schedule_event_with_schedule(future)
+        self.generate_easy_absolute_schedule_event_with_absolute_schedule(future)
         self.validate_no_schedules()
     
     def test_relative_success(self):
         self.populate_default_fcm_token
         # a relative survey 5 days in the past
-        schedule = self.generate_easy_relative_schedule_event_with_schedule(timedelta(days=-5))
+        schedule = self.generate_easy_relative_schedule_event_with_relative_schedule(timedelta(days=-5))
         surveys, schedules, patient_ids = get_surveys_and_schedules(timezone.now())
         self.validate_basics(schedule)
     
     def test_relative_failure(self):
         self.populate_default_fcm_token
         # a relative survey 5 days in the past
-        self.generate_easy_relative_schedule_event_with_schedule(timedelta(days=5))
+        self.generate_easy_relative_schedule_event_with_relative_schedule(timedelta(days=5))
         self.validate_no_schedules()
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_weekly_success(self):
         self.populate_default_fcm_token
-        # TODO: why is this passing
         # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
         schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
         self.assertEqual(count_created, 1)
@@ -86,7 +85,6 @@ class TestGetSurveysAndSchedules(TestCelery):
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_weekly_in_future_fails(self):
         self.populate_default_fcm_token
-        # TODO: why is this passing
         # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
         schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
         self.assertEqual(count_created, 1)
@@ -128,6 +126,83 @@ class TestGetSurveysAndSchedules(TestCelery):
         # but if you set the time zone to New_York the push notification is calculated!
         self.default_participant.try_set_timezone('America/New_York')
         self.validate_basics(schedule)
+    
+    @time_machine.travel(WEDNESDAY_JUNE_NOON_8_2022_EDT)
+    def test_no_timezone_bug(self):
+        plus_one_hour = WEDNESDAY_JUNE_NOON_8_2022_EDT + timedelta(hours=1)
+        minus_one_hour = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=1)
+        minus_two_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=2)
+        minus_three_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=3)
+        minus_four_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=4)
+        minus_five_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=5)
+        # GMT_time = WEDNESDAY_JUNE_NOON_8_2022_EDT.replace(tzinfo=gettz('GMT'))
+        self.populate_default_fcm_token
+        
+        # we have a bug where if the participant's timezone shifts it into the past it will not be
+        # noticed by the survey schedule query until the study-timezone-based ScheduledEvent time is
+        # in the past (has already passed).
+        # Testing this with an absolute schedule.
+        self.default_study.update_only(timezone_name='America/New_York')
+        scheduled_event = self.generate_easy_absolute_schedule_event_with_absolute_schedule(WEDNESDAY_JUNE_NOON_8_2022_EDT)
+        absolute_schedule = AbsoluteSchedule.objects.get()  # will fail if there is more than one, which would be a bug
+        
+        self.default_participant.try_set_timezone('GMT')
+        self.default_participant.refresh_from_db()
+        self.assertEqual(self.default_participant.timezone_name, 'GMT')
+        
+        # EDT is +4 hours of GMT, so the schedule "should trigger" at 12:00 GMT, but instead
+        # triggers at 12:00 EDT, because the participant's timezone incorrectly checked.
+        
+        with time_machine.travel(plus_one_hour):
+            self.validate_basics(scheduled_event)
+        
+        with time_machine.travel(minus_one_hour):
+            self.validate_basics(scheduled_event)
+        
+        with time_machine.travel(minus_two_hours):
+            self.validate_basics(scheduled_event)
+        
+        with time_machine.travel(minus_three_hours):
+            self.validate_basics(scheduled_event)
+        
+        with time_machine.travel(minus_four_hours):
+            self.validate_basics(scheduled_event)
+        
+        with time_machine.travel(minus_five_hours):
+            self.validate_no_schedules()
+    
+    # using weekly as a base we now test situations where it shouldn't return schedules
+    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
+    def test_deleted_hidden_study(self):
+        self.populate_default_fcm_token
+        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
+        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
+        self.assertEqual(count_created, 1)
+        self.default_study.update(deleted=True)
+        with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
+            self.validate_no_schedules()
+    
+    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
+    def test_manually_stopped_study(self):
+        self.populate_default_fcm_token
+        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
+        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
+        self.assertEqual(count_created, 1)
+        self.default_study.update(manually_stopped=True)
+        with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
+            self.validate_no_schedules()
+    
+    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
+    def test_past_end_date(self):
+        self.populate_default_fcm_token
+        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
+        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
+        self.assertEqual(count_created, 1)
+        # not testing time zones, just testing end date
+        self.default_study.update(end_date=timezone.now().date() - timedelta(days=10))
+        with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
+            self.validate_no_schedules()
+    
 
 
 class TestHeartbeatQuery(TestCelery):
@@ -138,9 +213,7 @@ class TestHeartbeatQuery(TestCelery):
     @property
     def set_working_heartbeat_notification_basics(self):
         # we are not testing fcm token details in these tests.
-        self.default_participant.update(
-            deleted=False, permanently_retired=False
-        )
+        self.default_participant.update(deleted=False, permanently_retired=False)
         self.populate_default_fcm_token
     
     @property
@@ -170,7 +243,7 @@ class TestHeartbeatQuery(TestCelery):
         self.assertEqual(len(heartbeat_query()), 0)
     
     def test_query_one_invalid_participant(self):
-        self.default_participant
+        self.using_default_participant()
         self.assertEqual(len(heartbeat_query()), 0)
     
     def test_query_deleted_participant(self):
@@ -183,6 +256,22 @@ class TestHeartbeatQuery(TestCelery):
     def test_query_no_fcm_token(self):
         self.set_working_heartbeat_notification_fully_valid
         self.default_participant.fcm_tokens.all().delete()
+        self.assertEqual(len(heartbeat_query()), 0)
+    
+    def test_deleted_hidden_study(self):
+        self.set_working_heartbeat_notification_fully_valid
+        self.default_study.update(deleted=True)
+        self.assertEqual(len(heartbeat_query()), 0)
+    
+    def test_manually_stopped_study(self):
+        self.set_working_heartbeat_notification_fully_valid
+        self.default_study.update(manually_stopped=True)
+        self.assertEqual(len(heartbeat_query()), 0)
+    
+    def test_end_date_in_past(self):
+        self.set_working_heartbeat_notification_fully_valid
+        # we don't need to test exactly whether timezone crap is functional we already have tests for that.
+        self.default_study.update(end_date=timezone.now() - timedelta(days=10))
         self.assertEqual(len(heartbeat_query()), 0)
     
     def test_query_fully_valid(self):
@@ -362,7 +451,7 @@ class TestHeartbeatQuery(TestCelery):
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
     
-    @patch("services.celery_push_notifications.send_notification")
+    @patch("libs.push_notification_helpers.send_notification")
     @patch("services.celery_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_one_participant(
         self, check_firebase_instance: MagicMock, send_notification: MagicMock,
@@ -377,7 +466,7 @@ class TestHeartbeatQuery(TestCelery):
         self.assertIsNotNone(self.default_participant.last_heartbeat_notification)
         self.assertIsInstance(self.default_participant.last_heartbeat_notification, datetime)
     
-    @patch("services.celery_push_notifications.send_notification")
+    @patch("libs.push_notification_helpers.send_notification")
     @patch("services.celery_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_two_participants(
         self, check_firebase_instance: MagicMock, send_notification: MagicMock,
@@ -400,7 +489,7 @@ class TestHeartbeatQuery(TestCelery):
         self.assertIsNotNone(p2.last_heartbeat_notification)
         self.assertIsInstance(p2.last_heartbeat_notification, datetime)
     
-    @patch("services.celery_push_notifications.send_notification")
+    @patch("libs.push_notification_helpers.send_notification")
     @patch("services.celery_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_two_participants_one_failure(
         self, check_firebase_instance: MagicMock, send_notification: MagicMock,
@@ -423,68 +512,68 @@ class TestHeartbeatQuery(TestCelery):
         self.assertIsNotNone(p2.last_heartbeat_notification)
         self.assertIsInstance(p2.last_heartbeat_notification, datetime)
     
-    @patch("services.celery_push_notifications._send_notification")
+    @patch("libs.push_notification_helpers.send_custom_notification_raw")
     @patch("services.celery_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_errors(
-        self, check_firebase_instance: MagicMock, _send_notification: MagicMock,
+        self, check_firebase_instance: MagicMock, send_custom_notification_raw: MagicMock,
     ):
         check_firebase_instance.return_value = True
         self.set_working_heartbeat_notification_fully_valid
         
-        _send_notification.side_effect = ValueError("test")
+        send_custom_notification_raw.side_effect = ValueError("test")
         self.assertRaises(ValueError, create_heartbeat_tasks)
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
         
-        _send_notification.side_effect = ThirdPartyAuthError("test")
+        send_custom_notification_raw.side_effect = ThirdPartyAuthError("test")
         self.assertRaises(ThirdPartyAuthError, create_heartbeat_tasks)
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
     
-    @patch("services.celery_push_notifications._send_notification")
+    @patch("libs.push_notification_helpers.send_custom_notification_raw")
     @patch("services.celery_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_errors_swallowed(
-        self, check_firebase_instance: MagicMock, _send_notification: MagicMock,
+        self, check_firebase_instance: MagicMock, send_custom_notification_raw: MagicMock,
     ):
         check_firebase_instance.return_value = True
         self.set_working_heartbeat_notification_fully_valid
         
         # but these don't actually raise the error
-        _send_notification.side_effect = ThirdPartyAuthError("Auth error from APNS or Web Push Service")
+        send_custom_notification_raw.side_effect = ThirdPartyAuthError("Auth error from APNS or Web Push Service")
         create_heartbeat_tasks()  # no error
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
         # issues a new query every time, don't need te refresh
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
         
-        _send_notification.side_effect = SenderIdMismatchError("test")
+        send_custom_notification_raw.side_effect = SenderIdMismatchError("test")
         create_heartbeat_tasks()
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
         
-        _send_notification.side_effect = SenderIdMismatchError("test")
+        send_custom_notification_raw.side_effect = SenderIdMismatchError("test")
         create_heartbeat_tasks()
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
         
-        _send_notification.side_effect = QuotaExceededError("test")
+        send_custom_notification_raw.side_effect = QuotaExceededError("test")
         create_heartbeat_tasks()
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
         
-        _send_notification.side_effect = ValueError("The default Firebase app does not exist")
+        send_custom_notification_raw.side_effect = ValueError("The default Firebase app does not exist")
         create_heartbeat_tasks()
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
         
         # unregistered has the side effect of disabling the fcm token, so test it last
-        _send_notification.side_effect = UnregisteredError("test")
+        send_custom_notification_raw.side_effect = UnregisteredError("test")
         create_heartbeat_tasks()
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)

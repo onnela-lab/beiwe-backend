@@ -32,6 +32,6 @@ class AbortMiddleware:
         # whenever a view raises an exception we check if it is an AbortError, and if so we return
         # and HttpResponse with the appropriate error code
         if isinstance(exception, AbortError):
-            # TODO: render custom 400 page here?
-            return HttpResponse(content="", status=exception.error_code)
+            # we don't need to return any content, just the status code.
+            return HttpResponse(content=b"", status=exception.error_code)
         return None

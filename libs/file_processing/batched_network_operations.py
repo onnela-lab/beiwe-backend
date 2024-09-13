@@ -6,7 +6,7 @@ from constants.data_processing_constants import CHUNK_EXISTS_CASE
 from database.data_access_models import ChunkRegistry
 from libs.file_processing.utility_functions_simple import decompress
 from libs.s3 import s3_upload
-from libs.security import chunk_hash
+from libs.utils.security_utils import chunk_hash
 
 
 # from datetime import datetime

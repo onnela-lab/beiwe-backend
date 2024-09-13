@@ -10,7 +10,8 @@ from libs import encryption
 from libs.encryption import (DecryptionKeyInvalidError, DefinitelyInvalidFile, DeviceDataDecryptor,
     InvalidData, InvalidIV, IosDecryptionKeyDuplicateError, IosDecryptionKeyNotFoundError,
     RemoteDeleteFileScenario, UnHandledError)
-from libs.participant_file_uploads import upload_and_create_file_to_process_and_log
+from libs.endpoint_helpers.participant_file_upload_helpers import (
+    upload_and_create_file_to_process_and_log)
 from libs.s3 import s3_list_files, s3_retrieve
 
 

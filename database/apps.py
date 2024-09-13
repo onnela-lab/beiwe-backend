@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# This file is required by Django to recognize our "database" app.
 
 from django.apps import AppConfig
 

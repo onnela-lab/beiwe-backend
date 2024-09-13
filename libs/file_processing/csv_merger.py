@@ -3,7 +3,7 @@ from typing import Dict, List, Set, Tuple
 from botocore.exceptions import ReadTimeoutError
 from cronutils import ErrorHandler
 
-from constants.common_constants import CHUNKS_FOLDER, RUNNING_TEST_OR_IN_A_SHELL
+from constants.common_constants import CHUNKS_FOLDER, RUNNING_TEST_OR_FROM_A_SHELL
 from constants.data_processing_constants import (CHUNK_EXISTS_CASE, CHUNK_TIMESLICE_QUANTUM,
     REFERENCE_CHUNKREGISTRY_HEADERS)
 from constants.data_stream_constants import SURVEY_DATA_FILES
@@ -218,7 +218,7 @@ class CsvMerger:
     def report_error(self, e: Exception):
         # okay we do have to inspect the stack trace a bit more with this but that's ok.
         # for now I want this reported to sentry as an error.
-        if RUNNING_TEST_OR_IN_A_SHELL:
+        if RUNNING_TEST_OR_FROM_A_SHELL:
             print()
             print(type(e), str(e))
             print()

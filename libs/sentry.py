@@ -6,7 +6,7 @@ from sentry_sdk.transport import HttpTransport
 
 from config.settings import (SENTRY_DATA_PROCESSING_DSN, SENTRY_ELASTIC_BEANSTALK_DSN,
     SENTRY_JAVASCRIPT_DSN)
-from constants.common_constants import RUNNING_TEST_OR_IN_A_SHELL
+from constants.common_constants import RUNNING_TEST_OR_FROM_A_SHELL
 
 
 # when running in a shell we force sentry off and force the use of the null_error_handler
@@ -54,7 +54,7 @@ def make_error_sentry(sentry_type: str, tags: dict = None, force_null_error_hand
     If the applicable sentry DSN is missing will return an ErrorSentry,
     but if null truthy a NullErrorHandler will be returned instead. """
     
-    if RUNNING_TEST_OR_IN_A_SHELL or force_null_error_handler:
+    if RUNNING_TEST_OR_FROM_A_SHELL or force_null_error_handler:
         return null_error_handler
     
     tags = tags or {}

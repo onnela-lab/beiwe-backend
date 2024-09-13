@@ -37,7 +37,7 @@
     </div>
 
     <div class="table-responsive col-xs-12 well">
-      <table class="table">
+      <table class="table ng-cloak">
         <thead>
           <tr>
             <th scope="col">Created On</th>
@@ -51,7 +51,11 @@
         </thead>
         
         <tbody>
-          <tr> <p style="color: gray;"> Note: downloading source data provides only the data streams used, and results in the data <b>as it currently is,</b> not the state of the data at the time of the Forest tree ran. 
+          <tr> <p style="color: gray;"> Note: downloading source data provides only the data streams used, and results in the data <b>as it currently is,</b> not the state of the data at the time of the Forest tree ran.
+          <br>
+          {# link to download summary statistics csv #}
+          <a href="{{ easy_url("forest_endpoints.download_summary_statistics_csv", study_id=study.id) }}" > Click here to download a csv of the current summary statistics for your study.</a>
+          </p>
           </tr>
           <tr ng-repeat="log in filterableObjects" ng-if="(log.created_on_display + log.patient_id + log.forest_tree_display + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())">
             <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.created_on_display }}{% endraw %}</td>
@@ -85,6 +89,13 @@
                   Download Output Data
                 </a>
               </div>
+              
+              <div ng-if="log.has_output_data">
+                <a class="btn btn-link" ng-href="{% raw %}{{ log.download_participant_tree_data_url|trustAsResourceUrl }}{% endraw %}" style="padding: 0;">
+                  Download {% raw %}{{ log.forest_tree_display }}{% endraw %} Output Data
+                </a>
+              </div>
+              
               
               <div ng-if="log.status === '{{ status_choices.queued }}'">
                 <form action="{% raw %}{{ log.cancel_url|trustAsResourceUrl }}{% endraw %}" method="post">

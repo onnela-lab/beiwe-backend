@@ -1,34 +1,42 @@
+# trunk-ignore-all(bandit/B101,bandit/B106,ruff/B018,ruff/E701)
+
 import time
-import typing
 import unittest
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from typing import List, Optional
 from unittest.mock import MagicMock, patch
 
 import dateutil
+import time_machine
+from dateutil import tz
 from dateutil.tz import gettz
 from django.utils import timezone
 
-from api.study_api import determine_registered_status
+from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
+    FAILED_TO_ESTABLISH_CONNECTION, UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
 from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
-from constants.testing_constants import MIDNIGHT_EVERY_DAY
+from constants.testing_constants import (EDT_WEEK, EST_WEEK, MIDNIGHT_EVERY_DAY_OF_WEEK,
+    MONDAY_JUNE_NOON_6_2022_EDT, NOON_EVERY_DAY_OF_WEEK, THURS_OCT_6_NOON_2022_NY)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS
 from database.data_access_models import IOSDecryptionKey
 from database.profiling_models import EncryptionErrorMetadata, LineEncryptionError, UploadTracking
-from database.schedule_models import BadWeeklyCount, WeeklySchedule
+from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, BadWeeklyCount, Intervention,
+    InterventionDate, RelativeSchedule, ScheduledEvent, WeeklySchedule)
+from database.survey_models import Survey
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
     PushNotificationDisabledEvent)
+from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
 from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
-from libs.forest_utils import get_forest_git_hash
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
 from libs.schedules import (export_weekly_survey_timings, get_next_weekly_event_and_schedule,
-    NoSchedulesException)
+    get_start_and_end_of_java_timings_week, NoSchedulesException,
+    repopulate_absolute_survey_schedule_events, repopulate_all_survey_scheduled_events,
+    repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)
+from libs.utils.forest_utils import get_forest_git_hash
+from services.celery_push_notifications import failed_send_survey_handler
 from tests.common import CommonTestCase
-
-
-# trunk-ignore-all(ruff/B018,bandit/B101)
-NoneType = type(None)  # noqa
 
 
 # timezones should be compared using the 'is' operator
@@ -83,9 +91,9 @@ class TestTimingsSchedules(CommonTestCase):
         for day_of_week in range(0, 7):
             self.generate_weekly_schedule(self.default_survey, day_of_week=day_of_week)
             timings[day_of_week].append(0)  # time of day defaults to zero
-        # assert tehre are 7 weekly surveys, that they are one per day, at midnight (0)
+        # assert there are 7 weekly surveys, that they are one per day, at midnight (0)
         self.assertEqual(WeeklySchedule.objects.count(), 7)
-        self.assertEqual(timings, MIDNIGHT_EVERY_DAY())
+        self.assertEqual(timings, MIDNIGHT_EVERY_DAY_OF_WEEK())
         self.assertEqual(timings, export_weekly_survey_timings(self.default_survey))
     
     def test_create_weekly_schedules(self):
@@ -93,7 +101,7 @@ class TestTimingsSchedules(CommonTestCase):
         WeeklySchedule.create_weekly_schedules(EMPTY_WEEKLY_SURVEY_TIMINGS(), self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 0)
         # assert we created a survey for every week
-        WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY(), self.default_survey)
+        WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 7)
         self.assertEqual(
             sorted(list(WeeklySchedule.objects.values_list("day_of_week", flat=True))),
@@ -135,22 +143,22 @@ class TestTimingsSchedules(CommonTestCase):
     
     def test_create_weekly_clears(self):
         # test that deleted surveys and empty timings lists delete stuff
-        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY(), self.default_survey)
+        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         self.assertFalse(duplicates)
         self.assertEqual(WeeklySchedule.objects.count(), 7)
         duplicates = WeeklySchedule.create_weekly_schedules([], self.default_survey)
         self.assertFalse(duplicates)
         self.assertEqual(WeeklySchedule.objects.count(), 0)
-        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY(), self.default_survey)
+        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         self.assertFalse(duplicates)
         self.assertEqual(WeeklySchedule.objects.count(), 7)
         self.default_survey.update(deleted=True)
-        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY(), self.default_survey)
+        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         self.assertFalse(duplicates)
         self.assertEqual(WeeklySchedule.objects.count(), 0)
     
     def test_duplicates_return_value(self):
-        timings = MIDNIGHT_EVERY_DAY()
+        timings = MIDNIGHT_EVERY_DAY_OF_WEEK()
         timings[0].append(0)
         duplicates = WeeklySchedule.create_weekly_schedules(timings, self.default_survey)
         self.assertTrue(duplicates)
@@ -309,7 +317,7 @@ class TestParticipantDataDeletion(CommonTestCase):
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)  # errors means test failure
-        
+    
     @data_purge_mock_s3_calls
     def test_confirm_SummaryStatisticDaily(self):
         self.default_summary_statistic_daily
@@ -417,7 +425,7 @@ class TestParticipantDataDeletion(CommonTestCase):
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
-        
+    
     @data_purge_mock_s3_calls
     def test_confirm_ParticipantActionLog(self):
         # this test is weird, we create an action log inside the deletion event.
@@ -490,6 +498,7 @@ class TestParticipantTimeZone(CommonTestCase):
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
         self.assertEqual(p.unknown_timezone, True)  # A
+        self.default_study.update(timezone_name="UTC")
         p.try_set_timezone("a bad string")
         # behavior should be to grab the study's timezone name, which for tests was unexpectedly UTC...
         self.assertEqual(p.timezone_name, "UTC")
@@ -502,8 +511,8 @@ class TestParticipantTimeZone(CommonTestCase):
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
         self.assertEqual(p.unknown_timezone, False)  # A
+        self.default_study.update(timezone_name="UTC")
         p.try_set_timezone("a bad string")
-        # behavior should be to grab the study's timezone name, which for tests was unexpectedly UTC...
         self.assertEqual(p.timezone_name, "UTC")
         self.assertIs(p.timezone, THE_OTHER_ACCEPTABLE_TIMEZONE)
         self.assertEqual(p.unknown_timezone, True)  # B
@@ -547,12 +556,14 @@ class TestParticipantActive(CommonTestCase):
         correct_annotations = {
             'now': datetime,
             'registered': bool,
-            'last_upload': typing.Union[datetime, NoneType],  # can't import NoneType...
-            'last_get_latest_surveys': typing.Union[datetime, NoneType],
-            'last_set_password': typing.Union[datetime, NoneType],
-            'last_set_fcm_token': typing.Union[datetime, NoneType],
-            'last_get_latest_device_settings': typing.Union[datetime, NoneType],
-            'last_register_user': typing.Union[datetime, NoneType]
+            'permanently_retired': bool,
+            'last_upload': Optional[datetime],
+            'last_get_latest_surveys': Optional[datetime],
+            'last_set_password': Optional[datetime],
+            'last_set_fcm_token': Optional[datetime],
+            'last_get_latest_device_settings': Optional[datetime],
+            'last_register_user': Optional[datetime],
+            'last_heartbeat_checkin': Optional[datetime],
         }
         self.assertDictEqual(annotes, correct_annotations)
     
@@ -595,16 +606,397 @@ class TestParticipantActive(CommonTestCase):
         self.assertFalse(p.is_active_one_week)
         
         # assert that it is still false if permanently_retired is set to true
-        setattr(p, "permanently_retired", True)
+        p.permanently_retired = True
         self.assertFalse(p.is_active_one_week)
         
         # test that permanently_retired overrides all fields being valid
         for field_name in ACTIVE_PARTICIPANT_FIELDS:
             setattr(p, field_name, less_than_a_week_ago)
-        setattr(p, "permanently_retired", True)
+        p.permanently_retired = True
         self.assertFalse(p.is_active_one_week)
 
+
 class TestForestHash(unittest.TestCase):
+    # todo: This is junk what even is this
     def test_get_forest_git_hash(self):
         hash = get_forest_git_hash()
         self.assertNotEqual(hash, "")
+
+
+class TestSchedules(CommonTestCase):
+    # originally started as copy of TestGetLatestSurveys in test_mobile_endpoints.py
+    
+    @staticmethod
+    def assert_is_a_week_in_correct_timezone_period(
+        week: List[datetime], timezone: tz.tzfile, tz_subperiod_str: str
+    ):
+        # test that the data our fake data actually matches what we want
+        for dt in week:
+            assert dt.tzinfo == timezone
+            assert tz_subperiod_str == dt.strftime("%Z")  # tz as name of timezone
+            assert dt.hour == 12
+        
+        # assert that these are sequential days starting on a monday testing each day of the week
+        for i in range(0, 7):
+            assert week[i].date() == week[0].date() + timedelta(days=i)
+            assert week[0].weekday() == 0
+    
+    def test_weeks_are_in_correct_timezones(self):
+        # test that the weeks are in the correct timezones
+        eastern = tz.gettz("America/New_York")
+        self.assert_is_a_week_in_correct_timezone_period(EST_WEEK, eastern, "EST")
+        self.assert_is_a_week_in_correct_timezone_period(EDT_WEEK, eastern, "EDT")
+    
+    
+    #
+    ## helper functions
+    #
+    
+    def create_weekly_midnight(self):
+        WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
+    
+    def create_weekly_noon(self):
+        WeeklySchedule.create_weekly_schedules(NOON_EVERY_DAY_OF_WEEK(), self.default_survey)
+    
+    def iterate_weekday_absolute_schedules(self):
+        # iterates over days of the week and populates absolute schedules and scheduled events
+        start, _ = get_start_and_end_of_java_timings_week(timezone.now())
+        for i in range(0, 7):
+            AbsoluteSchedule.objects.all().delete()
+            ScheduledEvent.objects.all().delete()
+            a_date = start.date() + timedelta(days=i)
+            self.generate_absolute_schedule(a_date)
+            repopulate_absolute_survey_schedule_events(
+                self.default_survey, self.default_participant
+            )
+            # correct weekday for sunday-zero-index
+            yield (a_date.weekday() + 1) % 7
+    
+    @property
+    def generate_a_valid_schedule_of_each_type(self):
+        # valid here meaning it should create a scheduled event on a valid participant
+        self.default_populated_intervention_date
+        self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
+        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # monday
+        self.generate_absolute_schedule(timezone.now().date())
+    
+    @property
+    def assert_one_of_each_scheduled_event(self):
+        self.assertEqual(ScheduledEvent.objects.count(), 3)
+        self.assertEqual(ScheduledEvent.objects.filter(weekly_schedule__isnull=False).count(), 1)
+        self.assertEqual(ScheduledEvent.objects.filter(relative_schedule__isnull=False).count(), 1)
+        self.assertEqual(ScheduledEvent.objects.filter(absolute_schedule__isnull=False).count(), 1)
+    
+    @property
+    def assert_no_scheduled_events(self):
+        def info():
+            weekly_schedule = ScheduledEvent.objects.filter(weekly_schedule__isnull=False).count()
+            relative_schedule = ScheduledEvent.objects.filter(relative_schedule__isnull=False).count()
+            absolute_schedule = ScheduledEvent.objects.filter(absolute_schedule__isnull=False).count()
+            return f"weekly_schedules: {weekly_schedule}, relative_schedules: {relative_schedule}, absolute_schedules: {absolute_schedule}"
+        assert ScheduledEvent.objects.count() == 0, "ASSERT_NO_SCHEDULED_EVENTS: " + info()
+    
+    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
+    def test_that_iteration_function(self):
+        # test for absolute surveys that they show up regardless of the day of the week they fall on,
+        # as long as that day is within the current week.
+        self.default_survey
+        for i, day_of_week_index in enumerate(self.iterate_weekday_absolute_schedules()):
+            # week_day = i % 4  # correct for it being thursday
+            # print(i, week_day, day_of_week_index)
+            self.assertEqual(i, day_of_week_index)
+        self.assertEqual(i, 6)  # this should fail it should be 6
+    
+    #
+    ## basic event creation tests
+    #
+    
+    def test_relative_survey_basic_event_generation(self):
+        self.default_survey, self.default_participant
+        # make sure test infrastructure does not have weird database side effects
+        self.assertEqual(RelativeSchedule.objects.count(), 0)
+        self.assert_no_scheduled_events
+        self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
+        repopulate_relative_survey_schedule_events(self.default_survey, self.default_participant)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)  # change
+        self.assert_no_scheduled_events    # no change
+        self.default_populated_intervention_date
+        self.assertEqual(RelativeSchedule.objects.count(), 1)  # no change
+        self.assert_no_scheduled_events    # no change
+        repopulate_relative_survey_schedule_events(self.default_survey, self.default_participant)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)  # no change
+        self.assertEqual(ScheduledEvent.objects.count(), 1)    # change
+        self.assertEqual(ArchivedEvent.objects.count(), 0)
+    
+    def test_relative_survey_basic_event_generation_no_participant_in_call(self):
+        self.default_populated_intervention_date
+        self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
+        repopulate_relative_survey_schedule_events(self.default_survey)
+        self.assertEqual(ScheduledEvent.objects.count(), 1)
+    
+    def test_absolute_schedule_basic_event_generation(self):
+        self.default_survey, self.default_participant
+        # make sure test infrastructure does not have weird database side effects
+        self.assertEqual(AbsoluteSchedule.objects.count(), 0)
+        self.assert_no_scheduled_events
+        self.generate_absolute_schedule(timezone.now().date())
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1) # change
+        self.assert_no_scheduled_events   # no change
+        repopulate_absolute_survey_schedule_events(self.default_survey, self.default_participant)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1) # no change
+        self.assertEqual(ScheduledEvent.objects.count(), 1)   # change
+        self.assertEqual(ArchivedEvent.objects.count(), 0)
+    
+    def test_absolute_schedule_basic_event_generation_no_participant_in_call(self):
+        self.using_default_participant()
+        self.generate_absolute_schedule(timezone.now().date())
+        repopulate_absolute_survey_schedule_events(self.default_survey)
+        self.assertEqual(ScheduledEvent.objects.count(), 1)
+        self.assertEqual(ArchivedEvent.objects.count(), 0)
+    
+    def test_weekly_schedule_basic_event_generation(self):
+        self.default_survey, self.default_participant
+        # make sure test infrastructure does not have weird database side effects
+        self.assertEqual(WeeklySchedule.objects.count(), 0)
+        self.assert_no_scheduled_events
+        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # monday
+        self.assertEqual(WeeklySchedule.objects.count(), 1)  # change
+        self.assert_no_scheduled_events  # no change
+        repopulate_weekly_survey_schedule_events(self.default_survey, self.default_participant)
+        self.assertEqual(WeeklySchedule.objects.count(), 1)  # no change
+        self.assertEqual(ScheduledEvent.objects.count(), 1)  # change
+        self.assertEqual(ArchivedEvent.objects.count(), 0)
+    
+    def test_weekly_schedule_basic_event_generation_no_participant_in_call(self):
+        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # monday
+        self.using_default_participant()
+        repopulate_weekly_survey_schedule_events(self.default_survey)
+        self.assertEqual(WeeklySchedule.objects.count(), 1)
+        self.assertEqual(ArchivedEvent.objects.count(), 0)
+    
+    def test_all_schedules_basic_event_generation(self):
+        self.assertEqual(Survey.objects.count(), 0)
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assertEqual(Survey.objects.count(), 0)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 0)
+        self.assertEqual(RelativeSchedule.objects.count(), 0)
+        self.assertEqual(WeeklySchedule.objects.count(), 0)
+        self.assert_no_scheduled_events
+        # one last test of no database side effects...
+        self.default_survey
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assertEqual(Survey.objects.count(), 1)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 0)
+        self.assertEqual(RelativeSchedule.objects.count(), 0)
+        self.assertEqual(WeeklySchedule.objects.count(), 0)
+        self.assert_no_scheduled_events
+        self.assertEqual(Intervention.objects.count(), 0)
+        self.assertEqual(InterventionDate.objects.count(), 0)
+        # test that the default schedules are created, then all 3 ScheduledEvent types
+        self.generate_a_valid_schedule_of_each_type
+        self.assert_no_scheduled_events
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_one_of_each_scheduled_event
+        self.assertEqual(ArchivedEvent.objects.count(), 0)
+    
+    def test_repopulate_all_basic_event_generation_no_participant_in_call(self):
+        self.generate_a_valid_schedule_of_each_type
+        self.assert_no_scheduled_events
+        repopulate_all_survey_scheduled_events(self.default_study)
+        self.assert_one_of_each_scheduled_event
+    
+    #
+    ## test conditions where ScheduledEvents should not be created
+    #
+    
+    def test_deleted_survey(self):
+        self.default_survey.update(deleted=True)
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_no_scheduled_events
+        repopulate_all_survey_scheduled_events(self.default_study)  # always test both arg setups
+        self.assert_no_scheduled_events
+    
+    def test_deleted_participant_gets_no_schedules(self):
+        self.default_participant.update(deleted=True)
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_no_scheduled_events
+        repopulate_all_survey_scheduled_events(self.default_study)  # always test both arg setups
+        self.assert_no_scheduled_events
+    
+    def test_permanently_retired_participant_gets_no_schedules(self):
+        self.default_participant.update(permanently_retired=True)
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_no_scheduled_events
+        repopulate_all_survey_scheduled_events(self.default_study)  # always test both arg setups
+        self.assert_no_scheduled_events
+    
+    def test_deleted_study_gets_no_schedules(self):
+        self.default_study.update(deleted=True)
+        self.using_default_participant()
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_no_scheduled_events
+        repopulate_all_survey_scheduled_events(self.default_study)
+    
+    def test_manually_stopped_study_gets_no_schedules(self):
+        self.default_study.update(manually_stopped=True)
+        self.using_default_participant()
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_no_scheduled_events
+    
+    def test_ended_study_gets_no_events(self):
+        self.default_study.update(end_date=date.today() - timedelta(days=10))
+        self.using_default_participant()
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_no_scheduled_events
+        repopulate_all_survey_scheduled_events(self.default_study)
+        self.assert_no_scheduled_events
+    
+    def test_no_participants_in_study_generates_no_events(self):
+        self.default_study.update(end_date=date.today() - timedelta(days=10))
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study)
+        self.assert_no_scheduled_events
+    
+    #
+    ## The above are checks for the repopulate_all* functions, now we need to test some more
+    ## complex behavior that connect to push notifications and when to send them.
+    #
+    
+    def test_good_archive_event_with_absolute_schedule_helper_is_reasonable(self):
+        d = MONDAY_JUNE_NOON_6_2022_EDT
+        abs_sched = self.generate_absolute_schedule_from_datetime(self.default_survey, d)
+        abs_archive = self.generate_archived_event_for_absolute_schedule(abs_sched)
+        # some real simple asserts that the archived event points at the correct items
+        self.assertEqual(abs_archive.survey_archive.survey.id, self.default_survey.id)
+        self.assertEqual(abs_archive.scheduled_time, MONDAY_JUNE_NOON_6_2022_EDT)
+        self.assertIsNone(abs_archive.uuid)
+    
+    def test_good_archive_event_with_relative_schedule_helper_is_reasonable(self):
+        rel_sched = self.generate_relative_schedule(
+            self.default_survey, self.default_intervention, days_after=1, hours_after=1, minutes_after=1
+        )
+        # self.default_populated_intervention_date is defined as the current date
+        # we are literally manually constructing a datetime here
+        d = self.default_populated_intervention_date.date
+        reference_time = datetime(
+            year=d.year,
+            month=d.month,
+            day=d.day + 1,
+            hour=1,
+            minute=1,
+            tzinfo=THE_ONE_TRUE_TIMEZONE
+        )
+        # reference_time = datetime.combine(
+        #     self.default_populated_intervention_date.date,
+        #     dt_time(hour=1, minute=1),
+        #     tzinfo=THE_ONE_TRUE_TIMEZONE,
+        # ) + timedelta(days=1)
+        
+        rel_archive = self.generate_archived_event_for_relative_schedule(
+            rel_sched, self.default_participant
+        )
+        self.assertEqual(rel_archive.scheduled_time, reference_time)
+        self.assertEqual(rel_archive.survey_archive.survey.id, self.default_survey.id)
+        self.assertIsNone(rel_archive.uuid)
+
+
+# these errors are taken directly from live servers with mild details purged
+PUSH_NOTIFICATION_OBSCURE_HTML_ERROR_CONTENT = """
+Unexpected HTTP response with status: 502; body: <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 502 (Server Error)!!1</title>
+  <style>
+    *{margin:0;
+    padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;
+    color:#222;
+    padding:15px}body{margin:7% auto 0;
+    max-width:390px;
+    min-height:180px;
+    padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;
+    padding-right:205px}p{margin:11px 0 22px;
+    overflow:hidden}ins{color:#777;
+    text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;
+    margin-top:0;
+    max-width:none;
+    padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;
+    margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;
+    -moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;
+    -webkit-background-size:100% 100%}}#logo{display:inline-block;
+    height:54px;
+    width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>502.</b> <ins>That’s an error.</ins>
+  <p>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.  <ins>That’s all we know.</ins>
+""".strip()
+
+PUSH_NOTIFICATION_ERROR_INVALID_LENGTH = 'Unknown error while making a remote service call: ("Connection broken: InvalidChunkLength(got length b\'\', 0 bytes read)", InvalidChunkLength(got length b\'\', 0 bytes read))'
+PUSH_NOTIFICATION_ERROR_CONNECTION_POOL = "Failed to establish a connection: HTTPSConnectionPool(host='fcm.googleapis.com', port=443): Max retries exceeded with url: /v1/projects/beiwe-20592/messages:send (Caused by ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+PUSH_NOTIFICATION_ERROR_ABORTED = "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+PUSH_NOTIFICATION_INVALID_GRANT = "('invalid_grant: Invalid grant: account not found', {'error': 'invalid_grant', 'error_description': 'Invalid grant: account not found'})"
+
+
+class TestFailedSendHandler(CommonTestCase):
+    
+    def test_weird_html_502_error(self):
+        failed_send_survey_handler(
+            participant=self.default_participant,
+            fcm_token="a",
+            error_message=PUSH_NOTIFICATION_OBSCURE_HTML_ERROR_CONTENT,
+            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            debug=False,
+        )
+        archive = ArchivedEvent.objects.get()
+        self.assertEqual(archive.status, UNEXPECTED_SERVICE_RESPONSE)
+    
+    def test_error_invalid_length(self):
+        failed_send_survey_handler(
+            participant=self.default_participant,
+            fcm_token="a",
+            error_message=PUSH_NOTIFICATION_ERROR_INVALID_LENGTH,
+            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            debug=False,
+        )
+        archive = ArchivedEvent.objects.get()
+        self.assertEqual(archive.status, UNKNOWN_REMOTE_ERROR)
+    
+    def test_error_connection_pool(self):
+        failed_send_survey_handler(
+            participant=self.default_participant,
+            fcm_token="a",
+            error_message=PUSH_NOTIFICATION_ERROR_CONNECTION_POOL,
+            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            debug=False,
+        )
+        archive = ArchivedEvent.objects.get()
+        self.assertEqual(archive.status, FAILED_TO_ESTABLISH_CONNECTION)
+    
+    def test_error_aborted(self):
+        failed_send_survey_handler(
+            participant=self.default_participant,
+            fcm_token="a",
+            error_message=PUSH_NOTIFICATION_ERROR_ABORTED,
+            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            debug=False,
+        )
+        archive = ArchivedEvent.objects.get()
+        self.assertEqual(archive.status, CONNECTION_ABORTED)
+    
+    def test_invalid_grant(self):
+        failed_send_survey_handler(
+            participant=self.default_participant,
+            fcm_token="a",
+            error_message=PUSH_NOTIFICATION_INVALID_GRANT,
+            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            debug=False,
+        )
+        archive = ArchivedEvent.objects.get()
+        self.assertEqual(archive.status, ACCOUNT_NOT_FOUND)

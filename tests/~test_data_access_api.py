@@ -6,6 +6,7 @@
 from os.path import abspath
 from sys import path
 
+from database.security_models import ApiKey
 path.insert(0, abspath(__file__).rsplit('/', 2)[0])
 
 import itertools
@@ -39,7 +40,8 @@ def helper(
         # invalid test scenario, skip
         return
     
-    access_key, secret_key = test_user.reset_access_credentials()
+    api_key = ApiKey.generate(researcher=test_user)
+    access_key, secret_key = api_key.access_key_id, api_key.access_key_secret_plaintext
     test_user.study_relations.all().delete()
     test_user.site_admin = site_admin
     test_user.save()

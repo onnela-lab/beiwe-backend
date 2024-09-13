@@ -3,11 +3,16 @@
 from django.db import migrations
 from django.db.migrations.state import StateApps
 
-from libs.security import generate_hash_and_salt, generate_random_bytestring, generate_random_string
+from constants.common_constants import RUNNING_TESTS
+from libs.utils.security_utils import (generate_hash_and_salt, generate_random_bytestring,
+    generate_random_string)
 
 
 def add_admin_user_if_not_exists(apps: StateApps, schema_editor):
     Researcher = apps.get_model('database', 'Researcher')
+    
+    if RUNNING_TESTS:
+        return
     
     if Researcher.objects.count() == 0:
         # these algorithm and iterations values need to be hardcoded for compatibility with the old

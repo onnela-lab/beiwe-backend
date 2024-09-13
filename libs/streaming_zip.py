@@ -7,7 +7,7 @@ from constants.data_stream_constants import (SURVEY_ANSWERS, SURVEY_TIMINGS,
     VOICE_RECORDING)
 from database.study_models import Study
 from libs.s3 import s3_retrieve
-from libs.streaming_bytes_io import StreamingBytesIO
+from libs.streaming_io import StreamingBytesIO
 
 
 class DummyError(Exception): pass
@@ -102,7 +102,7 @@ class ZipGenerator:
                 self.total_bytes += len(one_file_in_a_zip)
                 yield one_file_in_a_zip
                 # print "%s: %sK, %sM" % (random_id, total_bytes / 1024, total_bytes / 1024 / 1024)
-
+                
                 del one_file_in_a_zip
                 zip_output.empty()
             

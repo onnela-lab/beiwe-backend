@@ -25,7 +25,7 @@
         myConnector.getData = function (table, doneCallback) {
             $.ajax({
               dataType: "json",
-              url: "{{ easy_url('tableau_api.get_tableau_daily', study_object_id=study_object_id) }}" + tableau.connectionData,
+              url: "{{ easy_url('data_api_endpoints.get_tableau_daily', study_object_id=study_object_id) }}" + tableau.connectionData,
               headers: {
                 "X-Access-Key-Id": tableau.username,
                 "X-Access-Key-Secret": tableau.password
@@ -70,7 +70,7 @@
           <label>Access Key Secret:</label>
           <input id="access_key_secret" type="password" class="form-control" aria-describedby="passwordHelpBlock">
           <small id="helpBlock" class="form-text text-muted">
-            If you have been issued credentials, you can find them <a href="{{ easy_url('admin_pages.manage_credentials') }}">here</a>
+            If you have been issued credentials, you can find them <a href="{{ easy_url('manage_researcher_endpoints.self_manage_credentials_page') }}">here</a>
           </small>
         </div>
       </div>

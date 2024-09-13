@@ -17,8 +17,8 @@ from constants.forest_constants import (DEFAULT_FOREST_PARAMETERS, FOREST_PICKLI
     ROOT_FOREST_TASK_PATH, SYCAMORE_DATE_FORMAT)
 from database.common_models import TimestampedModel
 from database.user_models_participant import Participant
-from libs.forest_utils import get_jasmine_all_bv_set_dict, get_jasmine_all_memory_dict_dict
 from libs.utils.date_utils import datetime_to_list
+from libs.utils.forest_utils import get_jasmine_all_bv_set_dict, get_jasmine_all_memory_dict_dict
 
 
 #
@@ -72,8 +72,8 @@ class ForestTask(TimestampedModel):
     
     @property
     def sentry_tags(self) -> Dict[str, str]:
-        from libs.http_utils import easy_url
-        url = path_join(DOMAIN_NAME, easy_url("forest_pages.task_log", study_id=self.participant.study.id))
+        from libs.utils.http_utils import easy_url
+        url = path_join(DOMAIN_NAME, easy_url("forest_endpoints.task_log", study_id=self.participant.study.id))
         return {
             "participant": self.participant.patient_id,
             "study": self.participant.study.name,

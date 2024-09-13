@@ -17,7 +17,7 @@ from constants.user_constants import OS_TYPE_CHOICES
 from database.models import TimestampedModel
 from database.user_models_participant import Participant
 from libs.s3 import s3_retrieve
-from libs.security import chunk_hash
+from libs.utils.security_utils import chunk_hash
 
 
 # this is an import hack to improve IDE assistance
@@ -29,6 +29,17 @@ except ImportError:
 
 class UnchunkableDataTypeError(Exception): pass
 class ChunkableDataTypeError(Exception): pass
+
+
+#
+# BIG FAT WARNING: the ChunkRegistry gets Huge. If you are in the context of a webserver endpoint
+# and querying it for any other purpose than downloading files from s3 then you are doing it wrong,
+# and you may even lock up the website due to database contention.  You should instead query summary
+# SummaryStatistics. Any queries to ChunkRegistry should use .iterator() and .values_list() in
+# carefully constructed queries to avoid loading extra objects into memory, both in Python and on
+# the database. The Dashboard pages make use of this pattern, but are at time of commenting a bit
+# messy and can be further optimized.
+#
 
 
 class ChunkRegistry(TimestampedModel):

@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from functools import reduce
 from typing import List, Tuple
 
-from cronutils import null_error_handler
 from cronutils.error_handler import ErrorSentry
 from dateutil.tz import gettz
 from django.db.models import Q
@@ -19,17 +18,19 @@ from config.settings import BLOCK_QUOTA_EXCEEDED_ERROR, PUSH_NOTIFICATION_ATTEMP
 from constants import action_log_messages
 from constants.celery_constants import PUSH_NOTIFICATION_SEND_QUEUE
 from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
-from constants.message_strings import MESSAGE_SEND_SUCCESS
+from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
+    FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS, UNEXPECTED_SERVICE_RESPONSE,
+    UNKNOWN_REMOTE_ERROR)
 from constants.schedule_constants import ScheduleTypes
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
-from database.schedule_models import ArchivedEvent, ScheduledEvent
-from database.survey_models import Survey
+from database.schedule_models import ScheduledEvent
 from database.user_models_participant import (Participant, ParticipantActionLog,
     ParticipantFCMHistory, PushNotificationDisabledEvent)
 from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
+from libs.push_notification_helpers import get_stopped_study_ids, send_custom_notification_safely
 from libs.schedules import set_next_weekly
 from libs.sentry import make_error_sentry, SentryTypes
 
@@ -47,139 +48,21 @@ logd = logger.debug
 
 UTC = gettz("UTC")
 
-#
-## Somewhat common code (regular survey notifications have extra logic)
-#
 
-def send_notification_safely(fcm_token:str, os_type: str, logging_tag: str, message: str) -> bool:
-    """ Our wrapper around the firebase send_notification function. Returns True if successful,
-    False if unsuccessful, and may raise errors that have been seen over time.  Any errors raised
-    SHOIULD be raised and reported because they are unknown failure modes. This code is taken and
-    modified from the Survey Push Notifcation logic, which has special cases because those
-    notifications recur on known schedules, this function is more for one-off type of notifications.
-    (Though we do log the events outside of the scopes of this function.) """
-    # for full documentation of these errors see celery_send_survey_push_notification.
-    try:
-        _send_notification(fcm_token, os_type, message)
-        return True
-    except UnregisteredError:
-        # this is the only "real" error we handle here because we may as well update the fcm
-        # token as invalid as soon as we know.
-        log(f"\n{logging_tag} - UnregisteredError\n")
-        ParticipantFCMHistory.objects.filter(token=fcm_token).update(unregistered=timezone.now())
-        # DON'T raise the error, this is normal behavior.
-        return False
-    
-    except ThirdPartyAuthError as e:
-        logw(f"\n{logging_tag} - ThirdPartyAuthError\n")
-        if str(e) != "Auth error from APNS or Web Push Service":
-            raise
-        return False
-    
-    except ValueError as e:
-        logw(f"\n{logging_tag} - ValueError\n")
-        if "The default Firebase app does not exist" not in str(e):
-            raise
-        return False
-    
-    except (SenderIdMismatchError, QuotaExceededError):
-        return False
-
-
-def _send_notification(fcm_token: str, os_type: str, message: str):
-    """ our wrapper around the firebase send_notification function. Raises errors. """
-    # we need a nonce because duplicate notifications won't be delivered.
-    data_kwargs = {
-        # trunk-ignore(bandit/B311)
-        'nonce': ''.join(random.choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(32)),
-    }
-    # os requires different setup
-    if os_type == ANDROID_API:
-        data_kwargs['type'] = 'message'
-        data_kwargs['message'] = message
-        message = Message(android=AndroidConfig(data=data_kwargs, priority='high'), token=fcm_token)
+def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> Tuple[ScheduledEvent, List[ScheduledEvent]]:
+    """ In order to have debug functions and certain tests run we need to be able to mock a schedule
+    object. In all other cases we query the database. """
+    if not debug:
+        # use the earliest timed schedule as our reference for the sent_time parameter.
+        schedules = ScheduledEvent.objects.filter(pk__in=schedule_pks)
+        reference_schedule = schedules.order_by("scheduled_time").first()
+        return reference_schedule, schedules
     else:
-        message = Message(
-            data=data_kwargs, token=fcm_token, notification=Notification(title="Beiwe", body=message)
-        )
-    send_notification(message)
-
-
-
-# This feature is both not named well and not enabled or even tested.
-####################################################################################################
-###################################### RESURRECTION ###############################################
-####################################################################################################
-
-# def create_hard_exit_check_tasks() -> List[Tuple[int, str]]:
-#     # the safety check for not having multiple hard exits in the database should be in the endpoint
-#     # the app hits when it does that.
-#     expiry = (timezone.now() + timedelta(minutes=5)).replace(second=30, microsecond=0)
-#     # The big query we would have to make here gets the most recent heartbeat for each participant
-#     # and compares it to the most recent hard exit for each participant. That's very hard, so we are
-#     # pushing it into celery_resurrection_notification even though that may cause database load
-#     # because the the number of concurrent participants with this occurring is very low.
-#     pks = IOSHardExits.objects.filter(handled=None).values_list("participant_id", flat=True)
-#     for participant_id in pks:
-#         safe_apply_async(
-#             celery_resurrection_notification,
-#             args=participant_id,
-#             max_retries=0,
-#             expires=expiry,
-#             task_track_started=True,
-#             task_publish_retry=False,
-#             retry=False,
-#         )
-
-
-# @push_send_celery_app.task(queue=PUSH_NOTIFICATION_SEND_QUEUE)
-# def celery_resurrection_notification(particpant_id: int):
-#     if not check_firebase_instance():
-#         loge("Resurrection - Surveys - Firebase credentials are not configured.")
-#         return
-#     with make_error_sentry(sentry_type=SentryTypes.data_processing):
-#         resurrection_notification(particpant_id)
-
-#TODO: add ParticipantActionLog
-# def resurrection_notification(particpant_id: int):
-#     # check the most recent heartbeat and the most recent hard exit, if the hard exit is newer
-#     # send the notifications. We only need the most recent timestamp
-#     hard_exit_timestamp = (
-#         IOSHardExits.objects.filter(participant_id=particpant_id, handled=None)
-#         .order_by("-timestamp")
-#         .values_list("timestamp", flat=True)
-#         .first()
-#     )
-#    
-#     # exit early if there are no hard exits because the participant hit the heartbeat endpoint
-#     # between the original query and now.
-#     if hard_exit_timestamp is None:
-#         return
-#    
-#     # exit early if there is a later heartbeat - this is potentially expensive? the index Should be
-#     # a timestamp ordering index, but it may not be?
-#     there_is_a_later_heartbeat = AppHeartbeats.objects.filter(
-#         participant_id=particpant_id, timestamp__gt=hard_exit_timestamp).exists()
-#    
-#     if there_is_a_later_heartbeat:
-#         log(f"Participant {particpant_id} already restarted app.")
-#         IOSHardExits.objects.filter(participant_id=particpant_id, handled=None).update(handled=timezone.now())
-#         return
-#    
-#     # get the fcm token and send them the notification to reopen the app:
-#     fcm_token = (
-#         ParticipantFCMHistory.objects
-#         .filter(participant_id=particpant_id, unregistered=None)
-#         .values_list("token", flat=True)
-#         .first()
-#     )
-#    
-#     # just give up if they don't have a token and mark as handled because otherwise they are
-#     # impossible to get rid of.
-#     if not fcm_token:
-#         IOSHardExits.objects.filter(participant_id=particpant_id, handled=None).update(handled=timezone.now())
-#    
-#     send_notification_safely(fcm_token, IOS_API, "Resurrection")
+        # object needs a scheduled_time attribute, and a falsey uuid attribute.
+        class mock_reference_schedule:
+            scheduled_time = timezone.now()
+            uuid = ""
+        return mock_reference_schedule, []
 
 
 ####################################################################################################
@@ -188,45 +71,51 @@ def _send_notification(fcm_token: str, os_type: str, message: str):
 # There are two senses in which the term "heartbeat" is used in this codebase. One is with respect
 # to the push notification that this celery task pushes to the app, the other is with respect to
 # the periodic checkin that the app makes to the backend.  The periodic checkin is app-code, it hits
-# the moblile_api.mobile_heartbeat endpoint.
+# the mobile_endpoints.mobile_heartbeat endpoint.
 
-def heartbeat_query() -> List[Tuple[int, str, str, str]]:
-    """ Handles logic of finding all active participants and providing the information required to
-    send them all the "heartbeat" push notification to keep them up and running. """
-    # active is premised on all of the active participant fields being within the last week
-    now = timezone.now()
-    one_week_ago = now - timedelta(days=7)
-    
-    # get all participants that have an activity field more recent that the past week.
+def generate_active_participant_Q_object(one_week_ago: datetime) -> Q:
+    """ Generates a Q object that is compatible with any database table that has a foreign key
+    relation to a participant. Add the Q object to .filter to get participants that have been active
+    in the past week.  Does not filter by the permanently_retired field. """
     # (e.g. filter out participants that have not been active in the past week.)
     activity_qs = [
         # Need to do string interpolation to get the field name, using a **{} inline dict unpacking.
         # Creates a Q object like: Q(participant__last_upload__gte=one_week_ago)
-        Q(**{f"participant__{field_name}__gte": one_week_ago}) for field_name in ACTIVE_PARTICIPANT_FIELDS
-            if field_name != "permanently_retired"  # handled in main query below.
+        Q(**{f"participant__{field_name}__gte": one_week_ago}) for field_name in
+        ACTIVE_PARTICIPANT_FIELDS if field_name != "permanently_retired"  # handled in main query below.
     ]
     
     # uses operator.or_ (note the underscore) to combine all those Q objects as an any match query.
-    # (operator.or_ is the same as |, it is the bitwise or operator) (reduce just applies it)
-    any_activity_field_gt_one_week_ago = reduce(operator.or_, activity_qs)
+    # (operator.or_ is the same as |, it is the bitwise or operator. Reduce applies it to all items.)
+    any_activity_field_gte_one_week_ago = reduce(operator.or_, activity_qs) 
+    return any_activity_field_gte_one_week_ago
+
+
+def heartbeat_query() -> List[Tuple[int, str, str, str]]:
+    """ Handles logic of finding all active participants and providing the information required to
+    send them all the "heartbeat" push notification to keep them up and running. """
+    now = timezone.now()
+    one_week_ago = now - timedelta(days=7)
+    any_activity_field_gte_one_week_ago = generate_active_participant_Q_object(one_week_ago)
     
     # Get fcm tokens and participant pk for all participants, filter for only participants with
     # ACTIVE_PARTICIPANT_FIELDS that were updated in the last week, exclude deleted and
-    # permanently_retired participants, exclude partipcants that do not have heartbeat enabled,
+    # permanently_retired participants, exclude participants that do not have heartbeat enabled,
     # and only where there is a valid FCM token (unregistered=None).
     # This query could theoretically return multiple fcm tokens per participant, which is not ideal,
     # but we haven't had obvious problems in the normal push notification logic ever, and it would
     # require a race condition in the endpoint where fcm tokens are set, and ... its just a push
     # notification.
     query = ParticipantFCMHistory.objects.filter(
-            any_activity_field_gt_one_week_ago,
+            any_activity_field_gte_one_week_ago,       # participants active in the past week
             
             participant__deleted=False,                # no deleted participants
-            participant__permanently_retired=False,    # should be rendundant with deleted.
-            unregistered=None,                         # this is fcm-speak for non-retired fcm token
+            participant__permanently_retired=False,    # not redundant with deleted.
+            unregistered=None,                         # this is fcm-speak for "has non-retired fcm token"
             participant__os_type__in=[ANDROID_API, IOS_API],  # participants need to _have an OS_.
-        )\
-        .values_list(
+        ).exclude(
+            participant__study_id__in=get_stopped_study_ids()  # no stopped studies
+        ).values_list(
             "participant_id",
             "token",
             "participant__os_type",
@@ -242,11 +131,9 @@ def heartbeat_query() -> List[Tuple[int, str, str, str]]:
             'participant__last_get_latest_device_settings',
             'participant__last_register_user',
             "participant__last_heartbeat_checkin",
-        )\
-        .order_by("?")  # cover for some slowness by at least not making it predictable... (dumb)
-        # .exclude(participant__id__in=participant_ids_with_recent_heartbeats)
+        )
     
-    # We used to use the AppHeartbeats table inside a clever query, but when we added customizeable
+    # We used to use the AppHeartbeats table inside a clever query, but when we added customizable
     # per-study heartbeat timers that query became too complex. Now we filter out participants that
     # have ACTIVE_PARTICIPANT_FIELDS that are too recent manually in python. All of the information
     # is contained within a single query, which is much more performant than running extra queries
@@ -317,7 +204,7 @@ def celery_heartbeat_send_push_notification(participant_id: int, fcm_token: str,
             loge("Heartbeat - Firebase credentials are not configured.")
             return
         
-        if send_notification_safely(fcm_token, os_type, "Heartbeat", message):
+        if send_custom_notification_safely(fcm_token, os_type, "Heartbeat", message):
             # update the last heartbeat time using minimal database operations, create log entry.
             Participant.objects.filter(pk=participant_id).update(last_heartbeat_notification=now)
             ParticipantActionLog.objects.create(
@@ -358,6 +245,9 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
         deleted=False,
     ) \
     .filter(**filter_kwargs) \
+    .exclude(
+        survey__study_id__in=get_stopped_study_ids()  # no stopped studies
+    ) \
     .values_list(
         "scheduled_time",
         "survey__object_id",
@@ -424,6 +314,7 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
             logd("nope, participant time is considered in the future")
             logd(f"{now} > {participant_time}")
             continue
+        
         logd("yup, participant time is considered in the past")
         logd(f"{now} <= {participant_time}")
         surveys[fcm].append(survey_obj_id)
@@ -435,7 +326,8 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
 
 def create_survey_push_notification_tasks():
     # we reuse the high level strategy from data processing celery tasks, see that documentation.
-    expiry = (datetime.utcnow() + timedelta(minutes=5)).replace(second=30, microsecond=0)
+    # (this used datetime.utcnow().... I hope nothing breaks?)
+    expiry = (timezone.now().astimezone(UTC) + timedelta(minutes=5)).replace(second=30, microsecond=0)
     now = timezone.now()
     surveys, schedules, patient_ids = get_surveys_and_schedules(now)
     log("Surveys:", surveys)
@@ -462,76 +354,12 @@ def create_survey_push_notification_tasks():
             )
 
 
-def debug_send_valid_survey_push_notification(participant: Participant, now: datetime = None):
-    """ Runs the REAL LOGIC for sending push notifications based on the time passed in, but without
-    the ErrorSentry. """
-    if not now:
-        now = timezone.now()
-    # get_surveys_and_schedules for one participant, extra args are query filters on ScheduledEvents.
-    surveys, schedules, _ = get_surveys_and_schedules(now, participant=participant)
-    
-    if len(surveys) == 0:
-        print(f"There are no surveys to send push notifications for {participant}.")
-        return
-    if len(surveys) > 1:
-        print("There are multiple participants to send push notifications for...")
-        return
-    
-    # it is exactly one participant, get the number of surveys in item one
-    survey_object_ids = list(surveys.values())[0]
-    print(f"sending {len(survey_object_ids)} notifications to", participant)
-    for survey in Survey.objects.filter(object_id__in=survey_object_ids):
-        print(f"Sending notification for survey '{survey.name if survey.name else survey.object_id}'")
-    
-    if not check_firebase_instance():
-        print("Firebase is not configured, cannot queue notifications.")
-        return
-    
-    for fcm_token in surveys.keys():
-        do_send_survey_push_notification(
-            fcm_token, surveys[fcm_token], schedules[fcm_token], null_error_handler
-        )
-
-
-def debug_send_all_survey_push_notification(participant: Participant):
-    """ Debugging function that sends a survey notification for all surveys on a study. """
-    fcm_token = participant.get_valid_fcm_token().token
-    if not fcm_token:
-        print("no valid token")
-        return
-    
-    surveys: List[Survey] = list(participant.study.surveys.filter(deleted=False))
-    if not surveys:
-        print(f"There are no surveys to send push notifications for {participant}.")
-        return
-    
-    print(f"Sending {len(surveys)} notifications to", participant)
-    for survey in surveys:
-        print(f"Sending notification for survey '{survey.name if survey.name else survey.object_id}'")
-    
-    survey_obj_ids = [survey.object_id for survey in surveys]
-    print(survey_obj_ids)
-    do_send_survey_push_notification(fcm_token, survey_obj_ids, None, null_error_handler, debug=True)
-    
-    # and create some fake archived events
-    timezone.now()
-    for survey in surveys:
-        ArchivedEvent(
-            survey_archive=survey.most_recent_archive(),
-            participant=participant,
-            schedule_type="DEBUG",
-            scheduled_time=None,
-            status="success",
-            uuid=None,
-        ).save()
-
-
 @push_send_celery_app.task(queue=PUSH_NOTIFICATION_SEND_QUEUE)
 def celery_send_survey_push_notification(
     fcm_token: str, survey_obj_ids: List[str], schedule_pks: List[int]
 ):
     """ Passthrough for the survey push notification function, just a wrapper for celery. """
-    do_send_survey_push_notification(
+    send_scheduled_event_survey_push_notification_logic(
         fcm_token,
         survey_obj_ids,
         schedule_pks,
@@ -539,7 +367,7 @@ def celery_send_survey_push_notification(
     )
 
 
-def do_send_survey_push_notification(
+def send_scheduled_event_survey_push_notification_logic(
     fcm_token: str,
     survey_obj_ids: List[str],
     schedule_pks: List[int],
@@ -562,9 +390,9 @@ def do_send_survey_push_notification(
         log(f"Sending push notification to {patient_id} for {survey_obj_ids}...")
         
         # we need to mock the reference_schedule object in debug mode... it is stupid.
-        reference_schedule, schedules = get_or_mock_schedule(schedule_pks, debug)
+        reference_schedule, scheduled_events = get_or_mock_schedules(schedule_pks, debug)
         try:
-            send_survey_push_notification(
+            inner_send_survey_push_notification(
                 participant, reference_schedule, survey_obj_ids, fcm_token
             )
         # error types are documented at firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
@@ -580,14 +408,14 @@ def do_send_survey_push_notification(
             # sysadmin attention and probably new development to allow multiple firebase
             # credentials. Read comments in settings.py if toggling.
             if BLOCK_QUOTA_EXCEEDED_ERROR:
-                failed_send_handler(participant, fcm_token, str(e), schedules, debug)
+                failed_send_survey_handler(participant, fcm_token, str(e), scheduled_events, debug)
                 return
             else:
                 raise
         
         except ThirdPartyAuthError as e:
             loge("\nThirdPartyAuthError\n")
-            failed_send_handler(participant, fcm_token, str(e), schedules, debug)
+            failed_send_survey_handler(participant, fcm_token, str(e), scheduled_events, debug)
             # This means the credentials used were wrong for the target app instance.  This can occur
             # both with bad server credentials, and with bad device credentials.
             # We have only seen this error statement, error name is generic so there may be others.
@@ -601,7 +429,7 @@ def do_send_survey_push_notification(
             # executes.)
             loge("\nSenderIdMismatchError:\n")
             loge(e)
-            failed_send_handler(participant, fcm_token, str(e), schedules, debug)
+            failed_send_survey_handler(participant, fcm_token, str(e), scheduled_events, debug)
             return
         
         except ValueError as e:
@@ -610,34 +438,19 @@ def do_send_survey_push_notification(
             # condition? Error should be transient, and like all other cases we enqueue the next
             # weekly surveys regardless.
             if "The default Firebase app does not exist" in str(e):
-                enqueue_weekly_surveys(participant, schedules)
+                enqueue_weekly_surveys(participant, scheduled_events)
                 return
             else:
                 raise
         
         except Exception as e:
-            failed_send_handler(participant, fcm_token, str(e), schedules, debug)
+            failed_send_survey_handler(participant, fcm_token, str(e), scheduled_events, debug)
             raise
         
-        success_send_handler(participant, fcm_token, schedules)
+        success_send_survey_handler(participant, fcm_token, scheduled_events)
 
 
-def get_or_mock_schedule(schedule_pks: List[str], debug: bool) -> Tuple[ScheduledEvent, List[ScheduledEvent]]:
-    # in debug mode we need to mock a schedule object, in production we need to get the earliest one.
-    if not debug:
-        # use the earliest timed schedule as our reference for the sent_time parameter.
-        schedules = ScheduledEvent.objects.filter(pk__in=schedule_pks)
-        reference_schedule = schedules.order_by("scheduled_time").first()
-        return reference_schedule, schedules
-    else:
-        # object needs a scheduled_time attribute, and a falsey uuid attribute.
-        class mock_reference_schedule:
-            scheduled_time = timezone.now()
-            uuid = ""
-        return mock_reference_schedule, []
-
-
-def send_survey_push_notification(
+def inner_send_survey_push_notification(
     participant: Participant, reference_schedule: ScheduledEvent, survey_obj_ids: List[str],
     fcm_token: str
 ) -> str:
@@ -645,6 +458,7 @@ def send_survey_push_notification(
     # we include a nonce in case of notification deduplication, and a schedule_uuid to for the
     #  checkin after the push notification is sent.
     data_kwargs = {
+        # trunk-ignore(bandit/B311): this is a nonce, not a password.
         'nonce': ''.join(random.choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(32)),
         'sent_time': reference_schedule.scheduled_time.strftime(API_TIME_FORMAT),
         'type': 'survey',
@@ -665,7 +479,7 @@ def send_survey_push_notification(
     send_notification(message)
 
 
-def success_send_handler(participant: Participant, fcm_token: str, schedules: List[ScheduledEvent]):
+def success_send_survey_handler(participant: Participant, fcm_token: str, schedules: List[ScheduledEvent]):
     # If the query was successful archive the schedules.  Clear the fcm unregistered flag
     # if it was set (this shouldn't happen. ever. but in case we hook in a ui element we need it.)
     log(f"Survey push notification send succeeded for {participant.patient_id}.")
@@ -683,7 +497,7 @@ def success_send_handler(participant: Participant, fcm_token: str, schedules: Li
     enqueue_weekly_surveys(participant, schedules)
 
 
-def failed_send_handler(
+def failed_send_survey_handler(
     participant: Participant,
     fcm_token: str,
     error_message: str,
@@ -692,6 +506,19 @@ def failed_send_handler(
 ):
     """ Contains body of code for unregistering a participants push notification behavior.
         Participants get reenabled when they next touch the app checkin endpoint. """
+    
+    # we have encountered some really weird error behavior, we need to normalize the error messages,
+    # see TestFailedSendHandler
+    if "DOCTYPE" in error_message:
+        error_message = UNEXPECTED_SERVICE_RESPONSE  # this one is like a 502 proxy error?
+    elif "Unknown error while making a remote service call:" in error_message:
+        error_message = UNKNOWN_REMOTE_ERROR
+    elif "Failed to establish a connection" in error_message:
+        error_message = FAILED_TO_ESTABLISH_CONNECTION
+    elif "Connection aborted." in error_message:
+        error_message = CONNECTION_ABORTED
+    elif "invalid_grant" in error_message:
+        error_message = ACCOUNT_NOT_FOUND
     
     if participant.push_notification_unreachable_count >= PUSH_NOTIFICATION_ATTEMPT_COUNT:
         now = timezone.now()

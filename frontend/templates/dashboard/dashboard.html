@@ -27,7 +27,7 @@
       <li class="list-group-item h5">Participant Data</li>
       {% for i in range(participants|length) %}
         <li class="list-group-item">
-          <a class="link-fill" href={{ easy_url("dashboard_api.dashboard_participant_page", study_id, participants[i]) }}>
+          <a class="link-fill" href={{ easy_url("data_page_endpoints.dashboard_participant_page", study_id, participants[i]) }}>
           {{participants[i]}}
           </a>
         </li>
@@ -37,7 +37,7 @@
       <li class="list-group-item h5">Data Stream</li>
       {% for stream in data_stream_dict.keys()|sort() %}
         <li class="list-group-item">
-          <a class="link-fill" href={{ easy_url("dashboard_api.get_data_for_dashboard_datastream_display", study_id, stream) }}>
+          <a class="link-fill" href={{ easy_url("data_page_endpoints.get_data_for_dashboard_datastream_display", study_id, stream) }}>
           {{data_stream_dict[stream]}}
           </a>
         </li>

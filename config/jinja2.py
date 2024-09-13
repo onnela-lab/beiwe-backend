@@ -1,20 +1,61 @@
 """ Original Document sourced from 
 https://samuh.medium.com/using-jinja2-with-django-1-8-onwards-9c58fe1204dc """
 
+import re
 from datetime import date
+from typing import Any, Dict, Optional
 
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import reverse
 from jinja2 import Environment
+from jinja2.ext import Extension
 
 from config.settings import SENTRY_JAVASCRIPT_DSN
-from libs.http_utils import (astimezone_with_tz, easy_url, really_nice_time_format_with_tz,
+from libs.utils.dev_utils import p
+from libs.utils.http_utils import (astimezone_with_tz, easy_url, really_nice_time_format_with_tz,
     time_with_tz)
 
 
-# Local and CDN Javascript/CSS libraries.  In order to codify the libraries in use we have these two
-# classes.  All templates use these variables to populate any necessary assets loaded onto the page.
-# At time of commenting the majority of common libraries
+#
+## The entrypoint into Jinja. This gets called by django at application load.
+#
+
+def environment(**options: Dict[str, Any]) -> Environment:
+    # always, always check for autoescape
+    assert "autoescape" in options and options["autoescape"] is True
+    
+    # trunk-ignore(bandit/B701): no bandit, jinja autoescape is enabled
+    env = Environment(
+        line_comment_prefix="{#",
+        comment_start_string="{% comment %}",
+        comment_end_string="{% endcomment %}",
+        trim_blocks=True,
+        lstrip_blocks=True,
+        extensions=[WhiteSpaceCollapser],
+        **options
+    )
+    
+    env.globals.update(
+        {
+            "static": staticfiles_storage.url,
+            "url": reverse,
+            "easy_url": easy_url,
+            "astimezone_with_tz": astimezone_with_tz,
+            "time_with_tz": time_with_tz,
+            "really_nice_time_format_with_tz": really_nice_time_format_with_tz,
+            "p": timer,
+            "ASSETS": ASSETS,
+            "SENTRY_JAVASCRIPT_DSN": SENTRY_JAVASCRIPT_DSN,
+            "current_year": date.today().year,
+        }
+    )
+    return env
+
+
+
+## Local and CDN Javascript/CSS libraries.
+#  In order to codify the libraries in use we have these two classes.  All templates use these
+#  variables to populate any necessary assets loaded onto the page.
 
 
 class LocalAssets:
@@ -60,32 +101,77 @@ class CdnAssets:
     MOMENTJS = "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"
 
 
-# set manually to local assets for debugging purposes only
+# set manually to use local assets for debugging purposes only
 # ASSETS = LocalAssets
 ASSETS = CdnAssets
 
 
-def environment(**options):
-    """ This enables us to use Django template tags like
-    {% url “index” %} or {% static “path/to/static/file.js” %}
-    in our Jinja2 templates.  """
-    env = Environment(
-        line_comment_prefix="{#",
-        comment_start_string="{% comment %}",
-        comment_end_string="{% endcomment %}",
-        **options
+class WhiteSpaceCollapser(Extension):
+    """ Simple Jinja2 extension that collapses whitespace on rendered pages what could possibly go wrong. """
+    
+    def preprocess(self, source: str, name: Optional[str], filename: Optional[str] = None) -> str:
+        # collapse normal horizontal whitespace at the start and end of lines
+        return re.sub(r'^[ \t]+|[ \t]+$', '', source, flags=re.MULTILINE)
+        
+        # collapse sequences of 2+ whitespace characters to a nothing.
+        # return re.sub(r'[ \t][ \t]+|\n\n+', '', source, flags=re.MULTILINE)
+        
+        # collapse most extended whitespace sequences down to just the first character, except
+        # newlines, sequences of newlines are collapsed to a single newline. (and register returns)
+        # has errors on at least the dashboard page
+        # return re.sub(r'[ \t][ \t]+|[\n\r]+[ \t\n\r]*[\n\r]+', '', source, flags=re.MULTILINE)
+
+
+#
+## Hacky but functional debugging/line-profiling tool for templates.
+#
+
+def timer(more_label: Any, *args, **kwargs):
+    """  The p() profiling function adapted for template rendering.  Usage is different READ.
+    - p() is useful because it gives you the line number of the python file.
+    - unfortunately it's not that easy in a template.
+    - Jinja does some of the work, we can at least identify the file but the line number is wrong.
+    - The line number specified is not a static offset, it cannot trivially be accounted for.
+    
+    extra features:
+    - there is a counter that tells you how many p() calls you have run through on this render call.
+    
+    Usage:
+    - stick {{ p(44) }} in your template. using numbers is usually the best strategy.
+    
+    Output:
+    - template name with a wrong line number
+    - a counter that increments each time p() is called.
+    - the value for a label you passed in.
+    - time since previous call in normal p() format
+     - frontend/templates/participant.html:317 -- Template - 307 - 45 -- 0.0000134630
+    """
+    # No. you need that label.
+    # if more_label is None:
+    #     more_label = "{label recommended, line number is wrong}"
+    
+    # caller_stack_location=3 results in the name of the template file but with the wrong line number.
+    p(
+        "rendering",
+        *args,
+        caller_stack_location=3,
+        name=f"Rendering - {COUNTER.the_counter.count} - {more_label}",
+        **kwargs
     )
-    env.globals.update(
-        {
-            "static": staticfiles_storage.url,
-            "url": reverse,
-            "easy_url": easy_url,
-            "astimezone_with_tz": astimezone_with_tz,
-            "time_with_tz": time_with_tz,
-            "really_nice_time_format_with_tz": really_nice_time_format_with_tz,
-            "ASSETS": ASSETS,
-            "SENTRY_JAVASCRIPT_DSN": SENTRY_JAVASCRIPT_DSN,
-            "current_year": date.today().year,
-        }
-    )
-    return env
+    
+    COUNTER.the_counter.increment()
+    return ""
+
+
+class COUNTER:
+    """ To improve the time function we need a counter that tracks some Global-ish state. """
+    the_counter = None  # global reference
+    
+    def __init__(self):
+        self.count = 1
+    
+    def increment(self):
+        self.count += 1
+
+# initialize the counter
+COUNTER.the_counter = COUNTER()

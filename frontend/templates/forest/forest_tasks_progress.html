@@ -44,10 +44,5 @@
 {% block title %}Forest Analysis Progress{% endblock %}
 
 {% block content %}
-  {% if params_conflict %}
-    <div class="alert alert-warning">
-      Warning: There are analyses on this study that were computed using different Forest parameters.
-    </div>
-  {% endif %}
   <table id="analysis_chart" class="display" width="100%"></table>
 {%  endblock %}

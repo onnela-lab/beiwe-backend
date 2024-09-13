@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import traceback
+from datetime import datetime
 
 from django.db import models
 
 from database.common_models import TimestampedModel
+from database.user_models_researcher import Researcher
 
 
 class FileAsText(TimestampedModel):
@@ -62,3 +64,17 @@ class GlobalSettings(SingletonModel):
     
     # see the downtime middleware.
     downtime_enabled = models.BooleanField(default=False)
+
+
+class DataAccessRecord(TimestampedModel):
+    """ Model for recording data access requests. """
+    researcher: Researcher = models.ForeignKey(
+        "Researcher", on_delete=models.SET_NULL, related_name="data_access_record", null=True
+    )
+    # model must have a username field for when a researcher is deleted
+    username = models.CharField(max_length=32, null=False)
+    query_params = models.TextField(null=False, blank=False)
+    error = models.TextField(null=True, blank=True)
+    registry_dict_size = models.PositiveBigIntegerField(null=True, blank=True)
+    time_end: datetime = models.DateTimeField(null=True, blank=True)
+    bytes = models.PositiveBigIntegerField(null=True, blank=True)

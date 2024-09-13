@@ -1,5 +1,6 @@
 # core libraries
-Django==4.2.11
+Django>=4.2.14
+Django<=5.0.0
 firebase-admin==5.4.0
 Jinja2 # used to require pinning, I guess review if there is a major version bump.
 zstd>=1.5.5.1 # can be stuck on older versions sometimes
@@ -8,7 +9,7 @@ orjson==3.9.15
 # django-extensions for some really nice management commands and terminal helpers.
 django-extensions==3.2.3
 
-python-dateutil==2.8.2  # this is currently locked due to our old celery requirement.
+python-dateutil
 
 # testing libraries
 # mock

@@ -1,6 +1,6 @@
 import json
 
-from constants.survey_constants import (COMPARATORS, FREE_RESPONSE, FREE_RESPONSE_NUMERIC,
+from constants.study_constants import (COMPARATORS, FREE_RESPONSE, FREE_RESPONSE_NUMERIC,
     NUMERIC_COMPARATORS, NUMERIC_QUESTIONS)
 from database.survey_models import Survey
 

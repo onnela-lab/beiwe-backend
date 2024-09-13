@@ -14,7 +14,7 @@
   {# Go to Dashboard button  #}
   <div class="title col-md-4 col-xs-12">
     <a class="btn btn-info h2-margins-vertical"
-      href={{ easy_url('dashboard_api.dashboard_participant_page', study_id=study.id, patient_id=participant.patient_id) }}>
+      href={{ easy_url('data_page_endpoints.dashboard_participant_page', study_id=study.id, patient_id=participant.patient_id) }}>
       View <b>{{ participant.patient_id }}</b>'s Collected Data Dashboard
     </a>
   </div>
@@ -34,7 +34,7 @@
   <div class="col-md-6 col-sm-12 well">
     <h3 class="text-center"> <b>Activity Information </b></h3>
     <table class="table table-hover">
-
+      
       <!-- Phone OS info -->
       <tr>
         <td><b>Phone operating system:</b></td>
@@ -64,34 +64,34 @@
       </tr>
       <tr>
         <td><b>Registration</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_register_user, participant.study.timezone) }}</td>
+        <td>{{ really_nice_time_format_with_tz(participant.last_register_user, study_timezone) }}</td>
       </tr>
       <tr>
         <td><b>Last Heartbeat</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_app_heartbeat, participant.study.timezone) }}</td>
+        <td>{{ really_nice_time_format_with_tz(participant.last_heartbeat_checkin, study_timezone) }}</td>
       </tr>
       <tr>
         <td><b>Last check-in for updated surveys</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_get_latest_surveys, participant.study.timezone) }}</td>
+        <td>{{ really_nice_time_format_with_tz(participant.last_get_latest_surveys, study_timezone) }}</td>
       </tr>
       <tr>
         <td><b>Last file upload event</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_upload, participant.study.timezone) }}</td>
+        <td>{{ really_nice_time_format_with_tz(participant.last_upload, study_timezone) }}</td>
       </tr>
   {% comment %}
   {# This is just going to confuse people until we change the way passwords work. #}
       <tr>
         <td><b>Last participant password reset</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_set_password, participant.study.timezone) }}</td>
+        <td>{{ really_nice_time_format_with_tz(participant.last_set_password, study_timezone) }}</td>
       </tr>
   {% endcomment %}
       <tr>
         <td><b>Last notification credential update</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_set_fcm_token, participant.study.timezone) }}</td>
+        <td>{{ really_nice_time_format_with_tz(participant.last_set_fcm_token, study_timezone) }}</td>
       </tr>
       <tr>
         <td><b>Last device settings update</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_get_latest_device_settings, participant.study.timezone) }}</td>
+        <td>{{ really_nice_time_format_with_tz(participant.last_get_latest_device_settings, study_timezone) }}</td>
       </tr>
     </table>
   </div>
@@ -117,7 +117,7 @@
         <tr>
           <td>Survey:</td>
           <td>
-            <a href="{{ easy_url("survey_designer.render_edit_survey", study.id, latest_notification_attempt.survey_id) }}" target="_blank">
+            <a href="{{ easy_url("survey_endpoints.render_edit_survey", study.id, latest_notification_attempt.survey_id) }}" target="_blank">
               {{ latest_notification_attempt.survey_name }}
             </a>
           </td>
@@ -135,8 +135,8 @@
           <td>{{ latest_notification_attempt.status }}</td>
         </tr>
       </table>
-
-      <form action="{{ easy_url("push_notifications_api.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}" method="post">
+      
+      <form action="{{ easy_url("participant_endpoints.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}" method="post">
       {% if participant.participant_push_enabled %} 
         <input type="hidden" name="survey_id" value="{{ latest_notification_attempt.survey_id }}">
         <button class="btn btn-danger center-block" type="submit" {% if locked %} disabled {% endif %}>
@@ -205,7 +205,7 @@
   <div class="col-md-12 well">
     <div class="col-md-5">
       <div class="h2-middle-margins-vertical text-center row">
-        <form action="{{ easy_url('participant_administration.clear_device_id') }}" method="post">
+        <form action="{{ easy_url('participant_endpoints.clear_device_id') }}" method="post">
           <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <button type="submit" class="btn btn-warning large-font-size"
@@ -230,7 +230,7 @@
   <div class="col-md-12 well">
     <div class="col-md-5">
       <div class="h2-middle-margins-vertical text-center row">
-        <form action="{{ easy_url('participant_administration.retire_participant') }}" method="post">
+        <form action="{{ easy_url('participant_endpoints.retire_participant') }}" method="post">
           <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <button type="submit" class="btn btn-danger large-font-size"
@@ -247,7 +247,7 @@
     <div class="col-md-7 h3-margins-vertical">
       This action retires this participant entirely, blocking any further data from being uploaded,
       regardless of the source device.  This does not affect data already uploaded.  Attempts to
-      register a new device with this particpant will fail.  If data is uploaded for this participant
+      register a new device with this participant will fail.  If data is uploaded for this participant
       the device will be told to delete that data.
       <br> <b>This operation is final and cannot be undone.</b>
     </div>
@@ -270,7 +270,7 @@
         </div>
       </div>
       <div class="col-md-7 h3-margins-vertical">
-        This action deletes all data that this participant has ever uploaded, as well as all internal data related to this participant.  All further actions related to this participant will be blocked.  No data from this participant will be downloadable.  Once deletion has finished the particpant will no longer be visible in the list of participants on the study page.  Data deletion may take quite some time.
+        This action deletes all data that this participant has ever uploaded, as well as all internal data related to this participant.  All further actions related to this participant will be blocked.  No data from this participant will be downloadable.  Once deletion has finished the participant will no longer be visible in the list of participants on the study page.  Data deletion may take quite some time.
         <br> <b>This operation is final and cannot be undone.</b>
       </div>
     </div>
@@ -295,7 +295,7 @@
     </div>
   {% endif %}
 
-  {% if study.interventions.exists() %}
+  {% if study_interventions_exists %}
     <div class="col-md-6 col-sm-12 well">
       <form action="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}" class="form-horizontal" method="POST">
       {% if push_notifications_enabled_for_ios or push_notifications_enabled_for_android %}
@@ -318,7 +318,7 @@
     </div>
   {% endif %}
     
-  {% if study.fields.exists() %}
+  {% if study_fields_exists %}
     <div class="col-md-6 col-sm-12 well">
       <h3>Custom Fields</h3>
     
@@ -335,11 +335,12 @@
   {% endif %}
 
   {% if not readonly %}
-    {% if study.interventions.exists() or study.fields.exists() %}
+    {% if study_interventions_exists or study_fields_exists %}
       <button class="btn btn-primary btn-block" type="submit"
         {% if locked %} disabled {% endif %}>Save Changes</button>
     {% endif %}
   {% endif %}
   </form>
-{% endblock %}
 </div>
+
+{% endblock %}

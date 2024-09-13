@@ -14,13 +14,6 @@ from database.models import JSONTextField, TimestampedModel
 from database.user_models_participant import Participant
 
 
-# this is an import hack to improve IDE assistance
-try:
-    from database.user_models_researcher import Researcher
-except ImportError:
-    pass
-
-
 class EncryptionErrorMetadata(TimestampedModel):
     file_name = models.CharField(max_length=256)
     total_lines = models.PositiveIntegerField()
@@ -61,6 +54,17 @@ class LineEncryptionError(TimestampedModel):
     prev_line = models.TextField(blank=True)
     next_line = models.TextField(blank=True)
     participant: Participant = models.ForeignKey(Participant, null=True, on_delete=models.PROTECT)
+
+
+
+# WARNING: this table is huge. Several-to-many multiples of ChunkRegistry, though it is not as
+# complex and rows are individually less bulky. Never pull this table into memory, always use
+# .iterator() in combination with .values() or .values_list() and test your query on your largest
+# server to benchmark it.  This table is not indexed, it is for record keeping and debugging
+# purposes, and it can be used to repopulate FilesToProcess with items to reprocess a participants
+# data when something goes wrong.
+# Participant.upload_trackers is probably the only safe way to access this, a participant probably
+# will never upload a million files and shouldn't MemoryError your server to oblivion.
 
 
 class UploadTracking(UtilityModel):
@@ -181,6 +185,7 @@ class UploadTracking(UtilityModel):
         """ Re-adds the most recent [limit] files that have been uploaded recently to FiletToProcess.
             (this is fairly optimized because it is part of debugging file processing) """
         from database.data_access_models import FileToProcess
+
         # ordering by file path happens to be A) deterministic and B) sequential time order C)
         # results in ideal back-fill
         query = participant.upload_trackers.values_list("file_path", flat=True).order_by("file_path").distinct()
@@ -226,6 +231,9 @@ class UploadTracking(UtilityModel):
     
     @classmethod
     def weekly_stats(cls, days=7, get_usernames=False):
+        """ This gets a rough statement of data uploads and number of participants uploading data in
+        the time range given. This is slow, only to be run in a shell manually. Do not attach this
+        to an endpoint. """
         ALL_FILETYPES = UPLOAD_FILE_TYPE_MAPPING.values()
         if get_usernames:
             data = {filetype: {"megabytes": 0., "count": 0, "users": set()} for filetype in ALL_FILETYPES}
@@ -269,16 +277,3 @@ class UploadTracking(UtilityModel):
             del data["totals"]["users"]
         
         return data
-
-
-class DataAccessRecord(TimestampedModel):
-    researcher: Researcher = models.ForeignKey(
-        "Researcher", on_delete=models.SET_NULL, related_name="data_access_record", null=True
-    )
-    # model must have a username for when a researcher is deleted
-    username = models.CharField(max_length=32, null=False)
-    query_params = models.TextField(null=False, blank=False)
-    error = models.TextField(null=True, blank=True)
-    registry_dict_size = models.PositiveBigIntegerField(null=True, blank=True)
-    time_end: datetime = models.DateTimeField(null=True, blank=True)
-    bytes = models.PositiveBigIntegerField(null=True, blank=True)

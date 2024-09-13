@@ -6,8 +6,9 @@ from django.db import models
 
 from database.models import TimestampedModel
 from database.validators import PASSWORD_VALIDATOR
-from libs.security import (BadDjangoKeyFormatting, compare_password, django_password_components,
-    generate_easy_alphanumeric_string, generate_hash_and_salt, to_django_password_components)
+from libs.utils.security_utils import (BadDjangoKeyFormatting, compare_password,
+    django_password_components, generate_easy_alphanumeric_string, generate_hash_and_salt,
+    to_django_password_components)
 
 
 class AbstractPasswordUser(TimestampedModel):
@@ -39,7 +40,7 @@ class AbstractPasswordUser(TimestampedModel):
         )
         self.save()
     
-    def reset_password(self):
+    def reset_password(self) -> str:
         """ Resets the patient's password to match an sha256 hash of a randomly generated string. """
         password = generate_easy_alphanumeric_string()
         self.set_password(password)

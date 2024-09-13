@@ -5,11 +5,11 @@ from ast import Dict, Tuple
 from datetime import date, datetime
 from pprint import pprint
 from random import choice as random_choice
-from typing import Any, List
+from typing import Any, List, Union
 
 import dateutil
 from django.db import models
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import RelatedField
 from django.utils.timezone import localtime
@@ -21,7 +21,14 @@ from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 class ObjectIdError(Exception): pass
 
 
-def generate_objectid_string():
+def Q_from_params(q: Union[Dict, Tuple]) -> Q:
+    """ Convert a dict or tuple to a Q object. """
+    if not isinstance(q, dict):
+        return Q(*dict(q))
+    return Q(**q)
+
+
+def generate_objectid_string() -> str:
     return ''.join(random_choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(24))
 
 

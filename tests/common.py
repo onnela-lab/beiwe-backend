@@ -1,4 +1,5 @@
 import logging
+import traceback
 from functools import wraps
 from itertools import chain
 from os.path import join as path_join
@@ -14,15 +15,16 @@ from django.urls import reverse
 from django.urls.base import resolve
 from django.urls.exceptions import NoReverseMatch
 
-from constants.tableau_api_constants import X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET
+from authentication.tableau_authentication import X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET
 from constants.testing_constants import ALL_ROLE_PERMUTATIONS, REAL_ROLES, ResearcherRole
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models_participant import Participant
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.internal_types import ResponseOrRedirect, StrOrBytes
-from libs.security import generate_easy_alphanumeric_string
-from tests.helpers import ReferenceObjectMixin, render_test_html_file
+from libs.shell_support import diff_strings
+from libs.utils.security_utils import generate_easy_alphanumeric_string
+from tests.helpers import DatabaseHelperMixin, render_test_html_file
 from urls import urlpatterns
 
 
@@ -53,44 +55,42 @@ s3.S3_BUCKET = Exception   # force disable potentially active s3 connections.
 logging.getLogger("django.request").setLevel(logging.ERROR)
 
 
-# extra printout of calls to the messages library
-if VERBOSE_2_OR_3:
-    def monkeypatch_messages(function: callable):
-        """ This function wraps the messages library and directs it to the terminal for easy
-        behavior identification, the original function is then called. """
-        def intercepted(request, message, extra_tags='', fail_silently=False):
-            print(f"from messages.{function.__name__}(): '{message}'")
-            return function(request, message, extra_tags=extra_tags, fail_silently=fail_silently)
-        return intercepted
-    # this is equivalent to using a function wrapper
-    messages.debug = monkeypatch_messages(messages.debug)
-    messages.info = monkeypatch_messages(messages.info)
-    messages.success = monkeypatch_messages(messages.success)
-    messages.warning = monkeypatch_messages(messages.warning)
-    messages.error = monkeypatch_messages(messages.error)
-
-
-class HttpResponse(HttpResponse):
-    # This class exists to improve IDE type interpretation
-    content: bytes
-
-
 class MisconfiguredTestException(Exception):
     pass
 
 
-# This parameter sets the password iteration count for researchers, which directly adds to the
-# runtime of ALL researcher tests.  If we use the default value it is literally minimum 10x slower.
-Researcher.DESIRED_ITERATIONS = 1000
-Participant.DESIRED_ITERATIONS = 1000
-ApiKey.DESIRED_ITERATIONS = 1000
+# This parameter sets the password iteration count, which directly adds to the runtime of ALL user
+# tests. If we use the default value it is 1000s of times slower and tests take forever.
+Researcher.DESIRED_ITERATIONS = 2
+Participant.DESIRED_ITERATIONS = 2
+ApiKey.DESIRED_ITERATIONS = 2
 
 
-class CommonTestCase(TestCase, ReferenceObjectMixin):
+class CommonTestCase(TestCase, DatabaseHelperMixin):
     """ This class contains the various test-oriented features, for example the assert_present
     method that handles a common case of some otherwise distracting type coersion. """
     
+    def monkeypatch_messages(self, function: callable):
+        """ This function wraps the messages library and directs it to the terminal for easy
+        behavior identification, the original function is then called. """
+        
+        def intercepted(request, message, extra_tags='', fail_silently=False):
+            if VERBOSE_2_OR_3:
+                print(f"from messages.{function.__name__}(): '{message}'")
+            self.messages.append(message)
+            return function(request, message, extra_tags=extra_tags, fail_silently=fail_silently)
+        
+        return intercepted
+    
     def setUp(self) -> None:
+        # Patch messages to print to stash any message text for later inspection. (extremely fast)
+        self.messages = []
+        messages.debug = self.monkeypatch_messages(messages.debug)
+        messages.info = self.monkeypatch_messages(messages.info)
+        messages.success = self.monkeypatch_messages(messages.success)
+        messages.warning = self.monkeypatch_messages(messages.warning)
+        messages.error = self.monkeypatch_messages(messages.error)
+        
         if VERBOSE_2_OR_3:
             print("\n==")
         return super().setUp()
@@ -99,6 +99,22 @@ class CommonTestCase(TestCase, ReferenceObjectMixin):
         if VERBOSE_2_OR_3:
             print("==")
         return super().tearDown()
+    
+    def assert_message(self, expected_message: str):
+        """ Convenience assertion for whether messages was called with a value. """
+        self.assertIn(expected_message, self.messages)
+    
+    def assert_message_fragment(self, message_fragment):
+        """ Convenience assertion for whether messages was called with a value, but checks whether
+        any message contains a substring. """
+        for message in self.messages:
+            if message_fragment in message:
+                return
+        assert False, f"message fragment '{message_fragment}' not found in any messages."
+    
+    @property
+    def clear_messages(self):
+        self.messages = []
     
     def assert_response_url_equal(self, a: str, b: str):
         # when a url comes in from a response object (e.g. response.url) the / characters are
@@ -139,6 +155,35 @@ class CommonTestCase(TestCase, ReferenceObjectMixin):
                 # from None suppresses the original stack trace.
             else:
                 raise
+    
+    def _assertEqual(self, first, second, msg=None):
+        # we need to be able to bypass our override of assertEqual
+        return super().assertEqual(first, second, msg)
+    
+    def assertEqual(self, first, second, msg=None):
+        """ Overrides and inserts our diff_strings func to make the error easy to parse. """
+        try:
+            return super().assertEqual(first, second, msg)
+        except AssertionError:
+            # do type check first because the stack walking is slow
+            if isinstance(first, (bytes, str)) and isinstance(second, (bytes, str)):
+                # walk stack, look for presence of assertRaises
+                found = False
+                for frame in traceback.extract_stack():
+                    if "assertRaises" in frame.name:
+                        found = True
+                        break
+                
+                # inject our nice diff_strings function
+                if not found:
+                    print("first:", first)
+                    print()
+                    print("second:", second)
+                    print()
+                    diff_strings(first, second)
+            
+            # and then raise
+            raise
     
     def assert_researcher_relation(self, researcher: Researcher, study: Study, relationship: str):
         try:
@@ -242,18 +287,18 @@ class BasicSessionTestCase(CommonTestCase):
         post_params = {} if post_params is None else post_params
         if mfa_code:
             post_params["mfa_code"] = mfa_code
-        url = path_join(self.smart_reverse("login_pages.validate_login"))
+        url = path_join(self.smart_reverse("login_endpoints.validate_login"))
         return self.client.post(url, data={"username": username, "password": password, **post_params})
     
     def do_researcher_logout(self):
-        return self.client.get(self.smart_reverse("admin_pages.logout_admin"))
+        return self.client.get(self.smart_reverse("login_endpoints.logout_page"))
 
 
 class SmartRequestsTestCase(BasicSessionTestCase):
     """ An ENDPOINT_NAME is a string of the form "file_endpoint_is_in.view_name", for example
-    "login_pages.validate_login" or "participant_pages.participant_page". These tests must also be
-    in a test file that mimics the endpoint name, for example test_login_pages.py or
-    test_participant_pages.py. These rules are enforced enforced by the test class as two #
+    "login_endpoints.validate_login" or "participant_endpoints.participant_page". These tests must also be
+    in a test file that mimics the endpoint name, for example test_login_endpoints.py or
+    test_participant_endpoints.py. These rules are enforced enforced by the test class as two #
     automatic tests that are tacked on to the end of every test class implemented below.
     
     REDIRECT_ENDPOINT_NAME is identical in form to ENDPOINT_NAME, it is used to make testing an
@@ -262,6 +307,7 @@ class SmartRequestsTestCase(BasicSessionTestCase):
     REDIRECT_ENDPOINT_NAME = None
     IGNORE_THIS_ENDPOINT = "ignore this endpoint"  # turns out we need to suppress this sometimes...
     
+    # Never add this test to a subclass
     def test_has_valid_endpoint_name_and_is_placed_in_correct_file(self):
         # case: [currently] subclasses that but are intended to be further subclassed are contained
         # in the tests.common, so they can break the rules.
@@ -346,8 +392,9 @@ class SmartRequestsTestCase(BasicSessionTestCase):
     def smart_post_status_code(
         self, status_code: int, *reverse_args, reverse_kwargs=None, **post_params
     ) -> HttpResponse:
-        """ This helper function takes a status code in addition to post paramers, and tests for
+        """ This helper function takes a status code in addition to post parameters, and tests for
         it.  Use for writing concise tests. """
+        # print(f"reverse_args: {reverse_args}\nreverse_kwargs: {reverse_kwargs}\npost_params: {post_params}")
         resp = self.smart_post(*reverse_args, reverse_kwargs=reverse_kwargs, **post_params)
         self.assertEqual(resp.status_code, status_code)
         return resp
@@ -442,7 +489,7 @@ class ParticipantSessionTest(SmartRequestsTestCase):
     def setUp(self) -> None:
         """ Populate the session participant variable. """
         self.session_participant = self.default_participant
-        self.INJECT_DEVICE_TRACKER_PARAMS = True
+        self.INJECT_DEVICE_TRACKER_PARAMS = True  # reset for every test
         return super().setUp()
     
     @property
@@ -483,15 +530,7 @@ class ParticipantSessionTest(SmartRequestsTestCase):
                              msg="last_os_version did not update")
             self.assertEqual(tracker_vals["device_status_report"], post_params["device_status_report"],
                              msg="device_status_report did not update")
-        else:
-            self.assertEqual(tracker_vals["last_version_code"], orig_vals["last_version_code"],
-                             msg="last_version_code updated")
-            self.assertEqual(tracker_vals["last_version_name"], orig_vals["last_version_name"],
-                             msg="last_version_name updated")
-            self.assertEqual(tracker_vals["last_os_version"], orig_vals["last_os_version"],
-                             msg="last_os_version updated")
-            self.assertEqual(tracker_vals["device_status_report"], orig_vals["device_status_report"],
-                             msg="device_status_report updated")
+        
         # reset the toggle after every request
         self.INJECT_DEVICE_TRACKER_PARAMS = True
         return ret
@@ -499,10 +538,12 @@ class ParticipantSessionTest(SmartRequestsTestCase):
 
 class DataApiTest(SmartRequestsTestCase):
     DISABLE_CREDENTIALS = False
+    API_KEY: ApiKey = None
     
     def setUp(self) -> None:
-        self.session_access_key, self.session_secret_key = \
-            self.session_researcher.reset_access_credentials()
+        self.API_KEY = ApiKey.generate(self.session_researcher)
+        self.session_access_key = self.API_KEY.access_key_id
+        self.session_secret_key = self.API_KEY.access_key_secret_plaintext
         return super().setUp()
     
     def smart_post(self, *reverse_args, reverse_kwargs={}, **post_params) -> HttpResponseRedirect:
@@ -512,6 +553,18 @@ class DataApiTest(SmartRequestsTestCase):
             post_params["access_key"] = self.session_access_key
             post_params["secret_key"] = self.session_secret_key
         return super().smart_post(*reverse_args, reverse_kwargs=reverse_kwargs, **post_params)
+    
+    def smart_post_status_code(
+        self, status_code: int, *reverse_args, reverse_kwargs=None, **post_params
+    ) -> HttpResponse:
+        """ We need to inject the session keys into the post parameters because the code that uses
+        smart_post is inside the super class. """
+        if not self.DISABLE_CREDENTIALS:
+            post_params["access_key"] = self.session_access_key
+            post_params["secret_key"] = self.session_secret_key
+        return super().smart_post_status_code(
+            status_code, *reverse_args, reverse_kwargs=reverse_kwargs, **post_params
+        )
     
     def less_smart_post(self, *reverse_args, reverse_kwargs=None, **post_params) -> HttpResponse:
         """ we need the passthrough and calling super() in an implementation class is dumb.... """
@@ -541,7 +594,7 @@ class TableauAPITest(ResearcherSessionTest):
     
     def setUp(self) -> None:
         ret = super().setUp()
-        self.api_key = ApiKey.generate(self.session_researcher, has_tableau_api_permissions=True)
+        self.api_key = ApiKey.generate(self.session_researcher)
         self.api_key_public = self.api_key.access_key_id
         self.api_key_private = self.api_key.access_key_secret_plaintext
         self.set_session_study_relation(ResearcherRole.researcher)

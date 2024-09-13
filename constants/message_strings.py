@@ -88,7 +88,7 @@ ALERT_SPECIFIC_ERROR_TEXT = \
 
 ## Admin Pages
 RESET_DOWNLOAD_API_CREDENTIALS_MESSAGE = "Your Data-Download API access credentials have been reset."
-NEW_API_KEY_MESSAGE = "New Tableau API credentials have been generated for you!"
+NEW_API_KEY_MESSAGE = "New credentials have been generated for you!"
 PASSWORD_WILL_EXPIRE = "Your password will expire in {days} days, reset it to clear this reminder."
 PASSWORD_EXPIRED = "Your password has expired, please reset your password."
 PASSWORD_RESET_FORCED = "You have had your password administratively reset, please set a new password."
@@ -119,10 +119,10 @@ NEW_PASSWORD_MISMATCH = "New Password does not match Confirm New Password"
 NEW_PASSWORD_N_LONG = "Your New Password must be at least {length} characters long."
 NEW_PASSWORD_RULES_FAIL = "Your New Password must contain at least one symbol, one number, one lowercase, and one uppercase character."
 
-# tableau key messages
-TABLEAU_NO_MATCHING_API_KEY = "No matching API key found to disable"
-TABLEAU_API_KEY_IS_DISABLED = "This API key has already been disabled:"
-TABLEAU_API_KEY_NOW_DISABLED = "The API key {key} is now disabled"
+# api key messages
+NO_MATCHING_API_KEY = "No matching API key found to disable"
+API_KEY_IS_DISABLED = "This API key has already been disabled:"
+API_KEY_NOW_DISABLED = "The API key {key} is now disabled"
 
 ## Mobile API
 DECRYPTION_KEY_ERROR_MESSAGE = "This file did not contain a valid decryption key and could not be processed."
@@ -141,14 +141,11 @@ RESEND_CLICKED = "resend clicked"
 DEVICE_CHECKED_IN = "device checked in"
 DEVICE_HAS_NO_REGISTERED_TOKEN = "device has no registered token"
 PUSH_NOTIFICATIONS_NOT_CONFIGURED = "Push notifications not configured"
-MESSAGE_SEND_SUCCESS = "success"  # for historical reasons don't change this without writing a migration
-MESSAGE_SEND_FAILED_PREFIX = "message send failed:"
-MESSAGE_SEND_FAILED_UNKNOWN = "message send failed: unknown"
 SUCCESSFULLY_SENT_NOTIFICATION_PREFIX = "Successfully sent notification to"
 BAD_DEVICE_OS = "bad device OS"
-BAD_PARTICPANT_OS = "This participant is not properly registered and cannot be sent push notifications until the re-register."
+BAD_PARTICIPANT_OS = "This participant is not properly registered and cannot be sent push notifications until the re-register."
 
-# particpant administration
+# participant administration
 PARTICIPANT_LOCKED = "Participant {patient_id} is either already deleted or marked for deletion. No actions may be taken on this participant. Once data deletion has been completed this participant will no longer be visible in the study`s participant list."
 NOT_IN_STUDY = "Participant {patient_id} is not in study {study_name}"
 NO_DELETION_PERMISSION = 'You do not have permission to delete participant {patient_id}.'
@@ -156,3 +153,20 @@ NO_DELETION_PERMISSION = 'You do not have permission to delete participant {pati
 PARTICIPANT_RETIRED_SUCCESS = "{patient_id} was successfully retired from the study. They will not be able to upload further data."
 
 DEFAULT_HEARTBEAT_MESSAGE = "Beiwe may not be running correctly, please open the Beiwe app."
+
+HIDDEN_STUDY_MESSAGE = "This study is hidden. It should not show up anywhere on the website."
+MANUALLY_STOPPED_STUDY_MESSAGE = "This study has been manually stopped. No further data uploaded by participants in this study will be stored."
+ENDED_STUDY_MESSAGE = "This study ended at the end of the day on {}. No further data uploaded by participants in this study will be stored."
+
+MISSING_JSON_CSV_MESSAGE = b"Invalid required data_format parameter, only 'csv' and 'json' supported"
+
+# push notification status details, not actually comprehensive.
+MESSAGE_SEND_SUCCESS = "success"  # for historical reasons don't change this without writing a migration
+MESSAGE_SEND_FAILED_PREFIX = "message send failed:"
+MESSAGE_SEND_FAILED_UNKNOWN = "message send failed: unknown"
+# imported in migration 128
+UNEXPECTED_SERVICE_RESPONSE = "Unexpected HTTP response from push notification service."
+UNKNOWN_REMOTE_ERROR = "Unknown error while making a remote service call"
+FAILED_TO_ESTABLISH_CONNECTION = "Failed to establish connection to push notification service."
+CONNECTION_ABORTED = "Connection to push notification service aborted."
+ACCOUNT_NOT_FOUND = "Account not found by push notification service."

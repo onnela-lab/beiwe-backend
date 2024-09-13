@@ -1,6 +1,11 @@
+# trunk-ignore-all(ruff/F405)
+
+from django.db.models.fields import (BooleanField, CharField, DateField, DateTimeField, FloatField,
+    IntegerField, TextField)
+
+# trunk-ignore(ruff/F403)
+from constants.data_stream_constants import *
 from constants import DjangoDropdown
-from constants.data_stream_constants import (ACCELEROMETER, CALL_LOG, GPS, SURVEY_ANSWERS,
-    SURVEY_TIMINGS, TEXTS_LOG)
 
 from forest.constants import Frequency
 
@@ -105,6 +110,7 @@ NON_PICKLED_PARAMETERS = [
 
 
 # documented at https://forest.beiwe.org/en/latest/#forest-trees
+# Don't forget about FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES in tableau_api_constants.py
 FOREST_TREE_REQUIRED_DATA_STREAMS = {
     # ForestTree.bonsai: [GPS, TEXTS_LOG],
     ForestTree.jasmine: [GPS],
@@ -178,3 +184,166 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     "steps": "oak_steps",
     "cadence": "oak_cadence",
 }
+
+
+# Metadata
+SUMMARY_METADATA_FIELD_NAMES = [
+    "date",
+    "participant_id",
+    "study_id",
+    "timezone",
+]
+
+NICE_SUMMARY_METADATA_FIELD_NAMES = [
+    name.replace("_", " ").title() for name in SUMMARY_METADATA_FIELD_NAMES
+]
+
+# Data quantities
+DATA_QUANTITY_FIELD_MAP = {
+    ACCELEROMETER: "beiwe_accelerometer_bytes",
+    AMBIENT_AUDIO: "beiwe_ambient_audio_bytes",
+    ANDROID_LOG_FILE: "beiwe_app_log_bytes",
+    BLUETOOTH: "beiwe_bluetooth_bytes",
+    CALL_LOG: "beiwe_calls_bytes",
+    DEVICEMOTION: "beiwe_devicemotion_bytes",
+    GPS: "beiwe_gps_bytes",
+    GYRO: "beiwe_gyro_bytes",
+    IDENTIFIERS: "beiwe_identifiers_bytes",
+    IOS_LOG_FILE: "beiwe_ios_log_bytes",
+    MAGNETOMETER: "beiwe_magnetometer_bytes",
+    POWER_STATE: "beiwe_power_state_bytes",
+    PROXIMITY: "beiwe_proximity_bytes",
+    REACHABILITY: "beiwe_reachability_bytes",
+    SURVEY_ANSWERS: "beiwe_survey_answers_bytes",
+    SURVEY_TIMINGS: "beiwe_survey_timings_bytes",
+    TEXTS_LOG: "beiwe_texts_bytes",
+    VOICE_RECORDING: "beiwe_audio_recordings_bytes",
+    WIFI: "beiwe_wifi_bytes",
+}
+
+DATA_QUANTITY_FIELD_NAMES = list(DATA_QUANTITY_FIELD_MAP.values())
+NICE_BEIWE_DATA_QUANTITY_FIELD_NAMES = [
+    name.replace("beiwe_", "").replace("_", " ").title() for name in DATA_QUANTITY_FIELD_NAMES
+]
+
+JASMINE_FIELDS = [
+    # GPS
+    "jasmine_distance_diameter",
+    "jasmine_distance_from_home",
+    "jasmine_distance_traveled",
+    "jasmine_flight_distance_average",
+    "jasmine_flight_distance_stddev",
+    "jasmine_flight_duration_average",
+    "jasmine_flight_duration_stddev",
+    "jasmine_gps_data_missing_duration",
+    "jasmine_home_duration",
+    "jasmine_gyration_radius",
+    "jasmine_significant_location_count",
+    "jasmine_significant_location_entropy",
+    "jasmine_pause_time",
+    "jasmine_obs_duration",
+    "jasmine_obs_day",
+    "jasmine_obs_night",
+    "jasmine_total_flight_time",
+    "jasmine_av_pause_duration",
+    "jasmine_sd_pause_duration",
+]
+NICE_JASMINE_FIELDS = [
+    name.replace("jasmine_", "").replace("_", " ").title() for name in JASMINE_FIELDS
+]
+
+
+WILLOW_FIELDS = [
+    # Willow, Texts
+    "willow_incoming_text_count",
+    "willow_incoming_text_degree",
+    "willow_incoming_text_length",
+    "willow_outgoing_text_count",
+    "willow_outgoing_text_degree",
+    "willow_outgoing_text_length",
+    "willow_incoming_text_reciprocity",
+    "willow_outgoing_text_reciprocity",
+    "willow_outgoing_MMS_count",
+    "willow_incoming_MMS_count",
+    # Willow, Calls
+    "willow_incoming_call_count",
+    "willow_incoming_call_degree",
+    "willow_incoming_call_duration",
+    "willow_outgoing_call_count",
+    "willow_outgoing_call_degree",
+    "willow_outgoing_call_duration",
+    "willow_missed_call_count",
+    "willow_missed_callers",
+    
+    "willow_uniq_individual_call_or_text_count",
+]
+
+NICE_WILLOW_FIELDS = [
+    name.replace("willow_", "").replace("_", " ").title() for name in WILLOW_FIELDS
+]
+
+SYCAMORE_FIELDS = [
+    # Sycamore, Survey Frequency
+    "sycamore_total_surveys",
+    "sycamore_total_completed_surveys",
+    "sycamore_total_opened_surveys",
+    "sycamore_average_time_to_submit",
+    "sycamore_average_time_to_open",
+    "sycamore_average_duration",
+]
+
+NICE_SYCAMORE_FIELDS = [
+    name.replace("sycamore_", "").replace("_", " ").title() for name in SYCAMORE_FIELDS
+]
+
+OAK_FIELDS = [
+    # Oak, walking statistics
+    "oak_walking_time",
+    "oak_steps",
+    "oak_cadence",
+]
+
+NICE_OAK_FIELDS = [
+    name.replace("oak_", "").replace("_", " ").title() for name in OAK_FIELDS
+]
+
+SERIALIZABLE_FIELD_NAMES = SUMMARY_METADATA_FIELD_NAMES + DATA_QUANTITY_FIELD_NAMES \
+    + JASMINE_FIELDS + WILLOW_FIELDS + SYCAMORE_FIELDS + OAK_FIELDS
+
+# SERIALIZABLE_FIELD_NAMES.extend(TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS.values())
+NICE_SERIALIZABLE_FIELD_NAMES = NICE_SUMMARY_METADATA_FIELD_NAMES + NICE_BEIWE_DATA_QUANTITY_FIELD_NAMES \
+    + NICE_JASMINE_FIELDS + NICE_WILLOW_FIELDS + NICE_SYCAMORE_FIELDS + NICE_OAK_FIELDS
+
+
+FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES = {
+    ForestTree.jasmine: JASMINE_FIELDS,
+    ForestTree.willow: WILLOW_FIELDS,
+    ForestTree.sycamore: SYCAMORE_FIELDS,
+    ForestTree.oak: OAK_FIELDS,
+}
+
+
+SERIALIZABLE_FIELD_NAMES_DROPDOWN = [(f, f) for f in SERIALIZABLE_FIELD_NAMES]
+
+VALID_QUERY_PARAMETERS = [
+    "end_date",
+    "fields",
+    "limit",
+    "order_direction",
+    "ordered_by",
+    "participant_ids",
+    "start_date",
+    "study_id",
+]
+
+# maps django fields to tableau data types. All fields not included here are interpreted as string data in tableau
+# note that this process considers subclasses, so all subclasses of DateFields will appear in tableau as a data
+FIELD_TYPE_MAP = [
+    (IntegerField, 'tableau.dataTypeEnum.int'),
+    (FloatField, 'tableau.dataTypeEnum.float'),
+    (DateTimeField, 'tableau.dataTypeEnum.datetime'),
+    (DateField, 'tableau.dataTypeEnum.date'),
+    (BooleanField, 'tableau.dataTypeEnum.bool'),
+    (CharField, 'tableau.dataTypeEnum.string'),
+    (TextField, 'tableau.dataTypeEnum.string'),
+]
