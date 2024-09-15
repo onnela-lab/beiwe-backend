@@ -191,8 +191,7 @@ class ScheduledEvent(TimestampedModel):
     absolute_schedule: AbsoluteSchedule = models.ForeignKey('AbsoluteSchedule', on_delete=models.CASCADE, related_name='scheduled_events', null=True, blank=True)
     scheduled_time = models.DateTimeField()
     deleted = models.BooleanField(null=False, default=False, db_index=True)
-    uuid = models.UUIDField(null=True, blank=True, db_index=True, unique=True)
-    checkin_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    uuid = models.UUIDField(null=True, blank=True, db_index=True, unique=True)  # see ArchivedEvent
     most_recent_event: ArchivedEvent = models.ForeignKey("ArchivedEvent", on_delete=models.DO_NOTHING, null=True, blank=True)
     
     # due to import complexity (needs those classes) this is the best place to stick the lookup dict.
@@ -264,7 +263,12 @@ class ArchivedEvent(TimestampedModel):
     schedule_type = models.CharField(null=True, blank=True, max_length=32, db_index=True)
     scheduled_time = models.DateTimeField(null=True, blank=True, db_index=True)
     status = models.TextField(null=False, blank=False, db_index=True)
-    uuid = models.UUIDField(null=True, blank=True, db_index=True)
+    uuid = models.UUIDField(null=True, blank=True, db_index=True)  # see comment below field listing
+    confirmed_received = models.BooleanField(default=False, db_index=True, null=True)
+    
+    # The uuid field cannot have not-null or unique constraints because there is behavior that
+    # depends on those value. We are using uuids to connect ArchivedEvents to ScheduledEvents, and
+    # to identify groups of ArchivedEvents that went out in the same single notification.
     
     @property
     def survey(self) -> Survey:

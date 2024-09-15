@@ -77,4 +77,5 @@ class DataAccessRecord(TimestampedModel):
     error = models.TextField(null=True, blank=True)
     registry_dict_size = models.PositiveBigIntegerField(null=True, blank=True)
     time_end: datetime = models.DateTimeField(null=True, blank=True)
+    # bytes is never populated
     bytes = models.PositiveBigIntegerField(null=True, blank=True)

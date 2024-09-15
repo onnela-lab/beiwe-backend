@@ -87,6 +87,11 @@ class UtilityModel(models.Model):
         """ Shortcut for cls.objects.exclude(*args, **kwargs) """
         return cls.objects.exclude(*args, **kwargs)
     
+    @classmethod
+    def flat(cls, field_name: str, **filter_kwargs) -> QuerySet[Any]:
+        """ Shortcut for cls.objects.filter(**filter_kwargs).values_list(field_name, flat=True) """
+        return cls.objects.filter(**filter_kwargs).values_list(field_name, flat=True)
+    
     ################################## Show nice information #######################################
     
     @classmethod
@@ -250,10 +255,15 @@ class UtilityModel(models.Model):
         abstract = True
 
 
-class TimestampedModel(UtilityModel):
-    """ TimestampedModels record last access and creation time. """
+class CreatedOnModel(UtilityModel):
+    """ CreatedOnModels record their creation time. """
     created_on = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        abstract = True
+
+
+class TimestampedModel(CreatedOnModel):
+    """ TimestampedModels record their creation time and last updated time (if they use .save()). """
     last_updated = models.DateTimeField(auto_now=True)
-    
     class Meta:
         abstract = True

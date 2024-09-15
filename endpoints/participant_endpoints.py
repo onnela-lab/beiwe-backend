@@ -314,6 +314,7 @@ def resend_push_notification(request: ResearcherRequest, study_id: int, patient_
         schedule_type=f"manual - {request.session_researcher.username}"[:32],  # max length of field
         scheduled_time=now,
         status=RESEND_CLICKED,
+        uuid=None,  # we do not want manual pushes to enter resend logic, no uuid.
     )
     unscheduled_archive.save()
     
@@ -324,6 +325,7 @@ def resend_push_notification(request: ResearcherRequest, study_id: int, patient_
         scheduled_time=now,
         most_recent_event=unscheduled_archive,
         deleted=True,  # don't continue to send this notification
+        uuid=None,  # we do not want manual pushes to enter resend logic, no uuid.
     )
     
     # failures

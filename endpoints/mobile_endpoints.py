@@ -367,23 +367,13 @@ def get_latest_device_settings(request: ParticipantRequest, OS_API=""):
 @determine_os_api
 @authenticate_participant
 def get_latest_surveys(request: ParticipantRequest, OS_API=""):
-    """ This is the endpoint hit by the app to downwload the current survey and survey schedule 
+    """ This is the endpoint hit by the app to download the current survey and survey schedule 
     information.  The app's representation of surveys is of the current week. """
     # todo: document exactly how many days of survey info the ios and android apps use. determine any architectural differences
     
     # record that participant checked in.
     now = timezone.now()
     request.session_participant.update_only(last_get_latest_surveys=now)
-    
-    # if there was a "checkin_uuid" parameter, indicate participant and ScheduledEvent of checkin.
-    checkin_uuid = request.POST.get("checkin_uuid", None)
-    if checkin_uuid:
-        schedule: ScheduledEvent = ScheduledEvent.objects.get(uuid=checkin_uuid)
-        if request.session_participant.first_push_notification_checkin is None:
-            request.session_participant.update(first_push_notification_checkin=now)
-        schedule.update(checkin_time=now)
-        schedule.archive(True, DEVICE_CHECKED_IN, now)
-    
     survey_json_list = []
     survey: Survey
     for survey in request.session_participant.study.surveys.filter(deleted=False):

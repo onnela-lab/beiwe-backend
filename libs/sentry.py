@@ -1,4 +1,4 @@
-# NOTE: THIS FILE IS IMPORTED IN THE DJANGO CONF FILE.
+# WARNING: THIS FILE IS IMPORTED IN THE DJANGO CONF FILE. BE CAREFUL WITH IMPORTS.
 
 from cronutils.error_handler import ErrorSentry, null_error_handler
 from sentry_sdk import Client as SentryClient, set_tag
@@ -71,3 +71,15 @@ def make_error_sentry(sentry_type: str, tags: dict = None, force_null_error_hand
         sentry_client_kwargs={'transport': HttpTransport},
         sentry_report_limit=10
     )
+
+
+def elastic_beanstalk_error_sentry(*args, **kwargs) -> ErrorSentry:
+    return make_error_sentry(SentryTypes.elastic_beanstalk, *args, **kwargs)
+
+
+def data_processing_error_sentry(*args, **kwargs) -> ErrorSentry:
+    return make_error_sentry(SentryTypes.data_processing, *args, **kwargs)
+
+
+def script_runner_error_sentry(*args, **kwargs) -> ErrorSentry:
+    return make_error_sentry(SentryTypes.script_runner, *args, **kwargs)
