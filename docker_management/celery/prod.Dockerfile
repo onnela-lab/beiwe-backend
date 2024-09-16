@@ -4,7 +4,7 @@ ARG RABBITMQ_PORT
 ARG RABBITMQ_PASSWORD
 ARG pyenv="/home/ubuntu/.pyenv/bin/pyenv"
 ARG pyenv_env_name="beiwe"
-ARG python_version="3.8.19"
+ARG python_version="3.11.10"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV python="/home/ubuntu/.pyenv/versions/$python_version/envs/beiwe/bin/python"

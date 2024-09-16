@@ -1,4 +1,4 @@
-FROM python:3.8.19-slim AS beiwe-server-prod-base
+FROM python:3.11.10-slim AS beiwe-server-prod-base
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
