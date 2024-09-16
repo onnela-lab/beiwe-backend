@@ -1,7 +1,7 @@
 import pkg_resources
 
 from database.system_models import ForestVersion
-from libs.forest_utils import get_forest_git_hash
+from libs.utils.forest_utils import get_forest_git_hash
 
 
 forest_version = ForestVersion.get_singleton_instance()

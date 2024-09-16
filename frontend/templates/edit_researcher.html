@@ -116,7 +116,7 @@
       <div class="well">
           This will clear the MFA token for the researcher, if they are authorized on any studies that will require MFA they will be redirected at next login to the Manage Credentials page and directed to generate a new MFA token.
           
-          <form action="{{ easy_url("system_admin_pages.reset_researcher_mfa", edit_researcher.pk) }}" method="post">
+          <form action="{{ easy_url("manage_researcher_endpoints.administrator_reset_researcher_mfa", edit_researcher.pk) }}" method="post">
             <input type="submit" class="btn btn-warning h2-middle-margins-vertical margin-left-1" value="Reset MFA" {% if not edit_researcher.mfa_token %}disabled{%endif%}>
           </form>
           {% if not edit_researcher.mfa_token %}
@@ -132,7 +132,7 @@
     <a href="/manage_researchers" class="btn btn-success"><span class="glyphicon glyphicon-arrow-left"></span>&nbsp;Back to all researchers</a>
 
     {% if session_researcher.site_admin and not edit_researcher.site_admin and not is_self %}
-      <a href="/delete_researcher/{{ edit_researcher.id }}" class="btn btn-danger pull-right" 
+      <a href="{{ easy_url("manage_researcher_endpoints.administrator_delete_researcher", edit_researcher.id) }}" class="btn btn-danger pull-right"
        onclick="return confirm('Are you certain you want to delete {{ edit_researcher.username }}?  This cannot be undone.')">
          <span class="glyphicon glyphicon-trash"></span>&nbsp;Delete Researcher</a>
     {% endif %}

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import base64
-from typing import Tuple, Union
+from typing import Union
 
 from django.contrib.sessions.backends.db import SessionStore as DBStore
 from django.contrib.sessions.base_session import AbstractBaseSession
@@ -12,14 +12,14 @@ from django.db.models.query import QuerySet
 from django.utils import timezone
 
 from config.settings import REQUIRE_SITE_ADMIN_MFA
-from constants.common_constants import RUNNING_TEST_OR_IN_A_SHELL
+from constants.common_constants import RUNNING_TEST_OR_FROM_A_SHELL
 from constants.user_constants import ResearcherRole, SESSION_NAME
 from database.models import TimestampedModel
 from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
-from database.validators import B32_VALIDATOR, PASSWORD_VALIDATOR, STANDARD_BASE_64_VALIDATOR
-from libs.security import (BadDjangoKeyFormatting, compare_password, django_password_components,
-    generate_random_bytestring, generate_random_string, get_current_mfa_code,
+from database.validators import B32_VALIDATOR
+from libs.utils.security_utils import (BadDjangoKeyFormatting, compare_password,
+    django_password_components, generate_random_bytestring, get_current_mfa_code,
     to_django_password_components)
 
 
@@ -40,9 +40,6 @@ class Researcher(AbstractPasswordUser):
     
     username = models.CharField(max_length=32, unique=True, help_text='User-chosen username, stored in plain text')
     site_admin = models.BooleanField(default=False, help_text='Whether the researcher is also an admin')
-    
-    access_key_id = models.CharField(max_length=64, validators=[STANDARD_BASE_64_VALIDATOR], unique=True, null=True, blank=True)
-    access_key_secret = models.CharField(max_length=256, validators=[PASSWORD_VALIDATOR], blank=True)
     
     password_last_changed = models.DateTimeField(null=False, blank=False, default=timezone.now)
     password_force_reset = models.BooleanField(default=True)  # new researchers must reset their password
@@ -69,8 +66,6 @@ class Researcher(AbstractPasswordUser):
         not be associated with any Study. """
         researcher = cls(username=username, **kwargs)
         researcher.set_password(password)
-        # TODO: add check to see if access credentials are in kwargs
-        researcher.reset_access_credentials()
         return researcher
     
     def set_password(self, password: str):
@@ -83,7 +78,7 @@ class Researcher(AbstractPasswordUser):
     
     def _force_set_password(self, password: str, fake_password_length: int = 8):
         # literally only for use in tests, not even in a terminal shell.
-        if not RUNNING_TEST_OR_IN_A_SHELL:
+        if not RUNNING_TEST_OR_FROM_A_SHELL:
             class UncatchableException(BaseException): pass
             raise UncatchableException("completely illegal operation")
         self.password_last_changed = timezone.now()
@@ -169,22 +164,6 @@ class Researcher(AbstractPasswordUser):
             self.set_access_credentials(self.access_key_id, proposed_secret_key)
         return it_matched
     
-    def reset_access_credentials(self) -> Tuple[str, str]:
-        """ Replaces access credentials with """
-        access_key = generate_random_string(64)
-        secret_key = generate_random_bytestring(64)
-        self.set_access_credentials(access_key, secret_key)
-        return access_key, secret_key.decode()
-    
-    def set_access_credentials(self, access_key: str, secret_key: bytes) -> Tuple[bytes, bytes]:
-        secret_hash, secret_salt = self.generate_hash_and_salt(secret_key)
-        self.access_key_id = access_key
-        self.access_key_secret = to_django_password_components(
-            self.DESIRED_ALGORITHM, self.DESIRED_ITERATIONS, secret_hash, secret_salt
-        )
-        self.save()
-        return secret_hash, secret_salt
-    
     ## Logic
     def is_study_admin(self) -> bool:
         return self.get_admin_study_relations().exists()
@@ -258,6 +237,11 @@ class StudyRelation(TimestampedModel):
         return "%s is a %s in %s" % (
             self.researcher.username, self.relationship.replace("_", " ").title(), self.study.name
         )
+    
+    @classmethod
+    def determine_relationship_exists(self, researcher_pk: Researcher, study_pk: Study) -> bool:
+        """ Does EXACTLY what it says. """
+        return self.objects.filter(researcher_id=researcher_pk, study_id=study_pk).exists()
 
 
 ## Custom Session classes for Researchers

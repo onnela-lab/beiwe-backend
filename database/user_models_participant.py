@@ -13,12 +13,12 @@ from dateutil.tz import gettz
 from django.core.exceptions import ImproperlyConfigured
 from django.core.validators import MinLengthValidator
 from django.db import models
-from django.db.models import Manager, QuerySet
+from django.db.models import Manager, Min, QuerySet
 from django.utils import timezone
 
 from config.settings import DOMAIN_NAME
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
-from constants.common_constants import LEGIBLE_TIME_FORMAT
+from constants.common_constants import LEGIBLE_TIME_FORMAT, RUNNING_TESTS
 from constants.data_stream_constants import ALL_DATA_STREAMS, IDENTIFIERS
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
     OS_TYPE_CHOICES)
@@ -29,7 +29,7 @@ from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
 from libs.firebase_config import check_firebase_instance
 from libs.s3 import s3_retrieve
-from libs.security import (compare_password, device_hash, django_password_components,
+from libs.utils.security_utils import (compare_password, device_hash, django_password_components,
     generate_easy_alphanumeric_string)
 
 
@@ -86,6 +86,7 @@ class Participant(AbstractPasswordUser):
     # pure tracking - these are used to track the last time a participant did something.
     last_get_latest_surveys = models.DateTimeField(null=True, blank=True)
     last_upload = models.DateTimeField(null=True, blank=True)
+    first_register_user = models.DateTimeField(null=True, blank=True)
     last_register_user = models.DateTimeField(null=True, blank=True)
     last_set_password = models.DateTimeField(null=True, blank=True)
     last_set_fcm_token = models.DateTimeField(null=True, blank=True)
@@ -112,7 +113,7 @@ class Participant(AbstractPasswordUser):
     # of them are filler for future features that may or may not be implemented. Some are for
     # backend feature, some are for app features. (features under active development should be
     # annotated in some way but no promises.)
-    # Set help text over in /forms/django_forms.py
+    # Set help text over in libs/django_forms/forms.py
     enable_aggressive_background_persistence = models.BooleanField(default=False)
     enable_binary_uploads = models.BooleanField(default=False)
     enable_new_authentication = models.BooleanField(default=False)
@@ -206,9 +207,11 @@ class Participant(AbstractPasswordUser):
         return super().generate_hash_and_salt(device_hash(password))
     
     def debug_validate_password(self, compare_me: str) -> bool:
-        """ Hardcoded values for a test, this is for a test. """
+        """ Hardcoded values for a test, this is for a test, do not use, this is just for tests. """
+        if not RUNNING_TESTS:
+            raise PermissionError("This method is for testing only.")
         _algorithm, _iterations, password, salt = django_password_components(self.password)
-        return compare_password('sha1', 1000, device_hash(compare_me.encode()), password, salt)
+        return compare_password('sha1', 2, device_hash(compare_me.encode()), password, salt)
     
     def get_private_key(self) -> RSA.RsaKey:
         from libs.s3 import get_client_private_key  # weird import triangle
@@ -254,21 +257,12 @@ class Participant(AbstractPasswordUser):
     ################################################################################################
     
     @property
-    def last_app_heartbeat(self) -> Optional[datetime]:
-        """ Returns the last time the app sent a heartbeat. """
-        try:
-            return self.heartbeats.latest("timestamp").timestamp
-        except AppHeartbeats.DoesNotExist:
-            return None
-    
-    @property
     def is_active_one_week(self) -> bool:
         return Participant._is_active(self, timezone.now() - timedelta(days=7))
     
-    
     @staticmethod
     def _is_active(participant: Participant, activity_threshold: datetime) -> bool:
-        """ Logic to determine if a participnat counts as active. """
+        """ Logic to determine if a participant counts as active. """
         # get the most recent timestamp from the list of fields, and check if it is more recent than
         # now the participant is considered active.
         
@@ -293,6 +287,13 @@ class Participant(AbstractPasswordUser):
         # behavior, they are not active if they has no timestamps. Other code that cares about this
         # scenario needs to detect this case and handle it.   ????
         return False
+    
+    @property
+    def most_recent_activity(self):
+        # get the most recent timestamp out of the active participant fields, handle Nones
+        values = [getattr(self, key) for key in ACTIVE_PARTICIPANT_FIELDS]
+        return max([v for v in values if v is not None], default=None)
+    
     
     @property
     def is_dead(self) -> bool:
@@ -410,9 +411,9 @@ class Participant(AbstractPasswordUser):
     @property
     def participant_page(self):
         """ returns a url for the participant page for this user (debugging function) """
-        from libs.http_utils import easy_url  # import triangle
+        from libs.utils.http_utils import easy_url  # import triangle
         return f"https://{DOMAIN_NAME}" + easy_url(
-            "participant_pages.participant_page", self.study.id, self.patient_id
+            "participant_endpoints.participant_page", self.study.id, self.patient_id
         )
     
     @property
@@ -520,13 +521,16 @@ class ParticipantDeletionEvent(TimestampedModel):
 class AppHeartbeats(UtilityModel):
     """ Storing heartbeats is intended as a debugging tool for monitoring app uptime, the idea is 
     that the app checks in every 5 minutes so we can see when it doesn't. (And then send it a push
-    notification)  """
+    notification) """
     participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="heartbeats")
     timestamp = models.DateTimeField(null=False, blank=False, db_index=True)
+    # TODO: message is not intended to be surfaced to anyone other than developers, at time of comment
+    # contains ios debugging info.
     message = models.TextField(null=True, blank=True)
     
     @classmethod
     def create(cls, participant: Participant, timestamp: datetime, message: str = None):
+        participant.update_only(last_heartbeat_checkin=timestamp)
         return cls.objects.create(participant=participant, timestamp=timestamp, message=message)
 
 
@@ -536,17 +540,16 @@ class ParticipantActionLog(UtilityModel):
     participant: Participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="action_logs")
     timestamp = models.DateTimeField(null=False, blank=False, db_index=True)
     action = models.TextField(null=False, blank=False)
-
-
-# feature disabled, untested
-# class IOSHardExits(UtilityModel):
-#     participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="ios_hard_exits")
-#     timestamp = models.DateTimeField(null=False, blank=False, db_index=True)
-#     # handled means there was a notification sent to the user, or we got a heartbeat.
-#     handled = models.DateTimeField(null=False, blank=False, db_index=True)
+    
+    @classmethod
+    def heartbeat_notifications(cls) -> QuerySet[ParticipantActionLog]:
+        return cls.objects.filter(action=HEARTBEAT_PUSH_NOTIFICATION_SENT)
 
 
 class AppVersionHistory(TimestampedModel):
+    """ We can't apply a unique constraint on these fields because that would cover over some 
+    possible bugs that we want to be able to detect (and further complicate the participant
+    credential code path). """
     participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="app_version_history")
     app_version_code = models.CharField(max_length=16, blank=False, null=False)
     app_version_name = models.CharField(max_length=16, blank=False, null=False)
@@ -555,6 +558,7 @@ class AppVersionHistory(TimestampedModel):
 
 # device status report history 
 class DeviceStatusReportHistory(UtilityModel):
+    created_on = models.DateTimeField(default=timezone.now)
     participant = models.ForeignKey(
         Participant, null=False, on_delete=models.PROTECT, related_name="device_status_reports"
     )

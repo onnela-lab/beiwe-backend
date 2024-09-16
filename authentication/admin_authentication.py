@@ -20,10 +20,10 @@ from constants.user_constants import (ALL_RESEARCHER_TYPES, EXPIRY_NAME, Researc
     SESSION_NAME, SESSION_TIMEOUT_HOURS, SESSION_UUID)
 from database.study_models import Study
 from database.user_models_researcher import Researcher, StudyRelation
-from libs.http_utils import easy_url
+from libs.endpoint_helpers.password_validation_helpers import get_min_password_requirement
 from libs.internal_types import ResearcherRequest
-from libs.password_validation import get_min_password_requirement
-from libs.security import generate_easy_alphanumeric_string
+from libs.utils.http_utils import easy_url
+from libs.utils.security_utils import generate_easy_alphanumeric_string
 from middleware.abort_middleware import abort
 
 
@@ -141,9 +141,22 @@ def assert_admin(request: ResearcherRequest, study_id: int):
         directly raises the 403 error, if we don't hit that return True. """
     session_researcher = request.session_researcher
     if not session_researcher.site_admin and not session_researcher.check_study_admin(study_id):
-        messages.warning("This user does not have admin privilages on this study.")
+        # messages.warning("This user does not have admin privilages on this study.")
         log("no admin privilages")
         return abort(403)
+    
+    # allow usage in if statements
+    return True
+
+
+def assert_site_admin(request: ResearcherRequest):
+    """ This function will throw a 403 forbidden error and stop execution.  Note that the abort
+        directly raises the 403 error, if we don't hit that return True. """
+    if not request.session_researcher.site_admin:
+        # messages.warning("This user is not a site administrator.")
+        log("not a site admin")
+        return abort(403)
+    
     # allow usage in if statements
     return True
 
@@ -194,71 +207,93 @@ def authenticate_researcher_study_access(some_function):
     keywords to the function, and will error if one is not.
     The pattern is for a url with <string:survey/study_id> to pass in this value.
     A site admin is always able to access a study or survey. """
+    
     @functools.wraps(some_function)
     def authenticate_and_call(*args, **kwargs):
-        # Check for regular login requirement
-        request: ResearcherRequest = args[0]
-        assert isinstance(request, HttpRequest), \
-            f"first parameter of {some_function.__name__} must be an HttpRequest, was {type(request)}."
-        
-        if not check_is_logged_in(request):
-            log("researcher is not logged in")
-            return do_login_page_redirect(request)
-        
-        populate_session_researcher(request)
-        
-        try:
-            # first get from kwargs, then from the POST request, either one is fine
-            survey_id = kwargs.get('survey_id', request.POST.get('survey_id', None))
-            study_id = kwargs.get('study_id', request.POST.get('study_id', None))
-        except UnreadablePostError:
-            return abort(500)
-        
-        # Check proper usage
-        if survey_id is None and study_id is None:
-            log("no survey or study provided")
-            return abort(400)
-        
-        if survey_id is not None and study_id is None:
-            log("survey was provided but no study was provided")
-            return abort(400)
-        
-        # We want the survey_id check to execute first if both args are supplied, surveys are
-        # attached to studies but do not supply the study id.
-        if survey_id:
-            # get studies for a survey, fail with 404 if study does not exist
-            studies = Study.objects.filter(surveys=survey_id)
-            if not studies.exists():
-                log("no such study 1")
-                return abort(404)
-            
-            # Check that researcher is either a researcher on the study or a site admin,
-            # and populate study_id variable
-            study_id = studies.values_list('pk', flat=True).get()
-        
-        # assert that such a study exists
-        if not Study.objects.filter(pk=study_id, deleted=False).exists():
-            log("no such study 2")
-            return abort(404)
-        
-        # always allow site admins, allow all types of study relations
-        if not request.session_researcher.site_admin:
-            try:
-                relation = StudyRelation.objects \
-                    .filter(study_id=study_id, researcher=request.session_researcher) \
-                    .values_list("relationship", flat=True).get()
-            except StudyRelation.DoesNotExist:
-                log("no study relationship for researcher")
-                return abort(403)
-            
-            if relation not in ALL_RESEARCHER_TYPES:
-                log("invalid study relationship for researcher")
-                return abort(403)
-        
-        goto_redirect = determine_any_redirects(request)
-        return goto_redirect if goto_redirect else some_function(*args, **kwargs)
+        return authenticate_researcher_study_access_and_call(some_function, *args, **kwargs)
     
     return authenticate_and_call
+
+
+# we need to be able to import this for a special case in the manage_study_endpoints.py
+def authenticate_researcher_study_access_and_call(some_function, *args, **kwargs):
+    # Check for regular login requirement
+    request: ResearcherRequest = args[0]
+    assert isinstance(request, HttpRequest), \
+        f"first parameter of {some_function.__name__} must be an HttpRequest, was {type(request)}."
+    
+    if not check_is_logged_in(request):
+        log("researcher is not logged in")
+        return do_login_page_redirect(request)
+    
+    populate_session_researcher(request)
+    
+    try:
+        # first get from kwargs, then from the POST request, either one is fine
+        survey_id = kwargs.get('survey_id', request.POST.get('survey_id', None))
+        study_id = kwargs.get('study_id', request.POST.get('study_id', None))
+    except UnreadablePostError:
+        log("unreadable post error")
+        return abort(500)
+    
+    # Check proper usage
+    if survey_id is None and study_id is None:
+        log("no survey or study provided")
+        return abort(400)
+    
+    if survey_id is not None and study_id is None:
+        log("survey was provided but no study was provided")
+        return abort(400)
+    
+    # TODO REAL TEST FOR THIS
+    try:
+        if survey_id is not None:
+            survey_id = int(survey_id)
+        if study_id is not None:
+            temp_study_id = int(study_id)
+            if str(temp_study_id) != str(study_id):
+                log("study id was not an integer")
+                return abort(400)
+            study_id = temp_study_id
+    except ValueError:
+        log("survey or study id was not an integer")
+        return abort(400)
+    
+    # We want the survey_id check to execute first if both args are supplied, surveys are
+    # attached to studies but do not supply the study id.
+    if survey_id:
+        # get studies for a survey, fail with 404 if study does not exist
+        studies = Study.objects.filter(surveys=survey_id)
+        if not studies.exists():
+            log("no such study 1")
+            return abort(404)
+        
+        # check that the study found matches the study id.
+        if study_id != studies.values_list('pk', flat=True).get():
+            log("study id mismatch")
+            return abort(404)
+    
+    # assert that such a study exists and is not deleted (hidden)
+    if not Study.objects.filter(pk=study_id, deleted=False).exists():
+        log("no such valid study 2")
+        return abort(404)
+    
+    # always allow site admins, allow all types of study relations
+    if not request.session_researcher.site_admin:
+        try:
+            relation = StudyRelation.objects \
+                .filter(study_id=study_id, researcher=request.session_researcher) \
+                .values_list("relationship", flat=True).get()
+        except StudyRelation.DoesNotExist:
+            log("no study relationship for researcher")
+            return abort(403)
+        
+        if relation not in ALL_RESEARCHER_TYPES:
+            log("invalid study relationship for researcher")
+            return abort(403)
+    
+    goto_redirect = determine_any_redirects(request)
+    return goto_redirect if goto_redirect else some_function(*args, **kwargs)
 
 
 def get_researcher_allowed_studies_as_query_set(request: ResearcherRequest) -> QuerySet[Study]:
@@ -314,6 +349,12 @@ def authenticate_admin(some_function):
                     log("not study admin on study")
                     return abort(403)
         
+        # validate the study_id if it is present
+        if 'study_id' in kwargs:
+            if not Study.objects.filter(id=kwargs['study_id']).exists():
+                log("no such study")
+                return abort(404)
+        
         # determine whether to redirect to password the password reset page
         goto_redirect = determine_any_redirects(request)
         return goto_redirect if goto_redirect else some_function(*args, **kwargs)
@@ -362,14 +403,14 @@ def determine_any_redirects(request: ResearcherRequest) -> Optional[HttpResponse
     if researcher.password_force_reset:
         log("password reset forced")
         messages.error(request, PASSWORD_RESET_FORCED)
-        return redirect(easy_url("admin_pages.manage_credentials"))
+        return redirect(easy_url("manage_researcher_endpoints.self_manage_credentials_page"))
     
     if researcher.password_min_length < get_min_password_requirement(researcher):
         log("password reset min length")
         messages.error(
             request, PASSWORD_RESET_SITE_ADMIN if researcher.site_admin else PASSWORD_RESET_TOO_SHORT
         )
-        return redirect(easy_url("admin_pages.manage_credentials"))
+        return redirect(easy_url("manage_researcher_endpoints.self_manage_credentials_page"))
     
     # get smallest password max age from studies the researcher is on
     max_age_days = researcher.study_relations \
@@ -386,7 +427,7 @@ def determine_any_redirects(request: ResearcherRequest) -> Optional[HttpResponse
         if password_age_days > max_age_days:
             messages.error(request, PASSWORD_EXPIRED)
             log("password expired, redirecting")
-            return redirect(easy_url("admin_pages.manage_credentials"))
+            return redirect(easy_url("manage_researcher_endpoints.self_manage_credentials_page"))
         elif password_age_days > max_age_days - 7:
             messages.warning(request, PASSWORD_WILL_EXPIRE.format(days=max_age_days - password_age_days))
     
@@ -397,7 +438,7 @@ def determine_any_redirects(request: ResearcherRequest) -> Optional[HttpResponse
         messages.error(request, MFA_CONFIGURATION_REQUIRED)
         if researcher.site_admin and REQUIRE_SITE_ADMIN_MFA:
             messages.error(request, MFA_CONFIGURATION_SITE_ADMIN)
-        return redirect(easy_url("admin_pages.manage_credentials"))
+        return redirect(easy_url("manage_researcher_endpoints.self_manage_credentials_page"))
     
     # request.get_full_path() is always a valid url because this code only executes on pages that
     # were already validly resolved. (we need the slash at the beginning when storing to the db)

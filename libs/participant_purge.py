@@ -2,12 +2,12 @@ import itertools
 from typing import List, Tuple
 
 from django.utils import timezone
-from constants import action_log_messages
 
+from constants import action_log_messages
 from constants.common_constants import CHUNKS_FOLDER, PROBLEM_UPLOADS
 from database.user_models_participant import Participant, ParticipantDeletionEvent
 from libs.s3 import s3_delete_many_versioned, s3_list_files, s3_list_versions
-from libs.security import generate_easy_alphanumeric_string
+from libs.utils.security_utils import generate_easy_alphanumeric_string
 
 
 DELETION_PAGE_SIZE = 250

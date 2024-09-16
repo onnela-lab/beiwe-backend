@@ -3,9 +3,7 @@ from datetime import date
 from io import StringIO
 from typing import Dict, List
 
-from django.core.exceptions import ImproperlyConfigured
-
-from constants.forest_constants import ForestTree, TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS
+from constants.forest_constants import ForestTree
 from database.forest_models import ForestTask, SummaryStatisticDaily
 from services.celery_forest import BadForestField, csv_parse_and_consume
 from tests.common import CommonTestCase

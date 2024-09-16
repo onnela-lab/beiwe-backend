@@ -1,3 +1,5 @@
+# The aws security group ssh enable/revoke comes from https://stackoverflow.com/questions/63642807/how-can-i -find-the-right-inbound-rule-for-my-github-action-to-deploy-on-my-aws-e
+
 # Deploy the latest version of the code to all our Elastic Beanstalk environments
 name: Deploy
 
@@ -17,28 +19,35 @@ jobs:
         include:
           - environment: PROD_DEPLOYMENT
             aws_access_key_id: PROD_AWS_ACCESS_KEY_ID
+            # trunk-ignore(checkov/CKV_SECRET_6)
             aws_secret_access_key: PROD_AWS_SECRET_ACCESS_KEY
             aws_region: PROD_AWS_REGION
             application_name: PROD_APPLICATION_NAME
             environment_name: PROD_ENVIRONMENT_NAME
             worker_hostname: PROD_WORKER_HOSTNAME
+            worker_security_group: PROD_WORKER_SECURITY_GROUP
             ssh_key: PROD_SSH_KEY
           - environment: NHS_DEPLOYMENT
             aws_access_key_id: NHS_AWS_ACCESS_KEY_ID
+            # trunk-ignore(checkov/CKV_SECRET_6)
             aws_secret_access_key: NHS_AWS_SECRET_ACCESS_KEY
             aws_region: NHS_AWS_REGION
             application_name: NHS_APPLICATION_NAME
             environment_name: NHS_ENVIRONMENT_NAME
             worker_hostname: NHS_WORKER_HOSTNAME
+            worker_security_group: NHS_WORKER_SECURITY_GROUP
             ssh_key: NHS_SSH_KEY
           - environment: EU_DEPLOYMENT
             aws_access_key_id: EU_AWS_ACCESS_KEY_ID
+            # trunk-ignore(checkov/CKV_SECRET_6)
             aws_secret_access_key: EU_AWS_SECRET_ACCESS_KEY
             aws_region: EU_AWS_REGION
             application_name: EU_APPLICATION_NAME
             environment_name: EU_ENVIRONMENT_NAME
             worker_hostname: EU_WORKER_HOSTNAME
+            worker_security_group: EU_WORKER_SECURITY_GROUP
             ssh_key: EU_SSH_KEY
+    
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets[matrix.aws_access_key_id] }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets[matrix.aws_secret_access_key] }}
@@ -46,19 +55,42 @@ jobs:
       APPLICATION_NAME: ${{ secrets[matrix.application_name] }}
       ENVIRONMENT_NAME: ${{ secrets[matrix.environment_name] }}
       WORKER_HOSTNAME: ${{ secrets[matrix.worker_hostname] }}
+      WORKER_SECURITY_GROUP: ${{ secrets[matrix.worker_security_group] }}
       SSH_KEY: ${{ secrets[matrix.ssh_key] }}
+      
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-
+      - name: Do The GitHub Git Operation Thing
+        uses: actions/checkout@v2
+      
+      - name: get runner ip address
+        id: ip
+        uses: haythem/public-ip@v1.2
+      
+      - name: setup aws security group
+        uses: aws-actions/configure-aws-credentials@v1
+        with: 
+          # these variable names differ from the second with block - sure hope you can have two of those
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: whitelist runner ip address
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id $WORKER_SECURITY_GROUP \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32
+      
       - name: Create the deployment package
         run: zip -r deploy.zip . -x '*.git*'
-
+      
       - name: Get version label and description
         run: |
           echo "VERSION_LABEL=$(git rev-parse --short HEAD)_$(date '+%Y-%m-%dT%H:%M:%S')" >> $GITHUB_ENV
           echo "VERSION_DESCRIPTION=$(git log -1 --pretty=format:%h\ %as\ %cn\:\ %s HEAD)" >> $GITHUB_ENV
-
+      
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v18
         with:
@@ -70,7 +102,7 @@ jobs:
           version_description: ${{ env.VERSION_DESCRIPTION }}
           region: ${{ env.AWS_REGION }}
           deployment_package: deploy.zip
-
+      
       - name: Deploy to worker server a.k.a. data processing server
         run: |
           echo ${{ matrix.node }}
@@ -86,11 +118,9 @@ jobs:
             fi; \
             # update the profile for any future ssh sessions updates: \
             cp /home/ubuntu/beiwe-backend/cluster_management/pushed_files/bash_profile.sh /home/ubuntu/.profile \
-            # need to install forest, update existing requirements, update data processing requirements, \
-            # and then uninstall the broken dataclasses package that is only needed on 3.6. \
+            # need to install forest, update existing requirements, update data processing requirements \
             # (we have to uninstall forest because pointing at a new commit will not force updated  \
-            # subrequirements, for some reason.)  Also update pip and friends, but due to datatables \
-            # that needs to happen after uninstalling forest. \
+            # subrequirements, for some reason.).  Also update pip and friends.
             /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip uninstall forest -y; \
             /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip install --upgrade pip setuptools wheel; \
             /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip install -r requirements.txt; \
@@ -98,3 +128,11 @@ jobs:
           then \
             exit 1; \
           fi
+      
+      - name: revoke runner ip address from the security group
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id $WORKER_SECURITY_GROUP \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32

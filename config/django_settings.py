@@ -84,6 +84,10 @@ INSTALLED_APPS = [
 ]
 
 SHELL_PLUS = "ipython"
+# if we enable sql printing, don't truncate the output.
+RUNSERVER_PLUS_PRINT_SQL_TRUNCATE = None
+SHELL_PLUS_PRINT_SQL_TRUNCATE = None
+# SHELL_PLUS_PRINT_SQL = True
 
 SHELL_PLUS_POST_IMPORTS = [
     # generic
@@ -101,7 +105,7 @@ SHELL_PLUS_POST_IMPORTS = [
     ["django.utils.timezone", ("localtime", "make_aware", "make_naive")],
     
     # shell
-    ["libs.utils.shell_utils", "*"],
+    ["libs.shell_support", "*"],
     ['libs.utils.dev_utils', "GlobalTimeTracker"],
     
     # s3

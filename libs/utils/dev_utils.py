@@ -1,3 +1,6 @@
+# FILES IN UTILS SHOULD HAVE SPARSE IMPORTS SO THAT THEY CAN BE USED ANYWHERE.
+# IF YOU ARE IMPORTING FROM A DATABASE MODEL YOU SHOULD PLACE IT ELSEWHERE. (ANNOTATION IMPORTS ARE OK)
+
 import cProfile
 import functools
 from collections import defaultdict
@@ -9,9 +12,7 @@ from statistics import mean, stdev
 from time import perf_counter
 from types import FunctionType, MethodType
 
-from database.survey_models import Survey
-from database.user_models_participant import Participant
-from libs.security import generate_easy_alphanumeric_string
+from libs.utils.security_utils import generate_easy_alphanumeric_string
 
 
 PROJECT_PATH = __file__.rsplit("/", 2)[0]
@@ -58,6 +59,9 @@ class TxtClr:
 def disambiguate_participant_survey(func):
     """ This wrapper allows a function to take any combination of (participant, survey)
     Mostly used in debugging push notifications. """
+    
+    from database.survey_models import Survey
+    from database.user_models_participant import Participant
     
     @functools.wraps(func)
     def _disambiguate_participant_survey(*args, **kwargs):
@@ -282,21 +286,20 @@ timers = defaultdict(timer_class)
 def pwrap(a_function):
     @functools.wraps(a_function)
     def wrapper(*args, **kwargs):
-        p(a_function.__name__, quiet=True)
+        p(a_function.__name__, quiet=True, name="Start " + a_function.__name__)
         ret = a_function(*args, **kwargs)
-        p(a_function.__name__)
+        p(a_function.__name__, name="Finished " + a_function.__name__)
         return ret
     
     return wrapper
 
 
-
-def p(timer_label=0, outer_caller=False, quiet=False):
+def p(timer_label=0, caller_stack_location=1, quiet=False, name=None):
     """ Handy little function that prints the file name line number it was called on and the
         amount of time since the function was last called.
         If you provide a label (anything with a string representation) that will be printed
         along with the time information.
-
+    
     Examples:
          No parameters (source line numbers present for clarity):
             [app.py:65] p()
@@ -305,10 +308,10 @@ def p(timer_label=0, outer_caller=False, quiet=False):
          This example's output:
             app.py:65 -- 0 -- profiling start...
             app.py:67 -- 0 -- 0.405514
-
+        
          The second statement shows that it took just over the 0.403 time of the sleep statement
          to process between the two p calls.
-
+        
          With parameters (source line numbers present for clarity):
              [app.py:65] p()
              [app.py:66] sleep(0.403)
@@ -328,10 +331,14 @@ def p(timer_label=0, outer_caller=False, quiet=False):
     """
     timestamp = perf_counter()
     timer_object = timers[timer_label]
-    if outer_caller:
-        caller = getframeinfo(stack()[2][0])
-    else:
-        caller = getframeinfo(stack()[1][0])
+    
+    # Change the print statement by shifting the stack location where the caller name is sourced from.
+    # Only very occasionally useful, values other than 1 and 2 are probably never useful.
+    caller = getframeinfo(stack()[caller_stack_location][0])
+    
+    # Sometimes you need to make a name pop out.
+    if name:
+        timer_label = name
     
     print("%s:%.f -- %s --" % (relpath(caller.filename), caller.lineno, timer_label), end=" ")
     # the first call to get_timer results in a zero elapsed time, so we can skip it.

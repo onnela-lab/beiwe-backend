@@ -1,5 +1,6 @@
 import json
 
+## These are all used on various study pages
 
 ABOUT_PAGE_TEXT = (
     'The Beiwe application runs on your phone and helps researchers collect information about your '
@@ -50,4 +51,101 @@ AUDIO_SURVEY_SETTINGS = {
     'audio_survey_type': 'compressed',
     'bit_rate': 64000,
     'sample_rate': 44100,
+}
+
+CHECKBOX_TOGGLES = [
+    "accelerometer",
+    "gps",
+    "calls",
+    "texts",
+    "wifi",
+    "bluetooth",
+    "power_state",
+    "proximity",
+    "gyro",
+    "magnetometer",
+    "devicemotion",
+    "ambient_audio",
+    "reachability",
+    "allow_upload_over_cellular_data",
+    "use_anonymized_hashing",
+    "use_gps_fuzzing",
+    "call_clinician_button_enabled",
+    "call_research_assistant_button_enabled"
+]
+
+TIMER_VALUES = [
+    "accelerometer_off_duration_seconds",
+    "accelerometer_on_duration_seconds",
+    "bluetooth_on_duration_seconds",
+    "bluetooth_total_duration_seconds",
+    "bluetooth_global_offset_seconds",
+    "check_for_new_surveys_frequency_seconds",
+    "create_new_data_files_frequency_seconds",
+    "gps_off_duration_seconds",
+    "gps_on_duration_seconds",
+    "seconds_before_auto_logout",
+    "upload_data_files_frequency_seconds",
+    "voice_recording_max_time_length_seconds",
+    "wifi_log_frequency_seconds",
+    "gyro_off_duration_seconds",
+    "gyro_on_duration_seconds",
+    "magnetometer_off_duration_seconds",
+    "magnetometer_on_duration_seconds",
+    "devicemotion_off_duration_seconds",
+    "devicemotion_on_duration_seconds",
+    "heartbeat_timer_minutes",
+]
+
+
+# Surveys have several types of questions and some special symbols
+
+# Survey Question Types
+FREE_RESPONSE = "free_response"
+CHECKBOX = "checkbox"
+RADIO_BUTTON = "radio_button"
+SLIDER = "slider"
+INFO_TEXT_BOX = "info_text_box"
+
+ALL_QUESTION_TYPES = {
+    FREE_RESPONSE,
+    CHECKBOX,
+    RADIO_BUTTON,
+    SLIDER,
+    INFO_TEXT_BOX
+}
+
+NUMERIC_QUESTIONS = {
+    RADIO_BUTTON,
+    SLIDER,
+    FREE_RESPONSE,
+    CHECKBOX,
+}
+
+## Free Response text field types (answer types)
+FREE_RESPONSE_NUMERIC = "NUMERIC"
+FREE_RESPONSE_SINGLE_LINE_TEXT = "SINGLE_LINE_TEXT"
+FREE_RESPONSE_MULTI_LINE_TEXT = "MULTI_LINE_TEXT"
+
+TEXT_FIELD_TYPES = {
+    FREE_RESPONSE_NUMERIC,
+    FREE_RESPONSE_SINGLE_LINE_TEXT,
+    FREE_RESPONSE_MULTI_LINE_TEXT
+}
+
+## Comparators
+COMPARATORS = {
+    "<",
+    ">",
+    "<=",
+    ">=",
+    "==",
+    "!="
+}
+
+NUMERIC_COMPARATORS = {
+    "<",
+    ">",
+    "<=",
+    ">="
 }

@@ -20,7 +20,7 @@
       <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
     </li>
     <li class="active">
-      <a href="{{ easy_url("dashboard_api.dashboard_page", study_id=study.id) }}">
+      <a href="{{ easy_url("data_page_endpoints.dashboard_page", study_id=study.id) }}">
         Dashboard
       </a>
     </li>
@@ -229,22 +229,21 @@
           </tr>
         </thead>
         <tbody>
-          {% for patient_id, byte_list in byte_streams.items() %} {# iterate over keys #}
-            <tr>
-              <th>
-                <a href="/dashboard/{{ study_id }}/patient/{{ patient_id }}">
-                  {{ patient_id }}
-                </a>
-              </th>
-              {% for bytes in byte_list %} {# iterate over bytes in values #}
-                {% if bytes == None %}
-                  <td class="bytes" ng-style="calculateColor({{ 0 }})" data-number="0" >0</td>
-                {% else %}
-                  <td class="bytes" ng-style="calculateColor({{ bytes }})" data-number="{{ bytes }}">
-                    {{ "{:,}".format(bytes) }}
-                  </td>
-                {% endif %}
-              {% endfor %}
+
+{# (doing some whitespace optimization here, this element gets repeated a lot) #}
+{% for patient_id, byte_list in byte_streams.items() %} {# iterate over keys #}
+<tr>
+<th>
+<a href="/dashboard/{{ study_id }}/patient/{{ patient_id }}">{{ patient_id }}</a>
+</th>
+{# iterate over bytes in values #}
+{% for bytes in byte_list %}
+{% if bytes == None %}
+<td class="bytes" ng-style="calculateColor()" data-number="0" >0</td>
+{% else %}
+<td class="bytes" ng-style="calculateColor({{ bytes }})" data-number="{{ bytes }}">{{ "{:,}".format(bytes) }}</td>
+{% endif %}
+{% endfor %}
             </tr>
           {% endfor %}
         </tbody>

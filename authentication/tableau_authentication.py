@@ -1,17 +1,13 @@
 import functools
 import json
 
+from django import forms
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
 
-from constants.tableau_api_constants import (APIKEY_NO_ACCESS_MESSAGE,
-    CREDENTIALS_NOT_VALID_ERROR_MESSAGE, NO_STUDY_FOUND_MESSAGE, NO_STUDY_PROVIDED_MESSAGE,
-    RESEARCHER_NOT_ALLOWED, RESOURCE_NOT_FOUND, STUDY_HAS_FOREST_DISABLED_MESSAGE, X_ACCESS_KEY_ID,
-    X_ACCESS_KEY_SECRET)
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models_researcher import StudyRelation
-from forms.django_forms import TableauAuthenticationForm
 from libs.internal_types import TableauRequest
 
 
@@ -19,8 +15,24 @@ class TableauAuthenticationFailed(Exception): pass
 class TableauPermissionDenied(Exception): pass
 
 
-DEBUG_TABLEAU_AUTHENTICATION = False
+# we have a bunch of special purpose strings, these cluttec up constants so leave them here
 
+X_ACCESS_KEY_ID = "X-Access-Key-Id"
+X_ACCESS_KEY_SECRET = "X-Access-Key-Secret"
+
+# general error messages
+CREDENTIALS_NOT_VALID_ERROR_MESSAGE = "Credentials not valid"
+HEADER_IS_REQUIRED = "This header is required"
+RESOURCE_NOT_FOUND = "resource not found"
+
+# permissions errors
+NO_STUDY_PROVIDED_MESSAGE = "No study id specified"
+NO_STUDY_FOUND_MESSAGE = "No matching study found"
+RESEARCHER_NOT_ALLOWED = "Researcher does not have permission to view that study"
+STUDY_HAS_FOREST_DISABLED_MESSAGE = "Study does not have forest enabled"
+
+
+DEBUG_TABLEAU_AUTHENTICATION = False
 
 def log(*args, **kwargs):
     if DEBUG_TABLEAU_AUTHENTICATION:
@@ -67,6 +79,7 @@ def check_tableau_permissions(request: HttpRequest, study_object_id=None):
         )
     except ApiKey.DoesNotExist:
         log("ApiKey does not exist")
+        # trunk-ignore(ruff/B904)
         raise TableauAuthenticationFailed(CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
     
     # test key
@@ -76,16 +89,12 @@ def check_tableau_permissions(request: HttpRequest, study_object_id=None):
         log("proposed secret key is not valid")
         raise TableauAuthenticationFailed(CREDENTIALS_NOT_VALID_ERROR_MESSAGE)
     
-    if not api_key.has_tableau_api_permissions:
-        log("api key does not have permission")
-        raise TableauPermissionDenied(APIKEY_NO_ACCESS_MESSAGE)
-    
     # existence errors
     if study_object_id is None:
         log("study_object_id was None")
         raise TableauPermissionDenied(NO_STUDY_PROVIDED_MESSAGE)
     
-    if not Study.objects.filter(object_id=study_object_id).exists():
+    if not Study.objects.filter(object_id=study_object_id, deleted=False).exists():
         log("no such study object id")
         raise TableauPermissionDenied(NO_STUDY_FOUND_MESSAGE)
     
@@ -102,4 +111,20 @@ def check_tableau_permissions(request: HttpRequest, study_object_id=None):
                 .get(researcher=api_key.researcher)
         except StudyRelation.DoesNotExist:
             log("Researcher not associated with study")
+            # trunk-ignore(ruff/B904)
             raise TableauPermissionDenied(RESEARCHER_NOT_ALLOWED)
+
+
+class TableauAuthenticationForm(forms.Form):
+    """ Form for fetching request headers. """
+    
+    def __init__(self, *args, **kwargs):
+        """ Define authentication form fields since the keys contain illegal characters for variable
+        names. """
+        super().__init__(*args, **kwargs)
+        self.fields[X_ACCESS_KEY_ID] = forms.CharField(
+            error_messages={"required": HEADER_IS_REQUIRED}
+        )
+        self.fields[X_ACCESS_KEY_SECRET] = forms.CharField(
+            error_messages={"required": HEADER_IS_REQUIRED}
+        )

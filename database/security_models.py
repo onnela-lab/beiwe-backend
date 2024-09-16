@@ -7,9 +7,9 @@ from django.db import models
 from database.common_models import TimestampedModel
 from database.user_models_researcher import Researcher
 from database.validators import PASSWORD_VALIDATOR, STANDARD_BASE_64_VALIDATOR
-from libs.security import (BadDjangoKeyFormatting, compare_password, django_password_components,
-    generate_hash_and_salt, generate_random_bytestring, generate_random_string,
-    to_django_password_components)
+from libs.utils.security_utils import (BadDjangoKeyFormatting, compare_password,
+    django_password_components, generate_hash_and_salt, generate_random_bytestring,
+    generate_random_string, to_django_password_components)
 
 
 class ApiKey(TimestampedModel):
@@ -20,8 +20,8 @@ class ApiKey(TimestampedModel):
     access_key_secret = models.CharField(max_length=256, validators=[PASSWORD_VALIDATOR], blank=True)
     
     is_active = models.BooleanField(default=True)
-    has_tableau_api_permissions = models.BooleanField(default=False)
-    researcher: Researcher = models.ForeignKey(Researcher, on_delete=models.CASCADE, related_name="api_keys")
+    last_used = models.DateTimeField(null=True, blank=True)
+    researcher: Researcher = models.ForeignKey(Researcher, null=True, on_delete=models.SET_NULL, related_name="api_keys")
     readable_name = models.TextField(blank=True, default="")
     
     _access_key_secret_plaintext = None

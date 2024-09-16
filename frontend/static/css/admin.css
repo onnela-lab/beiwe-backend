@@ -147,6 +147,8 @@ td.custom-field-value:hover span.custom-field-edit-link {
     margin-inline-end: -4em;
 }
 
+
+
 .h2-margins-vertical {
     margin-block-start: 1.5em;
     margin-block-end: 1em;
@@ -260,12 +262,17 @@ td.custom-field-value:hover span.custom-field-edit-link {
     margin-left: 12em;
 }
 
-
+.margin-top-0-5 {
+    margin-top: 0.5em;
+}
 .margin-top-1 {
     margin-top: 1em;
 }
 .margin-top-15 {
     margin-top: 1.5em;
+}
+.margin-top-1-75 {
+    margin-top: 1.75em;
 }
 .margin-top-2 {
     margin-top: 2em;
@@ -405,4 +412,20 @@ td.custom-field-value:hover span.custom-field-edit-link {
     margin-right: -4em;
     padding-right: 4em;
     margin-top: 3em;
+}
+
+.text-wrap-wrap {
+    text-wrap: wrap;
+}
+.text-wrap-nowrap {
+    text-wrap: nowrap;
+}
+.text-wrap-balance {
+    text-wrap: balance;
+}
+.text-wrap-pretty {
+    text-wrap: pretty;
+}
+.text-wrap-stable {
+    text-wrap: stable;
 }

@@ -1,6 +1,11 @@
+# FILES IN UTILS SHOULD HAVE SPARSE IMPORTS SO THAT THEY CAN BE USED ANYWHERE.
+# IF YOU ARE IMPORTING FROM A DATABASE MODEL YOU SHOULD PLACE IT ELSEWHERE. (ANNOTATION IMPORTS ARE OK)
+
 from datetime import date, datetime, timedelta, tzinfo
 from typing import Any, Generator, List, Union
 
+from dateutil.tz import gettz
+from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from constants.common_constants import LEGIBLE_TIME_FORMAT
@@ -87,3 +92,17 @@ def get_timezone_shortcode(a_date: date, timezone_long_name: str) -> str:
     if not type(a_date) is date:
         raise TypeError("get_timezone_shortcode requires dates, datetimes must be handled manually")
     return make_aware(datetime.combine(a_date, datetime.max.time()), timezone_long_name).tzname()
+
+
+def date_is_in_the_past(end_date: datetime, timezone_name: str):
+    """ Returns True if the date (and timezone) are in the past. """
+    if end_date is None:
+        return False
+    tz = gettz(timezone_name)
+    
+    # actual_end is the start of the day after the end date
+    actual_end = (
+        datetime(end_date.year, end_date.month, end_date.day, tzinfo=tz)
+        + timedelta(days=1)
+    )
+    return actual_end < timezone.now()

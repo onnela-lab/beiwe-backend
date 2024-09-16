@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import operator
 from datetime import datetime, tzinfo
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from dateutil.tz import gettz
 from django.core.exceptions import ObjectDoesNotExist
@@ -10,7 +9,6 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import F, Func, Manager
 from django.db.models.query import QuerySet
-from django.utils import timezone
 from django.utils.timezone import localtime
 
 from constants.data_stream_constants import ALL_DATA_STREAMS
@@ -21,6 +19,7 @@ from constants.user_constants import ResearcherRole
 from database.common_models import ObjectIDModel, UtilityModel
 from database.models import JSONTextField, TimestampedModel
 from database.validators import LengthValidator
+from libs.utils.date_utils import date_is_in_the_past
 
 
 # this is an import hack to improve IDE assistance
@@ -51,6 +50,10 @@ class Study(TimestampedModel, ObjectIDModel):
     timezone_name = models.CharField(
         max_length=256, default="America/New_York", null=False, blank=False
     )
+    
+    end_date = models.DateField(null=True, blank=True)
+    manually_stopped = models.BooleanField(default=False)
+    
     deleted = models.BooleanField(default=False)
     forest_enabled = models.BooleanField(default=False)
     
@@ -121,54 +124,6 @@ class Study(TimestampedModel, ObjectIDModel):
         from database.user_models_researcher import Researcher
         return Researcher.objects.filter(study_relations__study=self)
     
-    def get_earliest_data_time_bin(
-        self, only_after_epoch: bool = True, only_before_now: bool = True
-    ) -> Optional[datetime]:
-        return self._get_data_time_bin(
-            earliest=True,
-            only_after_epoch=only_after_epoch,
-            only_before_now=only_before_now,
-        )
-    
-    def get_latest_data_time_bin(
-            self, only_after_epoch: bool = True, only_before_now: bool = True
-    ) -> Optional[datetime]:
-        return self._get_data_time_bin(
-            earliest=False,
-            only_after_epoch=only_after_epoch,
-            only_before_now=only_before_now,
-        )
-    
-    def _get_data_time_bin(
-        self, earliest=True, only_after_epoch: bool = True, only_before_now: bool = True
-    ) -> Optional[datetime]:
-        """ Return the earliest ChunkRegistry time bin datetime for this study.
-
-        Note: As of 2021-07-01, running the query as a QuerySet filter or sorting the QuerySet can
-              take upwards of 30 seconds. Doing the logic in python speeds this up tremendously.
-        Args:
-            earliest: if True, will return earliest datetime; if False, will return latest datetime
-            only_after_epoch: if True, will filter results only for datetimes after the Unix epoch
-                              (1970-01-01T00:00:00Z)
-            only_before_now: if True, will filter results only for datetimes before now """
-        
-        time_bins: QuerySet[datetime] = self.chunk_registries.values_list("time_bin", flat=True)
-        comparator = operator.lt if earliest else operator.gt
-        now = timezone.now()
-        desired_time_bin = None
-        for time_bin in time_bins:
-            if only_after_epoch and time_bin.timestamp() <= 0:
-                continue
-            if only_before_now and time_bin > now:
-                continue
-            if desired_time_bin is None:
-                desired_time_bin = time_bin
-                continue
-            if comparator(desired_time_bin, time_bin):
-                continue
-            desired_time_bin = time_bin
-        return desired_time_bin
-    
     def notification_events(self, **archived_event_filter_kwargs):
         from database.schedule_models import ArchivedEvent
         return ArchivedEvent.objects.filter(
@@ -185,6 +140,11 @@ class Study(TimestampedModel, ObjectIDModel):
         minutes.  That's insane.  The dateutil gettz function doesn't have that fun insanity. """
         # profiling info: gettz takes on the order of 10s of microseconds
         return gettz(self.timezone_name)
+    
+    @property
+    def end_date_is_in_the_past(self) -> bool:
+        """ Returns True if the study end date is in the past. """
+        return date_is_in_the_past(self.end_date, self.timezone_name)
     
     @property
     def data_quantity_metrics(self):

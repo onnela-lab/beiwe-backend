@@ -40,19 +40,19 @@
         {% if study and request.session_researcher %}
           {% if page_location != 'edit_study' and request.session_researcher.is_site_admin_or_study_admin(study.id) %}
             <li role="presentation">
-              <a href="{{ easy_url('system_admin_pages.edit_study', study_id=study.id) }}">Edit Study</a>
+              <a href="{{ easy_url('study_endpoints.edit_study', study_id=study.id) }}">Edit Study</a>
             </li>
           {% endif %}
 
           {% if page_location != 'view_study' %}
             <li role="presentation">
-              <a href="{{ easy_url('admin_pages.view_study', study_id=study.id) }}">View Study</a>
+              <a href="{{ easy_url('study_endpoints.view_study_page', study_id=study.id) }}">View Study</a>
             </li>
           {% endif %}
 
           {% if page_location != 'dashboard_landing' %}
             <li role="presentation">
-              <a href="{{ easy_url('dashboard_api.dashboard_page', study_id=study.id) }}">Dashboard</a>
+              <a href="{{ easy_url('data_page_endpoints.dashboard_page', study_id=study.id) }}">Dashboard</a>
             </li>
           {% endif %}
           
@@ -69,11 +69,11 @@
             Forest <span class="caret"></span>
           </a>
           <ul class="dropdown-menu">
-            <li><a href="{{ easy_url('forest_pages.create_tasks', study_id=study.id) }}">Create Forest Tasks</a></li>
-            <li><a href="{{ easy_url('forest_pages.task_log', study_id=study.id) }}">View Forest Task Log</a></li>
-            <li><a href="{{ easy_url('forest_pages.forest_tasks_progress', study_id=study.id) }}">View Forest Analysis Progress</a></li>
+            <li><a href="{{ easy_url('forest_endpoints.create_tasks', study_id=study.id) }}">Create Forest Tasks</a></li>
+            <li><a href="{{ easy_url('forest_endpoints.task_log', study_id=study.id) }}">View Forest Task Log</a></li>
+            <li><a href="{{ easy_url('forest_endpoints.forest_tasks_progress', study_id=study.id) }}">View Forest Analysis Progress</a></li>
             {% if site_admin %}
-            <li><a class="" href="{{ easy_url('forest_pages.download_task_log', study_id=study.id) }}">
+            <li><a class="" href="{{ easy_url('forest_endpoints.download_task_log', study_id=study.id) }}">
               <i>Download Forest Task Log As CSV</i>
             </a></li>
             {% endif %}

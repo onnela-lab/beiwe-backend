@@ -9,9 +9,10 @@ from dateutil.tz import UTC
 BEIWE_PROJECT_ROOT = abspath(__file__.rsplit("/", 2)[0] + "/")  # this does not end in a slash...
 PROJECT_PARENT_FOLDER = BEIWE_PROJECT_ROOT.rsplit("/", 2)[0] + "/"
 
-RUNNING_TEST_OR_IN_A_SHELL = any(
-    key in _argv for key in ("shell_plus", "--ipython", "ipython", "test", "runserver")
-)
+RUNNING_SHELL = any(key in _argv for key in ("shell_plus", "--ipython", "ipython"))
+RUNNING_TESTS = "test" in _argv
+RUNNING_RUNSERVER_CLI = "runserver" in _argv
+RUNNING_TEST_OR_FROM_A_SHELL = RUNNING_SHELL or RUNNING_TESTS or RUNNING_RUNSERVER_CLI
 RUNNING_TESTS = "test" in _argv
 
 # roughly one month before the initial deploy of the first Beiwe instance.
@@ -36,6 +37,7 @@ API_DATE_FORMAT = "%Y-%m-%d"
 LEGIBLE_TIME_FORMAT = "%Y-%m-%d %H:%M:%S (%Z)"
 DEV_TIME_FORMAT = "%Y-%m-%d %H:%M (%Z)"
 DEV_TIME_FORMAT3 = "%Y-%m-%d %H:%M:%S . %f (%Z)"  # leave the extra spaces
+DEV_TIME_FORMAT4 = "%Y-%m-%d %H:%M:%S (%Z)"
 DISPLAY_TIME_FORMAT = "%Y-%m-%d %-I:%M%p (%Z)"
 
 ## All s3 file paths must be declared here so that we know where they are for participant data purge.
