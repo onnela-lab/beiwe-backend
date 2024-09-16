@@ -1,4 +1,4 @@
-FROM python:3.8.19
+FROM python:3.11.10
 
 ENV APP_HOME=/home/app/web
 
