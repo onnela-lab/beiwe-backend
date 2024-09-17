@@ -57,7 +57,7 @@ decorator==5.1.1
     # via
     #   ipython
     #   librosa
-django==5.0
+django==4.2.16
     # via
     #   -r requirements.in
     #   django-extensions
