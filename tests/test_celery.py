@@ -1,4 +1,8 @@
+# trunk-ignore-all(ruff/B018)
+import sched
+import uuid
 from datetime import datetime, timedelta
+from typing import List, Tuple
 from unittest.mock import MagicMock, patch
 
 import time_machine
@@ -11,14 +15,16 @@ from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.testing_constants import (THURS_OCT_6_NOON_2022_NY, THURS_OCT_13_NOON_2022_NY,
     THURS_OCT_20_NOON_2022_NY, WEDNESDAY_JUNE_NOON_8_2022_EDT)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API
-from database.schedule_models import AbsoluteSchedule, ScheduledEvent
-from database.user_models_participant import Participant, ParticipantFCMHistory
+from database.common_models import TimestampedModel, UtilityModel
+from database.schedule_models import AbsoluteSchedule, ArchivedEvent, ScheduledEvent
+from database.survey_models import Survey
+from database.system_models import GlobalSettings
+from database.user_models_participant import (Participant, ParticipantFCMHistory,
+    SurveyNotificationReport)
 from services.celery_push_notifications import (create_heartbeat_tasks, get_surveys_and_schedules,
-    heartbeat_query)
+    heartbeat_query, missing_notification_checkin_query)
 from tests.common import CommonTestCase
 
-
-# trunk-ignore-all(ruff/B018)
 
 class TestCelery(CommonTestCase):
     """ We don't actually have anything custom here (yet). """
@@ -50,14 +56,14 @@ class TestGetSurveysAndSchedules(TestCelery):
         self.populate_default_fcm_token
         the_past = timezone.now() + timedelta(days=-5)
         # an absolute survey 5 days in the past
-        schedule = self.generate_easy_absolute_schedule_event_with_absolute_schedule(the_past)
+        schedule = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(the_past)
         self.validate_basics(schedule)
     
     def test_absolute_fail(self):
         self.populate_default_fcm_token
         future = timezone.now() + timedelta(days=5)
         # an absolute survey 5 days in the future
-        self.generate_easy_absolute_schedule_event_with_absolute_schedule(future)
+        self.generate_easy_absolute_scheduled_event_with_absolute_schedule(future)
         self.validate_no_schedules()
     
     def test_relative_success(self):
@@ -143,7 +149,7 @@ class TestGetSurveysAndSchedules(TestCelery):
         # in the past (has already passed).
         # Testing this with an absolute schedule.
         self.default_study.update_only(timezone_name='America/New_York')
-        scheduled_event = self.generate_easy_absolute_schedule_event_with_absolute_schedule(WEDNESDAY_JUNE_NOON_8_2022_EDT)
+        scheduled_event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(WEDNESDAY_JUNE_NOON_8_2022_EDT)
         absolute_schedule = AbsoluteSchedule.objects.get()  # will fail if there is more than one, which would be a bug
         
         self.default_participant.try_set_timezone('GMT')
@@ -202,7 +208,7 @@ class TestGetSurveysAndSchedules(TestCelery):
         self.default_study.update(end_date=timezone.now().date() - timedelta(days=10))
         with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
             self.validate_no_schedules()
-    
+
 
 
 class TestHeartbeatQuery(TestCelery):
@@ -578,3 +584,497 @@ class TestHeartbeatQuery(TestCelery):
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
         self.assertIsInstance(self.default_participant.fcm_tokens.first().unregistered, datetime)
+
+
+class TestResendLogicQuery(TestCelery):
+    """ This test runs the missing_notification_checkin_query across a variety of scenarios, similar
+    to the way TestHeartbeatQuery works. """
+    
+    # the default study is in America/New_York, absolute time events get _reconstructed_ to be in
+    # this timezone.  Also we need times with only minute precision.
+    NOW_SORTA = timezone.now().replace(second=0, microsecond=0).astimezone(gettz('America/New_York'))
+    THE_BEGINNING_OF_TIME = NOW_SORTA - timedelta(days=1000)
+    THE_PAST = NOW_SORTA - timedelta(days=5)
+    THE_FUTURE = NOW_SORTA + timedelta(days=5)
+    # get populated if you use the run_and_refresh_any_models helper
+    BEFORE_RUN = None
+    AFTER_RUN = None
+    
+    def setUp(self):
+        super().setUp()
+        self.START_OF_TEST_TIME = timezone.now()
+        self.default_absolute_schedule = self.generate_absolute_schedule_from_datetime(self.default_survey, self.THE_PAST)
+        self.already_set_up_default_participant = False
+        global_settings = GlobalSettings.get_singleton_instance()
+        global_settings.update(earliest_possible_time_of_push_notification_resend=self.THE_BEGINNING_OF_TIME)
+    
+    def run_resend_logic_and_refresh_these_models(self, *args: List[UtilityModel]):
+        self.BEFORE_RUN = timezone.now()
+        missing_notification_checkin_query()
+        self.AFTER_RUN = timezone.now()
+        for model in args:
+            model.refresh_from_db()
+    
+    @property
+    def setup_participant_push_basics(self):
+        if self.already_set_up_default_participant:
+            return
+        # we are not testing fcm token details in these tests.
+        self.default_participant.update(
+            deleted=False, permanently_retired=False, last_upload=self.NOW_SORTA
+        )
+        self.populate_default_fcm_token
+        self.already_set_up_default_participant = True
+    
+    @property
+    def setup_participant_2(self) -> Participant:
+        p2 = self.generate_participant(self.default_study)
+        ParticipantFCMHistory(token=self.DEFAULT_FCM_TOKEN + "x", participant=p2).save()
+        return p2
+    
+    def do_setup_for_resend_with_no_notification_report(
+        self, participant: Participant = None
+    ) -> Tuple[ScheduledEvent, ArchivedEvent]:
+        # single participant setups use the default participant
+        if participant is None:
+            participant = self.default_participant
+            self.setup_participant_push_basics
+        
+        # these aro stupid and obscure so I made some named functions to separate them
+        sched_event = self._build_base_sched_event(participant)
+        archive = self._build_base_archived_event(sched_event)
+        self._attach_archive_to_scheduled_event_as_if_sent(sched_event, archive)
+        return sched_event, archive
+    
+    def do_setup_for_resend_with_unapplied_notification_report(self) -> Tuple[ScheduledEvent, ArchivedEvent, SurveyNotificationReport]:
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        report = SurveyNotificationReport.objects.create(
+            participant=self.default_participant,
+            notification_uuid=archive.uuid,  # they are guaranteed identical with scheduled event
+            applied=False
+        )
+        return sched_event, archive, report
+    
+    # def do_setup_for_a_fully_applied_resend_loop(self) -> Tuple[ScheduledEvent, ArchivedEvent, SurveyNotificationReport]:
+    # To do this you should literally run the test for that setup, it has return valueds:
+    #    sched_event, archive, report = self.test_notification_report_correctly_blocks_resend()
+    
+    def _build_base_sched_event(self, participant: Participant) -> ScheduledEvent:
+        # get our scheduled event and archived event, check uuids and scheduled time match
+        sched_event = self.generate_scheduled_event(
+            self.default_survey, participant, self.default_absolute_schedule, self.THE_PAST,
+        )
+        self.assertIsNotNone(sched_event.uuid)
+        return sched_event
+    
+    def _build_base_archived_event(self, sched_event: ScheduledEvent) -> ArchivedEvent:
+        archive = self.generate_archived_event_for_absolute_schedule(sched_event.absolute_schedule, sched_event.uuid)
+        self.assertIsNotNone(archive.uuid)
+        self.assertEqual(sched_event.uuid, archive.uuid)
+        return archive
+    
+    def _attach_archive_to_scheduled_event_as_if_sent(self, sched_event: ScheduledEvent, archive: ArchivedEvent):
+        # this value on archive is "reconstructed" to be in the study timezone, this check catches
+        # if we change anything in our database test helpers like a timezone change.
+        self.assertEquals(sched_event.scheduled_time, archive.scheduled_time)
+        
+        self.assertIsNone(sched_event.most_recent_event)
+        self.assertFalse(sched_event.deleted)
+        sched_event.most_recent_event = archive
+        sched_event.deleted = True
+        sched_event.save()
+        self.assertGreater(sched_event.last_updated, self.NOW_SORTA)  # this is probably desireable
+        
+        # need some nontrivial setup on the archived event, force last updated to be THE_PAST
+        # (we don't need to fiddle with the created on field, only last updated)
+        ArchivedEvent.objects.filter(pk=archive.pk).update(last_updated=self.THE_PAST)
+        archive.refresh_from_db()
+        self.assertEqual(archive.last_updated, self.THE_PAST)
+        self.assertEqual(archive.confirmed_received, False)
+    
+    ## one-participant tests
+    
+    def test_no_data(self):
+        self.assert_counts(0, 0, 0)
+        missing_notification_checkin_query()
+        self.assert_counts(0, 0, 0)
+    
+    def test_one_participant_nothing_else(self):
+        self.using_default_participant()
+        self.assert_counts(0, 0, 0)
+        missing_notification_checkin_query()
+        self.assert_counts(0, 0, 0)
+    
+    def test_participant_with_minimum_requirements_resends(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        # database should have 3 of our 4 relevant tables with 1, SurveyNotificationReport should have 0
+        self.assertEqual(archive.last_updated, self.THE_PAST)
+        self.assert_counts(1, 1, 0)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_counts(1, 1, 0)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+    
+    def test_participant_inactive_more_than_one_week(self):
+        # should not update anything in the database, we can check archive and schedule last updated
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(last_upload=self.THE_PAST - timedelta(days=8))
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        # this will find and operate on no database objects, confirm with last_updated on archive
+        # because that is supposed to change if it is identified and used
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertEqual(archive.last_updated, old_archive_last_updated)
+        self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_participant_deleted(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(deleted=True)
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertEqual(archive.last_updated, old_archive_last_updated)
+        self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_participant_retired(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(permanently_retired=True)
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertEqual(archive.last_updated, old_archive_last_updated)
+        self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_participant_inactive_less_than_one_week(self):
+        # should be duplicate test of minimum requirements
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(last_upload=self.THE_PAST + timedelta(days=6))  # yesterday
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+    
+    def test_archive_last_updated_more_than_30_minutes_ago(self):
+        # should be duplicate test of minimum requirements
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        ArchivedEvent.objects.filter(pk=archive.pk).update(
+            last_updated=self.NOW_SORTA - timedelta(minutes=32))
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+        # probably overkill or redundant
+        self.assertGreater(archive.last_updated, old_archive_last_updated)
+        self.assertGreater(sched_event.last_updated, old_sched_event_last_updated)
+    
+    def test_archive_last_updated_less_than_30_minutes_ago_does_nothing(self):
+        # recently updated archive should not result in resend
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        ArchivedEvent.fltr(pk=archive.pk).update(last_updated=self.NOW_SORTA - timedelta(minutes=29))
+        old_archive_last_updated = archive.last_updated
+        self.assertEqual(old_archive_last_updated, self.THE_PAST)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertNotEqual(archive.last_updated, old_archive_last_updated)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_null_uuid_on_archive(self):
+        # should fail to show up in the query resulting in nothing
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        ArchivedEvent.objects.filter(pk=archive.pk).update(uuid=None)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertEqual(archive.last_updated, old_archive_last_updated)  # overkill...
+        self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_different_uuids_on_scheduled_event_and_archive(self):
+        # last_updated should change on archive, uuid on archive should be set to None, scheduled
+        # event should not be sendable, scheduled event should not be touched.
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        initial_uuid = sched_event.uuid
+        old_archive_last_updated = archive.last_updated
+        ArchivedEvent.objects.filter(pk=archive.pk).update(uuid=uuid.uuid4())
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertNotEqual(archive.last_updated, old_archive_last_updated)
+        self.assert_touched_in_last_run(archive)
+        self.assertIsNone(archive.uuid)
+        self.assertEqual(sched_event.uuid, initial_uuid)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_archive_with_uuid_and_scheduled_with_no_uuid(self):
+        # last_updated should be updated, uuid on archive should be get set to None, scheduled event
+        # should not be sendable, scheduled event uuid should still be None.
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        old_archive_last_updated = archive.last_updated
+        ScheduledEvent.objects.filter(pk=sched_event.pk).update(uuid=None)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertNotEqual(archive.last_updated, old_archive_last_updated)
+        self.assert_touched_in_last_run(archive)
+        self.assertIsNone(archive.uuid)
+        self.assertIsNone(sched_event.uuid)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_archive_with_no_uuid_and_scheduled_with_uuid(self):
+        # nothing should change
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        ArchivedEvent.objects.filter(pk=archive.pk).update(uuid=None)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertEqual(archive.last_updated, old_archive_last_updated)  # overkill
+        self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_archive_with_no_uuid_and_scheduled_with_no_uuid(self):
+        # identical to test_archive_with_no_uuid_and_scheduled_with_uuid but we clear both uuids)
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        ArchivedEvent.objects.filter(pk=archive.pk).update(uuid=None)
+        ScheduledEvent.objects.filter(pk=sched_event.pk).update(uuid=None)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertEqual(archive.last_updated, old_archive_last_updated)
+        self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_schedule_already_enabled(self):
+        # should "work" in the sense that all the database objects will be modified and correct.
+        # but I don't thin this state should ever happen.
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        old_archive_last_updated = archive.last_updated
+        ScheduledEvent.objects.filter(pk=sched_event.pk).update(deleted=False)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+        self.assert_last_updated_equal(archive, sched_event)
+    
+    def test_notification_report_correctly_blocks_resend(self):
+        sched_event, archive, report = self.do_setup_for_resend_with_unapplied_notification_report()
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive, report)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_touched_in_last_run(archive)
+        self.assert_touched_in_last_run(report)
+        self.assert_last_updated_equal(archive, report)
+        self.assert_last_updated_not_equal(archive, sched_event)
+        self.assertTrue(report.applied)
+        self.assertTrue(archive.confirmed_received)
+        return sched_event, archive, report
+    
+    def test_doing_it_twice_in_succession_still_blocks(self):
+        sched_event, archive, report = self.do_setup_for_resend_with_unapplied_notification_report()
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive, report)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assert_touched_in_last_run(archive)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_touched_in_last_run(report)
+        self.assert_last_updated_equal(archive, report)
+        self.assertTrue(report.applied)
+        self.assertTrue(archive.confirmed_received)
+        # now we do it again
+        old_before_run = self.BEFORE_RUN
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive, report)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertGreater(self.BEFORE_RUN, old_before_run)  # sanity check
+        self.assertEqual(archive.last_updated, old_archive_last_updated)
+        self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_not_touched_in_last_run(report)
+        self.assertTrue(report.applied)
+        self.assertTrue(archive.confirmed_received)
+    
+    def test_removed_scheduled_event_works_as_desired(self):
+        # the archive and report should be updated, no uuid on archive left in place
+        sched_event, archive, report = self.do_setup_for_resend_with_unapplied_notification_report()
+        sched_event.delete()
+        del sched_event
+        self.run_resend_logic_and_refresh_these_models(archive, report)
+        self.assert_touched_in_last_run(archive)
+        self.assert_touched_in_last_run(report)
+        self.assertTrue(report.applied)
+        self.assertTrue(archive.confirmed_received)
+        self.assertEqual(archive.uuid, report.notification_uuid)
+        self.assert_last_updated_equal(archive, report)
+        self.assertFalse(ScheduledEvent.objects.exists())
+    
+    ## 2 participant tests
+    
+    def test_2_participants_both_resend(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        p2 = self.setup_participant_2
+        p2_sched_event, p2_archive = self.do_setup_for_resend_with_no_notification_report(p2)
+        # database should have 3 of our 4 relevant tables with 1, SurveyNotificationReport should have 0
+        self.assertEqual(archive.last_updated, self.THE_PAST)
+        self.assertEqual(p2_archive.last_updated, self.THE_PAST)
+        self.assert_counts(2, 2, 0)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive, p2_sched_event, p2_archive)
+        self.assert_counts(2, 2, 0)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(p2_sched_event, p2_archive)
+    
+    def test_2_participants_one_has_as_unapplied_report_one_has_no_report(self):
+        sched_event, archive, report = self.do_setup_for_resend_with_unapplied_notification_report()
+        p2 = self.setup_participant_2
+        p2_sched_event, p2_archive = self.do_setup_for_resend_with_no_notification_report(p2)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive, report, p2_sched_event, p2_archive)
+        # p1
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assert_touched_in_last_run(archive)
+        self.assert_touched_in_last_run(report)
+        self.assert_not_touched_in_last_run(sched_event)
+        # p2
+        self.assert_resend_logic_reenabled_schedule_correctly(p2_sched_event, p2_archive)
+        # everything across participants should have the same last_updated time (except sched_event)
+        self.assert_last_updated_equal(p2_archive, p2_sched_event)
+        self.assert_last_updated_equal(archive, report)
+        self.assert_last_updated_equal(archive, p2_archive)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_2_participants_one_has_resent_and_confirmed_one_has_to_resend(self):
+        # the best way to get this state is to run the test for it.
+        sched_event, archive, report = self.test_notification_report_correctly_blocks_resend()
+        # set up the second participant
+        p2 = self.setup_participant_2
+        p2_sched_event, p2_archive = self.do_setup_for_resend_with_no_notification_report(p2)
+        self.run_resend_logic_and_refresh_these_models(
+            sched_event, archive, report, p2_sched_event, p2_archive
+        )
+        # p1
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_not_touched_in_last_run(report)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_last_updated_equal(archive, report)
+        # p2
+        self.assert_resend_logic_reenabled_schedule_correctly(p2_sched_event, p2_archive)
+        self.assert_touched_in_last_run(p2_archive)
+        self.assert_touched_in_last_run(p2_sched_event)
+        self.assert_last_updated_equal(p2_archive, p2_sched_event)
+    
+    # multiple archive and scheduled events
+    
+    def test_multiple_archive_and_scheduled_events_on_one_survey(self):
+        # technically this creates bade database state of multiple scheduled events associated with
+        # one absolute schedule
+        sched_event_1, archive_1 = self.do_setup_for_resend_with_no_notification_report()
+        sched_event_2, archive_2 = self.do_setup_for_resend_with_no_notification_report()
+        self.assertNotEqual(archive_1.uuid, archive_2.uuid)
+        self.assertNotEqual(sched_event_1.uuid, sched_event_2.uuid)
+        self.run_resend_logic_and_refresh_these_models(sched_event_1, archive_1, sched_event_2, archive_2)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event_1, archive_1)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event_2, archive_2)
+        self.assert_last_updated_equal(sched_event_1, sched_event_2)
+        self.assert_last_updated_equal(archive_1, archive_2)
+    
+    def test_multiple_archive_and_scheduled_events_on_two_surveys(self):
+        sched_event_1, archive_1 = self.do_setup_for_resend_with_no_notification_report()
+        another_survey = self.generate_survey(self.default_study, Survey.TRACKING_SURVEY)
+        self.default_absolute_schedule = self.generate_absolute_schedule_from_datetime(another_survey, self.THE_PAST)
+        sched_event_2, archive_2 = self.do_setup_for_resend_with_no_notification_report()
+        self.assertNotEqual(archive_1.uuid, archive_2.uuid)
+        self.assertNotEqual(sched_event_1.uuid, sched_event_2.uuid)
+        self.run_resend_logic_and_refresh_these_models(sched_event_1, archive_1, sched_event_2, archive_2)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event_1, archive_1)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event_2, archive_2)
+        self.assert_last_updated_equal(sched_event_1, sched_event_2)
+        self.assert_last_updated_equal(archive_1, archive_2)
+    
+    ## don't run before earliest resend time
+    
+    def test_correct_setup_before_earliest_resend_time_restriction_fails(self):
+        global_settings = GlobalSettings.get_singleton_instance()
+        global_settings.update(earliest_possible_time_of_push_notification_resend=self.THE_FUTURE)
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_not_touched_in_last_run(sched_event)
+    
+    def test_resend_actually_creates_db_state_where_push_notifications_are_sent(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        
+        # no notifications should be sent
+        surveys_1, schedules_1, patient_ids_1 = get_surveys_and_schedules(timezone.now())
+        self.assertEqual(surveys_1, {})
+        self.assertEqual(schedules_1, {})
+        self.assertEqual(patient_ids_1, {})
+        
+        # do the thing
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+        
+        # exactly the one notification should be sent
+        fcm_token = self.default_participant.fcm_tokens.get().token
+        surveys_2, schedules_2, patient_ids_2 = get_surveys_and_schedules(timezone.now())
+        self.assertEqual(surveys_2, {fcm_token: [self.default_survey.object_id]})
+        self.assertEqual(schedules_2, {fcm_token: [sched_event.id]})
+        self.assertEqual(patient_ids_2, {fcm_token: self.default_participant.patient_id})
+    
+    def assert_resend_logic_reenabled_schedule_correctly(self, sched_event: ScheduledEvent, archive: ArchivedEvent):
+        ## this is the core test that resend logic found and reset a scheduled event.
+        # The archive has been "touched", and confirmed_received is False
+        self.assertNotEqual(self.THE_PAST, archive.last_updated)
+        self.assert_touched_in_last_run(archive)
+        self.assertEqual(archive.confirmed_received, False)
+        
+        # the scheduled event has deleted=False, was updated during logic
+        self.assertEqual(sched_event.deleted, False)
+        self.assert_touched_in_last_run(sched_event)
+        
+        # all Notification reports should be applied (there may be None)
+        for notification_report in SurveyNotificationReport.objects.all():
+            self.assertEqual(notification_report.applied, True)
+        
+        # the logic updates everything with the same last_updated time
+        self.assert_last_updated_equal(archive, sched_event)
+    
+    def assert_scheduled_event_not_sendable(self, sched_event: ScheduledEvent):
+        self.assertEqual(sched_event.deleted, True)
+    
+    def assert_touched_in_last_run(self, model: TimestampedModel):
+        try:
+            self.assertGreater(model.last_updated, self.BEFORE_RUN)
+            self.assertLess(model.last_updated, self.AFTER_RUN)
+        except AssertionError:
+            model.pprint
+            raise
+    
+    def assert_not_touched_in_last_run(self, model: TimestampedModel):
+        self.assertLess(model.last_updated, self.BEFORE_RUN)
+        self.assertLess(model.last_updated, self.AFTER_RUN)
+    
+    def assert_last_updated_equal(self, a: TimestampedModel, b: TimestampedModel):
+        self.assertEqual(a.last_updated, b.last_updated)
+    
+    def assert_last_updated_not_equal(self, a: TimestampedModel, b: TimestampedModel):
+        self.assertNotEqual(a.last_updated, b.last_updated)
+    
+    def assert_counts(self, scheduled_event: int, archived_event: int, notification_report: int):
+        self.assertEqual(ScheduledEvent.objects.count(), scheduled_event)
+        self.assertEqual(ArchivedEvent.objects.count(), archived_event)
+        self.assertEqual(SurveyNotificationReport.objects.count(), notification_report)

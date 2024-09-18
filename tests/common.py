@@ -1,5 +1,6 @@
 import logging
 import traceback
+from datetime import datetime
 from functools import wraps
 from itertools import chain
 from os.path import join as path_join
@@ -16,13 +17,13 @@ from django.urls.base import resolve
 from django.urls.exceptions import NoReverseMatch
 
 from authentication.tableau_authentication import X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET
-from constants.testing_constants import ALL_ROLE_PERMUTATIONS, REAL_ROLES, ResearcherRole
+from constants.testing_constants import REAL_ROLES, ResearcherRole
 from database.security_models import ApiKey
 from database.study_models import Study
-from database.user_models_participant import Participant
+from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.internal_types import ResponseOrRedirect, StrOrBytes
-from libs.shell_support import diff_strings
+from libs.shell_support import diff_strings, tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import DatabaseHelperMixin, render_test_html_file
 from urls import urlpatterns
@@ -165,23 +166,35 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         try:
             return super().assertEqual(first, second, msg)
         except AssertionError:
-            # do type check first because the stack walking is slow
-            if isinstance(first, (bytes, str)) and isinstance(second, (bytes, str)):
-                # walk stack, look for presence of assertRaises
-                found = False
-                for frame in traceback.extract_stack():
-                    if "assertRaises" in frame.name:
-                        found = True
-                        break
-                
-                # inject our nice diff_strings function
-                if not found:
+            # walking the stack is slow, so we do some type checking first
+            if not isinstance(first, (bytes, str, datetime)):
+                raise
+            
+            # We need to know if this is inside an assertRaises call because we don't want that
+            # # situation to trigger the print stameent.
+            # walk stack, look for presence of assertRaises
+            found = False
+            for frame in traceback.extract_stack():
+                if "assertRaises" in frame.name:
+                    found = True
+                    break
+            
+            if not found:
+                # do type checking first because the stack walking is slow
+                if isinstance(first, (bytes, str)) and isinstance(second, (bytes, str)):
+                    # inject our nice diff_strings function
                     print("first:", first)
                     print()
                     print("second:", second)
                     print()
                     diff_strings(first, second)
-            
+                
+                if isinstance(first, datetime) and isinstance(second, datetime):
+                    print("\nThese times are not equal:")
+                    print("first:", tformat(first))
+                    print("second:", tformat(second))
+                    print()
+                    
             # and then raise
             raise
     
@@ -453,7 +466,7 @@ class SmartRequestsTestCase(BasicSessionTestCase):
                 raise TypeError(f"encountered {type(arg)} passed to {function_name}.")
 
 
-class PopulatedResearcherSessionTestCase(BasicSessionTestCase):
+class ResearcherSessionTest(SmartRequestsTestCase):
     """ This class sets up a logged-in researcher user (using the variable name "session_researcher"
     to mimic the convenience variable in the real code).  This is the base test class that all
     researcher endpoints should use. """
@@ -463,20 +476,6 @@ class PopulatedResearcherSessionTestCase(BasicSessionTestCase):
         self.session_researcher  # populate the session researcher
         self.do_default_login()
         return super().setUp()
-    
-    def iterate_researcher_permutations(self):
-        """ Iterates over all possible combinations of user types for the session researcher and a
-        target researcher. """
-        session_researcher = self.session_researcher
-        r2 = self.generate_researcher()
-        for session_researcher_role, target_researcher_role in ALL_ROLE_PERMUTATIONS:
-            self.assign_role(session_researcher, session_researcher_role)
-            self.assign_role(r2, target_researcher_role)
-            yield session_researcher, r2
-
-
-class ResearcherSessionTest(PopulatedResearcherSessionTestCase, SmartRequestsTestCase):
-    ENDPOINT_NAME = None
 
 
 class ParticipantSessionTest(SmartRequestsTestCase):
@@ -490,6 +489,7 @@ class ParticipantSessionTest(SmartRequestsTestCase):
         """ Populate the session participant variable. """
         self.session_participant = self.default_participant
         self.INJECT_DEVICE_TRACKER_PARAMS = True  # reset for every test
+        self.INJECT_RECEIVED_SURVEY_UUIDS = True  # reset for every test
         return super().setUp()
     
     @property
@@ -507,6 +507,9 @@ class ParticipantSessionTest(SmartRequestsTestCase):
             post_params["device_id"] = self.DEFAULT_PARTICIPANT_DEVICE_ID
             # the participant password is special.
             post_params["password"] = self.DEFAULT_PARTICIPANT_PASSWORD_HASHED
+        
+        if self.INJECT_RECEIVED_SURVEY_UUIDS and "survey_uuids" not in post_params:
+            post_params["survey_uuids"] = '["a1019758-63f1-48a9-96bf-08208f2c9055"]'
         
         if self.INJECT_DEVICE_TRACKER_PARAMS:
             for tracking_param in self.DEVICE_TRACKING_PARAMS:
@@ -531,6 +534,12 @@ class ParticipantSessionTest(SmartRequestsTestCase):
             self.assertEqual(tracker_vals["device_status_report"], post_params["device_status_report"],
                              msg="device_status_report did not update")
         
+        # ensure there is only 1 of these in all situations
+        if self.INJECT_RECEIVED_SURVEY_UUIDS:
+            self.assertEqual(
+                SurveyNotificationReport.objects.filter(
+                    notification_uuid="a1019758-63f1-48a9-96bf-08208f2c9055").count(), 1)
+            
         # reset the toggle after every request
         self.INJECT_DEVICE_TRACKER_PARAMS = True
         return ret

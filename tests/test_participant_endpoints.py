@@ -544,7 +544,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.assertEqual(self.default_participant.fcm_tokens.count(), 1)
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertEqual(archived_event.status, DEVICE_HAS_NO_REGISTERED_TOKEN)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
     def test_no_fcm_token(self):  # check_firebase_instance: MagicMock):
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -553,7 +553,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.assertEqual(self.default_participant.fcm_tokens.count(), 0)
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertEqual(archived_event.status, DEVICE_HAS_NO_REGISTERED_TOKEN)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
     def test_no_firebase_creds(self):  # check_firebase_instance: MagicMock):
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -561,7 +561,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.do_post()
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertEqual(archived_event.status, PUSH_NOTIFICATIONS_NOT_CONFIGURED)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
     def test_400(self):
         # missing survey_id
@@ -582,7 +582,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.do_post()
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertIn(MESSAGE_SEND_FAILED_UNKNOWN, archived_event.status)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
     @patch("endpoints.participant_endpoints.check_firebase_instance")
     def test_mocked_firebase_valueerror_2(self, check_firebase_instance: MagicMock):
@@ -595,7 +595,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertIn("The default Firebase app does not exist.", archived_event.status)
         self.assertIn("Firebase Error,", archived_event.status)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
     @patch("endpoints.participant_endpoints.send_push_notification")
     @patch("endpoints.participant_endpoints.check_firebase_instance")
@@ -613,7 +613,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertIn("Firebase Error,", archived_event.status)
         self.assertIn(err_msg, archived_event.status)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
     @patch("endpoints.participant_endpoints.send_push_notification")
     @patch("endpoints.participant_endpoints.check_firebase_instance")
@@ -628,7 +628,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.do_post()
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertEqual(MESSAGE_SEND_FAILED_UNKNOWN, archived_event.status)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
     @patch("endpoints.participant_endpoints.check_firebase_instance")
     @patch("endpoints.participant_endpoints.send_push_notification")
@@ -639,7 +639,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.do_post()
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertIn(MESSAGE_SEND_SUCCESS, archived_event.status)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
     @patch("endpoints.participant_endpoints.check_firebase_instance")
     @patch("endpoints.participant_endpoints.send_push_notification")
@@ -651,16 +651,17 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.do_post()
         archived_event = self.default_participant.archived_events.latest("created_on")
         self.assertIn(MESSAGE_SEND_SUCCESS, archived_event.status)
-        self.validate_scheduled_event(archived_event)
+        self.validate_manual_push_archived_event(archived_event)
     
-    def validate_scheduled_event(self, archived_event: ArchivedEvent):
+    def validate_manual_push_archived_event(self, archived_event: ArchivedEvent):
         # the scheduled event needs to have some specific qualities
         self.assertEqual(ScheduledEvent.objects.count(), 1)
         one_time_schedule = ScheduledEvent.objects.first()
         self.assertEqual(one_time_schedule.survey_id, self.default_survey.id)
-        self.assertEqual(one_time_schedule.checkin_time, None)
         self.assertEqual(one_time_schedule.deleted, True)  # important, don't resend
         self.assertEqual(one_time_schedule.most_recent_event.id, archived_event.id)
+        # manual pushes should never enter the resend logic, they should be created with a None uuid
+        self.assertIsNone(one_time_schedule.uuid)
 
 #
 ## participant pages

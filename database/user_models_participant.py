@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from datetime import datetime, timedelta, tzinfo
 from pprint import pprint
 from typing import Dict, List, Optional, Tuple, Union
@@ -13,7 +14,7 @@ from dateutil.tz import gettz
 from django.core.exceptions import ImproperlyConfigured
 from django.core.validators import MinLengthValidator
 from django.db import models
-from django.db.models import Manager, Min, QuerySet
+from django.db.models import Manager, QuerySet
 from django.utils import timezone
 
 from config.settings import DOMAIN_NAME
@@ -144,6 +145,7 @@ class Participant(AbstractPasswordUser):
     upload_trackers: Manager[UploadTracking]
     action_logs: Manager[ParticipantActionLog]
     app_version_history: Manager[AppVersionHistory]
+    notification_reports: Manager[SurveyNotificationReport]
     # undeclared:
     encryptionerrormetadata_set: Manager[EncryptionErrorMetadata]  # TODO: remove when ios stops erroring
     foresttask_set: Manager[ForestTask]
@@ -554,6 +556,16 @@ class AppVersionHistory(TimestampedModel):
     app_version_code = models.CharField(max_length=16, blank=False, null=False)
     app_version_name = models.CharField(max_length=16, blank=False, null=False)
     os_version = models.CharField(max_length=16, blank=False, null=False)
+
+
+class SurveyNotificationReport(TimestampedModel):
+    """ This is a simple record of the notifications sent to participants. """
+    participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="notification_reports")
+    notification_uuid = models.UUIDField(default=uuid.uuid4, null=False, blank=False)
+    applied = models.BooleanField(default=False)
+    
+    class Meta:
+        unique_together = (("participant", "notification_uuid"),)
 
 
 # device status report history 

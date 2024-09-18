@@ -54,7 +54,7 @@ class DatabaseHelperMixin:
     DEFAULT_PARTICIPANT_PASSWORD_HASHED = device_hash(DEFAULT_PARTICIPANT_PASSWORD.encode()).decode()
     DEFAULT_PARTICIPANT_DEVICE_ID = "default_device_id"
     DEFAULT_INTERVENTION_NAME = "default_intervention_name"
-    DEFAULT_FCM_TOKEN = "abc123"
+    DEFAULT_FCM_TOKEN = "abc123"  # actual value is irrelevant
     SOME_SHA1_PASSWORD_COMPONENTS = 'sha1$1000$zsk387ts02hDMRAALwL2SL3nVHFgMs84UcZRYIQWYNQ=$hllJauvRYDJMQpXQKzTdwQ=='
     DEFAULT_STUDY_FIELD_NAME = "default_study_field_name"
     DEFAULT_PARTICIPANT_FIELD_VALUE = "default_study_field_value"
@@ -194,7 +194,9 @@ class DatabaseHelperMixin:
         )
         return self._default_survey
     
-    def generate_survey(self, study: Study, survey_type: str, object_id: str = None, **kwargs) -> Survey:
+    def generate_survey(
+        self, study: Study, survey_type: str, object_id: str = None, **kwargs
+    ) -> Survey:
         survey = Survey(
             study=study,
             survey_type=survey_type,
@@ -507,11 +509,11 @@ class DatabaseHelperMixin:
     ## ScheduledEvents
     #
     
-    def generate_easy_absolute_schedule_event_with_absolute_schedule(self, time: datetime):
+    def generate_easy_absolute_scheduled_event_with_absolute_schedule(self, time: datetime, **kwargs) -> ScheduledEvent:
         """ Note that no intervention is marked, this just creates the schedule basics. """
         schedule = self.generate_absolute_schedule_from_datetime(self.default_survey, time)
         return self.generate_scheduled_event(
-            self.default_survey, self.default_participant, schedule, time
+            self.default_survey, self.default_participant, schedule, time, **kwargs
         )
     
     def generate_easy_relative_schedule_event_with_relative_schedule(self, event_time_offset_now: timedelta):
@@ -539,7 +541,11 @@ class DatabaseHelperMixin:
         return set_next_weekly(self.default_participant, self.default_survey)
     
     def generate_scheduled_event(
-        self, survey: Survey, participant: Participant, schedule: Schedule, time: datetime,
+        self,
+        survey: Survey,
+        participant: Participant,
+        schedule: Schedule,
+        time: datetime,
         a_uuid: uuid.UUID = None
     ) -> ScheduledEvent:
         scheduled_event = ScheduledEvent(
@@ -550,8 +556,7 @@ class DatabaseHelperMixin:
             absolute_schedule=schedule if isinstance(schedule, AbsoluteSchedule) else None,
             scheduled_time=time,
             deleted=False,
-            uuid=a_uuid or uuid.uuid4(),
-            checkin_time=None,
+            uuid=a_uuid if a_uuid else uuid.uuid4(),
             most_recent_event=None,
         )
         scheduled_event.save()
@@ -567,7 +572,8 @@ class DatabaseHelperMixin:
         participant: Participant,
         schedule_type: str = None,
         scheduled_time: datetime = None,
-        status: str = None
+        status: str = None,
+        a_uuid: uuid.UUID = None
     ):
         archived_event = ArchivedEvent(
             survey_archive=survey.archives.first(),
@@ -575,6 +581,7 @@ class DatabaseHelperMixin:
             schedule_type=schedule_type or ScheduleTypes.weekly,
             scheduled_time=scheduled_time or timezone.now(),
             status=status or MESSAGE_SEND_SUCCESS,
+            uuid=a_uuid if a_uuid else uuid.uuid4(),
         )
         archived_event.save()
         return archived_event
@@ -595,10 +602,10 @@ class DatabaseHelperMixin:
         ]
         return ArchivedEvent.objects.bulk_create(events)
     
-    def generate_archived_event_for_absolute_schedule(self, absolute: AbsoluteSchedule):
+    def generate_archived_event_for_absolute_schedule(self, absolute: AbsoluteSchedule, a_uuid: uuid.UUID = None):
         # absolute is super easy
         return self.generate_archived_event(
-            absolute.survey, self.default_participant, ScheduleTypes.absolute, absolute.event_time
+            absolute.survey, self.default_participant, ScheduleTypes.absolute, absolute.event_time, a_uuid=a_uuid
         )
     
     def generate_archived_event_for_relative_schedule(

@@ -2,6 +2,7 @@
 
 import time
 import unittest
+import uuid
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 from unittest.mock import MagicMock, patch
@@ -25,7 +26,7 @@ from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, BadWeekly
 from database.survey_models import Survey
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
-    PushNotificationDisabledEvent)
+    PushNotificationDisabledEvent, SurveyNotificationReport)
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
 from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
@@ -451,6 +452,15 @@ class TestParticipantDataDeletion(CommonTestCase):
         run_next_queued_participant_data_deletion()
         self.assertEqual(AppVersionHistory.objects.count(), 0)
     
+    @data_purge_mock_s3_calls
+    def test_confirm_SurveyNotificationReport(self):
+        SurveyNotificationReport.objects.create(
+            participant=self.default_participant, notification_uuid=uuid.uuid4())
+        self.default_participant_deletion_event
+        self.assertEqual(SurveyNotificationReport.objects.count(), 1)
+        run_next_queued_participant_data_deletion()
+        self.assertEqual(SurveyNotificationReport.objects.count(), 0)
+    
     def test_for_all_related_fields(self):
         # This test will fail whenever there is a new related model added to the codebase.
         for model in Participant._meta.related_objects:
@@ -875,14 +885,15 @@ class TestSchedules(CommonTestCase):
         # some real simple asserts that the archived event points at the correct items
         self.assertEqual(abs_archive.survey_archive.survey.id, self.default_survey.id)
         self.assertEqual(abs_archive.scheduled_time, MONDAY_JUNE_NOON_6_2022_EDT)
-        self.assertIsNone(abs_archive.uuid)
+        self.assertIsNotNone(abs_archive.uuid)
     
     def test_good_archive_event_with_relative_schedule_helper_is_reasonable(self):
         rel_sched = self.generate_relative_schedule(
             self.default_survey, self.default_intervention, days_after=1, hours_after=1, minutes_after=1
         )
-        # self.default_populated_intervention_date is defined as the current date
-        # we are literally manually constructing a datetime here
+        
+        # self.default_populated_intervention_date is defined as the current date, from which we
+        # are manually generating a datetime object for the expected scheduled time.
         d = self.default_populated_intervention_date.date
         reference_time = datetime(
             year=d.year,
@@ -892,18 +903,13 @@ class TestSchedules(CommonTestCase):
             minute=1,
             tzinfo=THE_ONE_TRUE_TIMEZONE
         )
-        # reference_time = datetime.combine(
-        #     self.default_populated_intervention_date.date,
-        #     dt_time(hour=1, minute=1),
-        #     tzinfo=THE_ONE_TRUE_TIMEZONE,
-        # ) + timedelta(days=1)
         
         rel_archive = self.generate_archived_event_for_relative_schedule(
             rel_sched, self.default_participant
         )
         self.assertEqual(rel_archive.scheduled_time, reference_time)
         self.assertEqual(rel_archive.survey_archive.survey.id, self.default_survey.id)
-        self.assertIsNone(rel_archive.uuid)
+        self.assertIsNotNone(rel_archive.uuid)
 
 
 # these errors are taken directly from live servers with mild details purged

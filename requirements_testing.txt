@@ -4,3 +4,4 @@ tblib
 redgreenunittest
 time-machine
 isort
+mypy

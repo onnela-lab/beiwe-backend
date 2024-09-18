@@ -69,6 +69,7 @@ def run_next_queued_participant_data_deletion():
     deletion_event.participant.heartbeats.all().delete()
     deletion_event.participant.device_status_reports.all().delete()
     deletion_event.participant.app_version_history.all().delete()
+    deletion_event.participant.notification_reports.all().delete()
     
     #! BUT WE DON'T DELETE ACTION LOGS.
     # deletion_event.participant.action_logs.all().delete()

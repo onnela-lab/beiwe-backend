@@ -4,7 +4,7 @@ import traceback
 from datetime import datetime
 
 from django.db import models
-
+from django.utils import timezone
 from database.common_models import TimestampedModel
 from database.user_models_researcher import Researcher
 
@@ -64,6 +64,11 @@ class GlobalSettings(SingletonModel):
     
     # see the downtime middleware.
     downtime_enabled = models.BooleanField(default=False)
+    
+    # this datetime will be populated when the migration is run, which is the same time the resend
+    # notification feature can be activated.  (this defines a check on historical ArchivedEvent
+    # created_on times.)
+    earliest_possible_time_of_push_notification_resend = models.DateTimeField(default=timezone.now, null=False)
 
 
 class DataAccessRecord(TimestampedModel):

@@ -1,15 +1,14 @@
 import json
 import logging
-import operator
 import random
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
-from functools import reduce
 from typing import List, Tuple
 
+import orjson
 from cronutils.error_handler import ErrorSentry
 from dateutil.tz import gettz
-from django.db.models import Q
 from django.utils import timezone
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
     send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
@@ -23,14 +22,16 @@ from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     UNKNOWN_REMOTE_ERROR)
 from constants.schedule_constants import ScheduleTypes
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
-from database.schedule_models import ScheduledEvent
+from constants.user_constants import ANDROID_API
+from database.schedule_models import ArchivedEvent, ScheduledEvent
+from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantActionLog,
-    ParticipantFCMHistory, PushNotificationDisabledEvent)
+    ParticipantFCMHistory, PushNotificationDisabledEvent, SurveyNotificationReport)
 from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
-from libs.push_notification_helpers import get_stopped_study_ids, send_custom_notification_safely
+from libs.push_notification_helpers import (fcm_for_pushable_participants, get_stopped_study_ids,
+    send_custom_notification_safely)
 from libs.schedules import set_next_weekly
 from libs.sentry import make_error_sentry, SentryTypes
 
@@ -49,20 +50,143 @@ logd = logger.debug
 UTC = gettz("UTC")
 
 
-def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> Tuple[ScheduledEvent, List[ScheduledEvent]]:
+def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[ScheduledEvent]:
     """ In order to have debug functions and certain tests run we need to be able to mock a schedule
     object. In all other cases we query the database. """
     if not debug:
-        # use the earliest timed schedule as our reference for the sent_time parameter.
-        schedules = ScheduledEvent.objects.filter(pk__in=schedule_pks)
-        reference_schedule = schedules.order_by("scheduled_time").first()
-        return reference_schedule, schedules
+        return list(ScheduledEvent.objects.filter(pk__in=schedule_pks))
     else:
         # object needs a scheduled_time attribute, and a falsey uuid attribute.
         class mock_reference_schedule:
             scheduled_time = timezone.now()
-            uuid = ""
-        return mock_reference_schedule, []
+            uuid = uuid.uuid4()
+        return [mock_reference_schedule]
+
+
+
+####################################################################################################
+################################## MISSING NOTIFICATION REPORT 3####################################
+####################################################################################################
+
+
+def missing_notification_checkin_query() -> List[Tuple[int, str, str]]:
+    """
+    Participants upload a list of uuids of their received notifications, these uuids are stashed in
+    SurveyNotificationReport, are sourced from ScheduledEvents, and recorded on ArchivedEvents.
+    
+    Complex details about how to manipulate ScheduledEvents and ArchivedEvents correctly:
+    
+    - Archives from before this feature existed do not have the uuid field populated, this is our
+      first exclusion criteria
+    - This code dose not create scheduled events, instead reactivates old ScheduledEvents by uuid.
+    - If ScheduledEvents get recalculated we do lose that uuid, and would get stuck in a loop trying
+      to find the matching ScheduledEvent by uuid from an old ArchivedEvent. We solve that by
+      identifying these non-match-uuids and clearing the uuid field. This will fully retire the
+      ArchivedEvent from the resend logic because we exclude those to start with.
+    - This may cause a theoretical problem of being unable to identify the ArchivedEvent that a
+      received SurveyNotificationReport maps to, but I don't think we care about that.
+    - 
+    - Note that this will create a "new" ScheduledEvent "in the past", forcing a send on the next
+      push notification task, bypassing our time-gating logic from the ArchivedEvent's last_updated
+      field.
+    
+    Other Details:
+    
+    - To create a "no more than one resend every 30 minutes" we need to inject a filtering by time
+      ArchivedEvent query, we can use last_updated for that, and "touch" all modified archive events
+    
+    """
+    TOO_EARLY = GlobalSettings.get_singleton_instance().earliest_possible_time_of_push_notification_resend
+    now = timezone.now()
+    one_week_ago = now - timedelta(days=7)
+    thirty_minutes_ago = now - timedelta(minutes=30)
+    
+    # get participants - reusing the same query as heartboat to save dev time.
+    pushable_participant_pks = list(
+        fcm_for_pushable_participants(one_week_ago).values_list("participant_id", flat=True)
+    )
+    log("pushable_participant_pks:", pushable_participant_pks)
+    
+    # get all notification_report_pk__uuid pairs that are not applied
+    notification_report_pk__uuid = SurveyNotificationReport.objects.filter(
+        participant_id__in=pushable_participant_pks, applied=False
+    ).values_list(
+        "pk", "notification_uuid"
+    )
+    log("notification_report_pk__uuid:", notification_report_pk__uuid)
+    
+    # update Archived events `confirmed_received` to True, and `last_updated` to now.
+    query_update_archive_confirm_received = ArchivedEvent.objects.filter(
+        uuid__in=[uuid for _, uuid in notification_report_pk__uuid],
+        created_on__gte=TOO_EARLY,
+    ).update(
+        confirmed_received=True, last_updated=now
+    )
+    log("query_archive_confirm_received:", query_update_archive_confirm_received)
+    
+    # then update NotificationReports `applied` to True
+    query_update_notification_report = SurveyNotificationReport.objects.filter(
+        pk__in=[pk for pk, _ in notification_report_pk__uuid]
+    ).update(
+        applied=True, last_updated=now
+    )
+    log("query_notification_report:", query_update_notification_report)
+    
+    # Now we can filter on participants last_updated more than 30 minutes ago, confirmed_received,
+    # and null uuids to get all unconfirmed archived events.
+    unconfirmed_notification_uuids = list(set(
+        ArchivedEvent.objects.filter(
+            created_on__gte=TOO_EARLY,
+            last_updated__lte=thirty_minutes_ago,
+            participant_id__in=pushable_participant_pks,
+            confirmed_received=False,
+            uuid__isnull=False,
+        ).values_list(
+            "uuid",
+            flat=True,
+        )
+    ))
+    log("unconfirmed_notification_uuids:", unconfirmed_notification_uuids)
+    
+    # re-enable all ScheduledEvents that were not confirmed received.
+    query_scheduledevents_updated = ScheduledEvent.objects.filter(
+        uuid__in=unconfirmed_notification_uuids,
+        # created_on__gte=TOO_EARLY,  # No. We migrate old ScheduledEvents to have uuids, we want
+        # them to work if they continue to exist and send notifications (create new archives).
+    ).update(
+        deleted=False, last_updated=now
+    )
+    log("query_scheduledevents_updated:", query_scheduledevents_updated)
+    
+    # mark ArchivedEvents that just forced ScheduledEvent.deleted=False as last_updated=now to block
+    # a resend for the next 30 minutes.
+    query_archive_update_last_updated = ArchivedEvent.objects.filter(
+        uuid__in=unconfirmed_notification_uuids,
+        # created_on__gte=the_beginning_of_time,  # already filtered out
+    ).update(
+        last_updated=now
+    )
+    log("query_archive_update_last_updated:", query_archive_update_last_updated)
+    
+    # Of the uuids we identified we need to mark any that lack existing ScheduledEvents as
+    # unresendable; we do this by clearing their uuid field.
+    extant_schedule_uuids = list(
+        ScheduledEvent.objects.filter(
+            uuid__in=unconfirmed_notification_uuids,
+            # created_on__gte=the_beginning_of_time,  # already filtered out
+        ).values_list("uuid", flat=True)
+    )
+    log("extant_schedule_uuids:", extant_schedule_uuids)
+    
+    unresendable_archive_uuids = list(set(unconfirmed_notification_uuids) - set(extant_schedule_uuids))
+    log("unresendable_archive_uuids:", unresendable_archive_uuids)
+    
+    query_archive_unresendable = ArchivedEvent.objects.filter(
+        uuid__in=unresendable_archive_uuids
+    ).update(
+        uuid=None, last_updated=now
+    )
+    log("query_archive_unresendable:", query_archive_unresendable)
 
 
 ####################################################################################################
@@ -73,65 +197,28 @@ def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> Tuple[Schedul
 # the periodic checkin that the app makes to the backend.  The periodic checkin is app-code, it hits
 # the mobile_endpoints.mobile_heartbeat endpoint.
 
-def generate_active_participant_Q_object(one_week_ago: datetime) -> Q:
-    """ Generates a Q object that is compatible with any database table that has a foreign key
-    relation to a participant. Add the Q object to .filter to get participants that have been active
-    in the past week.  Does not filter by the permanently_retired field. """
-    # (e.g. filter out participants that have not been active in the past week.)
-    activity_qs = [
-        # Need to do string interpolation to get the field name, using a **{} inline dict unpacking.
-        # Creates a Q object like: Q(participant__last_upload__gte=one_week_ago)
-        Q(**{f"participant__{field_name}__gte": one_week_ago}) for field_name in
-        ACTIVE_PARTICIPANT_FIELDS if field_name != "permanently_retired"  # handled in main query below.
-    ]
-    
-    # uses operator.or_ (note the underscore) to combine all those Q objects as an any match query.
-    # (operator.or_ is the same as |, it is the bitwise or operator. Reduce applies it to all items.)
-    any_activity_field_gte_one_week_ago = reduce(operator.or_, activity_qs) 
-    return any_activity_field_gte_one_week_ago
-
-
 def heartbeat_query() -> List[Tuple[int, str, str, str]]:
     """ Handles logic of finding all active participants and providing the information required to
     send them all the "heartbeat" push notification to keep them up and running. """
     now = timezone.now()
-    one_week_ago = now - timedelta(days=7)
-    any_activity_field_gte_one_week_ago = generate_active_participant_Q_object(one_week_ago)
     
-    # Get fcm tokens and participant pk for all participants, filter for only participants with
-    # ACTIVE_PARTICIPANT_FIELDS that were updated in the last week, exclude deleted and
-    # permanently_retired participants, exclude participants that do not have heartbeat enabled,
-    # and only where there is a valid FCM token (unregistered=None).
-    # This query could theoretically return multiple fcm tokens per participant, which is not ideal,
-    # but we haven't had obvious problems in the normal push notification logic ever, and it would
-    # require a race condition in the endpoint where fcm tokens are set, and ... its just a push
-    # notification.
-    query = ParticipantFCMHistory.objects.filter(
-            any_activity_field_gte_one_week_ago,       # participants active in the past week
-            
-            participant__deleted=False,                # no deleted participants
-            participant__permanently_retired=False,    # not redundant with deleted.
-            unregistered=None,                         # this is fcm-speak for "has non-retired fcm token"
-            participant__os_type__in=[ANDROID_API, IOS_API],  # participants need to _have an OS_.
-        ).exclude(
-            participant__study_id__in=get_stopped_study_ids()  # no stopped studies
-        ).values_list(
-            "participant_id",
-            "token",
-            "participant__os_type",
-            "participant__study__device_settings__heartbeat_message",
-            "participant__study__device_settings__heartbeat_timer_minutes",
-            # only send one notification per participant per heartbeat period.
-            "participant__last_heartbeat_notification",
-            # These are the ACTIVE_PARTICIPANT_FIELDS in query form
-            'participant__last_upload',
-            'participant__last_get_latest_surveys',
-            'participant__last_set_password',
-            'participant__last_set_fcm_token',
-            'participant__last_get_latest_device_settings',
-            'participant__last_register_user',
-            "participant__last_heartbeat_checkin",
-        )
+    query = fcm_for_pushable_participants(now - timedelta(days=7)).values_list(
+        "participant_id",
+        "token",
+        "participant__os_type",
+        "participant__study__device_settings__heartbeat_message",
+        "participant__study__device_settings__heartbeat_timer_minutes",
+        # only send one notification per participant per heartbeat period.
+        "participant__last_heartbeat_notification",
+        # These are the ACTIVE_PARTICIPANT_FIELDS in query form
+        'participant__last_upload',
+        'participant__last_get_latest_surveys',
+        'participant__last_set_password',
+        'participant__last_set_fcm_token',
+        'participant__last_get_latest_device_settings',
+        'participant__last_register_user',
+        "participant__last_heartbeat_checkin",
+    )
     
     # We used to use the AppHeartbeats table inside a clever query, but when we added customizable
     # per-study heartbeat timers that query became too complex. Now we filter out participants that
@@ -390,11 +477,10 @@ def send_scheduled_event_survey_push_notification_logic(
         log(f"Sending push notification to {patient_id} for {survey_obj_ids}...")
         
         # we need to mock the reference_schedule object in debug mode... it is stupid.
-        reference_schedule, scheduled_events = get_or_mock_schedules(schedule_pks, debug)
+        scheduled_events = get_or_mock_schedules(schedule_pks, debug)
+        
         try:
-            inner_send_survey_push_notification(
-                participant, reference_schedule, survey_obj_ids, fcm_token
-            )
+            inner_send_survey_push_notification(participant, scheduled_events, fcm_token)
         # error types are documented at firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
         except UnregisteredError:
             log("\nUnregisteredError\n")
@@ -451,19 +537,28 @@ def send_scheduled_event_survey_push_notification_logic(
 
 
 def inner_send_survey_push_notification(
-    participant: Participant, reference_schedule: ScheduledEvent, survey_obj_ids: List[str],
-    fcm_token: str
+    participant: Participant, scheduled_events: List[ScheduledEvent], fcm_token: str
 ) -> str:
-    """ Contains the body of the code to send a notification  """
-    # we include a nonce in case of notification deduplication, and a schedule_uuid to for the
-    #  checkin after the push notification is sent.
+    # there can be multiple identical survey object_ids. Grouping together many scheduled events
+    # may include a survey more than once especially when the participant was previously unreachable
+    survey_obj_ids = list(set(scheduled_event.survey.object_id for scheduled_event in scheduled_events))
+    
+    uuids_json_string = orjson.dumps(
+        [scheduled_event.uuid for scheduled_event in scheduled_events if scheduled_event.uuid]
+    ).decode()
+    
+    earliest_schedule = min(scheduled_events, key=lambda x: x.scheduled_time)
+    
+    # Include a nonce to bypass notification deduplication.
+    # We used to include this value, it was not used in either app. Updated it to have all uuids.
+    #   'schedule_uuid': (reference_schedule.uuid if reference_schedule else "") or ""
     data_kwargs = {
         # trunk-ignore(bandit/B311): this is a nonce, not a password.
         'nonce': ''.join(random.choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(32)),
-        'sent_time': reference_schedule.scheduled_time.strftime(API_TIME_FORMAT),
+        'sent_time': earliest_schedule.scheduled_time.strftime(API_TIME_FORMAT),
         'type': 'survey',
         'survey_ids': json.dumps(survey_obj_ids),
-        'schedule_uuid': (reference_schedule.uuid if reference_schedule else "") or ""
+        'json_uuids': uuids_json_string,
     }
     
     if participant.os_type == ANDROID_API:
@@ -555,8 +650,6 @@ def failed_send_survey_handler(
 
 def create_archived_events(schedules: List[ScheduledEvent], status: str, created_on: datetime = None):
     # """ Populates event history, does not mark ScheduledEvents as deleted. """
-    # TODO: We are currently blindly deleting after sending, this will be changed after the app is
-    #  updated to provide uuid checkins on the download surveys endpoint. (maybe)
     mark_as_deleted = status == MESSAGE_SEND_SUCCESS
     for scheduled_event in schedules:
         scheduled_event.archive(self_delete=mark_as_deleted, status=status, created_on=created_on)

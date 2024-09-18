@@ -1,11 +1,13 @@
 import functools
 
+import orjson
 from django.http import UnreadablePostError
 from django.http.request import HttpRequest
 
 from constants.user_constants import IOS_API
-from database.user_models_participant import Participant
+from database.user_models_participant import Participant, SurveyNotificationReport
 from libs.internal_types import ParticipantRequest
+from libs.sentry import elastic_beanstalk_error_sentry
 from middleware.abort_middleware import abort
 
 
@@ -75,11 +77,25 @@ def validate_post(request: HttpRequest, require_password: bool, registration: bo
     except UnreadablePostError:
         return abort(500)
     
-    prior_version_code = session_participant.last_version_code
-    prior_version_name = session_participant.last_version_name
-    prior_os_version = session_participant.last_os_version
+    run_participant_db_updates(request, session_participant)
     
-    # device tracking/info database updates
+    # attach session participant to request object, defining the ParticipantRequest class.
+    request.session_participant = session_participant
+    return True
+
+
+def run_participant_db_updates(request: HttpRequest, participant: Participant):
+    """ Single function for all database mutations based on content of incoming requests.
+    This emits multiple database updates, but at time of commenting, sept 2024, we just don't really
+    care about how long this takes to run. """
+    
+    ## App and OS version tracking 
+    # get the existing version code info
+    prior_version_code = participant.last_version_code
+    prior_version_name = participant.last_version_name
+    prior_os_version = participant.last_os_version
+    
+    # old versions of the apps do not report these values
     tracking_updates = {}
     if "version_code" in request.POST:
         tracking_updates['last_version_code'] = request.POST["version_code"][:32]
@@ -90,31 +106,42 @@ def validate_post(request: HttpRequest, require_password: bool, registration: bo
     if "device_status_report" in request.POST:
         tracking_updates['device_status_report'] = request.POST["device_status_report"]
     if tracking_updates:
-        # don't track if these are missing
-        session_participant.update_only(**tracking_updates)
+        participant.update_only(**tracking_updates)
     
-    # attrubute is udptaded in update_only
-    if (prior_version_code != session_participant.last_version_code or
-        prior_version_name != session_participant.last_version_name or
-        prior_os_version != session_participant.last_os_version):
+    # attribute is updated in update_only
+    if (prior_version_code != participant.last_version_code or
+        prior_version_name != participant.last_version_name or
+        prior_os_version != participant.last_os_version):
         # log(f"os version changed: {last_version_code} to {session_participant.last_version_code}")
-        session_participant.generate_app_version_history(
+        participant.generate_app_version_history(
             prior_version_code, prior_version_name, prior_os_version
         )
     
     # we generate a log of the device status report, we do compress the data tho.
-    if session_participant.enable_extensive_device_info_tracking:
-        session_participant.generate_device_status_report_history(request.path_info)
+    if participant.enable_extensive_device_info_tracking:
+        participant.generate_device_status_report_history(request.path_info)
     
     # updating the timezone is a special case, has internal logic.
     if "timezone" in request.POST:
         # protect against problematic inputs
         if request.POST["timezone"] is None or request.POST["timezone"] != "":
-            session_participant.try_set_timezone(request.POST["timezone"])
+            participant.try_set_timezone(request.POST["timezone"])
     
-    # attach session partipant to request object, defining the ParticipantRequest class.
-    request.session_participant = session_participant
-    return True
+    if "survey_uuids" in request.POST:
+        # uuids are a json list of strings, we only allow strings through.
+        uuids = request.POST["survey_uuids", "[]"]
+        uuids = [uuid for uuid in orjson.loads(uuids) if isinstance(uuid, str)]
+        if not isinstance(uuids, list):
+            uuids = []
+            with elastic_beanstalk_error_sentry():
+                raise TypeError(f"Device survey_uuids should be a list, found instead: {type(uuids)}.")
+        
+        if uuids:
+            potentially_new_uuids = [
+                SurveyNotificationReport(participant=participant, notification_uuid=a_uuid)
+                for a_uuid in uuids
+            ]
+            SurveyNotificationReport.objects.bulk_create(potentially_new_uuids, ignore_conflicts=True)
 
 
 ####################################################################################################

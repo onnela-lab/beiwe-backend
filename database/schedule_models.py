@@ -241,7 +241,7 @@ class ScheduledEvent(TimestampedModel):
             self.survey.archive()
             survey_archive = self.survey.most_recent_archive()
         
-        # create archive, link archive, conditionally mark self as deleted
+        # create ArchivedEvent, link to most_recent_event, conditionally mark self as deleted.
         archive = ArchivedEvent(
             survey_archive=survey_archive,
             participant=self.participant,

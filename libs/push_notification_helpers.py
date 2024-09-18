@@ -1,10 +1,13 @@
 import logging
+import operator
 import random
 from datetime import datetime
+from functools import reduce
 from typing import List
 
 from cronutils import null_error_handler
 from dateutil.tz import gettz
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
     send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
@@ -12,7 +15,7 @@ from firebase_admin.messaging import (AndroidConfig, Message, Notification, Quot
 from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import ANDROID_API
+from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.survey_models import Survey
@@ -109,6 +112,49 @@ def get_stopped_study_ids() -> List[int]:
     return bad_study_ids
 
 
+def generate_active_participant_Q_object(last_activity_cutoff: datetime) -> Q:
+    """ Generates a Q object that is compatible with any database table that has a foreign key
+    relation to Participant. Add the Q object to .filter to get participants that have been active
+    in the past week.  Does not filter by the permanently_retired field. """
+    # (e.g. filter out participants that have not been active in the past week.)
+    activity_qs = [
+        # Need to do string interpolation to get the field name, using a **{} inline dict unpacking.
+        # Creates a Q object like: Q(participant__last_upload__gte=one_week_ago)
+        Q(**{f"participant__{field_name}__gte": last_activity_cutoff}) for field_name in
+        ACTIVE_PARTICIPANT_FIELDS if field_name != "permanently_retired"
+    ]
+    
+    # uses operator.or_ (note the underscore) to combine all those Q objects as an any match query.
+    # (operator.or_ is the same as |, it is the bitwise or operator. Reduce applies it to all items.)
+    any_activity_field_gte_cutoff = reduce(operator.or_, activity_qs) 
+    return any_activity_field_gte_cutoff
+
+
+def fcm_for_pushable_participants(last_activity_cutoff: datetime) -> QuerySet[ParticipantFCMHistory]:
+    """
+    Filter on fcm tokens  for only participants with ACTIVE_PARTICIPANT_FIELDS that were updated in
+    the last week, exclude deleted and permanently_retired participants, exclude participants that
+    do not have heartbeat enabled, and only where there is a valid FCM token (unregistered=None).
+    
+    This query could theoretically return multiple fcm tokens per participant, which is not ideal,
+    but we haven't had obvious problems in the normal push notification logic ever, and it would
+    require a race condition in the endpoint where fcm tokens are set, and ... its just a push
+    notification.
+    """
+    any_activity_field_gte_cutoff = generate_active_participant_Q_object(last_activity_cutoff)
+    
+    return ParticipantFCMHistory.objects.filter(
+        any_activity_field_gte_cutoff,             # participants active in the past "week"
+        
+        participant__deleted=False,                # no deleted participants
+        participant__permanently_retired=False,    # not redundant with deleted.
+        unregistered=None,                         # this is fcm-speak for "has non-retired fcm token"
+        participant__os_type__in=[ANDROID_API, IOS_API],  # participants need to _have an OS_.
+    ).exclude(
+        participant__study_id__in=get_stopped_study_ids()  # no stopped studies
+    )
+
+
 #
 ## Some Debugging code for use in a terminal
 #
@@ -153,7 +199,8 @@ def debug_send_valid_survey_push_notification(participant: Participant, now: dat
 def debug_send_all_survey_push_notification(participant: Participant):
     """ Debugging function that sends a survey notification for all surveys on a study. """
     
-    from services.celery_push_notifications import send_scheduled_event_survey_push_notification_logic
+    from services.celery_push_notifications import (
+        send_scheduled_event_survey_push_notification_logic)
     
     fcm_token = participant.get_valid_fcm_token().token
     if not fcm_token:
