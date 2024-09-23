@@ -277,13 +277,13 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
             if endpoint_name not in ENDPOINTS_BY_NAME:
                 raise MisconfiguredTestException(
                     f"'{endpoint_name}' is not an endpoint anywhere, check urls.py"
-                )
+                ) from None
             raise MisconfiguredTestException(
                 f"smart_get_redirect error, bad reverse_params/reverse_kwargs for {endpoint_name}:\n"
                 f"pattern: {ENDPOINTS_BY_NAME[endpoint_name].pattern}\n"
                 f"reverse_params: {args}\n"
                 f"reverse_kwargs: {kwargs}"
-            )
+            ) from None
 
 
 class BasicSessionTestCase(CommonTestCase):
@@ -491,12 +491,6 @@ class ParticipantSessionTest(SmartRequestsTestCase):
         self.INJECT_DEVICE_TRACKER_PARAMS = True  # reset for every test
         self.INJECT_RECEIVED_SURVEY_UUIDS = True  # reset for every test
         return super().setUp()
-    
-    @property
-    def skip_next_device_tracker_params(self):
-        """ disables the universal tracker field testing for 1 smart_post, disabling means it tests
-        to confirm tnat tracking values did NOT change. """
-        self.INJECT_DEVICE_TRACKER_PARAMS = False
     
     def smart_post(self, *reverse_args, reverse_kwargs=None, **post_params) -> HttpResponse:
         """ Injects parameters for authentication and confirms the device tracking fields are 

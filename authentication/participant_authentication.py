@@ -129,7 +129,7 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
     
     if "survey_uuids" in request.POST:
         # uuids are a json list of strings, we only allow strings through.
-        uuids = request.POST["survey_uuids", "[]"]
+        uuids = request.POST.get("survey_uuids", "[]")
         uuids = [uuid for uuid in orjson.loads(uuids) if isinstance(uuid, str)]
         if not isinstance(uuids, list):
             uuids = []

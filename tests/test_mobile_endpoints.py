@@ -166,6 +166,7 @@ class TestParticipantSetPassword(ParticipantSessionTest):
     
     def test_deleted_participant(self):
         self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
         self.default_participant.update(deleted=True)
         response = self.smart_post_status_code(403)
         self.assertEqual(response.content, b"")
@@ -330,6 +331,7 @@ class TestGetLatestSurveys(ParticipantSessionTest):
     
     def test_deleted_participant(self):
         self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
         self.default_participant.update(deleted=True)
         response = self.smart_post_status_code(403)
         self.assertEqual(response.content, b"")
@@ -361,7 +363,8 @@ class TestRegisterParticipant(ParticipantSessionTest):
         }
     
     def test_bad_request(self):
-        self.skip_next_device_tracker_params
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
         self.smart_post_status_code(403)
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)
@@ -480,7 +483,8 @@ class TestRegisterParticipant(ParticipantSessionTest):
         get_client_public_key_string.return_value = "a_private_key"
         params = self.BASIC_PARAMS
         params['password'] = "nope!"
-        self.skip_next_device_tracker_params
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
         resp = self.smart_post_status_code(403, **params)
         self.assertEqual(resp.content, b"")
         self.session_participant.refresh_from_db()
@@ -530,10 +534,10 @@ class TestRegisterParticipant(ParticipantSessionTest):
     
     def test_deleted_participant(self):
         self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
         self.default_participant.update(deleted=True)
         response = self.smart_post_status_code(403)
         self.assertEqual(response.content, b"")
-        self.INJECT_DEVICE_TRACKER_PARAMS = True
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)
 
@@ -621,6 +625,7 @@ class TestGetLatestDeviceSettings(ParticipantSessionTest):
     
     def test_deleted_participant(self):
         self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
         self.default_participant.update(deleted=True)
         response = self.smart_post_status_code(403)
         self.assertEqual(response.content, b"")
@@ -668,7 +673,7 @@ class TestMobileUpload(ParticipantSessionTest):
         self.smart_post_status_code(200, file_name="whatever")
         self.assert_no_files_to_process
         # no file parameter
-        self.skip_next_device_tracker_params
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
         self.smart_post_status_code(400, file_name="whatever.csv")
         self.assert_no_files_to_process
         # correct file key, should fail
@@ -678,7 +683,7 @@ class TestMobileUpload(ParticipantSessionTest):
     def test_unregistered_participant(self):
         # fails with 400 if the participant is registered.  This behavior has a side effect of
         # deleting data on the device, which seems wrong.
-        self.skip_next_device_tracker_params
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
         self.smart_post_status_code(400, file_name="whatever.csv")
         self.session_participant.update(permanently_retired=True)
         resp = self.smart_post_status_code(200, file_name="whatever.csv")
@@ -725,7 +730,7 @@ class TestMobileUpload(ParticipantSessionTest):
         self.assert_failure_upload(resp, STUDY_INACTIVE)
         
         # test that an end date in the future fully works (errors with missing file is sufficient)
-        self.skip_next_device_tracker_params
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
         self.default_study.update_only(end_date=date.today() + timedelta(days=1))
         resp = self.smart_post_status_code(400, file_name="whatever.csv")
         self.assert_failure_upload(resp, FILE_NOT_PRESENT)
@@ -815,7 +820,7 @@ class TestMobileUpload(ParticipantSessionTest):
         # which makes the endpoint return early.  This test will crash with the S3 invalid bucket
         # failure mode if there is no match.
         normalized_file_name = f"{self.session_study.object_id}/whatever.csv"
-        self.skip_next_device_tracker_params
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
         self.smart_post_status_code(400, file_name=normalized_file_name)
         ftp = self.generate_file_to_process(normalized_file_name)
         self.smart_post_status_code(400, file_name=normalized_file_name, file=object())
@@ -873,6 +878,7 @@ class TestMobileUpload(ParticipantSessionTest):
     
     def test_deleted_participant(self):
         self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
         self.default_participant.update(deleted=True)
         response = self.smart_post_status_code(403)
         self.assertEqual(response.content, b"")
@@ -970,6 +976,7 @@ class TestGraphPage(ParticipantSessionTest):
     
     def test_deleted_participant(self):
         self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
         self.default_participant.update(deleted=True)
         response = self.smart_post_status_code(403)
         self.assertEqual(response.content, b"")
