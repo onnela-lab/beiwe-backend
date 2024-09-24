@@ -1,15 +1,17 @@
 # trunk-ignore-all(bandit/B106)
 # trunk-ignore-all(ruff/B018)
-import orjson
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import orjson
 import time_machine
 from dateutil import tz
+from dateutil.tz import gettz
+from django.http import HttpResponse
 from django.utils import timezone
 
 from constants.common_constants import BEIWE_PROJECT_ROOT
-from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
+from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE, FILE_NOT_PRESENT, STUDY_INACTIVE
 from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
 from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT, DEFAULT_CONSENT_SECTIONS,
     SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
@@ -23,6 +25,7 @@ from libs.schedules import (get_start_and_end_of_java_timings_week,
     repopulate_absolute_survey_schedule_events, repopulate_relative_survey_schedule_events)
 from libs.utils.security_utils import device_hash
 from tests.common import ParticipantSessionTest
+
 
 ## we have some meta tests to test side effects of events, stick them at the top
 
@@ -678,47 +681,68 @@ class TestMobileUpload(ParticipantSessionTest):
         self.skip_next_device_tracker_params
         self.smart_post_status_code(400, file_name="whatever.csv")
         self.session_participant.update(permanently_retired=True)
-        self.smart_post_status_code(200, file_name="whatever.csv")
+        resp = self.smart_post_status_code(200, file_name="whatever.csv")
         self.assert_no_files_to_process
+    
+    def test_confirmed_timezone_support(self):
+        # broke tests between 8pm and midnight on the default study vhen I changed the it's timezone
+        # discovered this when I next ran tests between 8pm and midnight about a month later.
+        # both tests below should return 400 with no file present because the file is missing, they
+        # should not error with 200 and/or study STUDY_INACTIVE.
+        ET = gettz("America/New_York")
+        self.default_study.update_only(timezone_name="America/New_York", end_date=date(2024, 9, 23))
+        with time_machine.travel(datetime(2024, 9, 23, 20, tzinfo=ET)):
+            self.default_study.update_only(end_date=date.today() - timedelta(days=1))
+            resp = self.smart_post_status_code(400, file_name="whatever.csv")
+            self.assert_failure_upload(resp, FILE_NOT_PRESENT)
+        
+        with time_machine.travel(datetime(2024, 9, 23, 23, 59, tzinfo=ET)):
+            self.default_study.update_only(end_date=date.today() - timedelta(days=1))
+            resp = self.smart_post_status_code(400, file_name="whatever.csv")
+            self.assert_failure_upload(resp, FILE_NOT_PRESENT)
+    
+    def assert_failure_upload(self, response: HttpResponse, correct_message: str):
+        self.assert_no_files_to_process
+        self.assertEqual(response.content, correct_message)
     
     def test_study_settings_block_uploads(self):
         # manual blocks
-        self.default_study.update_only(manually_stopped=True)
-        self.smart_post_status_code(200, file_name="whatever.csv")
-        self.assert_no_files_to_process
+        self.default_study.update_only(manually_stopped=True, timezone_name="UTC")
+        resp = self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_failure_upload(resp, STUDY_INACTIVE)
         # manual and end date 10 days ago blocks
         self.default_study.update_only(manually_stopped=True, end_date=date.today() - timedelta(days=10))
-        self.smart_post_status_code(200, file_name="whatever.csv")
-        self.assert_no_files_to_process
+        resp = self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_failure_upload(resp, STUDY_INACTIVE)
         # just end date 10 days ago blocks
         self.default_study.update_only(manually_stopped=False)
-        self.smart_post_status_code(200, file_name="whatever.csv")
-        self.assert_no_files_to_process
+        resp = self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_failure_upload(resp, STUDY_INACTIVE)
         # end date yesterday blocks
+        # (this test fails between 8pm and midnight if study timezone is America/New_York)
         self.default_study.update_only(end_date=date.today() - timedelta(days=1))
-        self.smart_post_status_code(200, file_name="whatever.csv")
-        self.assert_no_files_to_process
+        resp = self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_failure_upload(resp, STUDY_INACTIVE)
         
         # test that an end date in the future fully works (errors with missing file is sufficient)
         self.skip_next_device_tracker_params
         self.default_study.update_only(end_date=date.today() + timedelta(days=1))
         resp = self.smart_post_status_code(400, file_name="whatever.csv")
-        self.assertEqual(b"file not present", resp.content)
-        self.assert_no_files_to_process
+        self.assert_failure_upload(resp, FILE_NOT_PRESENT)
+        
         # end date _today_ works.... does this test fail afte if there is a test study timezone shift?
         self.default_study.update_only(end_date=date.today())
         resp = self.smart_post_status_code(400, file_name="whatever.csv")
-        self.assertEqual(b"file not present", resp.content)
-        self.assert_no_files_to_process
+        self.assert_failure_upload(resp, FILE_NOT_PRESENT)
         
         # deleted overrides active study
         self.default_study.update_only(deleted=True)
-        self.smart_post_status_code(200, file_name="whatever.csv")
-        self.assert_no_files_to_process
+        resp = self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_failure_upload(resp, STUDY_INACTIVE)
         # manual and deleted override end date
         self.default_study.update_only(manually_stopped=True)
-        self.smart_post_status_code(200, file_name="whatever.csv")
-        self.assert_no_files_to_process
+        resp = self.smart_post_status_code(200, file_name="whatever.csv")
+        self.assert_failure_upload(resp, STUDY_INACTIVE)
     
     def test_end_study_time_zone_blocks_at_correct_time_of_day(self):
         target_stop_date = date(2020, 1, 31)

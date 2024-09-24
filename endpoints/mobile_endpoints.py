@@ -20,8 +20,10 @@ from authentication.participant_authentication import (authenticate_participant,
 from config.settings import UPLOAD_LOGGING_ENABLED
 from constants.celery_constants import ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS
 from constants.common_constants import API_TIME_FORMAT
-from constants.message_strings import (DEVICE_CHECKED_IN, DEVICE_IDENTIFIERS_HEADER,
-    INVALID_EXTENSION_ERROR, NO_FILE_ERROR, UNKNOWN_ERROR)
+from constants.message_strings import (DEVICE_CHECKED_IN, DEVICE_IDENTIFIERS_HEADER, EMPTY_FILE,
+    FILE_ALREADY_PRESENT, FILE_BAD_DUE_TO_ERROR, FILE_DECRYPTION_KEY_ERROR, FILE_INVALID,
+    FILE_NOT_PRESENT, INVALID_EXTENSION_ERROR, NO_FILE_ERROR, PARTICIPANT_RETIRED, STUDY_INACTIVE,
+    UNKNOWN_ERROR)
 from database.data_access_models import FileToProcess
 from database.schedule_models import ScheduledEvent
 from database.survey_models import Survey
@@ -82,26 +84,29 @@ def upload(request: ParticipantRequest, OS_API=""):
         or file_name.startswith("PersistedInstallation")  # come from firebase.
         or not contains_valid_extension(file_name)  # generic junk file test
     ):
-        return HttpResponse(content=b"file obviously invalid.", status=200)
+        return HttpResponse(content=FILE_INVALID, status=200)
     
     s3_file_location = file_name.replace("_", "/")
     participant = request.session_participant
     
     if participant.permanently_retired:  # such a participant's uploads should be deleted.
         log(200, "participant permanently retired.")
-        return HttpResponse(content=b"participant permantently retired.", status=200)
+        return HttpResponse(content=PARTICIPANT_RETIRED, status=200)
     
     study = participant.study  # deleted, stopped, or ended studies should delete files participants upload.
+    print("study.deleted :", study.deleted)
+    print("study.manually_stopped :", study.manually_stopped)
+    print("study.end_date_is_in_the_past:", study.end_date_is_in_the_past)
     if study.deleted or study.manually_stopped or study.end_date_is_in_the_past:
-        log(200, "study is deleted, stopped, or ended.")
-        return HttpResponse(content=b"study is deleted, stopped, or ended.", status=200)
+        log(200, STUDY_INACTIVE)
+        return HttpResponse(content=STUDY_INACTIVE, status=200)
     
     # iOS can upload identically named files with different content (and missing decryption keys) so
     # we need to return a 400 to back off. The device can try again later when the extant FTP has
     # been processed. (ios files with bad decryption keys fail and don't create new FTPs.)
     if FileToProcess.test_file_path_exists(s3_file_location, participant.study.object_id):
         log("400, FileToProcess.test_file_path_exists")
-        return HttpResponse(content="file already present, upload again later (your bug!)", status=400)
+        return HttpResponse(content=FILE_ALREADY_PRESENT, status=400)
     
     file_contents = get_uploaded_file(request)
     if isinstance(file_contents, HttpResponse):
@@ -112,21 +117,21 @@ def upload(request: ParticipantRequest, OS_API=""):
         decryptor = DeviceDataDecryptor(s3_file_location, file_contents, participant)
     except RemoteDeleteFileScenario as e:
         log(200, "RemoteDeleteFileScenario")  # errors were unrecoverable, delete the file.
-        return HttpResponse(content=f"file was bad due to '{e}', delete it.", status=200)
+        return HttpResponse(content=FILE_BAD_DUE_TO_ERROR(e), status=200)
     
     except (DecryptionKeyInvalidError, IosDecryptionKeyNotFoundError, IosDecryptionKeyDuplicateError) as e:
         # IOS has a complex issue where it splits files into multiple segments, but the key is only
         # present on the first section. We stash those files and attempt to extract useful
         # information on the data processing server.
         upload_problem_file(file_contents, participant, s3_file_location, e)
-        return HttpResponse(content=f"file had decryption key error '{e}'", status=200)
+        return HttpResponse(content=FILE_DECRYPTION_KEY_ERROR(e), status=200)
     
     # if uploaded data actually exists, and has a valid extension
     if decryptor.decrypted_file and file_name and contains_valid_extension(file_name):
         return upload_and_create_file_to_process_and_log(s3_file_location, participant, decryptor)
     elif not decryptor.decrypted_file:
         # file was empty (probably unreachable code due to decryption architecture
-        return HttpResponse("empty file?", status=200)
+        return HttpResponse(content=EMPTY_FILE, status=200)
     else:
         return make_upload_error_report(participant.patient_id, file_name)
 
@@ -143,7 +148,7 @@ def get_uploaded_file(request: ParticipantRequest) -> Union[bytes, HttpResponse]
         uploaded_file = request.POST['file']  # android
     else:
         log("get_uploaded_file, file not present")
-        return HttpResponse(content="file not present", status=400)
+        return HttpResponse(content=FILE_NOT_PRESENT, status=400)
     
     # okay for some reason we get different file-like types in different scenarios?
     if isinstance(uploaded_file, (ContentFile, InMemoryUploadedFile, TemporaryUploadedFile)):

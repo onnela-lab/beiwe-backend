@@ -170,3 +170,15 @@ UNKNOWN_REMOTE_ERROR = "Unknown error while making a remote service call"
 FAILED_TO_ESTABLISH_CONNECTION = "Failed to establish connection to push notification service."
 CONNECTION_ABORTED = "Connection to push notification service aborted."
 ACCOUNT_NOT_FOUND = "Account not found by push notification service."
+
+
+# return strings for data upload debugging and testing.
+FILE_INVALID = b"file obviously invalid."
+PARTICIPANT_RETIRED = b"participant permanently retired."
+STUDY_INACTIVE = b"study is deleted, stopped, or ended."
+FILE_ALREADY_PRESENT = b"file already present, upload again later (your bug!)"
+EMPTY_FILE = b"empty file?"
+FILE_NOT_PRESENT = b"file not present"
+# (ok that's clever
+FILE_BAD_DUE_TO_ERROR = lambda s: f"file was bad due to '{str(s)}', delete it.".encode()
+FILE_DECRYPTION_KEY_ERROR = lambda s: f"file had decryption key error '{str(s)}'".encode()
