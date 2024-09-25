@@ -14,13 +14,12 @@ from django.utils.timezone import localtime
 from constants.data_stream_constants import ALL_DATA_STREAMS
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
-    DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
+                                       DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from constants.user_constants import ResearcherRole
 from database.common_models import ObjectIDModel, UtilityModel
 from database.models import JSONTextField, TimestampedModel
 from database.validators import LengthValidator
 from libs.utils.date_utils import date_is_in_the_past
-
 
 # this is an import hack to improve IDE assistance
 try:
@@ -202,6 +201,7 @@ class DeviceSettings(TimestampedModel):
     texts = models.BooleanField(default=True)
     wifi = models.BooleanField(default=True)
     bluetooth = models.BooleanField(default=False)
+    omniring = models.BooleanField(default=False)
     power_state = models.BooleanField(default=True)
     use_anonymized_hashing = models.BooleanField(default=True)
     use_gps_fuzzing = models.BooleanField(default=False)
@@ -230,6 +230,9 @@ class DeviceSettings(TimestampedModel):
     bluetooth_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
     bluetooth_total_duration_seconds = models.PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
     bluetooth_global_offset_seconds = models.PositiveIntegerField(default=0)
+    omniring_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
+    omniring_total_duration_seconds = models.PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
+    omniring_global_offset_seconds = models.PositiveIntegerField(default=0)
     check_for_new_surveys_frequency_seconds = models.PositiveIntegerField(default=3600, validators=[MinValueValidator(30)])
     create_new_data_files_frequency_seconds = models.PositiveIntegerField(default=15 * 60, validators=[MinValueValidator(30)])
     gps_off_duration_seconds = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
