@@ -69,6 +69,7 @@ services:
       context: ${PWD}
       dockerfile: docker_management/backend/dev.Dockerfile
     environment:
+      - RUNNING_IN_DOCKER=True
       - DOMAIN_NAME=${DOMAIN_NAME}
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
       - S3_BUCKET=${S3_BUCKET}
