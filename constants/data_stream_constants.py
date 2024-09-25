@@ -3,6 +3,7 @@ ACCELEROMETER = "accelerometer"
 AMBIENT_AUDIO = "ambient_audio"
 ANDROID_LOG_FILE = "app_log"
 BLUETOOTH = "bluetooth"
+OMNIRING = "omniring"
 CALL_LOG = "calls"
 DEVICEMOTION = "devicemotion"
 GPS = "gps"
@@ -25,6 +26,7 @@ ALL_DATA_STREAMS = [
     AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
     BLUETOOTH,
+    OMNIRING,
     CALL_LOG,
     DEVICEMOTION,
     GPS,
@@ -47,6 +49,7 @@ SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
 UPLOAD_FILE_TYPE_MAPPING = {
     "accel": ACCELEROMETER,
     "bluetoothLog": BLUETOOTH,
+    "omniring": OMNIRING,
     "callLog": CALL_LOG,
     "devicemotion": DEVICEMOTION,
     "gps": GPS,
@@ -73,6 +76,7 @@ REVERSE_UPLOAD_FILE_TYPE_MAPPING = {v: k for k, v in UPLOAD_FILE_TYPE_MAPPING.it
 DATA_STREAM_TO_S3_FILE_NAME_STRING = {
     ACCELEROMETER: "accel",
     BLUETOOTH: "bluetoothLog",
+    OMNIRING: "omniring",
     CALL_LOG: "callLog",
     GPS: "gps",
     IDENTIFIERS: "identifiers",
@@ -95,6 +99,7 @@ DATA_STREAM_TO_S3_FILE_NAME_STRING = {
 CHUNKABLE_FILES = {
     ACCELEROMETER,
     BLUETOOTH,
+    OMNIRING,
     CALL_LOG,
     GPS,
     IDENTIFIERS,
@@ -123,6 +128,7 @@ DASHBOARD_DATA_STREAMS = [
     AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
     BLUETOOTH,
+    OMNIRING,
     CALL_LOG,
     DEVICEMOTION,
     GPS,
@@ -145,6 +151,7 @@ COMPLETE_DATA_STREAM_DICT = {
     AMBIENT_AUDIO: "Ambient Audio Recording (bytes)",
     ANDROID_LOG_FILE: "Android Log File (bytes)",
     BLUETOOTH: "Bluetooth (bytes)",
+    OMNIRING: "Omniring (bytes)",
     CALL_LOG: "Call Log (bytes)",
     DEVICEMOTION: "Device Motion (bytes)",
     GPS: "GPS (bytes)",
