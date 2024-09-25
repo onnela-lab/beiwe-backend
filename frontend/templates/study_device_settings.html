@@ -334,6 +334,52 @@
           value="{{ settings['bluetooth_global_offset_seconds'] }}" {{ "disabled" if readonly }}>
       </div>
     </div>
+
+      {# OmniRing #}
+      <div class="col-xs-12 col-md-12" style="font-style: italic;">
+          The OmniRing data stream is synchonized across all devices in your study. It scans at a specific time
+          within a defined period. An On duration of 5 minutes with a Total duration of 1 hour
+          and a global offset of 15 minutes will trigger a bluetooth scan for 5 minutes once an hour,
+          every hour, at 15 minutes past the hour.
+      </div>
+      <div class="col-xs-12 col-md-12">
+          <hr>
+      </div>
+
+      <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+              <label for="omniring" class="control-label">OmniRing:</label>
+              <input class="app-setting-omniring" name="omniring" id="omniring" type="checkbox"
+                      {{ "checked" if settings["omniring"] }} {{ "disabled" if readonly }}/>
+          </div>
+      </div>
+      <div class="col-xs-12 col-md-3">
+          <div class="form-group">
+              <label for="omniring_on_duration_seconds" class="control-label app-settings-align-70">BT <b>on</b>
+                  duration:</label>
+              <input id="omniring_on_duration_seconds" name="omniring_on_duration_seconds" class="form-control"
+                     type="number"
+                     value="{{ settings['omniring_on_duration_seconds'] }}" {{ "disabled" if readonly }}>
+          </div>
+      </div>
+      <div class="col-xs-12 col-md-3">
+          <div class="form-group">
+              <label for="omniring_total_duration_seconds" class="control-label app-settings-align-70">BT <b>total</b>
+                  duration:</label>
+              <input id="omniring_total_duration_seconds" name="omniring_total_duration_seconds" class="form-control"
+                     type="number"
+                     value="{{ settings['omniring_total_duration_seconds'] }}" {{ "disabled" if readonly }}>
+          </div>
+      </div>
+      <div class="col-xs-12 col-md-3">
+          <div class="form-group">
+              <label for="omniring_global_offset_seconds" class="control-label app-settings-align-70">BT global
+                  offset:</label>
+              <input id="omniring_global_offset_seconds" name="omniring_global_offset_seconds" class="form-control"
+                     type="number"
+                     value="{{ settings['omniring_global_offset_seconds'] }}" {{ "disabled" if readonly }}>
+          </div>
+      </div>
   </div>
   
   {% if not readonly %}
