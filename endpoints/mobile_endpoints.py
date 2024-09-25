@@ -94,9 +94,6 @@ def upload(request: ParticipantRequest, OS_API=""):
         return HttpResponse(content=PARTICIPANT_RETIRED, status=200)
     
     study = participant.study  # deleted, stopped, or ended studies should delete files participants upload.
-    print("study.deleted :", study.deleted)
-    print("study.manually_stopped :", study.manually_stopped)
-    print("study.end_date_is_in_the_past:", study.end_date_is_in_the_past)
     if study.deleted or study.manually_stopped or study.end_date_is_in_the_past:
         log(200, STUDY_INACTIVE)
         return HttpResponse(content=STUDY_INACTIVE, status=200)
