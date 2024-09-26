@@ -1,10 +1,11 @@
 from django.db import migrations
+from django.db.migrations.state import StateApps
 
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     FAILED_TO_ESTABLISH_CONNECTION, UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
 
 
-def clean_archived_events(apps, schema_editor):
+def clean_archived_events(apps: StateApps, schema_editor):
     ArchivedEvent = apps.get_model('database', 'ArchivedEvent')
     q_base = ArchivedEvent.objects
     

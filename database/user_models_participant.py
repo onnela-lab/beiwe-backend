@@ -21,6 +21,10 @@ from config.settings import DOMAIN_NAME
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
 from constants.common_constants import LEGIBLE_TIME_FORMAT, RUNNING_TESTS
 from constants.data_stream_constants import ALL_DATA_STREAMS, IDENTIFIERS
+from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
+    ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
+    ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
+    ERR_TARGET_VERSION_CANNOT_BE_MISSING, ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
     OS_TYPE_CHOICES)
 from database.common_models import UtilityModel
@@ -94,7 +98,7 @@ class Participant(AbstractPasswordUser):
     last_get_latest_device_settings = models.DateTimeField(null=True, blank=True)
     
     # participant device tracking
-    # the version code and name are slightly different between android and ios. (android HAS a 
+    # the version code and name are slightly different between android and ios. (android HAS a
     # monotonic version code, so we use it. ios has semantic versioning as the best code.
     # android: last_version_code': '68', 'last_version_name': '3.4.2'
     # ios:  'last_version_code': '2.5.1', 'last_version_name': '2024.21',
@@ -275,7 +279,7 @@ class Participant(AbstractPasswordUser):
         for key in ACTIVE_PARTICIPANT_FIELDS:
             if not hasattr(participant, key):
                 raise ImproperlyConfigured("Participant model does not have a field named {key}.")
-                
+            
             # special case for permanently_retired, which is a boolean field.
             if key == "permanently_retired":
                 continue
@@ -310,6 +314,11 @@ class Participant(AbstractPasswordUser):
         except ParticipantDeletionEvent.DoesNotExist:
             return False
     
+    def is_this_greater_than_participant_app_version(self, target_version: str) -> bool:
+        # passthrough to the non-model function
+        return is_app_version_greater_than(
+            self.os_type, target_version, self.last_version_code, self.last_version_name)
+    
     ################################################################################################
     ######################################### S3 DATA ##############################################
     ################################################################################################
@@ -334,6 +343,7 @@ class Participant(AbstractPasswordUser):
             app_version_code=version_code or "missing",
             app_version_name=version_name or "missing",
             os_version=os_version or "missing",
+            os_is_ios=self.os_type == IOS_API,
         )
     
     def generate_device_status_report_history(self, url: str):
@@ -354,7 +364,7 @@ class Participant(AbstractPasswordUser):
             participant=self,
             app_os=self.os_type or "None",
             os_version=self.last_os_version or "None",
-            app_version=app_version or "None", 
+            app_version=app_version or "None",
             endpoint=url or "None",
             compressed_report=compressed_data,
         )
@@ -551,11 +561,24 @@ class ParticipantActionLog(UtilityModel):
 class AppVersionHistory(TimestampedModel):
     """ We can't apply a unique constraint on these fields because that would cover over some 
     possible bugs that we want to be able to detect (and further complicate the participant
-    credential code path). """
+    credential code path).
+    
+    Notes
+     - This model was added to the codebase in 2024.
+     - IOS did not have app version code until 2.4.13.
+     - Android has had both fields forever.
+     - If either field is missing it gets filled as "missing"
+     - Android's app version code is a monotonic integer.
+     - IOS' app version code is a Semantic version string of the forms 2.x, 2.x.y, or 2.x.yz
+     - Android's app version name is a Semantic version string of the form x.y.z. or x.y.z-likeRC1
+     - IOS' app version Name is "missing" (OLD), a commit hash (old), or a year.build_count like 2024.21
+     - os_is_ios is populated for old participants in a migration (130 at time of writing).
+    """
     participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="app_version_history")
     app_version_code = models.CharField(max_length=16, blank=False, null=False)
     app_version_name = models.CharField(max_length=16, blank=False, null=False)
     os_version = models.CharField(max_length=16, blank=False, null=False)
+    os_is_ios = models.BooleanField(null=True, blank=False)
 
 
 class SurveyNotificationReport(TimestampedModel):
@@ -568,7 +591,7 @@ class SurveyNotificationReport(TimestampedModel):
         unique_together = (("participant", "notification_uuid"),)
 
 
-# device status report history 
+# device status report history
 class DeviceStatusReportHistory(UtilityModel):
     created_on = models.DateTimeField(default=timezone.now)
     participant = models.ForeignKey(
@@ -599,3 +622,69 @@ class DeviceStatusReportHistory(UtilityModel):
         return [
             orjson.loads(zstd.decompress(report)) for report in list_of_compressed_reports
         ]
+
+
+
+""" This code needs to be perfect because it is used in survey resend logic. """
+# TODO: put this in a new utils or lib file, find other logic that can be pulled out here - maybe 
+#  stick it with the retired participant logic.
+
+
+def is_app_version_greater_than(
+    os_type: str, target_version: Optional[str], reference_version_code: str, reference_version_name: str
+) -> bool:
+    if not isinstance(target_version, str):
+        raise ValueError(ERR_TARGET_VERSION_MUST_BE_STRING(type(target_version)))
+    
+    if target_version == "missing":
+        raise ValueError(ERR_TARGET_VERSION_CANNOT_BE_MISSING)
+    
+    # We want to force True when the target passes validation and there is no reference.
+    
+    if os_type == IOS_API:
+        if reference_version_name is None:
+            reference_version_name = "0.0"
+        return _ios_is_version_greater_than(target_version, reference_version_name)
+    
+    if os_type == ANDROID_API:
+        if reference_version_code is None:
+            reference_version_code = "0"
+        return _android_is_version_greater_than(target_version, reference_version_code)
+    
+    raise ValueError(ERR_UNKNOWN_OS_TYPE(os_type))
+
+
+def _ios_is_version_greater_than(target_version: str, reference_version_name: str) -> bool:
+    # version_code for ios looks like 2.x, 2.x.y, or 2.x.yz, or is None
+    # version_name for ios looks like 2024.21, or is None, or a commit-hash-like string.
+    # version_name CANNOT be 2024.21.1 (it is not a semantic version)
+    
+    if target_version.count(".") != 1:
+        raise ValueError(ERR_IOS_TARGET_VERSION_FORMAT(target_version))
+    if reference_version_name.count(".") != 1:
+        raise ValueError(ERR_IOS_REFERENCE_VERSION_NAME_FORMAT(reference_version_name))
+    
+    target_year, target_build = target_version.split(".")
+    reference_year, reference_build = reference_version_name.split(".")
+    
+    if (not target_year.isdigit() or not reference_year.isdigit() 
+        or not target_build.isdigit() or not reference_build.isdigit()):
+        raise ValueError(ERR_IOS_VERSION_COMPONENTS_DIGITS(target_version, reference_version_name))
+    # to intify and beyond
+    target_year, target_build = int(target_year), int(target_build)
+    reference_year, reference_build = int(reference_year), int(reference_build)
+    
+    # FINALLY some logic...
+    if target_year == reference_year:
+        return target_build > reference_build
+    return target_year > reference_year
+
+
+def _android_is_version_greater_than(target_version: str, reference_version_code: str) -> bool:
+    # android is easy, we just compare the version code, which must be digits-only.
+    if not target_version.isdigit():
+        raise ValueError(ERR_ANDROID_TARGET_VERSION_DIGITS(target_version))
+    if not reference_version_code.isdigit():
+        raise ValueError(ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS(reference_version_code))
+    
+    return int(target_version) > int(reference_version_code)

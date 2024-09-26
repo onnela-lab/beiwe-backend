@@ -182,3 +182,14 @@ FILE_NOT_PRESENT = b"file not present"
 # (ok that's clever
 FILE_BAD_DUE_TO_ERROR = lambda s: f"file was bad due to '{str(s)}', delete it.".encode()
 FILE_DECRYPTION_KEY_ERROR = lambda s: f"file had decryption key error '{str(s)}'".encode()
+
+
+# app version comparison error messages
+ERR_TARGET_VERSION_MUST_BE_STRING = lambda target_version_type: f"target_version must be a string, received {target_version_type}."
+ERR_TARGET_VERSION_CANNOT_BE_MISSING = "target_version cannot be 'missing'."
+ERR_UNKNOWN_OS_TYPE = lambda os_type: f"Unknown OS type: {os_type}."
+ERR_IOS_TARGET_VERSION_FORMAT = lambda target_version: f"IOS target_version must be of the form justdigits.justdigits, received '{target_version}'."
+ERR_IOS_REFERENCE_VERSION_NAME_FORMAT = lambda reference_version_name: f"IOS reference_version_name must be of the form justdigits.justdigits, received '{reference_version_name}'."
+ERR_IOS_VERSION_COMPONENTS_DIGITS = lambda target_version, reference_version: f"IOS version components must be only digits, received target '{target_version}', and reference '{reference_version}'."
+ERR_ANDROID_TARGET_VERSION_DIGITS = lambda target_version: f"Android target_version must be only digits, received '{target_version}'."
+ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS = lambda reference_version_code: f"Android reference_version_code must be only digits, received '{reference_version_code}'."

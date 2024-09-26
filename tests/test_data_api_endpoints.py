@@ -862,7 +862,8 @@ class TestParticipantVersionHistory(DataApiTest):
     
     def create_a_version(self) -> AppVersionHistory:
         history = self.default_participant.app_version_history.create(
-            app_version_code="1", app_version_name="1.0", os_version="1.0"
+            # this breaks the rules for ios app versions, assumes android
+            app_version_code="1", app_version_name="1.0", os_version="1.0", os_is_ios=False
         )
         history.update_only(created_on=self.test_start)  # annoyingly this can't be specified above
         return history
