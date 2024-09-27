@@ -14,7 +14,7 @@ from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.testing_constants import (THURS_OCT_6_NOON_2022_NY, THURS_OCT_13_NOON_2022_NY,
     THURS_OCT_20_NOON_2022_NY, WEDNESDAY_JUNE_NOON_8_2022_EDT)
-from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API
+from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.common_models import TimestampedModel, UtilityModel
 from database.schedule_models import AbsoluteSchedule, ArchivedEvent, ScheduledEvent
 from database.survey_models import Survey
@@ -621,7 +621,11 @@ class TestResendLogicQuery(TestCelery):
             return
         # we are not testing fcm token details in these tests.
         self.default_participant.update(
-            deleted=False, permanently_retired=False, last_upload=self.NOW_SORTA
+            deleted=False,
+            permanently_retired=False,
+            last_upload=self.NOW_SORTA,
+            last_version_name="2024.22",
+            os_type=IOS_API,
         )
         self.populate_default_fcm_token
         self.already_set_up_default_participant = True
@@ -629,6 +633,7 @@ class TestResendLogicQuery(TestCelery):
     @property
     def setup_participant_2(self) -> Participant:
         p2 = self.generate_participant(self.default_study)
+        p2.update(last_os_version="2024.21", os_type=IOS_API)
         ParticipantFCMHistory(token=self.DEFAULT_FCM_TOKEN + "x", participant=p2).save()
         return p2
     
@@ -713,6 +718,30 @@ class TestResendLogicQuery(TestCelery):
         self.run_resend_logic_and_refresh_these_models(sched_event, archive)
         self.assert_counts(1, 1, 0)
         self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+    
+    def test_ios_version_restriction_blocks(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(os_type=IOS_API, last_version_name="2024.21")
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+    
+    def test_ios_version_restriction_allows_equal(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(os_type=IOS_API, last_version_name="2024.22")
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+    
+    def test_ios_version_restriction_allows_higher(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(os_type=IOS_API, last_version_name="2024.23")
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+    
+    def test_android_os_restriction_blocks(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(os_type=ANDROID_API)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
     
     def test_participant_inactive_more_than_one_week(self):
         # should not update anything in the database, we can check archive and schedule last updated

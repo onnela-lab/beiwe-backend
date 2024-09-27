@@ -18,11 +18,11 @@ from constants import action_log_messages
 from constants.celery_constants import PUSH_NOTIFICATION_SEND_QUEUE
 from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
-    FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS, UNEXPECTED_SERVICE_RESPONSE,
-    UNKNOWN_REMOTE_ERROR)
+    ERR_IOS_REFERENCE_VERSION_NULL, FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS,
+    UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
 from constants.schedule_constants import ScheduleTypes
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import ANDROID_API
+from constants.user_constants import ANDROID_API, IOS_API
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantActionLog,
@@ -34,6 +34,7 @@ from libs.push_notification_helpers import (fcm_for_pushable_participants, get_s
     send_custom_notification_safely)
 from libs.schedules import set_next_weekly
 from libs.sentry import make_error_sentry, SentryTypes
+from libs.utils.participant_app_version_comparison import is_this_version_lte_participants
 
 
 logger = logging.getLogger("push_notifications")
@@ -95,6 +96,10 @@ def missing_notification_checkin_query() -> List[Tuple[int, str, str]]:
     - To create a "no more than one resend every 30 minutes" we need to inject a filtering by time
       ArchivedEvent query, we can use last_updated for that, and "touch" all modified archive events
     
+    
+    - TODO: We need to filter out participants with old app versions....
+    - TODO: we will be creating archived events with identical uuids, make a test that that... is fine?
+    
     """
     TOO_EARLY = GlobalSettings.get_singleton_instance().earliest_possible_time_of_push_notification_resend
     now = timezone.now()
@@ -102,9 +107,40 @@ def missing_notification_checkin_query() -> List[Tuple[int, str, str]]:
     thirty_minutes_ago = now - timedelta(minutes=30)
     
     # get participants - reusing the same query as heartboat to save dev time.
-    pushable_participant_pks = list(
-        fcm_for_pushable_participants(one_week_ago).values_list("participant_id", flat=True)
+    pushable_participant_info = list(
+        fcm_for_pushable_participants(one_week_ago)
+        .filter(participant__os_type=IOS_API)
+        .values_list(
+            "participant_id",
+            "participant__os_type",
+            "participant__last_version_code",
+            "participant__last_version_name",
+        )
     )
+    
+    # current filter: only ios participants on app version greater than 2024.21
+    pushable_participant_pks = []
+    for participant_id, os_type, version_code, version_name in pushable_participant_info:
+        if os_type != IOS_API:
+            continue
+        try:
+            # No lower than 2024.22, must be greater than or equal to 2024.22
+            # (direction of the language here is confusing.....)
+            valid_app_version = is_this_version_lte_participants(
+                os_type, "2024.22", version_code, version_name
+            )
+        except ValueError as e:
+            if str(e) != ERR_IOS_REFERENCE_VERSION_NULL:
+                raise
+            valid_app_version = False
+        
+        if valid_app_version:
+            # print("valid_app_version", version_name)
+            pushable_participant_pks.append(participant_id)
+        else:
+            pass
+            # print("not valid_app_version", version_name)
+    
     log("pushable_participant_pks:", pushable_participant_pks)
     
     # get all notification_report_pk__uuid pairs that are not applied

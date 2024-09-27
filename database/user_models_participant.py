@@ -21,10 +21,6 @@ from config.settings import DOMAIN_NAME
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
 from constants.common_constants import LEGIBLE_TIME_FORMAT, RUNNING_TESTS
 from constants.data_stream_constants import ALL_DATA_STREAMS, IDENTIFIERS
-from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
-    ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
-    ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
-    ERR_TARGET_VERSION_CANNOT_BE_MISSING, ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
     OS_TYPE_CHOICES)
 from database.common_models import UtilityModel
@@ -34,6 +30,9 @@ from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
 from libs.firebase_config import check_firebase_instance
 from libs.s3 import s3_retrieve
+from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
+    is_this_version_gte_participants, is_this_version_lt_participants,
+    is_this_version_lte_participants)
 from libs.utils.security_utils import (compare_password, device_hash, django_password_components,
     generate_easy_alphanumeric_string)
 
@@ -314,9 +313,21 @@ class Participant(AbstractPasswordUser):
         except ParticipantDeletionEvent.DoesNotExist:
             return False
     
-    def is_this_greater_than_participant_app_version(self, target_version: str) -> bool:
+    def is_this_version_gt_participant_app_version(self, target_version: str) -> bool:
         # passthrough to the non-model function
-        return is_app_version_greater_than(
+        return is_this_version_gt_participants(
+            self.os_type, target_version, self.last_version_code, self.last_version_name)
+    
+    def is_this_version_lt_participant_app_version(self, target_version: str) -> bool:
+        return is_this_version_lt_participants(
+            self.os_type, target_version, self.last_version_code, self.last_version_name)
+    
+    def is_this_version_gte_participant_app_version(self, target_version: str) -> bool:
+        return is_this_version_gte_participants(
+            self.os_type, target_version, self.last_version_code, self.last_version_name)
+    
+    def is_this_version_lte_participant_app_version(self, target_version: str) -> bool:
+        return is_this_version_lte_participants(
             self.os_type, target_version, self.last_version_code, self.last_version_name)
     
     ################################################################################################
@@ -609,6 +620,7 @@ class DeviceStatusReportHistory(UtilityModel):
     
     @property
     def load_json(self):
+
         return orjson.loads(zstd.decompress(self.compressed_report))
     
     @classmethod
@@ -622,69 +634,3 @@ class DeviceStatusReportHistory(UtilityModel):
         return [
             orjson.loads(zstd.decompress(report)) for report in list_of_compressed_reports
         ]
-
-
-
-""" This code needs to be perfect because it is used in survey resend logic. """
-# TODO: put this in a new utils or lib file, find other logic that can be pulled out here - maybe 
-#  stick it with the retired participant logic.
-
-
-def is_app_version_greater_than(
-    os_type: str, target_version: Optional[str], reference_version_code: str, reference_version_name: str
-) -> bool:
-    if not isinstance(target_version, str):
-        raise ValueError(ERR_TARGET_VERSION_MUST_BE_STRING(type(target_version)))
-    
-    if target_version == "missing":
-        raise ValueError(ERR_TARGET_VERSION_CANNOT_BE_MISSING)
-    
-    # We want to force True when the target passes validation and there is no reference.
-    
-    if os_type == IOS_API:
-        if reference_version_name is None:
-            reference_version_name = "0.0"
-        return _ios_is_version_greater_than(target_version, reference_version_name)
-    
-    if os_type == ANDROID_API:
-        if reference_version_code is None:
-            reference_version_code = "0"
-        return _android_is_version_greater_than(target_version, reference_version_code)
-    
-    raise ValueError(ERR_UNKNOWN_OS_TYPE(os_type))
-
-
-def _ios_is_version_greater_than(target_version: str, reference_version_name: str) -> bool:
-    # version_code for ios looks like 2.x, 2.x.y, or 2.x.yz, or is None
-    # version_name for ios looks like 2024.21, or is None, or a commit-hash-like string.
-    # version_name CANNOT be 2024.21.1 (it is not a semantic version)
-    
-    if target_version.count(".") != 1:
-        raise ValueError(ERR_IOS_TARGET_VERSION_FORMAT(target_version))
-    if reference_version_name.count(".") != 1:
-        raise ValueError(ERR_IOS_REFERENCE_VERSION_NAME_FORMAT(reference_version_name))
-    
-    target_year, target_build = target_version.split(".")
-    reference_year, reference_build = reference_version_name.split(".")
-    
-    if (not target_year.isdigit() or not reference_year.isdigit() 
-        or not target_build.isdigit() or not reference_build.isdigit()):
-        raise ValueError(ERR_IOS_VERSION_COMPONENTS_DIGITS(target_version, reference_version_name))
-    # to intify and beyond
-    target_year, target_build = int(target_year), int(target_build)
-    reference_year, reference_build = int(reference_year), int(reference_build)
-    
-    # FINALLY some logic...
-    if target_year == reference_year:
-        return target_build > reference_build
-    return target_year > reference_year
-
-
-def _android_is_version_greater_than(target_version: str, reference_version_code: str) -> bool:
-    # android is easy, we just compare the version code, which must be digits-only.
-    if not target_version.isdigit():
-        raise ValueError(ERR_ANDROID_TARGET_VERSION_DIGITS(target_version))
-    if not reference_version_code.isdigit():
-        raise ValueError(ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS(reference_version_code))
-    
-    return int(target_version) > int(reference_version_code)

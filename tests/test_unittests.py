@@ -1,4 +1,7 @@
 # trunk-ignore-all(bandit/B101,bandit/B106,ruff/B018,ruff/E701)
+from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
+    is_this_version_gte_participants, is_this_version_lt_participants,
+    is_this_version_lte_participants)
 
 import time
 import unittest
@@ -29,7 +32,7 @@ from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, BadWeekly
     InterventionDate, RelativeSchedule, ScheduledEvent, WeeklySchedule)
 from database.survey_models import Survey
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
-    DeviceStatusReportHistory, is_app_version_greater_than, Participant, ParticipantActionLog,
+    DeviceStatusReportHistory, is_this_version_gt_participants, Participant, ParticipantActionLog,
     ParticipantDeletionEvent, PushNotificationDisabledEvent, SurveyNotificationReport)
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
 from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
@@ -1021,200 +1024,217 @@ IOS_VALID_LESS = "2024.20"
 
 class TestAppVersionComparison(CommonTestCase):
     """
-    Tests for the is_app_version_greater_than function
+    Tests for the is_app_version_greater_than function, 
     Android versions should always ALWAYS be a string of only digits.
     IOS versions are either a git hash, "missing", string composed of year.build_number, or None
     """
     
     ## Successes
     def test_android_junk_in_name_works(self):
-        self.assertTrue(is_app_version_greater_than(ANDRD, ANDRD_VALID, ANDROID_VALID_LESS, "junk"))
+        self.assertTrue(is_this_version_gt_participants(ANDRD, ANDRD_VALID, ANDROID_VALID_LESS, "junk"))
     
     def test_ios_junk_in_code_works(self):
-        self.assertTrue(is_app_version_greater_than(IOS, IOS_VALID, "junk", IOS_VALID_LESS))
+        self.assertTrue(is_this_version_gt_participants(IOS, IOS_VALID, "junk", IOS_VALID_LESS))
     
     def test_ios_leading_zero_target(self):
-        self.assertFalse(is_app_version_greater_than(IOS, "0.1", "junk", IOS_VALID))
+        self.assertFalse(is_this_version_gt_participants(IOS, "0.1", "junk", IOS_VALID))
     
     def test_ios_leading_zero_reference(self):
-        self.assertTrue(is_app_version_greater_than(IOS, IOS_VALID, "junk", "0.1"))
+        self.assertTrue(is_this_version_gt_participants(IOS, IOS_VALID, "junk", "0.1"))
     
     def test_ios_double_leading_zero_target(self):
-        self.assertFalse(is_app_version_greater_than(IOS, "001.002", "junk", IOS_VALID))
+        self.assertFalse(is_this_version_gt_participants(IOS, "001.002", "junk", IOS_VALID))
     
     def test_ios_double_leading_zero_reference(self):
-        self.assertTrue(is_app_version_greater_than(IOS, IOS_VALID, "junk", "001.002"))
+        self.assertTrue(is_this_version_gt_participants(IOS, IOS_VALID, "junk", "001.002"))
     
     def test_ios_ensure_we_arent_doing_string_comparison_target(self):
-        self.assertTrue(is_app_version_greater_than(IOS, "12024.21", "junk", "2024.21"))
+        self.assertTrue(is_this_version_gt_participants(IOS, "12024.21", "junk", "2024.21"))
     
     def test_ios_ensure_we_arent_doing_string_comparison_reference(self):
-        self.assertFalse(is_app_version_greater_than(IOS, "2024.21", "junk", "12024.21"))
+        self.assertFalse(is_this_version_gt_participants(IOS, "2024.21", "junk", "12024.21"))
     
     def test_android_ensure_we_arent_doing_string_comparison_target(self):
-        self.assertTrue(is_app_version_greater_than(ANDRD, "10", "9", "junk"))
+        self.assertTrue(is_this_version_gt_participants(ANDRD, "10", "9", "junk"))
     
     def test_android_ensure_we_arent_doing_string_comparison_reference(self):
-        self.assertFalse(is_app_version_greater_than(ANDRD, "9", "10", "junk"))
+        self.assertFalse(is_this_version_gt_participants(ANDRD, "9", "10", "junk"))
+    
+    # and then test gt, lt, lte, and gte
+    def test_gt(self):
+        self.assertTrue(is_this_version_gt_participants(ANDRD, ANDRD_VALID, ANDROID_VALID_LESS, "junk"))
+        self.assertFalse(is_this_version_gt_participants(ANDRD, ANDRD_VALID, ANDRD_VALID, "junk"))
+    
+    def test_lt(self):
+        self.assertTrue(is_this_version_lt_participants(ANDRD, ANDROID_VALID_LESS, ANDRD_VALID, "junk"))
+        self.assertFalse(is_this_version_lt_participants(ANDRD, ANDRD_VALID, ANDRD_VALID, "junk"))
+    
+    def test_lte(self):
+        self.assertTrue(is_this_version_lte_participants(ANDRD, ANDRD_VALID, ANDRD_VALID, "junk"))
+        self.assertTrue(is_this_version_lte_participants(ANDRD, ANDROID_VALID_LESS, ANDRD_VALID, "junk"))
+    
+    def test_gte(self):
+        self.assertTrue(is_this_version_gte_participants(ANDRD, ANDRD_VALID, ANDRD_VALID, "junk"))
+        self.assertTrue(is_this_version_gte_participants(ANDRD, ANDRD_VALID, ANDROID_VALID_LESS, "junk"))
     
     ## Errors
     
     # bad os
     def test_none_os_version(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(None, "shouldn't matter", "or this", "or this")
+            is_this_version_gt_participants(None, "shouldn't matter", "or this", "or this")
         self.assertEqual(str(e_wrapper.exception), ERR_UNKNOWN_OS_TYPE(None))
     
     def test_none_everywhere(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(None, None, None, None)
+            is_this_version_gt_participants(None, None, None, None)
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_MUST_BE_STRING(type(None)))
     
     def test_bad_os_version(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than("junk", "shouldn't matter", "or this", "or this")
+            is_this_version_gt_participants("junk", "shouldn't matter", "or this", "or this")
         self.assertEqual(str(e_wrapper.exception), ERR_UNKNOWN_OS_TYPE("junk"))
     
     # bad target type
     def test_android_nonstring_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, object(), "junk", "junk")
+            is_this_version_gt_participants(ANDRD, object(), "junk", "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_MUST_BE_STRING(type(object())))
     
     def test_ios_nonstring_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, object(), "junk", "junk")
+            is_this_version_gt_participants(IOS, object(), "junk", "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_MUST_BE_STRING(type(object())))
     
     def test_android_None_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, None, ANDRD_VALID, "junk")
+            is_this_version_gt_participants(ANDRD, None, ANDRD_VALID, "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_MUST_BE_STRING(type(None)))
     
     def test_ios_None_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, None, "junk", IOS_VALID)
+            is_this_version_gt_participants(IOS, None, "junk", IOS_VALID)
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_MUST_BE_STRING(type(None)))
     
     # empty string target
     def test_android_empty_string_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, "", "junk", "junk")
+            is_this_version_gt_participants(ANDRD, "", "junk", "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_ANDROID_TARGET_VERSION_DIGITS(""))
     
     def test_ios_empty_string_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, "", "junk", "junk")
+            is_this_version_gt_participants(IOS, "", "junk", "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_TARGET_VERSION_FORMAT(""))
     
     # empty string reference
     def test_android_empty_string_reference(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, ANDRD_VALID, "", "junk")
+            is_this_version_gt_participants(ANDRD, ANDRD_VALID, "", "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS(""))
     
     def test_ios_empty_string_reference(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, IOS_VALID, "junk", "")
+            is_this_version_gt_participants(IOS, IOS_VALID, "junk", "")
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_REFERENCE_VERSION_NAME_FORMAT(""))
     
     # "missing" as a target
     def test_android_target_missing(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, "missing", "junk", "junk")
+            is_this_version_gt_participants(ANDRD, "missing", "junk", "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_CANNOT_BE_MISSING)
     
     def test_ios_target_missing(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, "missing", "junk", "junk")
+            is_this_version_gt_participants(IOS, "missing", "junk", "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_CANNOT_BE_MISSING)
     
     # junk targets
     def test_android_junk_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, "junk", ANDRD_VALID, "junk")
+            is_this_version_gt_participants(ANDRD, "junk", ANDRD_VALID, "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_ANDROID_TARGET_VERSION_DIGITS("junk"))
     
     def test_ios_junk_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, "junk", "junk", IOS_VALID)
+            is_this_version_gt_participants(IOS, "junk", "junk", IOS_VALID)
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_TARGET_VERSION_FORMAT("junk"))
     
     # android floats
     def test_android_float_string_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, "1.1", ANDRD_VALID, "junk")
+            is_this_version_gt_participants(ANDRD, "1.1", ANDRD_VALID, "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_ANDROID_TARGET_VERSION_DIGITS("1.1"))
     
     def test_android_float_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, 1.1, ANDRD_VALID, "junk")
+            is_this_version_gt_participants(ANDRD, 1.1, ANDRD_VALID, "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_MUST_BE_STRING(float))
     
     # ios ints
     def test_ios_int_string_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, "1", "junk", IOS_VALID)
+            is_this_version_gt_participants(IOS, "1", "junk", IOS_VALID)
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_TARGET_VERSION_FORMAT("1"))
     
     def test_ios_int_string_reference(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, IOS_VALID, "junk", "1")
+            is_this_version_gt_participants(IOS, IOS_VALID, "junk", "1")
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_REFERENCE_VERSION_NAME_FORMAT("1"))
     
     def test_ios_float_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, 1.1, "junk", IOS_VALID)
+            is_this_version_gt_participants(IOS, 1.1, "junk", IOS_VALID)
         self.assertEqual(str(e_wrapper.exception), ERR_TARGET_VERSION_MUST_BE_STRING(float))
     
     # semantic version
     def test_ios_longer_semantic_version_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, "2024.21.1", "junk", IOS_VALID)
+            is_this_version_gt_participants(IOS, "2024.21.1", "junk", IOS_VALID)
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_TARGET_VERSION_FORMAT("2024.21.1"))
     
     def test_android_longer_semantic_reference(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(ANDRD, "2024.21.1", ANDRD_VALID, "junk")
+            is_this_version_gt_participants(ANDRD, "2024.21.1", ANDRD_VALID, "junk")
         self.assertEqual(str(e_wrapper.exception), ERR_ANDROID_TARGET_VERSION_DIGITS("2024.21.1"))
     
     # ios weird periods
     def test_ios_leading_period_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, ".2024", "junk", IOS_VALID)
+            is_this_version_gt_participants(IOS, ".2024", "junk", IOS_VALID)
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_VERSION_COMPONENTS_DIGITS(".2024", IOS_VALID))
     
     def test_ios_trailing_period_target(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, "2024.", "junk", IOS_VALID)
+            is_this_version_gt_participants(IOS, "2024.", "junk", IOS_VALID)
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_VERSION_COMPONENTS_DIGITS("2024.", IOS_VALID))
         
     def test_ios_trailing_period_reference(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, IOS_VALID, "junk", "2024.")
+            is_this_version_gt_participants(IOS, IOS_VALID, "junk", "2024.")
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_VERSION_COMPONENTS_DIGITS(IOS_VALID, "2024."))
     
     def test_ios_leading_period_reference(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            is_app_version_greater_than(IOS, IOS_VALID, "junk", ".2024")
+            is_this_version_gt_participants(IOS, IOS_VALID, "junk", ".2024")
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_VERSION_COMPONENTS_DIGITS(IOS_VALID, ".2024"))
     
     def test_call_on_a_participant_android(self):
         self.default_participant.update(os_type=ANDRD, last_version_code=ANDRD_VALID)
         self.assertFalse(
-            self.default_participant.is_this_greater_than_participant_app_version(ANDROID_VALID_LESS)
+            self.default_participant.is_this_version_gt_participant_app_version(ANDROID_VALID_LESS)
         )
         self.default_participant.update(last_version_code=ANDROID_VALID_LESS)
         self.assertTrue(
-            self.default_participant.is_this_greater_than_participant_app_version(ANDRD_VALID)
+            self.default_participant.is_this_version_gt_participant_app_version(ANDRD_VALID)
         )
     
     def test_call_on_a_participant_ios(self):
         self.default_participant.update(os_type=IOS, last_version_name=IOS_VALID)
         self.assertFalse(
-            self.default_participant.is_this_greater_than_participant_app_version(IOS_VALID_LESS)
+            self.default_participant.is_this_version_gt_participant_app_version(IOS_VALID_LESS)
         )
         self.default_participant.update(last_version_name=IOS_VALID_LESS)
         self.assertTrue(
-            self.default_participant.is_this_greater_than_participant_app_version(IOS_VALID)
+            self.default_participant.is_this_version_gt_participant_app_version(IOS_VALID)
         )
