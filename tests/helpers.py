@@ -61,8 +61,18 @@ class DatabaseHelperMixin:
     
     # this needs to be a dynamic property in order for the time_machine library to work
     @property
-    def CURRENT_DATE(self) -> datetime:
+    def CURRENT_DATE(self) -> date:
         return timezone.now().today().date()
+    
+    @property
+    def YESTERDAY(self) -> date:
+        ret = self.CURRENT_DATE - timedelta(days=1)
+        assert isinstance(ret, date)
+        return ret
+    
+    @property
+    def TOMORROW(self) -> date:
+        return self.CURRENT_DATE + timedelta(days=1)
     
     # For all defaults make sure to maintain the pattern that includes the use of the save function,
     # this codebase implements a special save function that validates before passing through.
@@ -605,7 +615,11 @@ class DatabaseHelperMixin:
     def generate_archived_event_for_absolute_schedule(self, absolute: AbsoluteSchedule, a_uuid: uuid.UUID = None):
         # absolute is super easy
         return self.generate_archived_event(
-            absolute.survey, self.default_participant, ScheduleTypes.absolute, absolute.event_time, a_uuid=a_uuid
+            absolute.survey,
+            self.default_participant,
+            ScheduleTypes.absolute,
+            absolute.event_time(self.default_study.timezone),
+            a_uuid=a_uuid
         )
     
     def generate_archived_event_for_relative_schedule(

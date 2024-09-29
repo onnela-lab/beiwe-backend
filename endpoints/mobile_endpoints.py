@@ -20,12 +20,10 @@ from authentication.participant_authentication import (authenticate_participant,
 from config.settings import UPLOAD_LOGGING_ENABLED
 from constants.celery_constants import ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS
 from constants.common_constants import API_TIME_FORMAT
-from constants.message_strings import (DEVICE_CHECKED_IN, DEVICE_IDENTIFIERS_HEADER, EMPTY_FILE,
-    FILE_ALREADY_PRESENT, FILE_BAD_DUE_TO_ERROR, FILE_DECRYPTION_KEY_ERROR, FILE_INVALID,
-    FILE_NOT_PRESENT, INVALID_EXTENSION_ERROR, NO_FILE_ERROR, PARTICIPANT_RETIRED, STUDY_INACTIVE,
-    UNKNOWN_ERROR)
+from constants.message_strings import (DEVICE_IDENTIFIERS_HEADER, EMPTY_FILE, FILE_ALREADY_PRESENT,
+    FILE_BAD_DUE_TO_ERROR, FILE_DECRYPTION_KEY_ERROR, FILE_INVALID, FILE_NOT_PRESENT,
+    INVALID_EXTENSION_ERROR, NO_FILE_ERROR, PARTICIPANT_RETIRED, STUDY_INACTIVE, UNKNOWN_ERROR)
 from database.data_access_models import FileToProcess
-from database.schedule_models import ScheduledEvent
 from database.survey_models import Survey
 from database.system_models import FileAsText
 from database.user_models_participant import AppHeartbeats, Participant, ParticipantFCMHistory
@@ -37,8 +35,8 @@ from libs.endpoint_helpers.participant_file_upload_helpers import (
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ParticipantRequest, ScheduledEventQuerySet
 from libs.s3 import get_client_public_key_string, s3_upload
-from libs.schedules import (decompose_datetime_to_timings, export_weekly_survey_timings,
-    repopulate_all_survey_scheduled_events)
+from libs.schedules import (decompose_datetime_to_device_weekly_timings,
+    export_weekly_survey_timings, repopulate_all_survey_scheduled_events)
 from libs.sentry import get_sentry_client, SentryTypes
 from libs.utils.http_utils import determine_os_api
 from middleware.abort_middleware import abort
@@ -421,7 +419,7 @@ def format_survey_for_device(survey: Survey, participant: Participant):
         # The date component is dropped, the representation is now 100% a weekly schedule
         # the correct timezone is the "canonical form", e.g. in the study timezone (and then in
         # survey timings form as offset from start of day)
-        day_index, seconds = decompose_datetime_to_timings(schedule.scheduled_time_in_canonical_form)
+        day_index, seconds = decompose_datetime_to_device_weekly_timings(schedule.scheduled_time_in_canonical_form)
         survey_timings[day_index].append(seconds)
     
     # sort, deduplicate all days lists

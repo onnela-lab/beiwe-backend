@@ -73,7 +73,7 @@ def data_purge_mock_s3_calls(func):
     return wrapper
 
 
-class TestTimingsSchedules(CommonTestCase):
+class TestWeeklyTimingsSchedules(CommonTestCase):
     
     def test_immutable_defaults(self):
         # assert that this variable creates lists anew.
@@ -81,11 +81,8 @@ class TestTimingsSchedules(CommonTestCase):
     
     def test_export_weekly_survey_timings_no_schedules(self):
         # assert function only works with populated weekly schedules
-        try:
+        with self.assertRaises(NoSchedulesException):
             get_next_weekly_event_and_schedule(self.default_survey)
-        except NoSchedulesException as e:
-            some_no_schedules_exception = e
-        self.assertIn("some_no_schedules_exception", locals())
     
     def test_export_weekly_survey_timings(self):
         # assert that the timings output from no-schedules survey are the empty timings dict
@@ -118,7 +115,7 @@ class TestTimingsSchedules(CommonTestCase):
     
     def test_create_weekly_schedules_details(self):
         timings = EMPTY_WEEKLY_SURVEY_TIMINGS()
-        timings[0].append(3600 + 120)  # schedule 1am and 1 minute on sunday
+        timings[0].append(3600 + 120)  # schedule 1am and 2 minutes on sunday
         WeeklySchedule.create_weekly_schedules(timings, self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 1)
         weekly = WeeklySchedule.objects.first()
@@ -664,7 +661,6 @@ class TestSchedules(CommonTestCase):
         self.assert_is_a_week_in_correct_timezone_period(EST_WEEK, eastern, "EST")
         self.assert_is_a_week_in_correct_timezone_period(EDT_WEEK, eastern, "EDT")
     
-    
     #
     ## helper functions
     #
@@ -750,6 +746,7 @@ class TestSchedules(CommonTestCase):
         self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
         repopulate_relative_survey_schedule_events(self.default_survey)
         self.assertEqual(ScheduledEvent.objects.count(), 1)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)
     
     def test_absolute_schedule_basic_event_generation(self):
         self.default_survey, self.default_participant

@@ -18,23 +18,23 @@ from constants import action_log_messages
 from constants.celery_constants import PUSH_NOTIFICATION_SEND_QUEUE
 from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
-    ERR_IOS_REFERENCE_VERSION_NULL, FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS,
-    UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
+    FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS, UNEXPECTED_SERVICE_RESPONSE,
+    UNKNOWN_REMOTE_ERROR)
 from constants.schedule_constants import ScheduleTypes
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import ANDROID_API, IOS_API
+from constants.user_constants import ANDROID_API
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantActionLog,
-    ParticipantFCMHistory, PushNotificationDisabledEvent, SurveyNotificationReport)
+    ParticipantFCMHistory, PushNotificationDisabledEvent)
 from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
-from libs.push_notification_helpers import (fcm_for_pushable_participants, get_stopped_study_ids,
-    send_custom_notification_safely)
+from libs.push_notification_helpers import (base_resend_logic_participant_query,
+    fcm_for_pushable_participants, get_stopped_study_ids, send_custom_notification_safely,
+    update_ArchivedEvents_from_SurveyNotificationReports)
 from libs.schedules import set_next_weekly
 from libs.sentry import make_error_sentry, SentryTypes
-from libs.utils.participant_app_version_comparison import is_this_version_lte_participants
 
 
 logger = logging.getLogger("push_notifications")
@@ -79,104 +79,48 @@ def missing_notification_checkin_query() -> List[Tuple[int, str, str]]:
     
     - Archives from before this feature existed do not have the uuid field populated, this is our
       first exclusion criteria
-    - This code dose not create scheduled events, instead reactivates old ScheduledEvents by uuid.
+    - This code does not create scheduled events, instead reactivates old ScheduledEvents by uuid.
     - If ScheduledEvents get recalculated we do lose that uuid, and would get stuck in a loop trying
       to find the matching ScheduledEvent by uuid from an old ArchivedEvent. We solve that by
       identifying these non-match-uuids and clearing the uuid field. This will fully retire the
       ArchivedEvent from the resend logic because we exclude those to start with.
     - This may cause a theoretical problem of being unable to identify the ArchivedEvent that a
       received SurveyNotificationReport maps to, but I don't think we care about that.
-    - 
     - Note that this will create a "new" ScheduledEvent "in the past", forcing a send on the next
       push notification task, bypassing our time-gating logic from the ArchivedEvent's last_updated
       field.
     
     Other Details:
     
-    - To create a "no more than one resend every 30 minutes" we need to inject a filtering by time
-      ArchivedEvent query, we can use last_updated for that, and "touch" all modified archive events
+    - To inject a "no more than one resend every 30 minutes" we need to add a filtering by last
+      updated time ArchivedEvent query, and "touch" all modified archive events
     
+    - We have to do an app version check for when uuid-reporting was added this feature, that may e
+      subject to change and must be documented.
     
-    - TODO: We need to filter out participants with old app versions....
-    - TODO: we will be creating archived events with identical uuids, make a test that that... is fine?
-    
+    - TODO: we will be creating archived events with identical uuids, make a test that that... is
+      fine? uuuuuuhhhhh are we tho?  Didn't I deal with this?
     """
-    TOO_EARLY = GlobalSettings.get_singleton_instance().earliest_possible_time_of_push_notification_resend
+    # TOO_EARLY in populated as time of deploy that introduced this feature.
+    TOO_EARLY = GlobalSettings.get_singleton_instance()\
+        .earliest_possible_time_of_push_notification_resend
     now = timezone.now()
-    one_week_ago = now - timedelta(days=7)
     thirty_minutes_ago = now - timedelta(minutes=30)
     
-    # get participants - reusing the same query as heartboat to save dev time.
-    pushable_participant_info = list(
-        fcm_for_pushable_participants(one_week_ago)
-        .filter(participant__os_type=IOS_API)
-        .values_list(
-            "participant_id",
-            "participant__os_type",
-            "participant__last_version_code",
-            "participant__last_version_name",
-        )
-    )
-    
-    # current filter: only ios participants on app version greater than 2024.21
-    pushable_participant_pks = []
-    for participant_id, os_type, version_code, version_name in pushable_participant_info:
-        if os_type != IOS_API:
-            continue
-        try:
-            # No lower than 2024.22, must be greater than or equal to 2024.22
-            # (direction of the language here is confusing.....)
-            valid_app_version = is_this_version_lte_participants(
-                os_type, "2024.22", version_code, version_name
-            )
-        except ValueError as e:
-            if str(e) != ERR_IOS_REFERENCE_VERSION_NULL:
-                raise
-            valid_app_version = False
-        
-        if valid_app_version:
-            # print("valid_app_version", version_name)
-            pushable_participant_pks.append(participant_id)
-        else:
-            pass
-            # print("not valid_app_version", version_name)
-    
+    pushable_participant_pks = base_resend_logic_participant_query(now)
     log("pushable_participant_pks:", pushable_participant_pks)
     
-    # get all notification_report_pk__uuid pairs that are not applied
-    notification_report_pk__uuid = SurveyNotificationReport.objects.filter(
-        participant_id__in=pushable_participant_pks, applied=False
-    ).values_list(
-        "pk", "notification_uuid"
-    )
-    log("notification_report_pk__uuid:", notification_report_pk__uuid)
+    # sets last_updated on ArchivedEvents, they are excluded.
+    update_ArchivedEvents_from_SurveyNotificationReports(pushable_participant_pks, now, log)
     
-    # update Archived events `confirmed_received` to True, and `last_updated` to now.
-    query_update_archive_confirm_received = ArchivedEvent.objects.filter(
-        uuid__in=[uuid for _, uuid in notification_report_pk__uuid],
-        created_on__gte=TOO_EARLY,
-    ).update(
-        confirmed_received=True, last_updated=now
-    )
-    log("query_archive_confirm_received:", query_update_archive_confirm_received)
-    
-    # then update NotificationReports `applied` to True
-    query_update_notification_report = SurveyNotificationReport.objects.filter(
-        pk__in=[pk for pk, _ in notification_report_pk__uuid]
-    ).update(
-        applied=True, last_updated=now
-    )
-    log("query_notification_report:", query_update_notification_report)
-    
-    # Now we can filter on participants last_updated more than 30 minutes ago, confirmed_received,
-    # and null uuids to get all unconfirmed archived events.
+    # Now we can filter ArchivedEvents to get all that remain unconfirmed.
     unconfirmed_notification_uuids = list(set(
         ArchivedEvent.objects.filter(
-            created_on__gte=TOO_EARLY,
-            last_updated__lte=thirty_minutes_ago,
-            participant_id__in=pushable_participant_pks,
-            confirmed_received=False,
-            uuid__isnull=False,
+            created_on__gte=TOO_EARLY,                    # created after the earliest possible time,
+            last_updated__lte=thirty_minutes_ago,         # last updated before 30 minutes ago,
+            participant_id__in=pushable_participant_pks,  # from relevant participants,
+            confirmed_received=False,                     # that are not confirmed received,
+            uuid__isnull=False,                           # and have uuids.
         ).values_list(
             "uuid",
             flat=True,

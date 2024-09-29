@@ -32,15 +32,15 @@ class AbsoluteSchedule(TimestampedModel):
     # related field typings (IDE halp)
     scheduled_events: Manager[ScheduledEvent]
     
-    @property
-    def event_time(self) -> datetime:
+    def event_time(self, tz: tzinfo) -> datetime:
+        """ Expects the study timezone's tzinfo. """
         return datetime(
             year=self.date.year,
             month=self.date.month,
             day=self.date.day,
             hour=self.hour,
             minute=self.minute,
-            tzinfo=self.survey.study.timezone  # might be slow?
+            tzinfo=tz,
         )
     
     @staticmethod
