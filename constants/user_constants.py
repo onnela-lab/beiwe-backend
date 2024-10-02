@@ -13,6 +13,9 @@ OS_TYPE_CHOICES = (
 )
 
 
+IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION = "2024.22"
+
+
 # Researcher User Types
 class ResearcherRole:
     study_admin = "study_admin"

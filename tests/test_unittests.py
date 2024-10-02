@@ -1,8 +1,4 @@
 # trunk-ignore-all(bandit/B101,bandit/B106,ruff/B018,ruff/E701)
-from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
-    is_this_version_gte_participants, is_this_version_lt_participants,
-    is_this_version_lte_participants)
-
 import time
 import unittest
 import uuid
@@ -32,8 +28,8 @@ from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, BadWeekly
     InterventionDate, RelativeSchedule, ScheduledEvent, WeeklySchedule)
 from database.survey_models import Survey
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
-    DeviceStatusReportHistory, is_this_version_gt_participants, Participant, ParticipantActionLog,
-    ParticipantDeletionEvent, PushNotificationDisabledEvent, SurveyNotificationReport)
+    DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
+    PushNotificationDisabledEvent, SurveyNotificationReport)
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
 from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
@@ -43,6 +39,9 @@ from libs.schedules import (export_weekly_survey_timings, get_next_weekly_event_
     repopulate_absolute_survey_schedule_events, repopulate_all_survey_scheduled_events,
     repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)
 from libs.utils.forest_utils import get_forest_git_hash
+from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
+    is_this_version_gte_participants, is_this_version_lt_participants,
+    is_this_version_lte_participants)
 from services.celery_push_notifications import failed_send_survey_handler
 from tests.common import CommonTestCase
 
@@ -404,15 +403,16 @@ class TestParticipantDataDeletion(CommonTestCase):
     
     @data_purge_mock_s3_calls
     def test_confirm_ScheduledEvent(self):
-        sched_event = self.generate_a_real_weekly_schedule_event_with_schedule()[0]
+        self.generate_a_real_weekly_schedule_event_with_schedule()
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        sched_event.archive(self_delete=True, status="deleted", created_on=timezone.now())
+        run_next_queued_participant_data_deletion()
+        confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_ArchivedEvent(self):
         # its easiest to use a scheduled event to create an archived event...
         sched_event = self.generate_a_real_weekly_schedule_event_with_schedule()[0]
-        sched_event.archive(self_delete=True, status="deleted", created_on=timezone.now())
+        sched_event.archive(True, self.default_participant, status="deleted", created_on=timezone.now())
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
@@ -1215,23 +1215,3 @@ class TestAppVersionComparison(CommonTestCase):
         with self.assertRaises(ValueError) as e_wrapper:
             is_this_version_gt_participants(IOS, IOS_VALID, "junk", ".2024")
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_VERSION_COMPONENTS_DIGITS(IOS_VALID, ".2024"))
-    
-    def test_call_on_a_participant_android(self):
-        self.default_participant.update(os_type=ANDRD, last_version_code=ANDRD_VALID)
-        self.assertFalse(
-            self.default_participant.is_this_version_gt_participant_app_version(ANDROID_VALID_LESS)
-        )
-        self.default_participant.update(last_version_code=ANDROID_VALID_LESS)
-        self.assertTrue(
-            self.default_participant.is_this_version_gt_participant_app_version(ANDRD_VALID)
-        )
-    
-    def test_call_on_a_participant_ios(self):
-        self.default_participant.update(os_type=IOS, last_version_name=IOS_VALID)
-        self.assertFalse(
-            self.default_participant.is_this_version_gt_participant_app_version(IOS_VALID_LESS)
-        )
-        self.default_participant.update(last_version_name=IOS_VALID_LESS)
-        self.assertTrue(
-            self.default_participant.is_this_version_gt_participant_app_version(IOS_VALID)
-        )

@@ -69,7 +69,7 @@ def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[Schedule
 ####################################################################################################
 
 
-def missing_notification_checkin_query() -> List[Tuple[int, str, str]]:
+def lost_notification_checkin_query() -> List[Tuple[int, str, str]]:
     """
     Participants upload a list of uuids of their received notifications, these uuids are stashed in
     SurveyNotificationReport, are sourced from ScheduledEvents, and recorded on ArchivedEvents.
@@ -92,13 +92,11 @@ def missing_notification_checkin_query() -> List[Tuple[int, str, str]]:
     Other Details:
     
     - To inject a "no more than one resend every 30 minutes" we need to add a filtering by last
-      updated time ArchivedEvent query, and "touch" all modified archive events
-    
+      updated time ArchivedEvent query, and "touch" all modified archive events when we check them.
     - We have to do an app version check for when uuid-reporting was added this feature, that may e
       subject to change and must be documented.
-    
-    - TODO: we will be creating archived events with identical uuids, make a test that that... is
-      fine? uuuuuuhhhhh are we tho?  Didn't I deal with this?
+    - Only participants with an app version that passes the version check will create ArchivedEvents
+      with uuids, so only push notifications to known-capable devices will activate resends.
     """
     # TOO_EARLY in populated as time of deploy that introduced this feature.
     TOO_EARLY = GlobalSettings.get_singleton_instance()\
@@ -130,8 +128,7 @@ def missing_notification_checkin_query() -> List[Tuple[int, str, str]]:
     # re-enable all ScheduledEvents that were not confirmed received.
     query_scheduledevents_updated = ScheduledEvent.objects.filter(
         uuid__in=unconfirmed_notification_uuids,
-        # created_on__gte=TOO_EARLY,  # No. We migrate old ScheduledEvents to have uuids, we want
-        # them to work if they continue to exist and send notifications (create new archives).
+        # created_on__gte=TOO_EARLY,  # No. We migrate old ScheduledEvents to have uuids.
     ).update(
         deleted=False, last_updated=now
     )
@@ -567,7 +564,7 @@ def success_send_survey_handler(participant: Participant, fcm_token: str, schedu
     participant.push_notification_unreachable_count = 0
     participant.save()
     
-    create_archived_events(schedules, status=MESSAGE_SEND_SUCCESS)
+    create_archived_events(schedules, participant, status=MESSAGE_SEND_SUCCESS)
     enqueue_weekly_surveys(participant, schedules)
 
 
@@ -623,15 +620,22 @@ def failed_send_survey_handler(
     if debug:
         raise BaseException("debug mode, not archiving events.")
     
-    create_archived_events(schedules, status=error_message, created_on=now)
+    create_archived_events(schedules, participant, status=error_message, created_on=now)
     enqueue_weekly_surveys(participant, schedules)
 
 
-def create_archived_events(schedules: List[ScheduledEvent], status: str, created_on: datetime = None):
+def create_archived_events(
+    schedules: List[ScheduledEvent],
+    participant: Participant,
+    status: str,
+    created_on: datetime = None
+):
     # """ Populates event history, does not mark ScheduledEvents as deleted. """
     mark_as_deleted = status == MESSAGE_SEND_SUCCESS
     for scheduled_event in schedules:
-        scheduled_event.archive(self_delete=mark_as_deleted, status=status, created_on=created_on)
+        scheduled_event.archive(
+            mark_as_deleted, participant, status=status, created_on=created_on
+        )
 
 
 def enqueue_weekly_surveys(participant: Participant, schedules: List[ScheduledEvent]):

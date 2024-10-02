@@ -22,7 +22,7 @@ from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
 from constants.common_constants import LEGIBLE_TIME_FORMAT, RUNNING_TESTS
 from constants.data_stream_constants import ALL_DATA_STREAMS, IDENTIFIERS
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
-    OS_TYPE_CHOICES)
+    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, OS_TYPE_CHOICES)
 from database.common_models import UtilityModel
 from database.models import TimestampedModel
 from database.study_models import Study
@@ -30,9 +30,7 @@ from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
 from libs.firebase_config import check_firebase_instance
 from libs.s3 import s3_retrieve
-from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
-    is_this_version_gte_participants, is_this_version_lt_participants,
-    is_this_version_lte_participants)
+from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
 from libs.utils.security_utils import (compare_password, device_hash, django_password_components,
     generate_easy_alphanumeric_string)
 
@@ -313,22 +311,17 @@ class Participant(AbstractPasswordUser):
         except ParticipantDeletionEvent.DoesNotExist:
             return False
     
-    def is_this_version_gt_participant_app_version(self, target_version: str) -> bool:
-        # passthrough to the non-model function
-        return is_this_version_gt_participants(
-            self.os_type, target_version, self.last_version_code, self.last_version_name)
-    
-    def is_this_version_lt_participant_app_version(self, target_version: str) -> bool:
-        return is_this_version_lt_participants(
-            self.os_type, target_version, self.last_version_code, self.last_version_name)
-    
-    def is_this_version_gte_participant_app_version(self, target_version: str) -> bool:
-        return is_this_version_gte_participants(
-            self.os_type, target_version, self.last_version_code, self.last_version_name)
-    
-    def is_this_version_lte_participant_app_version(self, target_version: str) -> bool:
-        return is_this_version_lte_participants(
-            self.os_type, target_version, self.last_version_code, self.last_version_name)
+    @property 
+    def can_handle_push_notification_resends(self) -> bool:
+        if self.os_type != IOS_API:
+            return False
+        
+        return is_participants_version_gte_target(
+            self.os_type,
+            self.app_version_code,
+            self.app_version_name,
+            IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+        )
     
     ################################################################################################
     ######################################### S3 DATA ##############################################

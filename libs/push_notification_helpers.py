@@ -1,5 +1,6 @@
 import logging
 import operator
+import os
 import random
 import uuid
 from datetime import datetime, timedelta
@@ -16,14 +17,14 @@ from firebase_admin.messaging import (AndroidConfig, Message, Notification, Quot
 from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
+from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
+    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
 from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.survey_models import Survey
 from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     SurveyNotificationReport)
-from libs.utils.date_utils import date_is_in_the_past
 from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
 
 
@@ -98,20 +99,12 @@ def send_custom_notification_raw(fcm_token: str, os_type: str, message: str):
     send_notification(message)
 
 
-
 def get_stopped_study_ids() -> List[int]:
     """ Returns a list of study ids that are stopped or deleted (and should not have *stuff* happen.)"""
     bad_study_ids = []
-    
-    # we don't really care about performance, there are AT MOST hundreds of studies.
-    query = Study.objects.values_list("id", "deleted", "manually_stopped", "end_date", "timezone_name")
-    for study_id, deleted, manually_stopped, end_date, timezone_name in query:
-        if deleted or manually_stopped:
-            bad_study_ids.append(study_id)
-            continue
-        if end_date:
-            if date_is_in_the_past(end_date, timezone_name):
-                bad_study_ids.append(study_id)
+    for study in Study.objects.all():
+        if study.study_is_stopped:
+            bad_study_ids.append(study.id)
     
     return bad_study_ids
 
@@ -183,8 +176,13 @@ def base_resend_logic_participant_query(now: datetime) -> List[int]:
     # complex filters, participant app version and os type
     pushable_participant_pks = []
     for participant_id, os_type, version_code, version_name in pushable_participant_info:
+        # I'm injecting an exta check here as a reminder no .... do the thing the message says.
+        if os_type != IOS_API:
+            raise AssertionError("this code is currently only supposed to be for ios, you to update can_handle_push_notification_resends if you change it.")
         # build must be greater than or equal to 2024.22
-        if is_participants_version_gte_target(os_type, version_code, version_name, "2024.22"):
+        if is_participants_version_gte_target(
+            os_type, version_code, version_name, IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
+        ):
             pushable_participant_pks.append(participant_id)
     
     return pushable_participant_pks

@@ -22,7 +22,7 @@ from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     SurveyNotificationReport)
 from services.celery_push_notifications import (create_heartbeat_tasks, get_surveys_and_schedules,
-    heartbeat_query, missing_notification_checkin_query)
+    heartbeat_query, lost_notification_checkin_query)
 from tests.common import CommonTestCase
 
 
@@ -610,7 +610,7 @@ class TestResendLogicQuery(TestCelery):
     
     def run_resend_logic_and_refresh_these_models(self, *args: List[UtilityModel]):
         self.BEFORE_RUN = timezone.now()
-        missing_notification_checkin_query()
+        lost_notification_checkin_query()
         self.AFTER_RUN = timezone.now()
         for model in args:
             model.refresh_from_db()
@@ -701,13 +701,13 @@ class TestResendLogicQuery(TestCelery):
     
     def test_no_data(self):
         self.assert_counts(0, 0, 0)
-        missing_notification_checkin_query()
+        lost_notification_checkin_query()
         self.assert_counts(0, 0, 0)
     
     def test_one_participant_nothing_else(self):
         self.using_default_participant()
         self.assert_counts(0, 0, 0)
-        missing_notification_checkin_query()
+        lost_notification_checkin_query()
         self.assert_counts(0, 0, 0)
     
     def test_participant_with_minimum_requirements_resends(self):

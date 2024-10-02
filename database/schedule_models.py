@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, time, timedelta, tzinfo
 from typing import List, Tuple
 
@@ -191,7 +192,7 @@ class ScheduledEvent(TimestampedModel):
     absolute_schedule: AbsoluteSchedule = models.ForeignKey('AbsoluteSchedule', on_delete=models.CASCADE, related_name='scheduled_events', null=True, blank=True)
     scheduled_time = models.DateTimeField()
     deleted = models.BooleanField(null=False, default=False, db_index=True)
-    uuid = models.UUIDField(null=True, blank=True, db_index=True, unique=True)  # see ArchivedEvent
+    uuid = models.UUIDField(null=True, blank=True, db_index=True, unique=True, default=uuid.uuid4)  # see ArchivedEvent
     most_recent_event: ArchivedEvent = models.ForeignKey("ArchivedEvent", on_delete=models.DO_NOTHING, null=True, blank=True)
     
     # due to import complexity (needs those classes) this is the best place to stick the lookup dict.
@@ -231,8 +232,15 @@ class ScheduledEvent(TimestampedModel):
         else:
             raise Exception("ScheduledEvent had no associated schedule")
     
-    def archive(self, self_delete: bool, status: str, created_on: datetime = None):
+    def archive(
+        self,
+        self_delete: bool,
+        participant: Participant,
+        status: str,
+        created_on: datetime = None
+    ):
         """ Create an ArchivedEvent from a ScheduledEvent. """
+        ## Participant is passed in here to avoid a database call.
         # We need to handle the case of no-existing-survey-archive on the referenced survey,  Could
         # be cleaner, but there is an interaction with a migration that will break; not worth it.
         try:
@@ -241,6 +249,11 @@ class ScheduledEvent(TimestampedModel):
             self.survey.archive()
             survey_archive = self.survey.most_recent_archive()
         
+        if participant.can_handle_push_notification_resends:
+            the_uuid = self.uuid
+        else:
+            the_uuid = None
+        
         # create ArchivedEvent, link to most_recent_event, conditionally mark self as deleted.
         archive = ArchivedEvent(
             survey_archive=survey_archive,
@@ -248,7 +261,7 @@ class ScheduledEvent(TimestampedModel):
             schedule_type=self.get_schedule_type(),
             scheduled_time=self.scheduled_time,
             status=status,
-            uuid=self.uuid or None,
+            uuid=the_uuid,
             **{"created_on": created_on} if created_on else {}  # :D
         )
         archive.save()

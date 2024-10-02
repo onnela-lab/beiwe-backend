@@ -147,6 +147,12 @@ class Study(TimestampedModel, ObjectIDModel):
         return date_is_in_the_past(self.end_date, self.timezone_name)
     
     @property
+    def study_is_stopped(self) -> bool:
+        """ Returns True if the study meets stopped criteria. This function is the source of truth
+        for this data point. """
+        return self.deleted or self.manually_stopped or self.end_date_is_in_the_past
+    
+    @property
     def data_quantity_metrics(self):
         """ Get the data quantities for each data stream, format the number in base-2 MB with no
         decimal places and comma separators. """

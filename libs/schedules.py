@@ -42,13 +42,8 @@ EXCLUDE_THESE_PARTICIPANTS_RELATED = RELATED_DELETED_TRUE | RELATED_PERMANENTLY_
 
 def participant_allowed_surveys(participant: Participant) -> bool:
     """ Returns whether we should bother to send a participant survey push notifications. """
-    PUSH_NOTIFICATION_EXCLUSION = [
-        ("deleted", True),
-        ("permanently_retired", True),
-    ]
-    for field_name, truthiness_value in PUSH_NOTIFICATION_EXCLUSION:
-        if getattr(participant, field_name) == truthiness_value:
-            return False
+    if participant.deleted or participant.permanently_retired:
+        return False
     return True
 
 
@@ -138,7 +133,7 @@ def repopulate_all_survey_scheduled_events(study: Study, participant: Participan
     duplicate_schedule_events_merged = False
     for survey in study.surveys.all():
         # remove any scheduled events on surveys that have been deleted.
-        if survey.deleted or study.deleted or study.manually_stopped or study.end_date_is_in_the_past:
+        if survey.deleted or study.study_is_stopped:
             survey.scheduled_events.all().delete()
             continue
         
