@@ -6,10 +6,11 @@ from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
 
 
 def clean_archived_events(apps: StateApps, schema_editor):
+    # discovered some problem data in our database, hopefully this clears it up
     ArchivedEvent = apps.get_model('database', 'ArchivedEvent')
     q_base = ArchivedEvent.objects
     
-    # based of the special casing in failer send handler in celery push notifications
+    # based on the special casing in failed_send_survey_handler in celery push notifications
     doctype = q_base.filter(status__icontains="DOCTYPE")
     unknown_remote = q_base.filter(status__icontains="Unknown error while making a remote service call:")
     failed_establish = q_base.filter(status__icontains="Failed to establish a connection")

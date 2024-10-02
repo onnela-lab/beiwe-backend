@@ -64,7 +64,6 @@ def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[Schedule
         return [mock_reference_schedule]
 
 
-
 ####################################################################################################
 ################################## MISSING NOTIFICATION REPORT 3####################################
 ####################################################################################################
@@ -583,7 +582,7 @@ def failed_send_survey_handler(
         Participants get reenabled when they next touch the app checkin endpoint. """
     
     # we have encountered some really weird error behavior, we need to normalize the error messages,
-    # see TestFailedSendHandler
+    # see TestFailedSendHandler, see migration 128 for some cleanup.
     if "DOCTYPE" in error_message:
         error_message = UNEXPECTED_SERVICE_RESPONSE  # this one is like a 502 proxy error?
     elif "Unknown error while making a remote service call:" in error_message:
