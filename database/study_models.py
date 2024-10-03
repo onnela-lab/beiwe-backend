@@ -152,6 +152,11 @@ class Study(TimestampedModel, ObjectIDModel):
         for this data point. """
         return self.deleted or self.manually_stopped or self.end_date_is_in_the_past
     
+    @classmethod
+    def active_studies(cls):
+        """ Returns a queryset of active studies. """
+        return cls.objects.filter(deleted=False, manually_stopped=False, end_date__gt=self.now())
+    
     @property
     def data_quantity_metrics(self):
         """ Get the data quantities for each data stream, format the number in base-2 MB with no

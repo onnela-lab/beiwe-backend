@@ -1,6 +1,5 @@
 import logging
 import operator
-import os
 import random
 import uuid
 from datetime import datetime, timedelta
@@ -14,6 +13,7 @@ from django.utils import timezone
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
     send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
 
+# do not import from libs.schedules
 from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
@@ -99,12 +99,13 @@ def send_custom_notification_raw(fcm_token: str, os_type: str, message: str):
     send_notification(message)
 
 
-def get_stopped_study_ids() -> List[int]:
+def slowly_get_stopped_study_ids() -> List[int]:
     """ Returns a list of study ids that are stopped or deleted. """
-    # testing for a stopped study is hard, there are at-most hundreds of studies, just do the big query.
-    # ... but we can avoid pulling in the encryption key.
+    # testing for a stopped study is hard enough that we should engineer this to depend on the Study
+    # objects. There are at-most hundreds of studies, so performance is good enough.  Me can use 
+    # only() to reduce the number of fields we pull from the database.
     bad_study_ids = []
-    for study in Study.objects.all().defer("encryption_key"):
+    for study in Study.objects.all().only("deleted", "manually_stopped", "end_date", "timezone_name"):
         if study.study_is_stopped:
             bad_study_ids.append(study.id)
     
@@ -150,7 +151,7 @@ def fcm_for_pushable_participants(last_activity_cutoff: datetime) -> QuerySet[Pa
         unregistered=None,                         # this is fcm-speak for "has non-retired fcm token"
         participant__os_type__in=[ANDROID_API, IOS_API],  # participants need to _have an OS_.
     ).exclude(
-        participant__study_id__in=get_stopped_study_ids()  # no stopped studies
+        participant__study_id__in=slowly_get_stopped_study_ids()  # no stopped studies
     )
 
 

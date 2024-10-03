@@ -302,6 +302,10 @@ class Participant(AbstractPasswordUser):
     def is_dead(self) -> bool:
         return self.deleted or self.has_deletion_event
     
+    @classmethod
+    def filter_possibly_pushable_participants(cls) -> QuerySet[Participant]:
+        return cls.objects.filter(deleted=False, deletion_event__isnull=True, permanently_retired=False)
+    
     @property
     def has_deletion_event(self) -> bool:
         try:

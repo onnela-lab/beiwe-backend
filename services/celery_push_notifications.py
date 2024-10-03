@@ -31,7 +31,7 @@ from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
 from libs.push_notification_helpers import (base_resend_logic_participant_query,
-    fcm_for_pushable_participants, get_stopped_study_ids, send_custom_notification_safely,
+    fcm_for_pushable_participants, slowly_get_stopped_study_ids, send_custom_notification_safely,
     update_ArchivedEvents_from_SurveyNotificationReports)
 from libs.schedules import set_next_weekly
 from libs.sentry import make_error_sentry, SentryTypes
@@ -115,6 +115,7 @@ def lost_notification_checkin_query() -> List[Tuple[int, str, str]]:
         ArchivedEvent.objects.filter(
             created_on__gte=TOO_EARLY,                    # created after the earliest possible time,
             last_updated__lte=thirty_minutes_ago,         # last updated before 30 minutes ago,
+            status=MESSAGE_SEND_SUCCESS,                  # that should have been received,
             participant_id__in=pushable_participant_pks,  # from relevant participants,
             confirmed_received=False,                     # that are not confirmed received,
             uuid__isnull=False,                           # and have uuids.
@@ -309,7 +310,7 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
     ) \
     .filter(**filter_kwargs) \
     .exclude(
-        survey__study_id__in=get_stopped_study_ids()  # no stopped studies
+        survey__study_id__in=slowly_get_stopped_study_ids()  # no stopped studies
     ) \
     .values_list(
         "scheduled_time",

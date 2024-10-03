@@ -12,7 +12,8 @@ from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, Intervent
 from database.study_models import Study
 from database.survey_models import Survey
 from database.user_models_participant import Participant
-from libs.push_notification_helpers import update_ArchivedEvents_from_SurveyNotificationReports
+from libs.push_notification_helpers import (slowly_get_stopped_study_ids,
+    update_ArchivedEvents_from_SurveyNotificationReports)
 from libs.utils.date_utils import date_to_end_of_day, date_to_start_of_day
 
 
@@ -105,25 +106,6 @@ def validate_and_assemble_archive_scheduled_times_by_participant_pk(
 #
 
 
-def set_next_weekly(participant: Participant, survey: Survey) -> Tuple[ScheduledEvent, int]:
-    """ Create a next ScheduledEvent for a survey for a particular participant. Uses get_or_create. """
-    schedule_date, schedule = get_next_weekly_event_and_schedule(survey)
-    
-    # this handles the case where the schedule was deleted. This is a corner case that shouldn't happen
-    if schedule_date is not None and schedule is not None:
-        # Return so we can write tests easier, its fine
-        return ScheduledEvent.objects.get_or_create(
-            survey=survey,
-            participant=participant,
-            weekly_schedule=schedule,
-            relative_schedule=None,
-            absolute_schedule=None,
-            scheduled_time=schedule_date,
-        )
-    else:
-        raise UnknownScheduleScenario(
-            f"unknown condition reached. schedule_date was {schedule_date}, schedule was {schedule}"
-        )
 
 
 def repopulate_all_survey_scheduled_events(study: Study, participant: Participant = None):
@@ -368,6 +350,88 @@ def export_weekly_survey_timings(survey: Survey) -> List[List[int]]:
     for hour, minute, day in schedule_components:
         timings[day].append((hour * 60 * 60) + (minute * 60))
     return timings
+
+
+def update_all_weekly_schedules() -> None:
+    """ Handles updates for all weekly survey schedules for all participants. """
+    participant: Participant
+    survey: Survey
+    
+    now = timezone.now()
+    
+    # - We don't want to use the fcm_for_pushable_participants function, we want to top-up All
+    #   Potentially Pushable participants, then clear out old weekly schedules. We want to ensure
+    #   new participants created a year after creation don't get slammed with thousands of
+    #   notification uuids. (its also easier than a query to exclude, and the table is smaller.)
+    # - We order these queries to make the output deterministic.  There is no other reason.
+    
+    # There are a lot of ways to make this query, this one is fine, we don't care about performance,
+    # we need to use `slowly_get_stopped_study_ids` anyway.
+    study_ids_to_refresh_weeklies = list(
+        set(
+            WeeklySchedule.objects.filter(survey__deleted=False)
+            .values_list("survey__study_id", flat=True).distinct()
+        )
+        -
+        set(slowly_get_stopped_study_ids())
+    )
+    list.sort()
+    
+    participants = Participant.filter_possibly_pushable_participants(
+        study_id__in=study_ids_to_refresh_weeklies
+    ).order_by("patient_id")
+    
+    participants_by_study = defaultdict(list)
+    for participant in participants:
+        participants_by_study[participant.study_id].append(participant)
+    participants_by_study = dict(participants_by_study)
+    
+    surveys = Survey.objects.filter(
+        study_id__in=study_ids_to_refresh_weeklies, deleted=False
+    ).order_by("study_id")
+    
+    # ok, this makes too many queries and they are the same query...
+    for survey in surveys:
+        for participant in participants_by_study[survey.study_id]:
+            ret = set_next_weekly(participant, survey)
+            survey_ident = survey.survey_name if survey.survey_name else survey.object_id
+            log(f"updated weekly schedules for {participant.patient_id} '{survey_ident}': {ret}")
+    
+    # - Delete all weekly scheduled events that are more than 16 days old. 15 days should be greater
+    #   than all reasonable timezone side effects, 16 gives enough buffer to cover for the really
+    #   weird ones like flying through the international date line and on the day of a daylight
+    #   savings time change. (In fact I'm probably doing the math wrong and we only need 9 days.)
+    # - Its ok to delete old weekly scheduled events because they will be replaced on the real-world
+    #   practical level every week.
+    # - We can live with extra weekly scheduled events hanging around and possibly being sent
+    #   because they will get merged ino a single notification whenever they are sent.
+    ScheduledEvent.objects.filter(
+        weekly_schedule__isnull=False,
+        relative_schedule=None,
+        absolute_schedule=None,
+        scheduled_time__lt=now - timedelta(days=16)
+    ).delete()
+
+
+def set_next_weekly(participant: Participant, survey: Survey) -> Tuple[ScheduledEvent, int]:
+    """ Create a next ScheduledEvent for a survey for a particular participant. Uses get_or_create. """
+    schedule_date, schedule = get_next_weekly_event_and_schedule(survey)
+    
+    # this handles the case where the schedule was deleted. This is a corner case that shouldn't happen
+    if schedule_date is not None and schedule is not None:
+        # Return so we can write tests easier, its fine
+        return ScheduledEvent.objects.get_or_create(
+            survey=survey,
+            participant=participant,
+            weekly_schedule=schedule,
+            relative_schedule=None,
+            absolute_schedule=None,
+            scheduled_time=schedule_date,
+        )
+    else:
+        raise UnknownScheduleScenario(
+            f"unknown condition reached. schedule_date was {schedule_date}, schedule was {schedule}"
+        )
 
 
 #
