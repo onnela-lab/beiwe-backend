@@ -100,9 +100,11 @@ def send_custom_notification_raw(fcm_token: str, os_type: str, message: str):
 
 
 def get_stopped_study_ids() -> List[int]:
-    """ Returns a list of study ids that are stopped or deleted (and should not have *stuff* happen.)"""
+    """ Returns a list of study ids that are stopped or deleted. """
+    # testing for a stopped study is hard, there are at-most hundreds of studies, just do the big query.
+    # ... but we can avoid pulling in the encryption key.
     bad_study_ids = []
-    for study in Study.objects.all():
+    for study in Study.objects.all().defer("encryption_key"):
         if study.study_is_stopped:
             bad_study_ids.append(study.id)
     
