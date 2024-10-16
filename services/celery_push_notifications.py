@@ -293,9 +293,16 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
     # The largest timezone offset is +14?, but we will do one whole day and manually filter.
     tomorrow = now + timedelta(days=1)
     
+    # oct 2024: turns out we get TENS OF THOUSANDS of hits, so we need to filter better.
+    # (humorously, this came from trying to debug something, not from slowness.)    
+    # We can filter out participants that have been marked as unreachable:
+    valid_participant_ids = ParticipantFCMHistory.objects.filter(unregistered__isnull=True)\
+        .values_list("participant_id", flat=True).distinct()
+    
     # get: schedule time is in the past for participants that have fcm tokens.
     # need to filter out unregistered fcms, database schema sucks for that, do it in python. its fine.
     query = ScheduledEvent.objects.filter(
+        participant_id__in=valid_participant_ids,
         # core
         scheduled_time__lte=tomorrow,
         participant__fcm_tokens__isnull=False,
@@ -305,12 +312,11 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
         survey__deleted=False,
         # Shouldn't be necessary, placeholder containing correct lte count.
         # participant__push_notification_unreachable_count__lte=PUSH_NOTIFICATION_ATTEMPT_COUNT
-        # added august 2022, part of checkins
-        deleted=False,
+        deleted=False, # added august 2022, part of checkins
     ) \
     .filter(**filter_kwargs) \
     .exclude(
-        survey__study_id__in=slowly_get_stopped_study_ids()  # no stopped studies
+        survey__study_id__in=slowly_get_stopped_study_ids(),  # no stopped studies
     ) \
     .values_list(
         "scheduled_time",
