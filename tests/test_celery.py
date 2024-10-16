@@ -1,5 +1,4 @@
 # trunk-ignore-all(ruff/B018)
-import sched
 import uuid
 from datetime import datetime, timedelta
 from typing import List, Tuple
@@ -14,7 +13,8 @@ from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.testing_constants import (THURS_OCT_6_NOON_2022_NY, THURS_OCT_13_NOON_2022_NY,
     THURS_OCT_20_NOON_2022_NY, WEDNESDAY_JUNE_NOON_8_2022_EDT)
-from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
+from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
+    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
 from database.common_models import TimestampedModel, UtilityModel
 from database.schedule_models import AbsoluteSchedule, ArchivedEvent, ScheduledEvent
 from database.survey_models import Survey
@@ -600,6 +600,8 @@ class TestResendLogicQuery(TestCelery):
     BEFORE_RUN = None
     AFTER_RUN = None
     
+    IOS_VERSION = IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
+    
     def setUp(self):
         super().setUp()
         self.START_OF_TEST_TIME = timezone.now()
@@ -624,7 +626,7 @@ class TestResendLogicQuery(TestCelery):
             deleted=False,
             permanently_retired=False,
             last_upload=self.NOW_SORTA,
-            last_version_name="2024.22",
+            last_version_name=self.IOS_VERSION,
             os_type=IOS_API,
         )
         self.populate_default_fcm_token
@@ -633,7 +635,7 @@ class TestResendLogicQuery(TestCelery):
     @property
     def setup_participant_2(self) -> Participant:
         p2 = self.generate_participant(self.default_study)
-        p2.update(last_os_version="2024.21", os_type=IOS_API)
+        p2.update(last_os_version=self.IOS_VERSION, os_type=IOS_API)
         ParticipantFCMHistory(token=self.DEFAULT_FCM_TOKEN + "x", participant=p2).save()
         return p2
     
@@ -727,13 +729,13 @@ class TestResendLogicQuery(TestCelery):
     
     def test_ios_version_restriction_allows_equal(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        self.default_participant.update(os_type=IOS_API, last_version_name="2024.22")
+        self.default_participant.update(os_type=IOS_API, last_version_name=self.IOS_VERSION)
         self.run_resend_logic_and_refresh_these_models(sched_event, archive)
         self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
     
     def test_ios_version_restriction_allows_higher(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        self.default_participant.update(os_type=IOS_API, last_version_name="2024.23")
+        self.default_participant.update(os_type=IOS_API, last_version_name="2024.29")
         self.run_resend_logic_and_refresh_these_models(sched_event, archive)
         self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
     

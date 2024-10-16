@@ -503,7 +503,7 @@ class ParticipantSessionTest(SmartRequestsTestCase):
             post_params["password"] = self.DEFAULT_PARTICIPANT_PASSWORD_HASHED
         
         if self.INJECT_RECEIVED_SURVEY_UUIDS and "survey_uuids" not in post_params:
-            post_params["survey_uuids"] = '["a1019758-63f1-48a9-96bf-08208f2c9055"]'
+            post_params["notification_uuids"] = '["a1019758-63f1-48a9-96bf-08208f2c9055"]'
         
         if self.INJECT_DEVICE_TRACKER_PARAMS:
             for tracking_param in self.DEVICE_TRACKING_PARAMS:
@@ -531,8 +531,10 @@ class ParticipantSessionTest(SmartRequestsTestCase):
         # ensure there is only 1 of these in all situations
         if self.INJECT_RECEIVED_SURVEY_UUIDS:
             self.assertEqual(
-                SurveyNotificationReport.objects.filter(
-                    notification_uuid="a1019758-63f1-48a9-96bf-08208f2c9055").count(), 1)
+                SurveyNotificationReport.objects.filter(  # 
+                    notification_uuid="a1019758-63f1-48a9-96bf-08208f2c9055").count(), 1,
+                    msg="SurveyNotificationReport count is wrong."
+                )
             
         # reset the toggle after every request
         self.INJECT_DEVICE_TRACKER_PARAMS = True

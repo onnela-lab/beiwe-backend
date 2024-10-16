@@ -1,4 +1,5 @@
 import functools
+import uuid
 
 import orjson
 from django.http import UnreadablePostError
@@ -129,13 +130,24 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
     
     if "notification_uuids" in request.POST:
         # uuids are a json list of strings, we only allow strings through.
-        uuids = request.POST.get("notification_uuids", "[]")
-        uuids = [uuid for uuid in orjson.loads(uuids) if isinstance(uuid, str)]
-        if not isinstance(uuids, list):
-            uuids = []
+        possibly_uuids = request.POST.get("notification_uuids", b"[]")
+        possibly_uuids = [uuid for uuid in orjson.loads(possibly_uuids) if isinstance(uuid, str)]
+        if not isinstance(possibly_uuids, list):
+            possibly_uuids = []
             with elastic_beanstalk_error_sentry():
                 raise TypeError(f"Device notification_uuids should be a list, found instead: {type(uuids)}.")
         
+        uuids = set()
+        report_once = True
+        for a_uuid in possibly_uuids:
+            try:
+                uuids.add(uuid.UUID(a_uuid))
+            except ValueError as e:
+                if report_once:
+                    with elastic_beanstalk_error_sentry():
+                        raise ValueError(f"Device notification_uuids should be a list of UUIDs, found instead: {a_uuid}.") from e
+                    report_once = False
+                continue
         if uuids:
             potentially_new_uuids = [
                 SurveyNotificationReport(participant=participant, notification_uuid=a_uuid)
