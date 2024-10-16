@@ -323,8 +323,8 @@ class Participant(AbstractPasswordUser):
         
         return is_participants_version_gte_target(
             self.os_type,
-            self.app_version_code,
-            self.app_version_name,
+            self.last_version_code,
+            self.last_version_name,
             IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
         )
     
