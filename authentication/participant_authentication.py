@@ -127,14 +127,14 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
         if request.POST["timezone"] is None or request.POST["timezone"] != "":
             participant.try_set_timezone(request.POST["timezone"])
     
-    if "survey_uuids" in request.POST:
+    if "notification_uuids" in request.POST:
         # uuids are a json list of strings, we only allow strings through.
-        uuids = request.POST.get("survey_uuids", "[]")
+        uuids = request.POST.get("notification_uuids", "[]")
         uuids = [uuid for uuid in orjson.loads(uuids) if isinstance(uuid, str)]
         if not isinstance(uuids, list):
             uuids = []
             with elastic_beanstalk_error_sentry():
-                raise TypeError(f"Device survey_uuids should be a list, found instead: {type(uuids)}.")
+                raise TypeError(f"Device notification_uuids should be a list, found instead: {type(uuids)}.")
         
         if uuids:
             potentially_new_uuids = [
