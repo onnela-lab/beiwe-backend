@@ -104,6 +104,8 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
         tracking_updates['last_version_name'] = request.POST["version_name"][:32]
     if "os_version" in request.POST:
         tracking_updates['last_os_version'] = request.POST["os_version"][:32]
+    if "notification_uuids" in request.POST:
+        tracking_updates['raw_notification_report'] = request.POST["notification_uuids"]
     if "device_status_report" in request.POST:
         tracking_updates['device_status_report'] = request.POST["device_status_report"]
     if tracking_updates:
@@ -130,12 +132,12 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
     
     if "notification_uuids" in request.POST:
         # uuids are a json list of strings, we only allow strings through.
-        possibly_uuids = request.POST.get("notification_uuids", b"[]")
+        possibly_uuids = request.POST["notification_uuids"]
         possibly_uuids = [uuid for uuid in orjson.loads(possibly_uuids) if isinstance(uuid, str)]
         if not isinstance(possibly_uuids, list):
             possibly_uuids = []
             with elastic_beanstalk_error_sentry():
-                raise TypeError(f"Device notification_uuids should be a list, found instead: {type(uuids)}.")
+                raise TypeError(f"Device notification_uuids should be a list, found instead: {type(possibly_uuids)}.")
         
         uuids = set()
         report_once = True
