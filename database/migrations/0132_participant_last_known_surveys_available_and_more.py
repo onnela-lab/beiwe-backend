@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='participant',
-            name='last_known_surveys_available',
+            name='last_active_survey_ids',
             field=models.TextField(blank=True, default=None, null=True),
         ),
         migrations.AddField(

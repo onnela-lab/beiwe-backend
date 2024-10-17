@@ -103,7 +103,7 @@ class Participant(AbstractPasswordUser):
     last_version_name = models.CharField(max_length=32, blank=True, null=True)
     last_os_version = models.CharField(max_length=32, blank=True, null=True)
     raw_notification_report = models.TextField(default=None, null=True, blank=True)
-    last_known_surveys_available = models.TextField(default=None, null=True, blank=True)
+    last_active_survey_ids = models.TextField(default=None, null=True, blank=True)
     device_status_report = models.TextField(default=None, null=True, blank=True)
     
     deleted = models.BooleanField(default=False)
@@ -607,7 +607,7 @@ class SurveyNotificationReport(TimestampedModel):
     applied = models.BooleanField(default=False)
     
     class Meta:
-        unique_together = (("participant", "notification_uuid"),)
+        unique_together = (("participant", "notification_uuid"),)  # statistically global
 
 
 # device status report history

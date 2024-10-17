@@ -903,7 +903,17 @@ class TestHeartbeatEndpoint(ParticipantSessionTest):
         self.assertEqual(AppHeartbeats.objects.count(), 2)
         t_foreign = AppHeartbeats.objects.last().timestamp
         self.assertIsInstance(t_foreign, datetime)
-
+        
+    def test_device_active_surveys(self):
+        # test that the endpoint creates a device active survey object
+        self.assertIsNone(self.default_participant.last_active_survey_ids)
+        self.smart_post_status_code(200)
+        self.assertIsNone(self.default_participant.last_active_survey_ids)
+        fake_object_id = "abc123"
+        self.smart_post_status_code(200, active_survey_ids=fake_object_id)
+        self.default_participant.refresh_from_db()
+        self.assertEqual(self.default_participant.last_active_survey_ids, fake_object_id)
+        
 
 class TestPushNotificationSetFCMToken(ParticipantSessionTest):
     ENDPOINT_NAME = "mobile_endpoints.set_fcm_token"

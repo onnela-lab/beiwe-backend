@@ -96,7 +96,7 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
     prior_version_name = participant.last_version_name
     prior_os_version = participant.last_os_version
     
-    # old versions of the apps do not report these values
+    # older versions of the apps do not report these values (may be os-specific)
     tracking_updates = {}
     if "version_code" in request.POST:
         tracking_updates['last_version_code'] = request.POST["version_code"][:32]
@@ -106,6 +106,8 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
         tracking_updates['last_os_version'] = request.POST["os_version"][:32]
     if "notification_uuids" in request.POST:
         tracking_updates['raw_notification_report'] = request.POST["notification_uuids"]
+    if "active_survey_ids" in request.POST:
+        tracking_updates['last_active_survey_ids'] = request.POST["active_survey_ids"]
     if "device_status_report" in request.POST:
         tracking_updates['device_status_report'] = request.POST["device_status_report"]
     if tracking_updates:
@@ -130,33 +132,37 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
         if request.POST["timezone"] is None or request.POST["timezone"] != "":
             participant.try_set_timezone(request.POST["timezone"])
     
-    if "notification_uuids" in request.POST:
-        # uuids are a json list of strings, we only allow strings through.
-        possibly_uuids = request.POST["notification_uuids"]
-        possibly_uuids = [uuid for uuid in orjson.loads(possibly_uuids) if isinstance(uuid, str)]
-        if not isinstance(possibly_uuids, list):
-            possibly_uuids = []
-            with elastic_beanstalk_error_sentry():
-                raise TypeError(f"Device notification_uuids should be a list, found instead: {type(possibly_uuids)}.")
-        
-        uuids = set()
-        report_once = True
-        for a_uuid in possibly_uuids:
-            try:
-                uuids.add(uuid.UUID(a_uuid))
-            except ValueError as e:
-                if report_once:
-                    with elastic_beanstalk_error_sentry():
-                        raise ValueError(f"Device notification_uuids should be a list of UUIDs, found instead: {a_uuid}.") from e
-                    report_once = False
-                continue
-        if uuids:
-            potentially_new_uuids = [
-                SurveyNotificationReport(participant=participant, notification_uuid=a_uuid)
-                for a_uuid in uuids
-            ]
-            SurveyNotificationReport.objects.bulk_create(potentially_new_uuids, ignore_conflicts=True)
+    if "notification_uuids" in request.POST and (uuids:= extract_notification_uuids(request)):
+        # uuids are enforced unique, this does a create-or-ignore.
+        potentially_new_uuids = [
+            SurveyNotificationReport(participant_id=participant.id, notification_uuid=a_uuid)
+            for a_uuid in uuids
+        ]
+        SurveyNotificationReport.objects.bulk_create(potentially_new_uuids, ignore_conflicts=True)
 
+def extract_notification_uuids(request: HttpRequest) -> list:
+    # uuids are a json list of strings, filter for strings, and may contain other entries.
+    # the raw value is stored in the database for debugging purposes, the uuids are needed to handle
+    # device notification resend logic.
+    possibly_uuids = request.POST["notification_uuids"]
+    possibly_uuids = [uuid for uuid in orjson.loads(possibly_uuids) if isinstance(uuid, str)]
+    if not isinstance(possibly_uuids, list):
+        possibly_uuids = []
+        with elastic_beanstalk_error_sentry():
+            raise TypeError(f"Device notification_uuids should be a list, found instead: {type(possibly_uuids)}.")
+    
+    uuids = set()
+    report_once = True
+    for a_uuid in possibly_uuids:
+        try:
+            uuids.add(uuid.UUID(a_uuid))
+        except ValueError as e:
+            if report_once:
+                with elastic_beanstalk_error_sentry():
+                    raise ValueError(f"Device notification_uuids should be a list of UUIDs, found instead: {a_uuid}.") from e
+                report_once = False
+    
+    return sorted(uuids)
 
 ####################################################################################################
 

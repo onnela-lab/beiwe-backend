@@ -47,19 +47,19 @@ class SurveyBase(TimestampedModel, ObjectIDModel):
 class Survey(SurveyBase):
     """ Surveys contain all information the app needs to display the survey correctly to a
     participant, and when it should push the notifications to take the survey.
-
+    
     Surveys must have a 'survey_type', which is a string declaring the type of survey it contains,
     which the app uses to display the correct interface.
-
+    
     Surveys contain 'content', which is a JSON blob that is unpacked on the app and displayed to the
     participant in the form indicated by the survey_type.
-
+    
     Timings schema: a survey must indicate the day of week and time of day on which to trigger; by
     default it contains no values. The timings schema mimics the Java.util.Calendar.DayOfWeek
     specification: it is zero-indexed with day 0 as Sunday. 'timings' is a list of 7 lists, each
     inner list containing any number of times of the day. Times of day are integer values indicating
     the number of seconds past midnight.
-
+    
     Inherits the following fields from SurveyBase content survey_type settings timings """
     
     # This is required for file name and path generation
