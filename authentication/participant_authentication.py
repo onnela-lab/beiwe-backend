@@ -1,3 +1,4 @@
+import contextlib
 import functools
 import uuid
 
@@ -8,7 +9,6 @@ from django.http.request import HttpRequest
 from constants.user_constants import IOS_API
 from database.user_models_participant import Participant, SurveyNotificationReport
 from libs.internal_types import ParticipantRequest
-from libs.sentry import elastic_beanstalk_error_sentry
 from middleware.abort_middleware import abort
 
 
@@ -145,22 +145,20 @@ def extract_notification_uuids(request: HttpRequest) -> list:
     # the raw value is stored in the database for debugging purposes, the uuids are needed to handle
     # device notification resend logic.
     possibly_uuids = request.POST["notification_uuids"]
-    possibly_uuids = [uuid for uuid in orjson.loads(possibly_uuids) if isinstance(uuid, str)]
-    if not isinstance(possibly_uuids, list):
-        possibly_uuids = []
-        with elastic_beanstalk_error_sentry():
-            raise TypeError(f"Device notification_uuids should be a list, found instead: {type(possibly_uuids)}.")
+    if not possibly_uuids.startswith("[") or not possibly_uuids.endswith("]"):
+        return []
+    
+    # if this raises a report jsondecode error, we will return an empty list.
+    try:
+        possibly_uuids = [uuid for uuid in orjson.loads(possibly_uuids) if isinstance(uuid, str)]
+    except orjson.JSONDecodeError:
+        return []
     
     uuids = set()
-    report_once = True
     for a_uuid in possibly_uuids:
-        try:
+        # the uuids are stored with other data that is stored in the database raw.
+        with contextlib.suppress(ValueError):
             uuids.add(uuid.UUID(a_uuid))
-        except ValueError as e:
-            if report_once:
-                with elastic_beanstalk_error_sentry():
-                    raise ValueError(f"Device notification_uuids should be a list of UUIDs, found instead: {a_uuid}.") from e
-                report_once = False
     
     return sorted(uuids)
 
