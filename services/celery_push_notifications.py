@@ -255,6 +255,7 @@ def create_heartbeat_tasks():
     
     # gonna try timezone.now() and see what happens.
     expiry = (timezone.now() + timedelta(minutes=5)).replace(second=30, microsecond=0)
+    
     # to reduce database operations in celery_heartbeat_send_push_notification, which may have
     # A LOT of participants that it hits, we run the complex query here and do a single database
     # query in celery_heartbeat_send_push_notification.
@@ -414,6 +415,11 @@ def create_survey_push_notification_tasks():
     # we reuse the high level strategy from data processing celery tasks, see that documentation.
     # (this used datetime.utcnow().... I hope nothing breaks?)
     expiry = (timezone.now().astimezone(UTC) + timedelta(minutes=5)).replace(second=30, microsecond=0)
+    
+    # though complex this query logic really should be on the order of a few seconds max. Running it
+    # before every push notification task means we might actually hit the 30 minute timeout.
+    lost_notification_checkin_query()
+    
     now = timezone.now()
     surveys, schedules, patient_ids = get_surveys_and_schedules(now)
     log("Surveys:", surveys)
