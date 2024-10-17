@@ -16,7 +16,8 @@ from constants.testing_constants import (THURS_OCT_6_NOON_2022_NY, THURS_OCT_13_
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
     IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
 from database.common_models import TimestampedModel, UtilityModel
-from database.schedule_models import AbsoluteSchedule, ArchivedEvent, ScheduledEvent
+from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, RelativeSchedule,
+    ScheduledEvent, WeeklySchedule)
 from database.survey_models import Survey
 from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
@@ -662,10 +663,6 @@ class TestResendLogicQuery(TestCelery):
         )
         return sched_event, archive, report
     
-    # def do_setup_for_a_fully_applied_resend_loop(self) -> Tuple[ScheduledEvent, ArchivedEvent, SurveyNotificationReport]:
-    # To do this you should literally run the test for that setup, it has return valueds:
-    #    sched_event, archive, report = self.test_notification_report_correctly_blocks_resend()
-    
     def _build_base_sched_event(self, participant: Participant) -> ScheduledEvent:
         # get our scheduled event and archived event, check uuids and scheduled time match
         sched_event = self.generate_scheduled_event(
@@ -699,7 +696,14 @@ class TestResendLogicQuery(TestCelery):
         self.assertEqual(archive.last_updated, self.THE_PAST)
         self.assertEqual(archive.confirmed_received, False)
     
+    # howto:
+    # def do_setup_for_a_fully_applied_resend_loop(self) -> Tuple[ScheduledEvent, ArchivedEvent, SurveyNotificationReport]:
+    # To do this you should literally run the test for that setup, it has return valueds:
+    #    sched_event, archive, report = self.test_notification_report_correctly_blocks_resend()
+    
     ## one-participant tests
+    
+    # null tests
     
     def test_no_data(self):
         self.assert_counts(0, 0, 0)
@@ -712,14 +716,7 @@ class TestResendLogicQuery(TestCelery):
         lost_notification_checkin_query()
         self.assert_counts(0, 0, 0)
     
-    def test_participant_with_minimum_requirements_resends(self):
-        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        # database should have 3 of our 4 relevant tables with 1, SurveyNotificationReport should have 0
-        self.assertEqual(archive.last_updated, self.THE_PAST)
-        self.assert_counts(1, 1, 0)
-        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
-        self.assert_counts(1, 1, 0)
-        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+    # version restrictions
     
     def test_ios_version_restriction_blocks(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
@@ -744,6 +741,8 @@ class TestResendLogicQuery(TestCelery):
         self.default_participant.update(os_type=ANDROID_API)
         self.run_resend_logic_and_refresh_these_models(sched_event, archive)
         self.assert_scheduled_event_not_sendable(sched_event)
+    
+    # participant state restrictions
     
     def test_participant_inactive_more_than_one_week(self):
         # should not update anything in the database, we can check archive and schedule last updated
@@ -781,25 +780,7 @@ class TestResendLogicQuery(TestCelery):
         self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
         self.assert_last_updated_not_equal(archive, sched_event)
     
-    def test_participant_inactive_less_than_one_week(self):
-        # should be duplicate test of minimum requirements
-        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        self.default_participant.update(last_upload=self.THE_PAST + timedelta(days=6))  # yesterday
-        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
-        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
-    
-    def test_archive_last_updated_more_than_30_minutes_ago(self):
-        # should be duplicate test of minimum requirements
-        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        old_archive_last_updated = archive.last_updated
-        old_sched_event_last_updated = sched_event.last_updated
-        ArchivedEvent.objects.filter(pk=archive.pk).update(
-            last_updated=self.NOW_SORTA - timedelta(minutes=32))
-        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
-        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
-        # probably overkill or redundant
-        self.assertGreater(archive.last_updated, old_archive_last_updated)
-        self.assertGreater(sched_event.last_updated, old_sched_event_last_updated)
+    # archivedevent and scheduledevent behavior
     
     def test_archive_last_updated_less_than_30_minutes_ago_does_nothing(self):
         # recently updated archive should not result in resend
@@ -888,6 +869,44 @@ class TestResendLogicQuery(TestCelery):
         self.assert_not_touched_in_last_run(archive)
         self.assert_last_updated_not_equal(archive, sched_event)
     
+    def test_archive_with_uuid_and_scheduled_actually_deleted(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        # database should have 3 of our 4 relevant tables with 1, SurveyNotificationReport should have 0
+        self.assertEqual(archive.last_updated, self.THE_PAST)
+        self.assert_counts(1, 1, 0)
+        ScheduledEvent.objects.all().delete()
+        self.assert_counts(0, 1, 0)
+        self.run_resend_logic_and_refresh_these_models(archive)  # sched_event doesn't exist, derp
+        self.assert_counts(0, 1, 0)
+        archive.refresh_from_db()
+        self.assertGreater(archive.last_updated, self.BEFORE_RUN)
+        self.assertLess(archive.last_updated, self.AFTER_RUN)
+        self.assertIsNone(archive.uuid)
+    
+    def test_not_resendable_with_scheduled_event_that_has_no_schedule(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        sched_event.update(absolute_schedule=None)
+        AbsoluteSchedule.objects.all().delete()  # its a absolute
+        RelativeSchedule.objects.all().delete()
+        WeeklySchedule.objects.all().delete()
+        sched_event.refresh_from_db()  # errors if the cascade still applied
+        # this is technically invalid database state, but the error occurs over in the push
+        # notification becausethe schedule's type cannot be determined, and that causes an infinite
+        # resend loop, which is REAL BAD.
+        self.assertEqual(archive.last_updated, self.THE_PAST)
+        self.assert_counts(1, 1, 0)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_counts(1, 1, 0)
+        # self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertGreater(archive.last_updated, self.BEFORE_RUN)
+        self.assertLess(archive.last_updated, self.AFTER_RUN)
+        self.assertGreater(sched_event.last_updated, self.BEFORE_RUN)
+        self.assertLess(sched_event.last_updated, self.AFTER_RUN)
+        self.assertIsNone(archive.uuid)
+        self.assertIsNone(sched_event.uuid)
+    
+    
     def test_schedule_already_enabled(self):
         # should "work" in the sense that all the database objects will be modified and correct.
         # but I don't thin this state should ever happen.
@@ -898,7 +917,7 @@ class TestResendLogicQuery(TestCelery):
         self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
         self.assert_last_updated_equal(archive, sched_event)
     
-    def test_notification_report_correctly_blocks_resend(self):
+    def test_notification_report_correctly_blocks_a_followup_resend(self):
         sched_event, archive, report = self.do_setup_for_resend_with_unapplied_notification_report()
         self.assert_scheduled_event_not_sendable(sched_event)
         self.run_resend_logic_and_refresh_these_models(sched_event, archive, report)
@@ -937,6 +956,37 @@ class TestResendLogicQuery(TestCelery):
         self.assert_not_touched_in_last_run(report)
         self.assertTrue(report.applied)
         self.assertTrue(archive.confirmed_received)
+    
+    # WORKING SCENARIOS
+    
+    def test_participant_with_minimum_requirements_resends(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        # database should have 3 of our 4 relevant tables with 1, SurveyNotificationReport should have 0
+        self.assertEqual(archive.last_updated, self.THE_PAST)
+        self.assert_counts(1, 1, 0)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_counts(1, 1, 0)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+    
+    def test_participant_inactive_less_than_one_week(self):
+        # should be duplicate test of minimum requirements
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_participant.update(last_upload=self.THE_PAST + timedelta(days=6))  # yesterday
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+    
+    def test_archive_last_updated_more_than_30_minutes_ago(self):
+        # should be duplicate test of minimum requirements
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        ArchivedEvent.objects.filter(pk=archive.pk).update(
+            last_updated=self.NOW_SORTA - timedelta(minutes=32))
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
+        # probably overkill or redundant
+        self.assertGreater(archive.last_updated, old_archive_last_updated)
+        self.assertGreater(sched_event.last_updated, old_sched_event_last_updated)
     
     def test_removed_scheduled_event_works_as_desired(self):
         # the archive and report should be updated, no uuid on archive left in place
@@ -987,7 +1037,7 @@ class TestResendLogicQuery(TestCelery):
     
     def test_2_participants_one_has_resent_and_confirmed_one_has_to_resend(self):
         # the best way to get this state is to run the test for it.
-        sched_event, archive, report = self.test_notification_report_correctly_blocks_resend()
+        sched_event, archive, report = self.test_notification_report_correctly_blocks_a_followup_resend()
         # set up the second participant
         p2 = self.setup_participant_2
         p2_sched_event, p2_archive = self.do_setup_for_resend_with_no_notification_report(p2)
@@ -1065,6 +1115,8 @@ class TestResendLogicQuery(TestCelery):
         self.assertEqual(surveys_2, {fcm_token: [self.default_survey.object_id]})
         self.assertEqual(schedules_2, {fcm_token: [sched_event.id]})
         self.assertEqual(patient_ids_2, {fcm_token: self.default_participant.patient_id})
+    
+    ## tools
     
     def assert_resend_logic_reenabled_schedule_correctly(self, sched_event: ScheduledEvent, archive: ArchivedEvent):
         ## this is the core test that resend logic found and reset a scheduled event.

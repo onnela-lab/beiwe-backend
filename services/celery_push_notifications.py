@@ -31,7 +31,7 @@ from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
 from libs.push_notification_helpers import (base_resend_logic_participant_query,
-    fcm_for_pushable_participants, slowly_get_stopped_study_ids, send_custom_notification_safely,
+    fcm_for_pushable_participants, send_custom_notification_safely, slowly_get_stopped_study_ids,
     update_ArchivedEvents_from_SurveyNotificationReports)
 from libs.schedules import set_next_weekly
 from libs.sentry import make_error_sentry, SentryTypes
@@ -103,6 +103,22 @@ def lost_notification_checkin_query() -> List[Tuple[int, str, str]]:
         .earliest_possible_time_of_push_notification_resend
     now = timezone.now()
     thirty_minutes_ago = now - timedelta(minutes=30)
+    
+    # We have to clear out a somewhat theoretical assumption violation where the _Schedule_ on a
+    # ScheduledEvent has been deleted. This _shouldn't_ happen, but it is possible at least due to a
+    # potential race condition in updating schedules, and there there is an oversight in a migration
+    # script, and if we in-the-future allow manual push notifications to resend then it will cause
+    # this, AND I manually created the condition accidentally in testing.  The outcome isn't a bug
+    # here, but it causes an endless retry loop because an ArchivedEvent can no longer be
+    # instantiated from that scheduled event.
+    bugged_uuids = list(ScheduledEvent.objects.filter(
+        weekly_schedule__isnull=True, relative_schedule__isnull=True, absolute_schedule__isnull=True
+    ).values_list("uuid", flat=True))
+    if bugged_uuids:
+        ArchivedEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, uuid=None)
+        ScheduledEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, uuid=None, deleted=True)
+    
+    # OK. Now we can move on with our lives. We start with the common query....
     
     pushable_participant_pks = base_resend_logic_participant_query(now)
     log("pushable_participant_pks:", pushable_participant_pks)
@@ -294,7 +310,7 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
     tomorrow = now + timedelta(days=1)
     
     # oct 2024: turns out we get TENS OF THOUSANDS of hits, so we need to filter better.
-    # (humorously, this came from trying to debug something, not from slowness.)    
+    # (humorously, this came from trying to debug something, not from slowness.)
     # We can filter out participants that have been marked as unreachable:
     valid_participant_ids = ParticipantFCMHistory.objects.filter(unregistered__isnull=True)\
         .values_list("participant_id", flat=True).distinct()
