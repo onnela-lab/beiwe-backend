@@ -2,8 +2,9 @@
 import subprocess
 import uuid
 from datetime import date, datetime, timedelta, tzinfo
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
+import orjson
 from django.db.models import (AutoField, CharField, DateField, FloatField, ForeignKey, IntegerField,
     TextField)
 from django.http.response import HttpResponse
@@ -41,6 +42,8 @@ CURRENT_TEST_DATE = timezone.now().today().date()
 CURRENT_TEST_DATE_TEXT = CURRENT_TEST_DATE.isoformat()
 CURRENT_TEST_DATE_BYTES = CURRENT_TEST_DATE_TEXT.encode()
 
+# this is a real, if simple, survey, it contains logically displayed questions based on the slider Q
+
 class DatabaseHelperMixin:
     """ This class implements DB object creation.  Some objects have convenience property wrappers
     because they are so common. """
@@ -58,6 +61,31 @@ class DatabaseHelperMixin:
     SOME_SHA1_PASSWORD_COMPONENTS = 'sha1$1000$zsk387ts02hDMRAALwL2SL3nVHFgMs84UcZRYIQWYNQ=$hllJauvRYDJMQpXQKzTdwQ=='
     DEFAULT_STUDY_FIELD_NAME = "default_study_field_name"
     DEFAULT_PARTICIPANT_FIELD_VALUE = "default_study_field_value"
+    
+    REFERENCE_SURVEY_CONTENT = orjson.dumps(
+        [{'display_if': None,
+          'max': '6',
+          'min': '1',
+          'question_id': 'cf46f66f-6360-469c-a2ca-2c15e02d19be',
+          'question_text': 'slider',
+          'question_type': 'slider'},
+         {'display_if': {'>': ['cf46f66f-6360-469c-a2ca-2c15e02d19be', 2]},
+          'question_id': '31c2af15-151e-4373-95bd-dafe10178a02',
+          'question_text': 'greater than 2',
+          'question_type': 'info_text_box'},
+         {'display_if': {'<=': ['cf46f66f-6360-469c-a2ca-2c15e02d19be', 2]},
+          'question_id': '1fea73d0-a341-4646-971c-fd2c4ca428c3',
+          'question_text': 'less than equal to 2',
+          'question_type': 'info_text_box'},
+         {'display_if': None,
+          'question_id': '474e6a25-b07e-4e44-c794-8e62f8b717c2',
+          'question_text': 'always display',
+          'question_type': 'info_text_box'},
+         {'display_if': {'==': ['cf46f66f-6360-469c-a2ca-2c15e02d19be', 99]},
+          'question_id': '868a0e85-436c-42a1-a6d8-ad76754c7fd0',
+          'question_text': '',
+          'question_type': 'info_text_box'}]
+    ).decode()
     
     # this needs to be a dynamic property in order for the time_machine library to work
     @property
@@ -205,12 +233,15 @@ class DatabaseHelperMixin:
         return self._default_survey
     
     def generate_survey(
-        self, study: Study, survey_type: str, object_id: str = None, **kwargs
+        self, study: Study, survey_type: str, object_id: str = None, content: Any = False, **kwargs
     ) -> Survey:
+        
         survey = Survey(
             study=study,
             survey_type=survey_type,
             object_id=object_id or generate_objectid_string(),
+            # conditionally add a content field as a one-liner :D
+            **{"content": self.REFERENCE_SURVEY_CONTENT} if isinstance(content, bool) and content else {},
             **kwargs
         )
         survey.save()

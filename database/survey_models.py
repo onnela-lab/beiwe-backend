@@ -103,26 +103,27 @@ class Survey(SurveyBase):
         """ Returns a json serializable object that represents the relative schedules of the survey
         The return object is a list of lists of intervention ids, days offset, and seconds offset. """
         schedules = []
-        for schedule in self.relative_schedules.all():
-            num_seconds = schedule.minute * 60 + schedule.hour * 3600
-            schedules.append([schedule.intervention.id, schedule.days_after, num_seconds])
+        for rel_sched in self.relative_schedules.all():
+            num_seconds = rel_sched.minute * 60 + rel_sched.hour * 3600
+            schedules.append([rel_sched.intervention.id, rel_sched.days_after, num_seconds])
         return schedules
     
     def relative_timings_by_name(self) -> List[Tuple[str, int, int]]:
         """ Returns a json serializable object that represents the relative schedules of the survey
         The return object is a list of lists of intervention names, days offset, and seconds offset. """
         schedules = []
-        for schedule in self.relative_schedules.all():
-            num_seconds = schedule.minute * 60 + schedule.hour * 3600
-            schedules.append([schedule.intervention.name, schedule.days_after, num_seconds])
+        for rel_sched in self.relative_schedules.all():
+            num_seconds = rel_sched.minute * 60 + rel_sched.hour * 3600
+            schedules.append([rel_sched.intervention.name, rel_sched.days_after, num_seconds])
         return schedules
     
     def absolute_timings(self) -> List[Tuple[int, int, int, int]]:
         """ Returns a json serializable object that represents the absolute schedules of the survey
         The return object is a list of lists of the year, month, day and seconds within the day. """
         schedules = []
-        for schedule in self.absolute_schedules.all():
-            event_time = schedule.event_time
+        tz = self.study.timezone
+        for abs_sched in self.absolute_schedules.all():
+            event_time = abs_sched.event_time(tz)
             num_seconds = event_time.minute * 60 + event_time.hour * 3600
             schedules.append([event_time.year, event_time.month, event_time.day, num_seconds])
         return schedules
