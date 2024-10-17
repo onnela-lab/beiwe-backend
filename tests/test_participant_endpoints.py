@@ -1,4 +1,4 @@
-8# trunk-ignore-all(bandit/B101)
+# trunk-ignore-all(bandit/B101)
 from datetime import date
 from unittest.mock import MagicMock, patch
 

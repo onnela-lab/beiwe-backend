@@ -106,8 +106,6 @@ def validate_and_assemble_archive_scheduled_times_by_participant_pk(
 #
 
 
-
-
 def repopulate_all_survey_scheduled_events(study: Study, participant: Participant = None):
     """ Runs all the survey scheduled event generations on the provided entities. """
     log("repopulate_all_survey_scheduled_events")
@@ -266,8 +264,9 @@ def repopulate_relative_survey_schedule_events(
     log(f"relative schedule events created {info}")
     return bool(len(info))
 
-
+#
 ## Weekly Schedules
+#
 
 #TODO: this will need to be rewritten to examine existing weekly schedules
 def repopulate_weekly_survey_schedule_events(survey: Survey, single_participant: Optional[Participant] = None) -> None:

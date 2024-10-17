@@ -103,6 +103,7 @@ class Participant(AbstractPasswordUser):
     last_version_name = models.CharField(max_length=32, blank=True, null=True)
     last_os_version = models.CharField(max_length=32, blank=True, null=True)
     raw_notification_report = models.TextField(default=None, null=True, blank=True)
+    last_known_surveys_available = models.TextField(default=None, null=True, blank=True)
     device_status_report = models.TextField(default=None, null=True, blank=True)
     
     deleted = models.BooleanField(default=False)
@@ -439,15 +440,24 @@ class Participant(AbstractPasswordUser):
     
     @property
     def pprint(self):
+        columns = os.get_terminal_size().columns
         d = self._pprint()
         d.pop("password") # not important or desired
         d.pop("device_id") # not important or desired
         dsr = d.pop("device_status_report")
-        pprint(d)
+        rn_uuids = d.pop("raw_notification_report")
+        pprint(d, width=columns)
+        
+        if rn_uuids:
+            print("\nRaw Notification UUIDs:")
+            pprint(json.loads(rn_uuids), width=columns)
+        else:
+            print("\n(No raw notification report.)")
+            
         # it can be None, and empty string
         if dsr:
             print("\nDevice Status Report:")
-            pprint(json.loads(dsr), width=os.get_terminal_size().columns)
+            pprint(json.loads(dsr), width=columns)
         else:
             print("\n(No device status report.)")
     
@@ -618,7 +628,6 @@ class DeviceStatusReportHistory(UtilityModel):
     
     @property
     def load_json(self):
-
         return orjson.loads(zstd.decompress(self.compressed_report))
     
     @classmethod
