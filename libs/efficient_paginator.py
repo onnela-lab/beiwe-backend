@@ -8,10 +8,38 @@ from libs.streaming_io import StreamingStringsIO
 
 
 class EfficientQueryPaginator:
-    """ Contains the base logic functions that as-efficiently-as-possible, preferring memory
-    efficiency over performance, returns database objects Queries for the PKs and retrieves results
-    using them.
-    The result is a minimal memory overhead jit'd database query. """
+    """ Enables database queries that maximize specific efficiencies to enable streaming output.
+    - Memory efficiency:
+        - Large queries crash with MemoryErrors and take up global system resources. It dumb.
+        - Django has a query cache. We have to bypass it to avoid holding entire queries in memory.
+        - Usage of .iterator() bypasses the cache, but you still need to handle it's output and
+          avoid manually storing all the returns at one time.
+    - Time-To-First-Row:
+        - Streaming requires we need to return a first datapoint as quickly as possible.
+        - Queries that don't need to assemble complex returns do so quickly
+        - Iterator() queries start returning data quickly.
+        - We can maximize both by splitting the query into two parts. Run the filters but return
+          only primary keys, then runa query on the primary keys to get the actual data.
+    - Database Contention:
+        - long-running non-iterator queries can lock the database. Django has a per-process single
+          database connection architecture. It... causes problems. This class helps ensure long
+          running streaming tasks don't hog a database connection.
+    - Overhead:
+        - There is a tradeoff, those tradeoffs result in slower time-to-completion, but...
+        - Some queries are slow because they are memory-bound _at the database_, a situation where
+          this class ends up being faster.
+        - Time-to-first-data is functionally faster under many scenarios. Think time-to-first-item
+          on a list on a web page.
+    - Restrictions:
+        - You shouldn't use full database objects when you want efficiency at scale. instantiation
+          of those objects has potentially substantial overhead.
+        - Order-By will probably eliminate gains of time-to-first-row.
+    - Features:
+        - Automatic flat=True for values_list queries with a single field! Hallelujah!
+        - Pagination and iteration both supported.
+        - Stream out bytes for a JSON list using a highly optimized json library.
+        - Stream out bytes for a CSV file.
+    """
     
     def __init__(
         self,
@@ -44,10 +72,11 @@ class EfficientQueryPaginator:
             )
             self.values_list = values_list
     
+    # uh this is kinda not tested and had a bug...
     def __iter__(self) -> Generator[Any, None, None]:
         """ Grab a page of PKs, the results via iteration. (_Might_ have better memory usage.) """
         pks = []
-        for count, pk in enumerate(self.pk_query, start=1).iterator():
+        for count, pk in enumerate(self.pk_query.iterator(), start=1):
             pks.append(pk)
             if count % self.page_size == 0:
                 for result in self.value_query.filter(pk__in=pks):
@@ -62,7 +91,7 @@ class EfficientQueryPaginator:
     def paginate(self) -> Generator[List, None, None]:
         """ Grab a page of PKs, return results in bulk. (Use this one 99% of the time) """
         pks = []
-        for count, pk in enumerate(self.pk_query, start=1):
+        for count, pk in enumerate(self.pk_query.iterator(), start=1):
             pks.append(pk)
             if count % self.page_size == 0:
                 # using list(query) the iteration occurs inside cpython and is extremely quick.
@@ -95,6 +124,9 @@ class EfficientQueryPaginator:
             filewriter.writerows(rows)
             yield si.getvalue()
             si.empty()
+    
+    def stream_json_paginate(self, **kwargs):
+        return self.stream_orjson_paginate(**kwargs)
     
     def stream_orjson_paginate(self, **kwargs) -> Generator[bytes, None, None]:
         """ Streams a page by page orjson'd bytes of json list elements. Accepts kwargs for orjson. """
