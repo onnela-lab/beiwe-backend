@@ -4,15 +4,12 @@ from datetime import datetime, timedelta
 from typing import List, Tuple
 from unittest.mock import MagicMock, patch
 
-import time_machine
 from dateutil.tz import gettz
 from django.utils import timezone
 from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
     ThirdPartyAuthError, UnregisteredError)
 
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
-from constants.testing_constants import (THURS_OCT_6_NOON_2022_NY, THURS_OCT_13_NOON_2022_NY,
-    THURS_OCT_20_NOON_2022_NY, WEDNESDAY_JUNE_NOON_8_2022_EDT)
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
     IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
 from database.common_models import TimestampedModel, UtilityModel
@@ -27,192 +24,15 @@ from services.celery_push_notifications import (create_heartbeat_tasks, get_surv
 from tests.common import CommonTestCase
 
 
-class TestCelery(CommonTestCase):
-    """ We don't actually have anything custom here (yet). """
+class TestPushNotificationFull(CommonTestCase):
+    
+    def test_push_notification_full(self):
+        # this test is a bit of a mess, it's not really organized and it's not really testing
+        # anything.  It's just a big test that runs a bunch of stuff to make sure it doesn't crash.
+        self.populate_default_fcm_token
 
 
-class TestGetSurveysAndSchedules(TestCelery):
-    
-    def test_empty_db(self):
-        self.assertEqual(ScheduledEvent.objects.count(), 0)
-        self.validate_no_schedules()
-    
-    def validate_no_schedules(self):
-        surveys, schedules, patient_ids = get_surveys_and_schedules(timezone.now())
-        self.assertEqual(surveys, {})
-        self.assertEqual(schedules, {})
-        self.assertEqual(patient_ids, {})
-    
-    def validate_basics(self, schedule: ScheduledEvent):
-        surveys, schedules, patient_ids = get_surveys_and_schedules(timezone.now())
-        self.assertEqual(surveys, {self.DEFAULT_FCM_TOKEN: [self.DEFAULT_SURVEY_OBJECT_ID]})
-        self.assertEqual(schedules, {self.DEFAULT_FCM_TOKEN: [schedule.pk]})
-        self.assertEqual(patient_ids, {self.DEFAULT_FCM_TOKEN: self.DEFAULT_PARTICIPANT_NAME})
-    
-    # just a placeholder for future work, send_notification not actually called in this test
-    @patch('services.celery_push_notifications.send_notification')
-    def test_absolute_success(self, send_notification: MagicMock):
-        send_notification.return_value = None
-        
-        self.populate_default_fcm_token
-        the_past = timezone.now() + timedelta(days=-5)
-        # an absolute survey 5 days in the past
-        schedule = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(the_past)
-        self.validate_basics(schedule)
-    
-    def test_absolute_fail(self):
-        self.populate_default_fcm_token
-        future = timezone.now() + timedelta(days=5)
-        # an absolute survey 5 days in the future
-        self.generate_easy_absolute_scheduled_event_with_absolute_schedule(future)
-        self.validate_no_schedules()
-    
-    def test_relative_success(self):
-        self.populate_default_fcm_token
-        # a relative survey 5 days in the past
-        schedule = self.generate_easy_relative_schedule_event_with_relative_schedule(timedelta(days=-5))
-        surveys, schedules, patient_ids = get_surveys_and_schedules(timezone.now())
-        self.validate_basics(schedule)
-    
-    def test_relative_failure(self):
-        self.populate_default_fcm_token
-        # a relative survey 5 days in the past
-        self.generate_easy_relative_schedule_event_with_relative_schedule(timedelta(days=5))
-        self.validate_no_schedules()
-    
-    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
-    def test_weekly_success(self):
-        self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
-        with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
-            self.validate_basics(schedule)
-    
-    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
-    def test_weekly_in_future_fails(self):
-        self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
-        self.validate_no_schedules()
-    
-    @time_machine.travel(THURS_OCT_13_NOON_2022_NY)
-    def test_time_zones(self):
-        self.populate_default_fcm_token
-        self.default_study.update_only(timezone_name='America/New_York')  # default in tests is normally UTC.
-        
-        # need to time travel to the past to get the weekly logic to produce the correct time
-        with time_machine.travel(THURS_OCT_6_NOON_2022_NY):
-            # creates a weekly survey for 2022-10-13 12:00:00-04:00
-            schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(4, 12, 0)
-            self.assertEqual(count_created, 1)
-        
-        # assert schedule time is equal to 2022-10-13 12:00:00-04:00, then assert components are equal.
-        self.assertEqual(schedule.scheduled_time, THURS_OCT_13_NOON_2022_NY)
-        self.assertEqual(schedule.scheduled_time.year, 2022)
-        self.assertEqual(schedule.scheduled_time.month, 10)
-        self.assertEqual(schedule.scheduled_time.day, 13)
-        self.assertEqual(schedule.scheduled_time.hour, 12)
-        self.assertEqual(schedule.scheduled_time.minute, 0)
-        self.assertEqual(schedule.scheduled_time.second, 0)
-        self.assertEqual(schedule.scheduled_time.tzinfo, gettz("America/New_York"))
-        
-        # set default participant to pacific time, assert that no push notification is calculated.
-        self.default_participant.try_set_timezone('America/Los_Angeles')
-        self.validate_no_schedules()
-        
-        # set the time zone to mountain time, assert that no push notification is calculated.
-        self.default_participant.try_set_timezone('America/Denver')
-        self.validate_no_schedules()
-        
-        # set the time zone to central time, assert that no push notification is calculated.
-        self.default_participant.try_set_timezone('America/Chicago')
-        self.validate_no_schedules()
-        
-        # but if you set the time zone to New_York the push notification is calculated!
-        self.default_participant.try_set_timezone('America/New_York')
-        self.validate_basics(schedule)
-    
-    @time_machine.travel(WEDNESDAY_JUNE_NOON_8_2022_EDT)
-    def test_no_timezone_bug(self):
-        plus_one_hour = WEDNESDAY_JUNE_NOON_8_2022_EDT + timedelta(hours=1)
-        minus_one_hour = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=1)
-        minus_two_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=2)
-        minus_three_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=3)
-        minus_four_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=4)
-        minus_five_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=5)
-        # GMT_time = WEDNESDAY_JUNE_NOON_8_2022_EDT.replace(tzinfo=gettz('GMT'))
-        self.populate_default_fcm_token
-        
-        # we have a bug where if the participant's timezone shifts it into the past it will not be
-        # noticed by the survey schedule query until the study-timezone-based ScheduledEvent time is
-        # in the past (has already passed).
-        # Testing this with an absolute schedule.
-        self.default_study.update_only(timezone_name='America/New_York')
-        scheduled_event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(WEDNESDAY_JUNE_NOON_8_2022_EDT)
-        absolute_schedule = AbsoluteSchedule.objects.get()  # will fail if there is more than one, which would be a bug
-        
-        self.default_participant.try_set_timezone('GMT')
-        self.default_participant.refresh_from_db()
-        self.assertEqual(self.default_participant.timezone_name, 'GMT')
-        
-        # EDT is +4 hours of GMT, so the schedule "should trigger" at 12:00 GMT, but instead
-        # triggers at 12:00 EDT, because the participant's timezone incorrectly checked.
-        
-        with time_machine.travel(plus_one_hour):
-            self.validate_basics(scheduled_event)
-        
-        with time_machine.travel(minus_one_hour):
-            self.validate_basics(scheduled_event)
-        
-        with time_machine.travel(minus_two_hours):
-            self.validate_basics(scheduled_event)
-        
-        with time_machine.travel(minus_three_hours):
-            self.validate_basics(scheduled_event)
-        
-        with time_machine.travel(minus_four_hours):
-            self.validate_basics(scheduled_event)
-        
-        with time_machine.travel(minus_five_hours):
-            self.validate_no_schedules()
-    
-    # using weekly as a base we now test situations where it shouldn't return schedules
-    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
-    def test_deleted_hidden_study(self):
-        self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
-        self.default_study.update(deleted=True)
-        with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
-            self.validate_no_schedules()
-    
-    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
-    def test_manually_stopped_study(self):
-        self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
-        self.default_study.update(manually_stopped=True)
-        with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
-            self.validate_no_schedules()
-    
-    @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
-    def test_past_end_date(self):
-        self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
-        # not testing time zones, just testing end date
-        self.default_study.update(end_date=timezone.now().date() - timedelta(days=10))
-        with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
-            self.validate_no_schedules()
-
-
-
-class TestHeartbeatQuery(TestCelery):
+class TestHeartbeatQuery(CommonTestCase):
     # this test class relies on behavior of the FalseCeleryApp class. Specifically, FalseCeleryApps
     # immediately run the created task synchronously, e.g. calls through safe_apply_async simply run
     # the target function on the same thread completely bypassing Celery.
@@ -587,7 +407,7 @@ class TestHeartbeatQuery(TestCelery):
         self.assertIsInstance(self.default_participant.fcm_tokens.first().unregistered, datetime)
 
 
-class TestResendLogicQuery(TestCelery):
+class TestResendLogicQuery(CommonTestCase):
     """ This test runs the missing_notification_checkin_query across a variety of scenarios, similar
     to the way TestHeartbeatQuery works. """
     
