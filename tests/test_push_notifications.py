@@ -1,19 +1,74 @@
 # trunk-ignore-all(ruff/B018)
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     FAILED_TO_ESTABLISH_CONNECTION, UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
-from database.schedule_models import ArchivedEvent
-from services.celery_push_notifications import failed_send_survey_handler
+from database.schedule_models import AbsoluteSchedule, ArchivedEvent
+from services.celery_push_notifications import create_archived_events, failed_send_survey_handler
 from tests.common import CommonTestCase
 
 
-class TestPushNotificationFull(CommonTestCase):
+class TestPushComponents(CommonTestCase):
     
-    def test_push_notification_full(self):
-        # this test is a bit of a mess, it's not really organized and it's not really testing
-        # anything.  It's just a big test that runs a bunch of stuff to make sure it doesn't crash.
-        self.populate_default_fcm_token
+    # we don't need to test the different SchodeledEvent types for archive, they're all the same.
+    def test_create_archived_event_one_absolute_schedule_full_features(self):
+        self.set_default_participant_all_push_notification_features
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        create_archived_events([event], self.default_participant, "success")
+        event.refresh_from_db()
+        
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        archive = ArchivedEvent.objects.get()
+        
+        self.assertTrue(event.deleted)
+        self.assertEqual(archive.uuid, event.uuid)
+    
+    def test_create_archived_event_one_absolute_schedule_no_resends_means_no_uuid_on_archive(self):
+        # self.set_working_push_notification_basices  # lol this process does not
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        create_archived_events([event], self.default_participant, "success")
+        event.refresh_from_db()
+        
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        archive = ArchivedEvent.objects.get()
+        
+        self.assertTrue(event.deleted)
+        self.assertIsNone(archive.uuid)
+    
+    def test_create_archived_event_one_absolute_schedule_failure_doesnt_delete(self):
+        self.set_default_participant_all_push_notification_features
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        create_archived_events([event], self.default_participant, "literally any string that is not 'success'")
+        event.refresh_from_db()
+        
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        archive = ArchivedEvent.objects.get()
+        
+        self.assertFalse(event.deleted) 
+        self.assertEqual(archive.uuid, event.uuid)  # should still have a uuid
+    
+    # if these error behaviors change I want to know.
+    def test_create_archived_event_one_absolute_schedule_requirement(self):
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        event.absolute_schedule = None
+        event.save()
+        with self.assertRaisesMessage(Exception, "ScheduledEvent had no associated schedule"):
+            create_archived_events([event], self.default_participant, "success")
+    
+    def test_create_archived_event_one_absolute_schedule_requirement_2(self):
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        AbsoluteSchedule.objects.all().delete()
+        with self.assertRaises(ValidationError):
+            create_archived_events([event], self.default_participant, "success")
 
+
+# class TestPushNotificationFull(CommonTestCase):
+    
+#     def test_push_notification(self):
+#         # this test is a bit of a mess, it's not really organized and it's not really testing
+#         # anything.  It's just a big test that runs a bunch of stuff to make sure it doesn't crash.
+#         self.populate_default_fcm_token
 
 # these errors are taken directly from live servers with mild details purged
 
@@ -100,7 +155,7 @@ class TestFailedSendHandler(CommonTestCase):
         archive = ArchivedEvent.objects.get()
         self.assertEqual(archive.status, CONNECTION_ABORTED)
     
-    def test_invalid_grant(self):
+    def test_invalid_token(self):
         failed_send_survey_handler(
             participant=self.default_participant,
             fcm_token="a",

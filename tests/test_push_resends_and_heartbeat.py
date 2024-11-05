@@ -24,34 +24,10 @@ from services.celery_push_notifications import (create_heartbeat_tasks, get_surv
 from tests.common import CommonTestCase
 
 
-class TestPushNotificationFull(CommonTestCase):
-    
-    def test_push_notification_full(self):
-        # this test is a bit of a mess, it's not really organized and it's not really testing
-        # anything.  It's just a big test that runs a bunch of stuff to make sure it doesn't crash.
-        self.populate_default_fcm_token
-
-
 class TestHeartbeatQuery(CommonTestCase):
     # this test class relies on behavior of the FalseCeleryApp class. Specifically, FalseCeleryApps
     # immediately run the created task synchronously, e.g. calls through safe_apply_async simply run
     # the target function on the same thread completely bypassing Celery.
-    
-    @property
-    def set_working_heartbeat_notification_basics(self):
-        # we are not testing fcm token details in these tests.
-        self.default_participant.update(deleted=False, permanently_retired=False)
-        self.populate_default_fcm_token
-    
-    @property
-    def set_working_heartbeat_notification_fully_valid(self):
-        # we will set last upload to as our active field, it can be any of the active fields.
-        # after calling this function the default participant should be found by the heartbeat query
-        now = timezone.now()
-        self.default_participant.update(
-            deleted=False, permanently_retired=False, last_upload=now - timedelta(minutes=61),
-        )
-        self.populate_default_fcm_token
     
     @property
     def default_participant_response(self):
@@ -154,7 +130,7 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertEqual(heartbeat_query()[0][3], "test message")
     
     def test_query_each_every_active_field_tautology(self):
-        self.set_working_heartbeat_notification_basics
+        self.set_working_push_notification_basices
         prior_event_time = timezone.now() - timedelta(minutes=61)  # e.g. send the notification
         
         # test the datetime active participant fields
@@ -439,18 +415,12 @@ class TestResendLogicQuery(CommonTestCase):
             model.refresh_from_db()
     
     @property
-    def setup_participant_push_basics(self):
+    def setup_participant_resend_push_basics(self):
         if self.already_set_up_default_participant:
             return
+        self.set_default_participant_all_push_notification_features
         # we are not testing fcm token details in these tests.
-        self.default_participant.update(
-            deleted=False,
-            permanently_retired=False,
-            last_upload=self.NOW_SORTA,
-            last_version_name=self.IOS_VERSION,
-            os_type=IOS_API,
-        )
-        self.populate_default_fcm_token
+        self.default_participant.update(last_upload=self.NOW_SORTA)  # needs to be recently active
         self.already_set_up_default_participant = True
     
     @property
@@ -466,7 +436,7 @@ class TestResendLogicQuery(CommonTestCase):
         # single participant setups use the default participant
         if participant is None:
             participant = self.default_participant
-            self.setup_participant_push_basics
+            self.setup_participant_resend_push_basics
         
         # these aro stupid and obscure so I made some named functions to separate them
         sched_event = self._build_base_sched_event(participant)

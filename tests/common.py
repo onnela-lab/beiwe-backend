@@ -1,12 +1,15 @@
 import logging
+import os
 import traceback
 from datetime import datetime
 from functools import wraps
 from itertools import chain
 from os.path import join as path_join
+from pprint import pprint
 from sys import argv
 from typing import Callable, Dict
 
+from deepdiff import DeepDiff
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Model
@@ -25,7 +28,7 @@ from database.user_models_researcher import Researcher, StudyRelation
 from libs.internal_types import ResponseOrRedirect, StrOrBytes
 from libs.shell_support import diff_strings, tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
-from tests.helpers import DatabaseHelperMixin, render_test_html_file
+from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
 from urls import urlpatterns
 
 
@@ -189,12 +192,15 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
                     print()
                     diff_strings(first, second)
                 
-                if isinstance(first, datetime) and isinstance(second, datetime):
+                elif isinstance(first, datetime) and isinstance(second, datetime):
                     print("\nThese times are not equal:")
                     print("first:", tformat(first))
                     print("second:", tformat(second))
                     print()
-                    
+                
+                elif isinstance(first, dict) and isinstance(second, dict):
+                    compare_dictionaries(first, second)
+            
             # and then raise
             raise
     
@@ -284,7 +290,51 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
                 f"reverse_params: {args}\n"
                 f"reverse_kwargs: {kwargs}"
             ) from None
-
+    
+    def deepdiff(self, d1, d2) -> DeepDiff:
+        columns = os.get_terminal_size().columns
+        def unrootify(x: dict) -> dict:
+            # removes "root[" and "]" from the keys in the dict, as well as ' and "
+            if isinstance(x, list):
+                for i, v in enumerate(x):
+                    if v.startswith("root"):
+                        v = v.replace("root", "", 1)
+                        x[i] = v
+                    if (v.startswith("'") and v.endswith("'")) or (v.startswith('"') and v.endswith('"')):
+                        x[i] = v[1:-1]
+            if isinstance(x, dict):
+                for k in list(x.keys()):
+                    if k.startswith("root["):
+                        new_k = k.replace("root[", "", 1)[:-1]
+                        x[new_k] = x.pop(k)
+                for k in list(x.keys()):
+                    if (k.startswith("'") and k.endswith("'")) or (k.startswith('"') and k.endswith('"')):
+                        new_k = k[1:-1]
+                        x[new_k] = x.pop(k)
+            return x
+        
+        print("\n[ deefdiff: ]")
+        d = DeepDiff(d1, d2)
+        
+        if values_changed := d.pop("values_changed", None):
+            print("[ values_changed: ]")
+            pprint(unrootify(values_changed), width=columns)
+        
+        if type_changes := d.pop("type_changes", None):
+            print("[ type_changes: ]")
+            pprint(unrootify(type_changes), width=columns)
+        
+        if unprocessed:= d.pop("unprocessed"):
+            print("[ unprocessed: ]")
+            pprint(unrootify(unprocessed), width=columns)
+        
+        if d:
+            pprint(d, width=columns)
+        print()
+        return d
+    
+    def dd(self, d1, d2) -> DeepDiff:
+        return self.deepdiff(d1, d2)
 
 class BasicSessionTestCase(CommonTestCase):
     """ This class has the basics needed to do login operations, but runs no extra setup before each

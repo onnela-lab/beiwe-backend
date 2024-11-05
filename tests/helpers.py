@@ -18,7 +18,8 @@ from constants.forest_constants import ForestTree
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import REAL_ROLES
-from constants.user_constants import ANDROID_API, IOS_API, NULL_OS, ResearcherRole
+from constants.user_constants import (ANDROID_API, IOS_API,
+    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, NULL_OS, ResearcherRole)
 from database.common_models import generate_objectid_string
 from database.data_access_models import ChunkRegistry, FileToProcess
 from database.forest_models import ForestTask, SummaryStatisticDaily
@@ -526,7 +527,7 @@ class DatabaseHelperMixin:
         survey: Survey = None,
         hour: int = 0,
         minute: int = 0,
-    ) -> RelativeSchedule:
+    ) -> AbsoluteSchedule:
         absolute = AbsoluteSchedule(
             survey=survey or self.default_survey,
             date=a_date,
@@ -823,6 +824,36 @@ class DatabaseHelperMixin:
         )
         report.save()
         return report
+    
+    #
+    ## Push notification common setup
+    #
+    
+    @property
+    def set_working_push_notification_basices(self):
+        # we are not testing fcm token details in these tests.
+        self.default_participant.update(deleted=False, permanently_retired=False)
+        self.populate_default_fcm_token
+    
+    @property
+    def set_working_heartbeat_notification_fully_valid(self):
+        # we will set last upload to as our active field, it can be any of the active fields.
+        # after calling this function the default participant should be found by the heartbeat query
+        now = timezone.now()
+        self.default_participant.update(
+            deleted=False, permanently_retired=False, last_upload=now - timedelta(minutes=61),
+        )
+        self.populate_default_fcm_token
+    
+    @property
+    def set_default_participant_all_push_notification_features(self):
+        self.default_participant.update(
+            deleted=False,
+            permanently_retired=False,
+            last_version_name=IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+            os_type=IOS_API,
+        )
+        self.populate_default_fcm_token
 
 
 def compare_dictionaries(reference, comparee, ignore=None):

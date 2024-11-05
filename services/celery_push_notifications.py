@@ -649,7 +649,7 @@ def failed_send_survey_handler(
     if debug:
         raise BaseException("debug mode, not archiving events.")
     
-    create_archived_events(schedules, participant, status=error_message, created_on=now)
+    create_archived_events(schedules, participant, status=error_message)
     enqueue_weekly_surveys(participant, schedules)
 
 
@@ -657,14 +657,11 @@ def create_archived_events(
     schedules: List[ScheduledEvent],
     participant: Participant,
     status: str,
-    created_on: datetime = None
 ):
     # """ Populates event history, does not mark ScheduledEvents as deleted. """
     mark_as_deleted = status == MESSAGE_SEND_SUCCESS
     for scheduled_event in schedules:
-        scheduled_event.archive(
-            mark_as_deleted, participant, status=status, created_on=created_on
-        )
+        scheduled_event.archive(mark_as_deleted, participant, status=status)
 
 
 def enqueue_weekly_surveys(participant: Participant, schedules: List[ScheduledEvent]):

@@ -5,3 +5,4 @@ redgreenunittest
 time-machine
 isort
 mypy
+deepdiff

@@ -237,7 +237,6 @@ class ScheduledEvent(TimestampedModel):
         self_delete: bool,
         participant: Participant,
         status: str,
-        created_on: datetime = None
     ):
         """ Create an ArchivedEvent from a ScheduledEvent. """
         ## Participant is passed in here to avoid a database call.
@@ -262,7 +261,6 @@ class ScheduledEvent(TimestampedModel):
             scheduled_time=self.scheduled_time,
             status=status,
             uuid=the_uuid,
-            **{"created_on": created_on} if created_on else {}  # :D
         )
         archive.save()
         self.update(most_recent_event=archive, deleted=self_delete)
