@@ -1,14 +1,12 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import DefaultDict, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
-from dateutil.tz import gettz
 from django.db.models import Q
 from django.utils import timezone
 
 from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS, ScheduleTypes
-from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, InterventionDate,
-    RelativeSchedule, ScheduledEvent, WeeklySchedule)
+from database.schedule_models import ArchivedEvent, InterventionDate, ScheduledEvent, WeeklySchedule
 from database.study_models import Study
 from database.survey_models import Survey
 from database.user_models_participant import Participant
@@ -46,6 +44,222 @@ def participant_allowed_surveys(participant: Participant) -> bool:
     if participant.deleted or participant.permanently_retired:
         return False
     return True
+
+
+
+#
+## Creating ScheduledEvents!
+#
+
+def repopulate_all_survey_scheduled_events(study: Study, participant: Participant = None):
+    """ Runs all the survey scheduled event generations on the provided entities. """
+    log("repopulate_all_survey_scheduled_events")
+    
+    if study.study_is_stopped:
+        ScheduledEvent.objects.filter(survey__study=study).delete()
+        return
+    
+    unschedule_surveys = []
+    for survey in study.surveys.all():
+        # remove any scheduled events on surveys that have been deleted.
+        if survey.deleted:
+            unschedule_surveys.append(survey)
+            survey.scheduled_events.all().delete()
+            continue
+        
+        log(f"repopulating all for survey {survey.id}")
+        repopulate_weekly_survey_schedule_events(survey, participant)
+        repopulate_absolute_survey_schedule_events(survey, participant)
+        repopulate_relative_survey_schedule_events(survey, participant)
+    
+    ScheduledEvent.objects.filter(survey__in=unschedule_surveys).delete()
+
+#
+## Absolute Schedules
+#
+
+def repopulate_absolute_survey_schedule_events(survey: Survey, participant: Optional[Participant] = None) -> None:
+    log("absolute schedule events")
+    
+    # if the event is from an absolute schedule, relative and weekly schedules will be None
+    existing_events: List[ScheduledEvent] = list(
+        survey.scheduled_events.filter(
+            relative_schedule=None,
+            weekly_schedule=None,
+            **({"participant_id": participant.pk} if participant else {})
+        )
+    )
+    all_schudule_pks_by_participant_and_time: Dict[Tuple[int, datetime], int] = {}
+    
+    # prefill a dictionary of empty sets for all (relevant) participants
+    all_possible_event_times_by_participant: Dict[int, Set[datetime]] = {
+        pk: set() for pk in
+        survey.study.participants.exclude(EXCLUDE_THESE_PARTICIPANTS).values_list("pk", flat=True)
+    }
+    
+    # fill all_schudule_pks and all_possible_event_times
+    setup_info_from_absolute_schedules(
+        survey, all_possible_event_times_by_participant, all_schudule_pks_by_participant_and_time
+    )
+    
+    ok_now_the_almost_generic_database_update_bit(
+        existing_events,
+        all_schudule_pks_by_participant_and_time,
+        all_possible_event_times_by_participant,
+        "absolute",
+        survey,
+    )
+
+
+def setup_info_from_absolute_schedules(
+    survey: Survey,
+    all_possible_event_times_by_participant: Dict[int, Set[datetime]],
+    all_schudule_pks_by_participant_and_time: Dict[Tuple[int, datetime], int],
+):
+    # These steps inhelently deduplicates events for this time-participant-scheduletype triplet.
+    timezone = survey.study.timezone
+    
+    for absolute_schedule in survey.absolute_schedules.all():
+        scheduled_time = absolute_schedule.event_time(timezone)
+        for participant_pk in list(all_possible_event_times_by_participant.keys()):
+            all_possible_event_times_by_participant[participant_pk].add(scheduled_time)
+            all_schudule_pks_by_participant_and_time[participant_pk, scheduled_time] = absolute_schedule.pk
+
+
+#
+## Relative Schedules
+#
+
+
+def repopulate_relative_survey_schedule_events(survey: Survey, participant: Optional[Participant] = None) -> None:
+    log("relative schedule events")
+    
+    # if the event is from an absolute schedule, relative and weekly schedules will be None
+    existing_events: List[ScheduledEvent] = list(
+        survey.scheduled_events.filter(
+            absolute_schedule=None,
+            weekly_schedule=None,
+            **({"participant_id": participant.pk} if participant else {})
+        )
+    )
+    all_schudule_pks_by_participant_and_time: Dict[Tuple[int, datetime], int] = {}
+    
+    # prefill a dictionary of empty sets for all (relevant) participants
+    all_possible_event_times_by_participant: Dict[int, Set[datetime]] = {
+        pk: set() for pk in
+        survey.study.participants.exclude(EXCLUDE_THESE_PARTICIPANTS).values_list("pk", flat=True)
+    }
+    
+    # fill all_schudule_pks and all_possible_event_times
+    setup_info_from_relative_schedules(
+        survey,
+        all_possible_event_times_by_participant,
+        all_schudule_pks_by_participant_and_time,
+    )
+    
+    ok_now_the_almost_generic_database_update_bit(
+        existing_events,
+        all_schudule_pks_by_participant_and_time,
+        all_possible_event_times_by_participant,
+        "relative",
+        survey,
+    )
+
+
+def setup_info_from_relative_schedules(
+    survey: Survey,
+    all_possible_event_times_by_participant: Dict[int, Set[datetime]],
+    all_schudule_pks_by_participant_and_time: Dict[Tuple[int, datetime], int],
+):
+    timezone = survey.study.timezone
+    
+    # relative schedules exist only in relation to interventions, they have to be calculated rather
+    # than looked up.
+    participant_pks_and_dates_by_intervention_pk: Dict[int, Tuple[int, date]] = \
+        get_relative_schedule_intervention_lookup(survey, all_possible_event_times_by_participant)
+    
+    # go through valid every participant-intevention_date-relative schedule combination
+    for relative_schedule in survey.relative_schedules.all():
+        for participant_pk, interventiondate_date in participant_pks_and_dates_by_intervention_pk[relative_schedule.intervention_id]:
+            # This '+' is correct, 'days_after' is negative or 0 for days before and day of.
+            scheduled_date = interventiondate_date + timedelta(days=relative_schedule.days_after)
+            scheduled_time = relative_schedule.notification_time_from_intervention_date_and_timezone(scheduled_date, timezone)
+            all_possible_event_times_by_participant[participant_pk].add(scheduled_time)
+            all_schudule_pks_by_participant_and_time[participant_pk, scheduled_time] = relative_schedule.pk
+
+
+def get_relative_schedule_intervention_lookup(
+    survey: Survey, all_possible_event_times_by_participant: Dict[int, Set[datetime]], 
+) -> Dict[int, Tuple[int, date]]:
+    intervention_pks = list(survey.relative_schedules.values_list("intervention_id", flat=True))
+    # relative schedules are "linked" to inverventions, the lookup is obnoxious.
+    linking_query = InterventionDate.objects.filter(
+        participant_id__in=all_possible_event_times_by_participant.keys(),
+        intervention_id__in=intervention_pks,
+        date__isnull=False,
+        # Subtle Django behavior: you can't exclude nulls as database values.
+        # This detail in a .exclude returns instances where date is None.
+    ).values_list("intervention_id", "participant_id", "date")
+    
+    # populate all (even empty) intervention lookups (makes other code cleaner, debugging easier)
+    intervention_lookups: Dict[int, Tuple[int, date]] = {
+        related_intervention_pk: [] for related_intervention_pk in intervention_pks
+    }
+    for related_intervention_pk, participant_pk, interventiondate_date in linking_query:
+        intervention_lookups[related_intervention_pk].append((participant_pk, interventiondate_date))
+    
+    return intervention_lookups
+
+
+#
+## Weekly Schedules
+#
+
+#TODO: can we remove this function and use the top-up function instead?  no because we need to handle the case of new weeklies? no because we need to delete all weeklies?
+#TODO: this should contain the deduplication code to make the new top-up not n+1 / n*k queries
+def repopulate_weekly_survey_schedule_events(survey: Survey, single_participant: Optional[Participant] = None) -> None:
+    """ Clear existing schedules, get participants, bulk create schedules Weekly events are
+    calculated in a way that we don't bother checking for survey archives, because they only exist
+    in the future. """
+    
+    # Clear existing schedules, get participants
+    log("clearing weekly schedule events")
+    events = survey.scheduled_events.filter(relative_schedule=None, absolute_schedule=None)
+    if single_participant:
+        events = events.filter(participant=single_participant)
+    events.delete()
+    
+    if single_participant and not participant_allowed_surveys(single_participant):
+        log("weekly bad participant")
+        return
+    
+    # filters out participants that shouldn't receive notifications.
+    valid_participant_pks, archive_scheduled_times_by_participant_pk = \
+        validate_and_assemble_archive_scheduled_times_by_participant_pk(
+            survey, single_participant, ScheduleTypes.weekly
+        )
+    
+    try:
+        # get_next_weekly_event forces tz-aware schedule_date datetime object
+        schedule_datetime, schedule = get_next_weekly_event_and_schedule(survey)
+    except NoSchedulesException:
+        log("weekly no schedules configured")
+        return
+    
+    new_weeklies = []
+    for participant_id in valid_participant_pks:
+        if schedule_datetime not in archive_scheduled_times_by_participant_pk[participant_id]:
+            new_weeklies.append(ScheduledEvent(
+                survey=survey,
+                participant_id=participant_id,
+                weekly_schedule=schedule,
+                relative_schedule=None,
+                absolute_schedule=None,
+                scheduled_time=schedule_datetime,
+            ))
+    info = ScheduledEvent.objects.bulk_create(new_weeklies)
+    log(f"weekly schedule events created {info}")
+    return bool(len(info))
 
 
 def validate_and_assemble_archive_scheduled_times_by_participant_pk(
@@ -101,219 +315,6 @@ def validate_and_assemble_archive_scheduled_times_by_participant_pk(
     return participant_pks, dict(archive_scheduled_times_by_participant_pk)
 
 
-#
-## Creating ScheduledEvents
-#
-
-
-def repopulate_all_survey_scheduled_events(study: Study, participant: Participant = None):
-    """ Runs all the survey scheduled event generations on the provided entities. """
-    log("repopulate_all_survey_scheduled_events")
-    
-    duplicate_schedule_events_merged = False
-    for survey in study.surveys.all():
-        # remove any scheduled events on surveys that have been deleted.
-        if survey.deleted or study.study_is_stopped:
-            survey.scheduled_events.all().delete()
-            continue
-        
-        # log(f"repopulating all for survey {survey.id}")
-        if repopulate_weekly_survey_schedule_events(survey, participant):
-            duplicate_schedule_events_merged = True
-        if repopulate_absolute_survey_schedule_events(survey, participant):
-            duplicate_schedule_events_merged = True
-        # there are some cases where we can logically exclude relative surveys.
-        # Don't. Do. That. Just. Run. Everything. Always.
-        if repopulate_relative_survey_schedule_events(survey, participant):
-            duplicate_schedule_events_merged = True
-    
-    return duplicate_schedule_events_merged
-
-
-#TODO: this will need to be rewritten to examine existing absolute schedules
-def repopulate_absolute_survey_schedule_events(
-        survey: Survey, single_participant: Optional[Participant] = None) -> None:
-    """ Creates new ScheduledEvents for the survey's AbsoluteSchedules while deleting the old
-    ScheduledEvents related to the survey """
-    log("absolute schedule events")
-    timezone = survey.study.timezone
-    
-    # if the event is from an absolute schedule, relative and weekly schedules will be None
-    events = survey.scheduled_events.filter(relative_schedule=None, weekly_schedule=None)
-    if single_participant:
-        events = events.filter(participant=single_participant)
-    events.delete()
-    
-    if single_participant and not participant_allowed_surveys(single_participant):
-        log("absolute bad participant")
-        return
-    
-    # filters out participants that shouldn't receive notifications.
-    valid_participant_pks, archive_scheduled_times_by_participant_pk = \
-        validate_and_assemble_archive_scheduled_times_by_participant_pk(
-            survey, single_participant, ScheduleTypes.absolute
-        )
-    
-    # for each absolute schedule on the survey create a new scheduled event for each participant.
-    new_scheduled_events = []
-    for absolute_schedule in survey.absolute_schedules.all():
-        # We created ScheduledEvents with a "Canonical Time" in the study's timezone.
-        # The Canonical Time conversions for participant timezones are done in the Celery task.
-        scheduled_time = absolute_schedule.event_time(timezone)
-        
-        # filter out participants that have already received a this-timestamp notification.
-        relevant_participant_pks = [
-            pk for pk in valid_participant_pks
-            if scheduled_time not in archive_scheduled_times_by_participant_pk[pk]
-        ]
-        
-        for participant_pk in relevant_participant_pks:
-            new_scheduled_events.append(ScheduledEvent(
-                survey=survey,
-                weekly_schedule=None,
-                relative_schedule=None,
-                absolute_schedule_id=absolute_schedule.pk,
-                scheduled_time=scheduled_time,
-                participant_id=participant_pk
-            ))
-    
-    # save to database, return whether we created any new events.
-    info = ScheduledEvent.objects.bulk_create(new_scheduled_events)
-    log(f"absolute schedule events created {info}")
-    return bool(len(info))
-
-
-def repopulate_relative_survey_schedule_events(
-        survey: Survey, single_participant: Optional[Participant] = None) -> None:
-    """ Creates new ScheduledEvents for the survey's RelativeSchedules while deleting the old
-    ScheduledEvents related to the survey. """
-    log("relative schedule events")    
-    study_timezone = survey.study.timezone
-    
-    # Clear out existing events.
-    events = survey.scheduled_events.filter(absolute_schedule=None, weekly_schedule=None)
-    if single_participant:
-        events = events.filter(participant=single_participant)
-    events.delete()
-    
-    if single_participant and not participant_allowed_surveys(single_participant):
-        log("relative bad participant")
-        return
-    
-    # filters out participants that shouldn't receive notifications.
-    valid_participant_pks, archive_scheduled_times_by_participant_pk = \
-        validate_and_assemble_archive_scheduled_times_by_participant_pk(
-            survey, single_participant, ScheduleTypes.relative
-        )
-    
-    linking_query = InterventionDate.objects.filter(
-        participant_id__in=valid_participant_pks,
-        intervention_id__in=survey.relative_schedules.values_list("intervention_id", flat=True),
-        date__isnull=False,
-        # Subtle Django behavior: you can't exclude nulls as database values.
-        # This detail in a .exclude returns instances where date is None.
-    ).values_list("intervention_id", "participant_id", "date")
-    
-    # InterventionDates map through interventions - don't lock the defaultdict.
-    valid_intervention_lookups: DefaultDict[int: Tuple[int, date]] = defaultdict(list)
-    for intervention_pk, participant_pk, intervention_date_date in linking_query:
-        valid_intervention_lookups[intervention_pk].append((participant_pk, intervention_date_date))
-    
-    # A participant can't have more than one intervention date per intervention per schedule.
-    new_events = []
-    for relative_schedule in survey.relative_schedules.all():
-        for participant_pk, intervention_date_date in valid_intervention_lookups[relative_schedule.intervention_id]:
-            # This '+' is correct, 'days_after' is negative or 0 for days before and day of.
-            scheduled_date = intervention_date_date + timedelta(days=relative_schedule.days_after)
-            scheduled_time = relative_schedule.notification_time_from_intervention_date_and_timezone(scheduled_date, study_timezone)
-            if scheduled_time not in archive_scheduled_times_by_participant_pk[participant_pk]:
-                new_events.append(ScheduledEvent(
-                    survey=survey,
-                    participant_id=participant_pk,
-                    weekly_schedule=None,
-                    relative_schedule=relative_schedule,
-                    absolute_schedule=None,
-                    scheduled_time=scheduled_time,
-                ))
-    
-    # The above code is untested, it was real hard to remove the N+1 database queries.
-    # for relative_schedule in survey.relative_schedules.all():
-    #     # get interventions date that have been marked (have a date) for valid participants.
-    #     intervention_dates_query = relative_schedule.intervention.intervention_dates.filter(
-    #         date__isnull=False,
-    #         participant_id__in=valid_participant_pks,
-    #     ).values_list("participant_id", "date")
-    #
-    #     for participant_pk, intervention_date in intervention_dates_query:
-    #         # This '+' is correct, 'days_after' is negative or 0 for days before and day of.
-    #         scheduled_date = intervention_date + timedelta(days=relative_schedule.days_after)
-    #         scheduled_time = relative_schedule.notification_time_from_intervention_date_and_timezone(
-    #             scheduled_date, study_timezone
-    #         )
-    #         if scheduled_time not in archive_scheduled_times_by_participant_pk[participant_pk]
-    #             new_events.append(ScheduledEvent(
-    #                 survey=survey,
-    #                 participant_id=participant_pk,
-    #                 weekly_schedule=None,
-    #                 relative_schedule=relative_schedule,
-    #                 absolute_schedule=None,
-    #                 scheduled_time=scheduled_time,
-    #             ))
-    
-    info = ScheduledEvent.objects.bulk_create(new_events)
-    log(f"relative schedule events created {info}")
-    return bool(len(info))
-
-#
-## Weekly Schedules
-#
-
-#TODO: this will need to be rewritten to examine existing weekly schedules
-def repopulate_weekly_survey_schedule_events(survey: Survey, single_participant: Optional[Participant] = None) -> None:
-    """ Clear existing schedules, get participants, bulk create schedules Weekly events are
-    calculated in a way that we don't bother checking for survey archives, because they only exist
-    in the future. """
-    
-    # Clear existing schedules, get participants
-    log("clearing weekly schedule events")
-    events = survey.scheduled_events.filter(relative_schedule=None, absolute_schedule=None)
-    if single_participant:
-        events = events.filter(participant=single_participant)
-    events.delete()
-    
-    if single_participant and not participant_allowed_surveys(single_participant):
-        log("weekly bad participant")
-        return
-    
-    # filters out participants that shouldn't receive notifications.
-    valid_participant_pks, archive_scheduled_times_by_participant_pk = \
-        validate_and_assemble_archive_scheduled_times_by_participant_pk(
-            survey, single_participant, ScheduleTypes.weekly
-        )
-    
-    try:
-        # get_next_weekly_event forces tz-aware schedule_date datetime object
-        schedule_datetime, schedule = get_next_weekly_event_and_schedule(survey)
-    except NoSchedulesException:
-        log("weekly no schedules configured")
-        return
-    
-    new_weeklies = []
-    for participant_id in valid_participant_pks:
-        if schedule_datetime not in archive_scheduled_times_by_participant_pk[participant_id]:
-            new_weeklies.append(ScheduledEvent(
-                survey=survey,
-                participant_id=participant_id,
-                weekly_schedule=schedule,
-                relative_schedule=None,
-                absolute_schedule=None,
-                scheduled_time=schedule_datetime,
-            ))
-    info = ScheduledEvent.objects.bulk_create(new_weeklies)
-    log(f"weekly schedule events created {info}")
-    return bool(len(info))
-
-
 def get_next_weekly_event_and_schedule(survey: Survey) -> Tuple[datetime, WeeklySchedule]:
     """ Determines the next time for a particular survey, provides the relevant weekly schedule. """
     # TODO: make this use the participant's timezone.  That introduces the possibility of a missed
@@ -351,6 +352,7 @@ def export_weekly_survey_timings(survey: Survey) -> List[List[int]]:
     return timings
 
 
+#TODO: does the old weekly creation function contain the deduplication code to make the new top-up not n+1 / n*k queries
 def update_all_weekly_schedules() -> None:
     """ Handles updates for all weekly survey schedules for all participants. """
     participant: Participant
@@ -359,7 +361,7 @@ def update_all_weekly_schedules() -> None:
     now = timezone.now()
     
     # - We don't want to use the fcm_for_pushable_participants function, we want to top-up All
-    #   Potentially Pushable participants, then clear out old weekly schedules. We want to ensure
+    #   Potentially Pushable participants, then clears out old weekly schedules. We want to ensure
     #   new participants created a year after creation don't get slammed with thousands of
     #   notification uuids. (its also easier than a query to exclude, and the table is smaller.)
     # - We order these queries to make the output deterministic.  There is no other reason.
@@ -457,10 +459,313 @@ def decompose_datetime_to_device_weekly_timings(dt: datetime) -> Tuple[int, int]
 
 
 #
-## new code that compares against archived events
-#  This code was developed as part of a review of push notifications. The review found no
-#  Issues, but thi code may be advantageous in the future.
+## Shared ScheduledEvent Creation Code 
+# 
+# Takes some data structures that represents what does exist and what should exist, diffs it, and
+#   emits the appropriate database updates to ScheduledEvents.
+# (there's also an extra data structure required to link Schedules to ScheduledEvents and a type flag)
+#
+# With this pattern the 
+#
+# The state provided does not need to represent the entire state of the database, only relevant state,
+#   in particular only the state of a single participant.
+# (and also it is restricted to the one type of Schedule based on the flag)
+#
+# AFTER the schedules are updated we can check on the intersection of only the newly created events
+#   and archived events to see if any have already been sent, and mark them occasionally.
+#
+# Combined with disallowing duplicate Schedules in the first place this means we only create new
+#   ScheduledEvents when we need to instead of every time we have an update.
 
+def ok_now_the_almost_generic_database_update_bit(
+    existing_events: List[ScheduledEvent],                                      # currently exists
+    all_schudule_pks_by_participant_and_time: Dict[Tuple[int, datetime], int],  # should exist
+    all_possible_event_times_by_participant: Dict[int, Set[datetime]],          # the lookup dict
+    type_of_schedule: str,
+    survey: Survey,
+):
+    new_event_info_to_create = determine_events_to_create(
+        existing_events, all_possible_event_times_by_participant
+    )
+    existing_events_to_delete = determine_events_to_delete(
+        existing_events, all_possible_event_times_by_participant
+    )
+    
+    deleted = ScheduledEvent.objects.filter(
+        id__in=[event.id for event in existing_events_to_delete]
+    ).delete()
+    log("deleted", deleted)
+    
+    create_new_event_objects(
+        survey,
+        new_event_info_to_create,
+        all_schudule_pks_by_participant_and_time,
+        type_of_schedule,
+    )
+
+
+def determine_events_to_delete(
+    existing_events: List[ScheduledEvent],
+    all_possible_event_times_by_participant: Dict[int, Set[datetime]],
+) -> Tuple[List[ScheduledEvent], List[Tuple[int, datetime]]]:
+    existing_events_to_delete = []
+    
+    # loop over existing events
+    for existing_event in existing_events:
+        particiant_pk = existing_event.participant_id
+        existing_event_time = existing_event.scheduled_time
+        # if it isn't at a possible time then it should be deleted.
+        if existing_event_time not in all_possible_event_times_by_participant[particiant_pk]:
+            existing_events_to_delete.append(existing_event)
+    
+    return existing_events_to_delete
+
+
+def determine_events_to_create(
+    existing_events: List[ScheduledEvent],
+    all_possible_event_times_by_participant: Dict[int, Set[datetime]],
+) -> List[Tuple[int, datetime]]:
+    events_to_create: List[Tuple[int, datetime]] = []
+    
+    # events at this time already exist
+    existing_events_by_participant_and_time = set(
+        (event.participant_id, event.scheduled_time) for event in existing_events
+    )
+    
+    # loop over all possible participant-time pairs
+    for participant_pk in all_possible_event_times_by_participant.keys():
+        for scheduled_time in all_possible_event_times_by_participant[participant_pk]:
+            # append participant-time pairs that don't already exist
+            if (participant_pk, scheduled_time) not in existing_events_by_participant_and_time:
+                events_to_create.append((participant_pk, scheduled_time))
+    
+    return events_to_create
+
+
+def create_new_event_objects(
+    survey: Survey,
+    new_event_info_to_create: List[Tuple[int, datetime]],
+    all_schudule_pks_by_participant_and_time: Dict[Tuple[int, datetime], int],
+    type_of_schedule: str,
+):
+    new_event_objects_to_create: List[ScheduledEvent] = []
+    # we need a slightly different set of arguments to instantiate different ScheduledEvents
+    arg_constructor = arg_constructor_lookup[type_of_schedule]
+    
+    # all_schudule_pks_by_participant_and_time is a lookup for the abs/week/rel schedule pk
+    x = []
+    for participant_pk, scheduled_time in new_event_info_to_create:
+        schedule_pk = all_schudule_pks_by_participant_and_time[participant_pk, scheduled_time]
+        new_event_objects_to_create.append(ScheduledEvent(
+            survey=survey,
+            scheduled_time=scheduled_time,
+            participant_id=participant_pk,
+            **arg_constructor(schedule_pk),
+        ))
+    
+    created_objects = ScheduledEvent.objects.bulk_create(new_event_objects_to_create)
+    log("created", created_objects)
+    
+    #TODO: we should emit two creation queries instead of checking after the fact.
+    check_archives_for_newly_created_scheduled_events(survey, new_event_info_to_create, created_objects)
+
+
+def check_archives_for_newly_created_scheduled_events(
+    survey: Survey, new_event_infos: List[Tuple[int, datetime]], created_events: List[ScheduledEvent]
+):
+    # This DOES NOT filter by schedule type
+    participant_pks = list(set(participant_pk for participant_pk, _ in new_event_infos))
+    times = list(set(time for _, time in new_event_infos))
+    
+    new_and_marked_as_unsent_event_lookup = {
+        (event.participant_id, event.scheduled_time): event.id for event in created_events
+    }
+    
+    relevant_participant_and_schedule_time_query = ArchivedEvent.objects.filter(
+        participant_id__in=participant_pks,
+        scheduled_time__in=times,
+        survey_archive__survey=survey,
+    ).values_list("participant_id", "scheduled_time")
+    
+    mark_as_deleted = []
+    for participant_pk, scheduled_time in relevant_participant_and_schedule_time_query:
+        key = (participant_pk, scheduled_time)
+        if key in new_and_marked_as_unsent_event_lookup:
+            mark_as_deleted.append(new_and_marked_as_unsent_event_lookup[key])
+    
+    updates = ScheduledEvent.objects.filter(id__in=mark_as_deleted).update(deleted=True)
+    log("updated already send events", updates)
+
+
+# The helpers we need because we are not usisg higher levels of abstraction (this is a good thing).
+
+
+def absolute_orgs(abs_sched_pk: int):
+    return {
+        "weekly_schedule": None, "relative_schedule": None, "absolute_schedule_id": abs_sched_pk
+    }
+
+
+def relative_orgs(rel_sched_pk: int):
+    return {
+        "weekly_schedule": None, "relative_schedule_id": rel_sched_pk, "absolute_schedule": None
+    }
+
+
+def weekly_orgs(weekly_sched_pk: int):
+    return {
+        "weekly_schedule_id": weekly_sched_pk, "relative_schedule": None, "absolute_schedule": None
+    }
+
+
+# don't ask for a schedule type that doesn't exist.
+arg_constructor_lookup = {"absolute": absolute_orgs, "relative": relative_orgs, "weekly": weekly_orgs}
+
+
+#
+## Old Code that deleted scheduled events and then created new ones, and then searched archives
+# for events that should not be recreated.
+#
+
+# def repopulate_absolute_survey_schedule_events_old(
+#         survey: Survey, single_participant: Optional[Participant] = None) -> None:
+#     """ Creates new ScheduledEvents for the survey's AbsoluteSchedules while deleting the old
+#     ScheduledEvents related to the survey """
+#     log("absolute schedule events")
+#     timezone = survey.study.timezone
+    
+#     # if the event is from an absolute schedule, relative and weekly schedules will be None
+#     events = survey.scheduled_events.filter(relative_schedule=None, weekly_schedule=None)
+#     if single_participant:
+#         events = events.filter(participant=single_participant)
+#     events.delete()
+    
+#     if single_participant and not participant_allowed_surveys(single_participant):
+#         log("absolute bad participant")
+#         return
+    
+#     # filters out participants that shouldn't receive notifications.
+#     valid_participant_pks, archive_scheduled_times_by_participant_pk = \
+#         validate_and_assemble_archive_scheduled_times_by_participant_pk(
+#             survey, single_participant, ScheduleTypes.absolute
+#         )
+    
+#     # for each absolute schedule on the survey create a new scheduled event for each participant.
+#     new_scheduled_events = []
+#     for absolute_schedule in survey.absolute_schedules.all():
+#         # We created ScheduledEvents with a "Canonical Time" in the study's timezone.
+#         # The Canonical Time conversions for participant timezones are done in the Celery task.
+#         scheduled_time = absolute_schedule.event_time(timezone)
+        
+#         # filter out participants that have already received a this-timestamp notification.
+#         relevant_participant_pks = [
+#             pk for pk in valid_participant_pks
+#             if scheduled_time not in archive_scheduled_times_by_participant_pk[pk]
+#         ]
+        
+#         for participant_pk in relevant_participant_pks:
+#             new_scheduled_events.append(ScheduledEvent(
+#                 survey=survey,
+#                 weekly_schedule=None,
+#                 relative_schedule=None,
+#                 absolute_schedule_id=absolute_schedule.pk,
+#                 scheduled_time=scheduled_time,
+#                 participant_id=participant_pk
+#             ))
+    
+#     # save to database, return whether we created any new events.
+#     info = ScheduledEvent.objects.bulk_create(new_scheduled_events)
+#     log(f"absolute schedule events created {info}")
+#     return bool(len(info))
+
+
+# def repopulate_relative_survey_schedule_events_old(
+#         survey: Survey, single_participant: Optional[Participant] = None) -> None:
+#     """ Creates new ScheduledEvents for the survey's RelativeSchedules while deleting the old
+#     ScheduledEvents related to the survey. """
+#     log("relative schedule events")
+#     study_timezone = survey.study.timezone
+    
+#     # Clear out existing events.
+#     events = survey.scheduled_events.filter(absolute_schedule=None, weekly_schedule=None)
+#     if single_participant:
+#         events = events.filter(participant=single_participant)
+#     events.delete()
+    
+#     if single_participant and not participant_allowed_surveys(single_participant):
+#         log("relative bad participant")
+#         return
+    
+#     # filters out participants that shouldn't receive notifications.
+#     valid_participant_pks, archive_scheduled_times_by_participant_pk = \
+#         validate_and_assemble_archive_scheduled_times_by_participant_pk(
+#             survey, single_participant, ScheduleTypes.relative
+#         )
+    
+#     linking_query = InterventionDate.objects.filter(
+#         participant_id__in=valid_participant_pks,
+#         intervention_id__in=survey.relative_schedules.values_list("intervention_id", flat=True),
+#         date__isnull=False,
+#         # Subtle Django behavior: you can't exclude nulls as database values.
+#         # This detail in a .exclude returns instances where date is None.
+#     ).values_list("intervention_id", "participant_id", "date")
+    
+#     # InterventionDates map through interventions - don't lock the defaultdict.
+#     valid_intervention_lookups: DefaultDict[int, Tuple[int, date]] = defaultdict(list)
+#     for intervention_pk, participant_pk, intervention_date_date in linking_query:
+#         valid_intervention_lookups[intervention_pk].append((participant_pk, intervention_date_date))
+    
+#     # A participant can't have more than one intervention date per intervention per schedule.
+#     new_events = []
+#     for relative_schedule in survey.relative_schedules.all():
+#         for participant_pk, intervention_date_date in valid_intervention_lookups[relative_schedule.intervention_id]:
+#             # This '+' is correct, 'days_after' is negative or 0 for days before and day of.
+#             scheduled_date = intervention_date_date + timedelta(days=relative_schedule.days_after)
+#             scheduled_time = relative_schedule.notification_time_from_intervention_date_and_timezone(scheduled_date, study_timezone)
+#             if scheduled_time not in archive_scheduled_times_by_participant_pk[participant_pk]:
+#                 new_events.append(ScheduledEvent(
+#                     survey=survey,
+#                     participant_id=participant_pk,
+#                     weekly_schedule=None,
+#                     relative_schedule=relative_schedule,
+#                     absolute_schedule=None,
+#                     scheduled_time=scheduled_time,
+#                 ))
+    
+#     # The above code is untested, it was real hard to remove the N+1 database queries.
+#     # for relative_schedule in survey.relative_schedules.all():
+#     #     # get interventions date that have been marked (have a date) for valid participants.
+#     #     intervention_dates_query = relative_schedule.intervention.intervention_dates.filter(
+#     #         date__isnull=False,
+#     #         participant_id__in=valid_participant_pks,
+#     #     ).values_list("participant_id", "date")
+#     #
+#     #     for participant_pk, intervention_date in intervention_dates_query:
+#     #         # This '+' is correct, 'days_after' is negative or 0 for days before and day of.
+#     #         scheduled_date = intervention_date + timedelta(days=relative_schedule.days_after)
+#     #         scheduled_time = relative_schedule.notification_time_from_intervention_date_and_timezone(
+#     #             scheduled_date, study_timezone
+#     #         )
+#     #         if scheduled_time not in archive_scheduled_times_by_participant_pk[participant_pk]
+#     #             new_events.append(ScheduledEvent(
+#     #                 survey=survey,
+#     #                 participant_id=participant_pk,
+#     #                 weekly_schedule=None,
+#     #                 relative_schedule=relative_schedule,
+#     #                 absolute_schedule=None,
+#     #                 scheduled_time=scheduled_time,
+#     #             ))
+    
+#     info = ScheduledEvent.objects.bulk_create(new_events)
+#     log(f"relative schedule events created {info}")
+#     return bool(len(info))
+
+
+#
+## Untested Code that compares against archived events
+#  This code was developed as part of a review of push notifications. The review found no
+#  Issues, but this code may be advantageous in the future.
+# NO IT WON'T DELETE IT
 
 # def get_participant_ids_with_absolute_notification_history(schedule: AbsoluteSchedule) -> List[int]:
 #     """ Notes:
@@ -497,7 +802,7 @@ def decompose_datetime_to_device_weekly_timings(dt: datetime) -> Tuple[int, int]
 
 # def get_participant_ids_with_relative_notification_history(schedule: RelativeSchedule) -> List[int]:
 #     """ Returns a list of participant database pks that need to have a notification sent base on a
-#     relative schedule. 
+#     relative schedule.
 #     Notes:
 #     1) ScheduledEvents for relative schedules have the same logical constraints as absolute
 #        schedules, e.g. scheduled events will use the eventual calculated time.
@@ -513,7 +818,7 @@ def decompose_datetime_to_device_weekly_timings(dt: datetime) -> Tuple[int, int]
 #        participants.
 #     """
 #     valid_survey_archive_ids = schedule.survey.archives.values_list("id", flat=True)
-#    
+#
 #     potentially_valid_participants = list(schedule.intervention.intervention_dates.filter(
 #         date__isnull=False,
 #         # Subtle [Django?] behavior that I don't understand: you can't exclude null database values.
@@ -522,11 +827,11 @@ def decompose_datetime_to_device_weekly_timings(dt: datetime) -> Tuple[int, int]
 #     ).exclude(
 #         EXCLUDE_THESE_PARTICIPANTS_RELATED
 #     ).values_list("participant_id", "date", "participant__timezone_name"))
-#    
+#
 #     participant_ids_that_might_need_a_notification = [
 #         participant_id for participant_id, _, _ in potentially_valid_participants
 #     ]
-#    
+#
 #     # This code path needs to handle the case where there are multiple relative schedules for a survey.
 #     # participants_and_dates = []
 #     participants_to_calculated_times = defaultdict(list)
@@ -538,24 +843,24 @@ def decompose_datetime_to_device_weekly_timings(dt: datetime) -> Tuple[int, int]
 #         )
 #         participants_to_calculated_times[participant_id].append(schedule_time)
 #     participants_to_calculated_times = dict(participants_to_calculated_times)  # convert to non-default-dict
-#    
+#
 #     # get participants with sent notifications on this survey due to a relative schedule on this survey
 #     historical_event_participant_times = ArchivedEvent.objects.filter(
 #         participant__in=participant_ids_that_might_need_a_notification,
 #         survey_archive__in=valid_survey_archive_ids,
 #         schedule_type=ScheduleTypes.relative,
 #     ).values_list("participant_id", "scheduled_time")
-#    
+#
 #     # Rule: don't send duplicate notifications - it is possible for multiple relative schedules to
 #     # calculate the same scheduled time for a survey notification - dumb but true. We want our
 #     # return to only have one instance of each participant id.
-#    
+#
 #     # compare the historical data against the calculated times
 #     participants_already_sent_this_notification = set()
 #     for participant_id, historical_time in historical_event_participant_times:
 #         if historical_time in participants_to_calculated_times[participant_id]:
 #             participants_already_sent_this_notification.add(participant_id)
-#    
+#
 #     # then get only the participants that haven't been sent this notification
 #     return list(
 #         set(participant_ids_that_might_need_a_notification) -

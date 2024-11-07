@@ -107,9 +107,11 @@ def update_survey(request: ResearcherRequest, study_id: int, survey_id: int):
     weekly_timings = json.loads(request.POST.get('weekly_timings'))
     w_duplicated = WeeklySchedule.create_weekly_schedules(weekly_timings, survey)
     repopulate_weekly_survey_schedule_events(survey)
+    
     absolute_timings = json.loads(request.POST.get('absolute_timings'))
     a_duplicated = AbsoluteSchedule.create_absolute_schedules(absolute_timings, survey)
     repopulate_absolute_survey_schedule_events(survey)
+    
     relative_timings = json.loads(request.POST.get('relative_timings'))
     r_duplicated = RelativeSchedule.create_relative_schedules(relative_timings, survey)
     repopulate_relative_survey_schedule_events(survey)

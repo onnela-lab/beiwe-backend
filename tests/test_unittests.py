@@ -300,7 +300,7 @@ class TestParticipantDataDeletion(CommonTestCase):
     def test_confirm_ArchivedEvent(self):
         # its easiest to use a scheduled event to create an archived event...
         sched_event = self.generate_a_real_weekly_schedule_event_with_schedule()[0]
-        sched_event.archive(True, self.default_participant, status="deleted", created_on=timezone.now())
+        sched_event.archive(True, self.default_participant, status="deleted")
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)

@@ -229,9 +229,9 @@ class TestGetLatestSurveys(ParticipantSessionTest):
         for day_of_week_index in self.iterate_weekday_absolute_schedules():
             resp = self.smart_post_status_code(200)
             api_survey_representation = orjson.loads(resp.content.decode())
-            reference_representation = self.BASIC_SURVEY_CONTENT
-            reference_representation[0]["timings"][day_of_week_index] = [0]
-            self.assertEqual(api_survey_representation, reference_representation)
+            correct_representation = self.BASIC_SURVEY_CONTENT
+            correct_representation[0]["timings"][day_of_week_index] = [0]
+            self.assertEqual(api_survey_representation, correct_representation)
     
     def iterate_weekday_absolute_schedules(self):
         # iterates over days of the week and populates absolute schedules and scheduled events

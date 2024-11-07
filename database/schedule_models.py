@@ -81,6 +81,7 @@ class RelativeSchedule(TimestampedModel):
         """ TIMEZONE SHOULD BE THE STUDY TIMEZONE. The timezone is used to determine the "canonical
         time" of the ScheduledEvent, which is shifted to the participant timezone. """
         # The time of day (hour, minute) are not offsets, they are absolute times of day.
+        # doing self.study.timezone here is a database query so don't do that
         return make_aware(datetime.combine(a_date, time(self.hour, self.minute)), tz)
     
     @staticmethod

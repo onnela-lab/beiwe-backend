@@ -226,8 +226,6 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
             self.assert_no_schedules()
 
 
-
-
 class SchedulePersistenceCheck:
     """ A helper class providing a pattern for testing that new identical schoduled events are not
     replaced, are instead allowed to remain. """
@@ -248,7 +246,7 @@ class SchedulePersistenceCheck:
         
         q = ScheduledEvent.objects.values_list(*SCHEDULEDEVENT_IDENTITY_FIELDS)
         assert q.count() != 0, "Incorrect usage, no scheduled events present"
-        print("before count:", ScheduledEvent.objects.count())
+        # print("before count:", ScheduledEvent.objects.count())
         self.before_state = {}
         
         # we use participant id, survey id, scheduled time, and the type of schedule to uniquely
@@ -264,14 +262,14 @@ class SchedulePersistenceCheck:
                 raise Exception(f"Encountered duplicate key in test setup: {key}")
             
             self.before_state[key] = value
-        print(f"before_state: {self.before_state}")
+        # print(f"before_state: {self.before_state}")
     
     @property
     def assert_new_scheduled_events_dont_replace_existing(self):
         """ Tests that any identical scheduled events from the before time are not replaced. """
         
         assert hasattr(self, "before_state"), "did not set up 'before_state' in test"
-        print("after count:", ScheduledEvent.objects.count())
+        # print("after count:", ScheduledEvent.objects.count())
         after_state = {}
         
         q = ScheduledEvent.objects.values_list(*SCHEDULEDEVENT_IDENTITY_FIELDS)
@@ -287,7 +285,7 @@ class SchedulePersistenceCheck:
             self.assertEqual(self.before_state[key], new_value)
             after_state[key] = new_value
         
-        print(f"after_state: {after_state}")
+        # print(f"after_state: {after_state}")
 
 
 
