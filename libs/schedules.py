@@ -1,9 +1,10 @@
 from collections import defaultdict
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from datetime import date, datetime, time, timedelta
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple
 
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.timezone import make_aware
 
 from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS, ScheduleTypes
 from database.schedule_models import ArchivedEvent, InterventionDate, ScheduledEvent, WeeklySchedule
@@ -24,7 +25,7 @@ def log(*args, **kwargs):
 
 class UnknownScheduleScenario(Exception): pass
 class NoSchedulesException(Exception): pass
-
+dt_combine = datetime.combine  # brevity
 
 #
 ## Various database query helpers
@@ -44,7 +45,6 @@ def participant_allowed_surveys(participant: Participant) -> bool:
     if participant.deleted or participant.permanently_retired:
         return False
     return True
-
 
 
 #
@@ -338,6 +338,44 @@ def get_next_weekly_event_and_schedule(survey: Survey) -> Tuple[datetime, Weekly
     return schedule_datetime, schedule
 
 
+def get_bounded_3_week_window_on_current_week(survey: Survey) -> WeeklySchedule:
+    # We DON'T want to use study.now().today.  Day of week only cares about date.
+    tz = survey.study.timezone
+    today = date.today()
+    
+    bounded_window_of_schedule_datetimes: List[datetime] = []
+    
+    # The timings schema peshed to devices mimics the Java.util.Calendar.DayOfWeek specification,
+    # which is zero-indexed with day 0 as Sunday.
+    start_of_this_week: date  # Sunday.
+    date_of_day_of_event_last_week: date  # day of event
+    date_of_day_of_event_this_week: date  # day of event
+    date_of_day_of_event_next_week: date  # day of event
+    
+    # Python's date.weekday() defines Monday=0, in our schema Sunday=0 so we add 1p Sow we can just
+    # add the day_of_week value later and get the correct _date_ under all conditions because the
+    # datetime library will handle things like leap years.
+    start_of_this_week: date = today - timedelta(days=((today.weekday()+1) % 7))  # Sunday.
+    
+    for day_of_week, hour, minute in survey.weekly_schedules.values_list("day_of_week", "hour", "minute"):
+        
+        # shifting a date my a day length time delta bypasses daylight savings time stretching.
+        date_of_day_of_event_this_week = start_of_this_week + timedelta(days=day_of_week)
+        date_of_day_of_event_last_week = date_of_day_of_event_this_week - timedelta(days=7)
+        date_of_day_of_event_next_week = date_of_day_of_event_this_week + timedelta(days=7)
+        
+        # We need the time of the day on a date, and then we need to handle the timezone gracefully,
+        # make_aware handles shifting ambiguous times so the code doesn't crash.
+        t = time(hour, minute)
+        dt_of_event_last_week = make_aware(dt_combine(date_of_day_of_event_last_week, t), tz)
+        dt_of_event_this_week = make_aware(dt_combine(date_of_day_of_event_this_week, t), tz)
+        dt_of_event_next_week = make_aware(dt_combine(date_of_day_of_event_next_week, t), tz)
+        
+        bounded_window_of_schedule_datetimes.append(dt_of_event_last_week)
+        bounded_window_of_schedule_datetimes.append(dt_of_event_this_week)
+        bounded_window_of_schedule_datetimes.append(dt_of_event_next_week)
+
+
 def export_weekly_survey_timings(survey: Survey) -> List[List[int]]:
     """Returns a json formatted list of weekly timings for use on the frontend"""
     # this weird sort order results in correctly ordered output.
@@ -406,6 +444,7 @@ def update_all_weekly_schedules() -> None:
     #   practical level every week.
     # - We can live with extra weekly scheduled events hanging around and possibly being sent
     #   because they will get merged ino a single notification whenever they are sent.
+
     ScheduledEvent.objects.filter(
         weekly_schedule__isnull=False,
         relative_schedule=None,
