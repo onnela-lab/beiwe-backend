@@ -186,7 +186,6 @@ def get_aws_access_policy():
 # (files with the prefix LOCAL are on this machine, REMOTE files are file paths on the remote server)
 LOCAL_CRONJOB_WORKER_FILE_PATH = path_join(PUSHED_FILES_FOLDER, 'cron_worker.txt')
 LOCAL_CRONJOB_MANAGER_FILE_PATH = path_join(PUSHED_FILES_FOLDER, 'cron_manager.txt')
-LOCAL_CRONJOB_SINGLE_SERVER_AMI_FILE_PATH = path_join(PUSHED_FILES_FOLDER, 'cron_ami.txt')
 REMOTE_CRONJOB_FILE_PATH = path_join(REMOTE_HOME_DIR, 'cronjob.txt')
 LOCAL_INSTALL_CELERY_WORKER = path_join(PUSHED_FILES_FOLDER, 'install_celery_worker.sh')
 REMOTE_INSTALL_CELERY_WORKER = path_join(REMOTE_HOME_DIR, 'install_celery_worker.sh')
