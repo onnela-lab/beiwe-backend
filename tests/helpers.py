@@ -31,7 +31,7 @@ from database.user_models_participant import (AppHeartbeats, DeviceStatusReportH
     ParticipantActionLog, ParticipantDeletionEvent, ParticipantFCMHistory, ParticipantFieldValue)
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.internal_types import Schedule
-from libs.schedules import set_next_weekly
+from libs.schedules import repopulate_weekly_survey_schedule_events
 from libs.utils.security_utils import device_hash, generate_easy_alphanumeric_string
 
 
@@ -573,14 +573,13 @@ class DatabaseHelperMixin:
         )
     
     def generate_a_real_weekly_schedule_event_with_schedule(
-        self, day_of_week: int = 0, hour: int = 0, minute: int = 0
+        self, day_of_week: int = 0, hour: int = 0, minute: int = 0, tz: tzinfo = None
     ) -> Tuple[ScheduledEvent, int]:
-        """ The creation of weekly events is weird, it best to use the real machinery and build
-        some unit tests for it. At time of documenting none exist, but there are some integration
-        tests. """
-        # 0 indexes to sunday, 6 indexes to saturday.
-        self.generate_weekly_schedule(self.default_survey, day_of_week, hour, minute)
-        return set_next_weekly(self.default_participant, self.default_survey)
+        raise NotImplementedError("take the code below and paste it into your test, or use an absolute survey")
+        # 0,0,0 is a sunday at midnight
+        sched = self.generate_weekly_schedule(self.default_survey, day_of_week, hour, minute)
+        repopulate_weekly_survey_schedule_events(self.default_survey)
+        events = ScheduledEvent.objects.filter(weekly_schedule=sched)
     
     def generate_scheduled_event(
         self,

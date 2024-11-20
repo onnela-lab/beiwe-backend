@@ -126,7 +126,6 @@ class WeeklySchedule(TimestampedModel):
     @staticmethod
     def create_weekly_schedules(timings: List[List[int]], survey: Survey) -> bool:
         """ Creates new WeeklySchedule objects from a frontend-style list of seconds into the day. """
-        
         if survey.deleted or not timings:
             survey.weekly_schedules.all().delete()
             return False
@@ -162,7 +161,7 @@ class WeeklySchedule(TimestampedModel):
         schedule_components = WeeklySchedule.objects. \
             filter(survey=survey).order_by(*fields_ordered).values_list(*fields_ordered)
         
-        # get, calculate, append, dump.
+        # get, calculate, append, dump. -- day 0 is monday, day 6 is sunday
         for hour, minute, day in schedule_components:
             timings[day].append((hour * 60 * 60) + (minute * 60))
         return timings
@@ -233,6 +232,17 @@ class ScheduledEvent(TimestampedModel):
         else:
             raise Exception("ScheduledEvent had no associated schedule")
     
+    def get_schedule_pk(self):
+        if self.weekly_schedule_id:
+            return self.weekly_schedule_id
+        elif self.relative_schedule_id:
+            return self.relative_schedule_id
+        elif self.absolute_schedule_id:
+            return self.absolute_schedule_id
+        else:
+            # TypeError because we hav lost the tye of schedule this is....? sure
+            raise TypeError("ScheduledEvent had no associated schedule")
+        
     def archive(
         self,
         self_delete: bool,

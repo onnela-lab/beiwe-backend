@@ -262,6 +262,11 @@ class Participant(AbstractPasswordUser):
     ################################################################################################
     
     @property
+    def is_allowed_surveys(self) -> bool:
+        from libs.schedules import participant_allowed_surveys
+        return participant_allowed_surveys(self)
+    
+    @property
     def is_active_one_week(self) -> bool:
         return Participant._is_active(self, timezone.now() - timedelta(days=7))
     

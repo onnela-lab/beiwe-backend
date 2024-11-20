@@ -1,7 +1,7 @@
 # trunk-ignore-all(bandit/B101,bandit/B106,ruff/B018,ruff/E701)
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time as dt_time, timedelta
 from typing import List
 from unittest.mock import MagicMock, patch
 
@@ -21,7 +21,7 @@ from libs.schedules import (export_weekly_survey_timings, get_next_weekly_event_
     get_start_and_end_of_java_timings_week, NoSchedulesException,
     repopulate_absolute_survey_schedule_events, repopulate_all_survey_scheduled_events,
     repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)
-from services.celery_push_notifications import get_surveys_and_schedules
+from services.celery_push_notifications import get_surveys_and_schedules, update_scheduled_events
 from tests.common import CommonTestCase
 
 
@@ -97,41 +97,71 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_weekly_success(self):
+        tz = gettz("America/New_York")
+        self.default_study.update(timezone_name="America/New_York")
+        
         self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
-        with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
-            self.assert_default_schedule_found(schedule)
+        sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday at midnight
+        self.assertEqual(0, ScheduledEvent.objects.count())
+        # THURS_OCT_6_NOON_2022_NY - this will create the midnight friday 7th and 14th of october
+        repopulate_weekly_survey_schedule_events(self.default_survey, self.default_participant)
+        self.assertEqual(2, ScheduledEvent.objects.count())
+        s1, s2 = ScheduledEvent.objects.order_by("scheduled_time")
+        
+        with time_machine.travel(THURS_OCT_13_NOON_2022_NY):
+            # this is what the test formerly would test but this is weird?
+            self.assert_default_schedule_found(s1)
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
-    def test_weekly_in_future_fails(self):
+    def test_weekly_future_explicit(self):
+        tz = gettz("America/New_York")
+        self.default_study.update(timezone_name="America/New_York")
+        
         self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
-        self.assert_no_schedules()
+        sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday at midnight
+        self.assertEqual(0, ScheduledEvent.objects.count())
+        repopulate_weekly_survey_schedule_events(self.default_survey, self.default_participant)
+        self.assertEqual(2, ScheduledEvent.objects.count())
+        
+        midnight = dt_time(0, 0)
+        friday = THURS_OCT_6_NOON_2022_NY.date() + timedelta(days=1)
+        next_friday = THURS_OCT_6_NOON_2022_NY.date() + timedelta(days=8)
+        push_time_1 = datetime.combine(friday, midnight, tz)
+        push_time_2 = datetime.combine(next_friday, midnight, tz)
+        
+        s1, s2 = ScheduledEvent.objects.order_by("scheduled_time")
+        self.assertEqual(s1.scheduled_time, push_time_1)
+        self.assertEqual(s2.scheduled_time, push_time_2)
     
     @time_machine.travel(THURS_OCT_13_NOON_2022_NY)
-    def test_time_zones(self):
+    def test_participant_time_zones(self):
         self.populate_default_fcm_token
-        self.default_study.update_only(timezone_name='America/New_York')  # default in tests is normally UTC.
+        self.default_study.update(timezone_name='America/New_York')  # default in tests is normally UTC
+        self.default_study.refresh_from_db()
         
-        # need to time travel to the past to get the weekly logic to produce the correct time
+        
+        sched = self.generate_weekly_schedule(self.default_survey, 4, 12, 0)  # thursday at eleven...
+        
+        # need to time travel to the past to get the weekly logic to produce the correct time(s)
         with time_machine.travel(THURS_OCT_6_NOON_2022_NY):
             # creates a weekly survey for 2022-10-13 12:00:00-04:00
-            schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(4, 12, 0)
-            self.assertEqual(count_created, 1)
+            self.assertEqual(0, ScheduledEvent.objects.count())
+            repopulate_weekly_survey_schedule_events(self.default_survey, self.default_participant)
+            # "this week"'s schedule time has already passed, so it does not get c
+            # this occurs because of a <= in the logic, but it still shows us it is possible
+            self.assertEqual(1, ScheduledEvent.objects.count())
+            schedule = ScheduledEvent.objects.order_by("scheduled_time").first()
         
-        # assert schedule time is equal to 2022-10-13 12:00:00-04:00, then assert components are equal.
-        self.assertEqual(schedule.scheduled_time, THURS_OCT_13_NOON_2022_NY)
-        self.assertEqual(schedule.scheduled_time.year, 2022)
-        self.assertEqual(schedule.scheduled_time.month, 10)
-        self.assertEqual(schedule.scheduled_time.day, 13)
-        self.assertEqual(schedule.scheduled_time.hour, 12)
-        self.assertEqual(schedule.scheduled_time.minute, 0)
-        self.assertEqual(schedule.scheduled_time.second, 0)
-        self.assertEqual(schedule.scheduled_time.tzinfo, gettz("America/New_York"))
+        # this makes it easier to identify if something is actually wrong than the datetime
+        # comparison_time the database normalizes the timezone to UTC
+        comparison_time = schedule.scheduled_time.astimezone(gettz("America/New_York"))
+        self.assertEqual(comparison_time.year, 2022)
+        self.assertEqual(comparison_time.month, 10)
+        self.assertEqual(comparison_time.day, 13)
+        self.assertEqual(comparison_time.hour, 12)
+        self.assertEqual(comparison_time.minute, 0)
+        self.assertEqual(comparison_time.second, 0)
+        self.assertEqual(comparison_time.tzinfo, gettz("America/New_York"))
         
         # set default participant to pacific time, assert that no push notification is calculated.
         self.default_participant.try_set_timezone('America/Los_Angeles')
@@ -197,33 +227,51 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_deleted_hidden_study(self):
         self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
+        
+        # schedules = self.generate_a_real_weekly_schedule_event_with_schedule(5)
+        sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday, midnight
+        repopulate_weekly_survey_schedule_events(self.default_survey)
+        self.assertEqual(ScheduledEvent.objects.count(), 2)
+        
         self.default_study.update(deleted=True)
         with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
             self.assert_no_schedules()
+        
+        # and assert that schedules are removed this study after it is deleted?
+        self.assertEqual(ScheduledEvent.objects.count(), 2)
+        update_scheduled_events()
+        self.assertEqual(ScheduledEvent.objects.count(), 0)
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_manually_stopped_study(self):
         self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
+        sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday, midnight
+        repopulate_weekly_survey_schedule_events(self.default_survey)
+        self.assertEqual(ScheduledEvent.objects.count(), 2)
+        
         self.default_study.update(manually_stopped=True)
         with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
             self.assert_no_schedules()
+        
+        self.assertEqual(ScheduledEvent.objects.count(), 2)
+        update_scheduled_events()
+        self.assertEqual(ScheduledEvent.objects.count(), 0)
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_past_end_date(self):
         self.populate_default_fcm_token
-        # a weekly survey, on a friday, sunday is the zero-index; I hate it more than you.
-        schedule, count_created = self.generate_a_real_weekly_schedule_event_with_schedule(5)
-        self.assertEqual(count_created, 1)
+        sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday, midnight
+        repopulate_weekly_survey_schedule_events(self.default_survey)
+        self.assertEqual(ScheduledEvent.objects.count(), 2)
+        
         # not testing time zones, just testing end date
         self.default_study.update(end_date=timezone.now().date() - timedelta(days=10))
         with time_machine.travel(THURS_OCT_20_NOON_2022_NY):
             self.assert_no_schedules()
+        
+        self.assertEqual(ScheduledEvent.objects.count(), 2)
+        update_scheduled_events()
+        self.assertEqual(ScheduledEvent.objects.count(), 0)
 
 
 class SchedulePersistenceCheck:
@@ -252,7 +300,7 @@ class SchedulePersistenceCheck:
         # we use participant id, survey id, scheduled time, and the type of schedule to uniquely
         # identify each scheduled event, so we can identify if the primary key, uuid, or uuid changed
         for (part_id, surv_id, scheduled_time, wkly_sched, rltv_sched, abslt_sched, pk, uuid) in q:
-            ("part_id:", part_id, "surv_id:", surv_id, "scheduled_time:", scheduled_time, "wkly_sched:", wkly_sched, "rltv_sched:", rltv_sched, "abslt_sched:", abslt_sched, "pk:", pk, "uuid:", uuid,)
+            # print("part_id:", part_id, "surv_id:", surv_id, "scheduled_time:", scheduled_time, "wkly_sched:", wkly_sched, "rltv_sched:", rltv_sched, "abslt_sched:", abslt_sched, "pk:", pk, "uuid:", uuid,)
             type_nonce = self.type_nonce(wkly_sched, rltv_sched, abslt_sched)
             key = (part_id, surv_id, scheduled_time, type_nonce)
             value = (pk, uuid)
@@ -274,6 +322,7 @@ class SchedulePersistenceCheck:
         
         q = ScheduledEvent.objects.values_list(*SCHEDULEDEVENT_IDENTITY_FIELDS)
         for (part_id, surv_id, scheduled_time, wkly_sched, rltv_sched, abslt_sched, pk, uuid) in q:
+            # print("part_id:", part_id, "surv_id:", surv_id, "scheduled_time:", scheduled_time, "wkly_sched:", wkly_sched, "rltv_sched:", rltv_sched, "abslt_sched:", abslt_sched, "pk:", pk, "uuid:", uuid,)
             type_nonce = self.type_nonce(wkly_sched, rltv_sched, abslt_sched)
             key = (part_id, surv_id, scheduled_time, type_nonce)
             new_value = (pk, uuid)
@@ -606,6 +655,13 @@ class TestSchedules(CommonTestCase, SchedulePersistenceCheck):
         self.assert_no_scheduled_events
         repopulate_all_survey_scheduled_events(self.default_study)
         self.assert_one_of_each_scheduled_event
+    
+    def test_repopulate_doesnt_even_need_to_delete_scheduledevents_from_deleted_schedules(self):
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study)
+        self.assert_one_of_each_scheduled_event
+        WeeklySchedule.objects.all().delete()
+        self.assertEqual(ScheduledEvent.objects.filter(weekly_schedule__isnull=False).count(), 0)
     
     #
     ## test conditions where ScheduledEvents should not be created

@@ -116,7 +116,7 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_OBSCURE_HTML_ERROR_CONTENT,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
@@ -127,7 +127,7 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_ERROR_INVALID_LENGTH,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
@@ -138,7 +138,7 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_ERROR_CONNECTION_POOL,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
@@ -149,7 +149,7 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_ERROR_ABORTED,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
@@ -160,7 +160,7 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_INVALID_GRANT,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()

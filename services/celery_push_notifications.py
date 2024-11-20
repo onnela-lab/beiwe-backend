@@ -20,10 +20,10 @@ from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS, UNEXPECTED_SERVICE_RESPONSE,
     UNKNOWN_REMOTE_ERROR)
-from constants.schedule_constants import ScheduleTypes
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ANDROID_API
 from database.schedule_models import ArchivedEvent, ScheduledEvent
+from database.study_models import Study
 from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantActionLog,
     ParticipantFCMHistory, PushNotificationDisabledEvent)
@@ -33,7 +33,7 @@ from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
 from libs.push_notification_helpers import (base_resend_logic_participant_query,
     fcm_for_pushable_participants, send_custom_notification_safely, slowly_get_stopped_study_ids,
     update_ArchivedEvents_from_SurveyNotificationReports)
-from libs.schedules import set_next_weekly
+from libs.schedules import repopulate_all_survey_scheduled_events
 from libs.sentry import make_error_sentry, SentryTypes
 
 
@@ -97,6 +97,7 @@ def lost_notification_checkin_query() -> List[Tuple[int, str, str]]:
       subject to change and must be documented.
     - Only participants with an app version that passes the version check will create ArchivedEvents
       with uuids, so only push notifications to known-capable devices will activate resends.
+    - Need to make a decision about whether we special-case details of weekly notifications.
     """
     # TOO_EARLY in populated as time of deploy that introduced this feature.
     TOO_EARLY = GlobalSettings.get_singleton_instance()\
@@ -650,7 +651,6 @@ def failed_send_survey_handler(
         raise BaseException("debug mode, not archiving events.")
     
     create_archived_events(schedules, participant, status=error_message)
-    enqueue_weekly_surveys(participant, schedules)
 
 
 def create_archived_events(
@@ -664,12 +664,9 @@ def create_archived_events(
         scheduled_event.archive(mark_as_deleted, participant, status=status)
 
 
-def enqueue_weekly_surveys(participant: Participant, schedules: List[ScheduledEvent]):
-    # set_next_weekly is idempotent until the next weekly event passes.
-    # its perfectly safe (commit time) to have many of the same weekly survey be scheduled at once.
-    for schedule in schedules:
-        if schedule.get_schedule_type() == ScheduleTypes.weekly:
-            set_next_weekly(participant, schedule.survey)
+def update_scheduled_events():
+    for study in Study.objects.all():
+        repopulate_all_survey_scheduled_events(study)
 
 
 # can't be factored out easily because it requires the celerytask function object.
