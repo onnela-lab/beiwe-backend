@@ -95,9 +95,13 @@ def create_task_run_push_notification_scheduledevent_rebuild():
 @scripts_celery_app.task(queue=SCRIPTS_QUEUE)
 def celery_process_run_push_notification_scheduledevent_rebuild():
     with SCRIPT_ERROR_SENTRY:
-        # not actually a script, just run this for-loop.
-        for study in Study.objects.all():
-            repopulate_all_survey_scheduled_events(study)
+        # not actually a script, just run this ... for-loop.
+        push_notification_scheduledevent_rebuild()
+
+
+def push_notification_scheduledevent_rebuild():
+    for study in Study.objects.all():
+        repopulate_all_survey_scheduled_events(study)
 
 
 #

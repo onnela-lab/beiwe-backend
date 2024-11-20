@@ -21,7 +21,8 @@ from libs.schedules import (export_weekly_survey_timings, get_next_weekly_event_
     get_start_and_end_of_java_timings_week, NoSchedulesException,
     repopulate_absolute_survey_schedule_events, repopulate_all_survey_scheduled_events,
     repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)
-from services.celery_push_notifications import get_surveys_and_schedules, update_scheduled_events
+from services.celery_push_notifications import get_surveys_and_schedules
+from services.scripts_runner import push_notification_scheduledevent_rebuild
 from tests.common import CommonTestCase
 
 
@@ -239,7 +240,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
         
         # and assert that schedules are removed this study after it is deleted?
         self.assertEqual(ScheduledEvent.objects.count(), 2)
-        update_scheduled_events()
+        push_notification_scheduledevent_rebuild()
         self.assertEqual(ScheduledEvent.objects.count(), 0)
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
@@ -254,7 +255,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
             self.assert_no_schedules()
         
         self.assertEqual(ScheduledEvent.objects.count(), 2)
-        update_scheduled_events()
+        push_notification_scheduledevent_rebuild()
         self.assertEqual(ScheduledEvent.objects.count(), 0)
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
@@ -270,7 +271,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
             self.assert_no_schedules()
         
         self.assertEqual(ScheduledEvent.objects.count(), 2)
-        update_scheduled_events()
+        push_notification_scheduledevent_rebuild()
         self.assertEqual(ScheduledEvent.objects.count(), 0)
 
 
@@ -662,6 +663,14 @@ class TestSchedules(CommonTestCase, SchedulePersistenceCheck):
         self.assert_one_of_each_scheduled_event
         WeeklySchedule.objects.all().delete()
         self.assertEqual(ScheduledEvent.objects.filter(weekly_schedule__isnull=False).count(), 0)
+    
+    def test_deleted_survey_deletes_scheduled_events(self):
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study)
+        self.assert_one_of_each_scheduled_event
+        self.default_survey.update(deleted=True)
+        repopulate_all_survey_scheduled_events(self.default_study)
+        self.assert_no_scheduled_events
     
     #
     ## test conditions where ScheduledEvents should not be created
