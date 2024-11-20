@@ -664,11 +664,6 @@ def create_archived_events(
         scheduled_event.archive(mark_as_deleted, participant, status=status)
 
 
-def update_scheduled_events():
-    for study in Study.objects.all():
-        repopulate_all_survey_scheduled_events(study)
-
-
 # can't be factored out easily because it requires the celerytask function object.
 # 2024-1-13 - it's not clear anymore if this is required .
 celery_send_survey_push_notification.max_retries = 0

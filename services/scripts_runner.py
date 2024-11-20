@@ -6,7 +6,9 @@ from typing import Callable
 from django.utils import timezone
 
 from constants.celery_constants import SCRIPTS_QUEUE
+from database.study_models import Study
 from libs.celery_control import safe_apply_async, scripts_celery_app
+from libs.schedules import repopulate_all_survey_scheduled_events
 from libs.sentry import make_error_sentry, SentryTypes
 
 
@@ -79,6 +81,23 @@ def celery_update_forest_version():
 
 
 ######################################### Hourly ###################################################
+
+#
+## push notification 
+#
+
+def create_task_run_push_notification_scheduledevent_rebuild():
+    with SCRIPT_ERROR_SENTRY:
+        print("Queueing ios bad decryption keys script.")
+        queue_script(celery_process_run_push_notification_scheduledevent_rebuild, HOURLY)
+
+
+@scripts_celery_app.task(queue=SCRIPTS_QUEUE)
+def celery_process_run_push_notification_scheduledevent_rebuild():
+    with SCRIPT_ERROR_SENTRY:
+        # not actually a script, just run this for-loop.
+        for study in Study.objects.all():
+            repopulate_all_survey_scheduled_events(study)
 
 
 #
