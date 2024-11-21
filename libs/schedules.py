@@ -487,9 +487,9 @@ arg_constructor_lookup = {"absolute": absolute_orgs, "relative": relative_orgs, 
 
 # These parameters go into the filter for the ScheduledEvent query.
 survey_filter_lookup = {
-    "absolute": dict(relative_schedule=None, weekly_schedule=None),
-    "relative": dict(absolute_schedule=None, weekly_schedule=None),
-    "weekly":   dict(absolute_schedule=None, relative_schedule=None),
+    "absolute": dict(absolute_schedule_id__isnull=False, relative_schedule=None, weekly_schedule=None),
+    "relative": dict(absolute_schedule=None, relative_schedule_id__isnull=False, weekly_schedule=None),
+    "weekly":   dict(absolute_schedule=None, relative_schedule=None, weekly_schedule_id__isnull=False),
 }
 
 

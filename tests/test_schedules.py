@@ -139,8 +139,6 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
         self.default_fcm_token
         self.default_study.update(timezone_name='America/New_York')  # default in tests is normally UTC
         self.default_study.refresh_from_db()
-        
-        
         sched = self.generate_weekly_schedule(self.default_survey, 4, 12, 0)  # thursday at eleven...
         
         # need to time travel to the past to get the weekly logic to produce the correct time(s)
@@ -730,6 +728,31 @@ class TestSchedules(CommonTestCase, SchedulePersistenceCheck):
         self.generate_a_valid_schedule_of_each_type
         repopulate_all_survey_scheduled_events(self.default_study)
         self.assert_no_scheduled_events
+    
+    # some other error modes...
+    
+    # Right, having a schedule is optional....
+    def test_survey_has_no_schedules_relative(self):
+        self.default_populated_intervention_date
+        self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
+        repopulate_relative_survey_schedule_events(self.default_survey, self.default_participant)
+        event = ScheduledEvent.objects.get()
+        event.update(relative_schedule=None)
+        repopulate_relative_survey_schedule_events(self.default_survey)
+    
+    def test_survey_has_no_schedules_weekly(self):
+        self.generate_weekly_schedule(self.default_survey, day_of_week=0)
+        repopulate_weekly_survey_schedule_events(self.default_survey, self.default_participant)
+        event = ScheduledEvent.objects.first()
+        event.update(weekly_schedule=None)
+        repopulate_weekly_survey_schedule_events(self.default_survey)
+    
+    def test_survey_has_no_schedules_absolute(self):
+        self.generate_absolute_schedule(timezone.now().date())
+        repopulate_absolute_survey_schedule_events(self.default_survey, self.default_participant)
+        event = ScheduledEvent.objects.get()
+        event.update(absolute_schedule=None)
+        repopulate_absolute_survey_schedule_events(self.default_survey)
     
     #
     ## The above are checks for the repopulate_all* functions, now we need to test some more
