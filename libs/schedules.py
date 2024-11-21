@@ -1,7 +1,9 @@
+from collections import Counter
 from datetime import date, datetime, time, timedelta
 from typing import Dict, List, Optional, Set, Tuple
 
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
@@ -12,7 +14,7 @@ from database.user_models_participant import Participant
 from libs.utils.date_utils import date_to_end_of_day, date_to_start_of_day
 
 
-ENABLE_SCHEDULE_LOGGING = False
+ENABLE_SCHEDULE_LOGGING = False  # ok you actually have to set this now there is code that checks it.
 
 def log(*args, **kwargs):
     if ENABLE_SCHEDULE_LOGGING:
@@ -60,11 +62,8 @@ def repopulate_all_survey_scheduled_events(study: Study, participant: Optional[P
         ScheduledEvent.objects.filter(survey__study_id=study.pk).delete()
         return
     
-    unschedule_surveys = []
     for survey in study.surveys.all():
-        # remove any scheduled events on surveys that have been deleted.
         if survey.deleted:
-            unschedule_surveys.append(survey)
             survey.scheduled_events.all().delete()
             continue
         
@@ -72,8 +71,6 @@ def repopulate_all_survey_scheduled_events(study: Study, participant: Optional[P
         repopulate_weekly_survey_schedule_events(survey, participant)
         repopulate_absolute_survey_schedule_events(survey, participant)
         repopulate_relative_survey_schedule_events(survey, participant)
-    
-    # ScheduledEvent.objects.filter(survey__in=unschedule_surveys).delete()
 
 
 def common_setup(
@@ -346,14 +343,15 @@ def schodelod_event_database_update(
         existing_event_lookup, valid_event_data, but_dont_actually_create_these
     )
     
-    existing_event_pks_to_delete = determine_events_to_delete(
+    existing_events_to_delete = determine_events_to_delete(
         existing_events, valid_event_data
     )
     
-    deleted = ScheduledEvent.objects.filter(
-        id__in=[pk for pk in existing_event_pks_to_delete]
+    ScheduledEvent.objects.filter(
+        id__in=[event.pk for event in existing_events_to_delete]
     ).delete()
-    log("deleted", deleted)
+    if existing_events_to_delete:
+        deleted_summary(existing_events_to_delete)
     
     create_new_event_objects(
         survey,
@@ -365,14 +363,14 @@ def schodelod_event_database_update(
 def determine_events_to_delete(
     existing_events: List[ScheduledEvent],
     valid_event_data: List[EventLookup],
-) -> List[SchedulePK]:
-    existing_events_to_delete: List[SchedulePK] = []
+) -> List[ScheduledEvent]:
+    existing_events_to_delete: List[ScheduledEvent] = []
     valid_events_lookup = set(valid_event_data)
     
     for event in existing_events:
         key: EventLookup = (event.get_schedule_pk(), event.participant_id, event.scheduled_time)
         if key not in valid_events_lookup:
-            existing_events_to_delete.append(event.pk)
+            existing_events_to_delete.append(event)
     
     return existing_events_to_delete
 
@@ -412,12 +410,43 @@ def create_new_event_objects(
         ))
     
     created_objects = ScheduledEvent.objects.bulk_create(new_event_objects_to_create)
-    log("created", created_objects)
+    if created_objects:
+        created_summary(created_objects)
     
     # TODO: we should emit two creation queries instead of checking after the fact.
     check_archives_for_newly_created_scheduled_events_to_mark_as_deleted(
         survey, eventlookups_to_create, created_objects
     )
+
+
+def created_summary(created_objects: List[ScheduledEvent]):
+    summary(created_objects, "created")
+
+
+def deleted_summary(deleted_objects: List[ScheduledEvent]):
+    summary(deleted_objects, "deleted")
+
+
+def summary(objects: List[ScheduledEvent], prefix: str):
+    if not ENABLE_SCHEDULE_LOGGING:
+        return
+    
+    now = timezone.now()
+    part_pks = list(set(event.participant_id for event in objects))
+    participant_names = dict(
+        Participant.objects.filter(id__in=part_pks).values_list("pk", "patient_id")
+    )
+    
+    in_the_past = []
+    in_the_future = []
+    for event in objects:
+        if event.scheduled_time < now:
+            in_the_past.append(participant_names[event.participant_id])
+        else:
+            in_the_future.append(participant_names[event.participant_id])
+    
+    log(f"{prefix}, in the past:", dict(Counter(in_the_past)))
+    log(f"{prefix}, in the future:", dict(Counter(in_the_future)))
 
 
 def check_archives_for_newly_created_scheduled_events_to_mark_as_deleted(

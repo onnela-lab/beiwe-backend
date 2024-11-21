@@ -69,7 +69,7 @@ def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[Schedule
 ####################################################################################################
 
 
-def lost_notification_checkin_query() -> List[Tuple[int, str, str]]:
+def lost_notification_checkin_query():
     """
     Participants upload a list of uuids of their received notifications, these uuids are stashed in
     SurveyNotificationReport, are sourced from ScheduledEvents, and recorded on ArchivedEvents.
