@@ -394,11 +394,11 @@ class TestParticipantTimeZone(CommonTestCase):
             pass  # it should raise a TypeError
     
     def test_try_bad_string(self):
-        # the unknown_timezone flag should be true at the start and the end.
+        # the unknown_timezone flag should be false at the start and true at the end.
         p = self.default_participant
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
-        self.assertEqual(p.unknown_timezone, True)  # A
+        self.assertEqual(p.unknown_timezone, False)  # A
         self.default_study.update(timezone_name="UTC")
         p.try_set_timezone("a bad string")
         # behavior should be to grab the study's timezone name, which for tests was unexpectedly UTC...
@@ -423,7 +423,7 @@ class TestParticipantTimeZone(CommonTestCase):
         last_update = p.last_updated
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
-        self.assertEqual(p.unknown_timezone, True)  # A
+        self.assertEqual(p.unknown_timezone, False)  # A
         p.try_set_timezone("America/New_York")
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
@@ -436,7 +436,7 @@ class TestParticipantTimeZone(CommonTestCase):
         last_update = p.last_updated
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
-        self.assertEqual(p.unknown_timezone, True)
+        self.assertEqual(p.unknown_timezone, False)
         p.try_set_timezone("America/Los_Angeles")
         self.assertEqual(p.timezone_name, "America/Los_Angeles")
         self.assertIs(p.timezone, gettz("America/Los_Angeles"))
