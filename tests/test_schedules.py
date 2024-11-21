@@ -670,6 +670,22 @@ class TestSchedules(CommonTestCase, SchedulePersistenceCheck):
         repopulate_all_survey_scheduled_events(self.default_study)
         self.assert_no_scheduled_events
     
+    def test_deleted_participant_deletes_scheduled_events(self):
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_one_of_each_scheduled_event
+        self.default_participant.update(deleted=True)
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_no_scheduled_events
+    
+    def test_permanently_retired_participant_deletes_scheduled_events(self):
+        self.generate_a_valid_schedule_of_each_type
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_one_of_each_scheduled_event
+        self.default_participant.update(permanently_retired=True)
+        repopulate_all_survey_scheduled_events(self.default_study, self.default_participant)
+        self.assert_no_scheduled_events
+    
     #
     ## test conditions where ScheduledEvents should not be created
     #

@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -53,7 +52,7 @@ def participant_allowed_surveys(participant: Participant) -> bool:
 ## Creating ScheduledEvents!
 #
 
-def repopulate_all_survey_scheduled_events(study: Study, participant: Participant = None):
+def repopulate_all_survey_scheduled_events(study: Study, participant: Optional[Participant] = None):
     """ Runs all the survey scheduled event generations on the provided entities. """
     log("repopulate_all_survey_scheduled_events")
     
@@ -74,7 +73,7 @@ def repopulate_all_survey_scheduled_events(study: Study, participant: Participan
         repopulate_absolute_survey_schedule_events(survey, participant)
         repopulate_relative_survey_schedule_events(survey, participant)
     
-    ScheduledEvent.objects.filter(survey__in=unschedule_surveys).delete()
+    # ScheduledEvent.objects.filter(survey__in=unschedule_surveys).delete()
 
 
 def common_setup(
@@ -152,7 +151,7 @@ def setup_info_from_relative_schedules(
     
     # relative schedules exist only in relation to interventions, they have to be calculated rather
     # than looked up.
-    participant_pks_and_dates_by_intervention_pk: Dict[int, Tuple[int, date]] = \
+    participant_pks_and_dates_by_intervention_pk: Dict[int, List[Tuple[int, date]]] = \
         get_relative_schedule_intervention_lookup(survey, participant_pks)
     
     # go through valid every participant-intevention_date-relative-schedule combination
@@ -169,7 +168,7 @@ def setup_info_from_relative_schedules(
 
 def get_relative_schedule_intervention_lookup(
     survey: Survey, participant_pks: List[ParticipantPK],
-) -> Dict[int, Tuple[int, date]]:
+) -> Dict[int, List[Tuple[int, date]]]:
     intervention_pks = list(survey.relative_schedules.values_list("intervention_id", flat=True))
     # relative schedules are "linked" to inverventions, the lookup is obnoxious.
     linking_query = InterventionDate.objects.filter(
@@ -181,7 +180,7 @@ def get_relative_schedule_intervention_lookup(
     ).values_list("intervention_id", "participant_id", "date")
     
     # populate all (even empty) intervention lookups (makes other code cleaner, debugging easier)
-    intervention_lookups: Dict[int, Tuple[int, date]] = {
+    intervention_lookups: Dict[int, List[Tuple[int, date]]] = {
         related_intervention_pk: [] for related_intervention_pk in intervention_pks
     }
     for related_intervention_pk, participant_pk, interventiondate_date in linking_query:
@@ -211,7 +210,7 @@ def repopulate_weekly_survey_schedule_events(survey: Survey, participant: Option
 
 def get_info_for_weekly_events(
     survey: Survey, participant_pks: List[ParticipantPK]
-) -> List[EventLookup]:
+) -> Tuple[List[EventLookup], Set[EventLookup]]:
     valid_event_data: List[EventLookup] = []
     but_dont_actually_create_these = []
     
@@ -228,7 +227,7 @@ def get_info_for_weekly_events(
             if t <= now:
                 but_dont_actually_create_these.append(eventlookup)
     
-    return valid_event_data, but_dont_actually_create_these
+    return valid_event_data, set(but_dont_actually_create_these)
 
 
 def get_bounded_2_week_window_of_weekly_schedule_pks_and_times(
@@ -245,7 +244,6 @@ def get_bounded_2_week_window_of_weekly_schedule_pks_and_times(
     
     # The timings schema peshed to devices mimics the Java.util.Calendar.DayOfWeek specification,
     # which is zero-indexed with day 0 as Sunday.
-    start_of_this_week: date  # Sunday.
     date_of_day_of_event_last_week: date  # day of event
     date_of_day_of_event_this_week: date  # day of event
     date_of_day_of_event_next_week: date  # day of event
@@ -337,22 +335,23 @@ def schodelod_event_database_update(
     valid_event_data: List[EventLookup],
     type_of_schedule: str,
     survey: Survey,
-    but_dont_actually_create_these: List[EventLookup] = [],
-):
-    but_dont_actually_create_these: Set[EventLookup] = set(but_dont_actually_create_these)
+    but_dont_actually_create_these: Set[EventLookup] = set(),
+):  
+    existing_event_lookup: Set[EventLookup] = set(
+        (event.get_schedule_pk(), event.participant_id, event.scheduled_time)
+         for event in existing_events
+    )
     
-    existing_event_lookup = generate_event_lookup_dict(existing_events)
     new_event_info_to_create = determine_events_to_create(
         existing_event_lookup, valid_event_data, but_dont_actually_create_these
     )
     
-    existing_events_as_eventlookups = list(existing_event_lookup.keys())
-    existing_events_to_delete = determine_events_to_delete(
-        existing_events_as_eventlookups, valid_event_data
+    existing_event_pks_to_delete = determine_events_to_delete(
+        existing_events, valid_event_data
     )
     
     deleted = ScheduledEvent.objects.filter(
-        id__in=[event.id for event in existing_events_to_delete]
+        id__in=[pk for pk in existing_event_pks_to_delete]
     ).delete()
     log("deleted", deleted)
     
@@ -363,34 +362,23 @@ def schodelod_event_database_update(
     )
 
 
-def generate_event_lookup_dict(existing_events: List[ScheduledEvent]) -> Dict[EventLookup, List[ScheduledEvent]]:
-    existing_events_by_schedule_participant_and_time = defaultdict(list)
-    
-    # to handle the case of (invalid database state with) multiple events with the same schedule
-    # info we need to create a dictionary of lists of events.
-    for event in existing_events:
-        the_key = (event.get_schedule_pk(), event.participant_id, event.scheduled_time)
-        existing_events_by_schedule_participant_and_time[the_key].append(event)
-    
-    return dict(existing_events_by_schedule_participant_and_time)
-
-
 def determine_events_to_delete(
-    existing_EventLookups: List[EventLookup],
+    existing_events: List[ScheduledEvent],
     valid_event_data: List[EventLookup],
-) -> Tuple[List[ScheduledEvent], List[Tuple[int, datetime]]]:
-    existing_events_to_delete: List[ScheduledEvent] = []
+) -> List[SchedulePK]:
+    existing_events_to_delete: List[SchedulePK] = []
     valid_events_lookup = set(valid_event_data)
     
-    for extant_EventLookup in existing_EventLookups:
-        if extant_EventLookup not in valid_events_lookup:
-            existing_events_to_delete.extend(existing_EventLookups[extant_EventLookup])
+    for event in existing_events:
+        key: EventLookup = (event.get_schedule_pk(), event.participant_id, event.scheduled_time)
+        if key not in valid_events_lookup:
+            existing_events_to_delete.append(event.pk)
     
     return existing_events_to_delete
 
 
 def determine_events_to_create(
-    existing_event_lookup: Dict[EventLookup, List[ScheduledEvent]],
+    existing_event_lookup: Set[EventLookup],
     valid_event_data: List[EventLookup],
     but_dont_actually_create_these: Set[EventLookup],
 ) -> List[EventLookup]:
@@ -456,7 +444,8 @@ def check_archives_for_newly_created_scheduled_events_to_mark_as_deleted(
             mark_as_deleted.append(new_and_marked_as_unsent_event_lookup[key])
     
     updates = ScheduledEvent.objects.filter(id__in=mark_as_deleted).update(deleted=True)
-    log("updated already send events", updates)
+    if updates:
+        log("updated already sent events", updates)
     # TODO: we should attach the survey archive to the ScheduledEvent... but there can be multiple matches...
 
 

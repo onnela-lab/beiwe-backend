@@ -230,7 +230,7 @@ class ScheduledEvent(TimestampedModel):
         elif self.absolute_schedule:
             return self.absolute_schedule
         else:
-            raise Exception("ScheduledEvent had no associated schedule")
+            raise TypeError("ScheduledEvent had no associated schedule")
     
     def get_schedule_pk(self):
         if self.weekly_schedule_id:
@@ -275,6 +275,17 @@ class ScheduledEvent(TimestampedModel):
         )
         archive.save()
         self.update(most_recent_event=archive, deleted=self_delete)
+    
+    def __str__(self):
+        t = "Manual"
+        if self.weekly_schedule_id:
+            t = "Weekly"
+        if self.relative_schedule_id:
+            t = "Relative"
+        if self.absolute_schedule_id:
+            t = "Absolute"
+        # comes out as <ScheduledEvent: Relative>
+        return t
 
 
 class ArchivedEvent(TimestampedModel):
