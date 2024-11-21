@@ -11,7 +11,7 @@ from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
 
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
-    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
+    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
 from database.common_models import TimestampedModel, UtilityModel
 from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, RelativeSchedule,
     ScheduledEvent, WeeklySchedule)
@@ -397,7 +397,7 @@ class TestResendLogicQuery(CommonTestCase):
     BEFORE_RUN = None
     AFTER_RUN = None
     
-    IOS_VERSION = IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
+    APP_VERSION = IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
     
     def setUp(self):
         super().setUp()
@@ -426,7 +426,7 @@ class TestResendLogicQuery(CommonTestCase):
     @property
     def setup_participant_2(self) -> Participant:
         p2 = self.generate_participant(self.default_study)
-        p2.update(last_os_version=self.IOS_VERSION, os_type=IOS_API)
+        p2.update(last_version_name=self.APP_VERSION, os_type=IOS_API)
         ParticipantFCMHistory(token=self.DEFAULT_FCM_TOKEN + "x", participant=p2).save()
         return p2
     
@@ -516,7 +516,7 @@ class TestResendLogicQuery(CommonTestCase):
     
     def test_ios_version_restriction_allows_equal(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        self.default_participant.update(os_type=IOS_API, last_version_name=self.IOS_VERSION)
+        self.default_participant.update(os_type=IOS_API, last_version_name=self.APP_VERSION)
         self.run_resend_logic_and_refresh_these_models(sched_event, archive)
         self.assert_resend_logic_reenabled_schedule_correctly(sched_event, archive)
     

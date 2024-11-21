@@ -67,21 +67,21 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
         self.assert_no_schedules()
     
     def test_absolute_fail(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         future = timezone.now() + timedelta(days=5)
         # an absolute survey 5 days in the future
         self.generate_easy_absolute_scheduled_event_with_absolute_schedule(future)
         self.assert_no_schedules()
     
     def test_relative_success(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         # a relative survey 5 days in the past
         schedule = self.generate_easy_relative_schedule_event_with_relative_schedule(timedelta(days=-5))
         surveys, schedules, patient_ids = get_surveys_and_schedules(timezone.now())
         self.assert_default_schedule_found(schedule)
     
     def test_relative_failure(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         # a relative survey 5 days in the past
         self.generate_easy_relative_schedule_event_with_relative_schedule(timedelta(days=5))
         self.assert_no_schedules()
@@ -90,7 +90,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
     def test_absolute_success(self, send_notification: MagicMock):
         send_notification.return_value = None
         
-        self.populate_default_fcm_token
+        self.default_fcm_token
         the_past = timezone.now() + timedelta(days=-5)
         # an absolute survey 5 days in the past
         schedule = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(the_past)
@@ -101,7 +101,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
         tz = gettz("America/New_York")
         self.default_study.update(timezone_name="America/New_York")
         
-        self.populate_default_fcm_token
+        self.default_fcm_token
         sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday at midnight
         self.assertEqual(0, ScheduledEvent.objects.count())
         # THURS_OCT_6_NOON_2022_NY - this will create the midnight friday 7th and 14th of october
@@ -118,7 +118,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
         tz = gettz("America/New_York")
         self.default_study.update(timezone_name="America/New_York")
         
-        self.populate_default_fcm_token
+        self.default_fcm_token
         sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday at midnight
         self.assertEqual(0, ScheduledEvent.objects.count())
         repopulate_weekly_survey_schedule_events(self.default_survey, self.default_participant)
@@ -136,7 +136,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
     
     @time_machine.travel(THURS_OCT_13_NOON_2022_NY)
     def test_participant_time_zones(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         self.default_study.update(timezone_name='America/New_York')  # default in tests is normally UTC
         self.default_study.refresh_from_db()
         
@@ -189,7 +189,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
         minus_four_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=4)
         minus_five_hours = WEDNESDAY_JUNE_NOON_8_2022_EDT - timedelta(hours=5)
         # GMT_time = WEDNESDAY_JUNE_NOON_8_2022_EDT.replace(tzinfo=gettz('GMT'))
-        self.populate_default_fcm_token
+        self.default_fcm_token
         
         # we have a bug where if the participant's timezone shifts it into the past it will not be
         # noticed by the survey schedule query until the study-timezone-based ScheduledEvent time is
@@ -227,7 +227,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
     # using weekly as a base we now test situations where it shouldn't return schedules
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_deleted_hidden_study(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         
         # schedules = self.generate_a_real_weekly_schedule_event_with_schedule(5)
         sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday, midnight
@@ -245,7 +245,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_manually_stopped_study(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday, midnight
         repopulate_weekly_survey_schedule_events(self.default_survey)
         self.assertEqual(ScheduledEvent.objects.count(), 2)
@@ -260,7 +260,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
     def test_past_end_date(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         sched = self.generate_weekly_schedule(self.default_survey, 5, 0, 0)  # friday, midnight
         repopulate_weekly_survey_schedule_events(self.default_survey)
         self.assertEqual(ScheduledEvent.objects.count(), 2)

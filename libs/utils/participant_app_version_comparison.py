@@ -1,11 +1,10 @@
 from operator import ge as gte, gt, le as lte, lt
-from typing import Optional
 
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_REFERENCE_VERSION_NULL, ERR_IOS_TARGET_VERSION_FORMAT,
     ERR_IOS_VERSION_COMPONENTS_DIGITS, ERR_TARGET_VERSION_CANNOT_BE_MISSING,
-    ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
+    ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE, ERR_UNKNOWN_TARGET_VERSION)
 from constants.user_constants import ANDROID_API, IOS_API
 
 
@@ -141,6 +140,9 @@ def _ios_is_this_version_op_than(
     
     if participant_version_name is None:
         raise ValueError(ERR_IOS_REFERENCE_VERSION_NULL)
+    
+    if not isinstance(target_version, str):
+        raise ValueError(ERR_UNKNOWN_TARGET_VERSION(target_version))
     
     if target_version.count(".") != 1:
         raise ValueError(ERR_IOS_TARGET_VERSION_FORMAT(target_version))

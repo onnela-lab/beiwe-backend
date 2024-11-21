@@ -269,7 +269,7 @@ class TestParticipantDataDeletion(CommonTestCase):
     
     @data_purge_mock_s3_calls
     def test_confirm_ParticipantFCMHistory(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)

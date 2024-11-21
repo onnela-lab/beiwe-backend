@@ -19,7 +19,7 @@ from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import REAL_ROLES
 from constants.user_constants import (ANDROID_API, IOS_API,
-    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, NULL_OS, ResearcherRole)
+    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, NULL_OS, ResearcherRole)
 from database.common_models import generate_objectid_string
 from database.data_access_models import ChunkRegistry, FileToProcess
 from database.forest_models import ForestTask, SummaryStatisticDaily
@@ -42,6 +42,74 @@ ABS_STATIC_ROOT = (BEIWE_PROJECT_ROOT + STATIC_ROOT).encode()
 CURRENT_TEST_DATE = timezone.now().today().date()
 CURRENT_TEST_DATE_TEXT = CURRENT_TEST_DATE.isoformat()
 CURRENT_TEST_DATE_BYTES = CURRENT_TEST_DATE_TEXT.encode()
+
+# the default participant must have all fields populated here and documented
+# In General - the expectation should be that the default participant will not satisfy conditions
+# where they are required and so will be set within the tests.
+DEFAULT_PARTICIPANT_PARAMS = {
+    # obvious base state
+    "deleted": False,
+    "permanently_retired": False,
+    
+    # explicit feature/setting flags should default to off
+    "easy_enrollment": False,
+    
+    # timezone
+    "timezone_name": "America/New_York",  # matching the default study
+    "unknown_timezone": False,
+    
+    # app version info, set in tests that care
+    "last_os_version": None,
+    "last_version_code": None,
+    "last_version_name": None,
+    
+    # server-side tracking timestamps
+    "last_heartbeat_notification": None,
+    "first_push_notification_checkin": None,
+    "first_register_user": None,  # barely used
+    
+    # ... its a push notification setting, 0 is correct because that is in fact the true number.
+    "push_notification_unreachable_count": 0,
+    
+    # beta features, enable manually if there are any tests for them at all
+    "enable_aggressive_background_persistence": False,
+    "enable_beta_features": False,
+    "enable_binary_uploads": False,
+    "enable_developer_datastream": False,
+    "enable_extensive_device_info_tracking": False,
+    "enable_new_authentication": False,
+    
+    # device action timestamps - only set these when there is an explicit test
+    # The default expectation should be that the default participant will not satisfy conditions.
+    "last_get_latest_device_settings": None,
+    "last_get_latest_surveys": None,
+    "last_heartbeat_checkin": None,
+    "last_push_notification_checkin": None,
+    "last_register_user": None,
+    "last_set_fcm_token": None,
+    "last_set_password": None,
+    "last_survey_checkin": None,
+    "last_upload": None,
+    
+    # remote device state, used in debugging, should be None and manipulated in tests
+    "device_status_report": None,
+    "raw_notification_report": None,
+    "last_active_survey_ids": None,
+}
+
+# populated elsewvhere, note that user is an android user.
+_skip = ("id","created_on","last_updated","password","patient_id","device_id","os_type","study")
+
+_all_field_names = [field.name for field in Participant._meta.fields]
+_unskipped_names = [field_name for field_name in _all_field_names if field_name not in _skip]
+
+for _field_name in _unskipped_names:
+    if _field_name not in DEFAULT_PARTICIPANT_PARAMS:
+        raise (f"field {_field_name} is not populated in DEFAULT_PARTICIPANT_PARAMS." )
+for _field_name in DEFAULT_PARTICIPANT_PARAMS:
+    if _field_name not in _all_field_names:
+        raise (f"field {_field_name} is not in the Participant model." )
+
 
 # this is a real, if simple, survey, it contains logically displayed questions based on the slider Q
 
@@ -297,8 +365,13 @@ class DatabaseHelperMixin:
             return self._default_participant
         except AttributeError:
             pass
+        
         self._default_participant = self.generate_participant(
-            self.session_study, self.DEFAULT_PARTICIPANT_NAME
+            self.session_study,
+            self.DEFAULT_PARTICIPANT_NAME,
+            ios=False,
+            device_id=self.DEFAULT_PARTICIPANT_DEVICE_ID,
+            **DEFAULT_PARTICIPANT_PARAMS,
         )
         return self._default_participant
     
@@ -308,12 +381,17 @@ class DatabaseHelperMixin:
         self.default_participant
     
     @property
-    def populate_default_fcm_token(self) -> ParticipantFCMHistory:
-        token = ParticipantFCMHistory(
+    def default_fcm_token(self) -> ParticipantFCMHistory:
+        try:
+            return self._default_fcm_token
+        except AttributeError:
+            pass
+        
+        self._default_fcm_token = ParticipantFCMHistory(
             token=self.DEFAULT_FCM_TOKEN, participant=self.default_participant
         )
-        token.save()
-        return token
+        self._default_fcm_token.save()
+        return self._default_fcm_token
     
     @property
     def default_participant_field_value(self) -> ParticipantFieldValue:
@@ -345,7 +423,7 @@ class DatabaseHelperMixin:
         return [self.generate_participant(self.session_study) for _ in range(10)]
     
     def generate_participant(
-        self, study: Study, patient_id: str = None, ios=False, device_id=None
+        self, study: Study, patient_id: str = None, ios=False, device_id=None, **kwargs,
     ) -> Participant:
         participant = Participant(
             patient_id=patient_id or generate_easy_alphanumeric_string(),
@@ -353,6 +431,7 @@ class DatabaseHelperMixin:
             study=study,
             device_id=device_id or self.DEFAULT_PARTICIPANT_DEVICE_ID,
             password=self.SOME_SHA1_PASSWORD_COMPONENTS,
+            **kwargs,
         )
         participant.set_password(self.DEFAULT_PARTICIPANT_PASSWORD)  # saves
         return participant
@@ -832,7 +911,7 @@ class DatabaseHelperMixin:
     def set_working_push_notification_basices(self):
         # we are not testing fcm token details in these tests.
         self.default_participant.update(deleted=False, permanently_retired=False)
-        self.populate_default_fcm_token
+        self.default_fcm_token
     
     @property
     def set_working_heartbeat_notification_fully_valid(self):
@@ -842,17 +921,17 @@ class DatabaseHelperMixin:
         self.default_participant.update(
             deleted=False, permanently_retired=False, last_upload=now - timedelta(minutes=61),
         )
-        self.populate_default_fcm_token
+        self.default_fcm_token
     
     @property
     def set_default_participant_all_push_notification_features(self):
         self.default_participant.update(
             deleted=False,
             permanently_retired=False,
-            last_version_name=IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+            last_version_name=IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
             os_type=IOS_API,
         )
-        self.populate_default_fcm_token
+        self.default_fcm_token
 
 
 def compare_dictionaries(reference, comparee, ignore=None):

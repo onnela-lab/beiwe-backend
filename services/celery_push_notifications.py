@@ -595,7 +595,6 @@ def success_send_survey_handler(participant: Participant, fcm_token: str, schedu
     participant.save()
     
     create_archived_events(schedules, participant, status=MESSAGE_SEND_SUCCESS)
-    enqueue_weekly_surveys(participant, schedules)
 
 
 def failed_send_survey_handler(

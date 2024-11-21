@@ -18,7 +18,7 @@ from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
-    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
+    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
 from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.survey_models import Survey
@@ -184,7 +184,7 @@ def base_resend_logic_participant_query(now: datetime) -> List[int]:
             raise AssertionError("this code is currently only supposed to be for ios, you to update can_handle_push_notification_resends if you change it.")
         # build must be greater than or equal to 2024.22
         if is_participants_version_gte_target(
-            os_type, version_code, version_name, IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
+            os_type, version_code, version_name, IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
         ):
             pushable_participant_pks.append(participant_id)
     
