@@ -580,7 +580,7 @@ def inner_send_survey_push_notification(
     send_notification(message)
 
 
-def success_send_survey_handler(participant: Participant, fcm_token: str, schedules: List[ScheduledEvent]):
+def success_send_survey_handler(participant: Participant, fcm_token: str, events: List[ScheduledEvent]):
     # If the query was successful archive the schedules.  Clear the fcm unregistered flag
     # if it was set (this shouldn't happen. ever. but in case we hook in a ui element we need it.)
     log(f"Survey push notification send succeeded for {participant.patient_id}.")
@@ -594,7 +594,7 @@ def success_send_survey_handler(participant: Participant, fcm_token: str, schedu
     participant.push_notification_unreachable_count = 0
     participant.save()
     
-    create_archived_events(schedules, participant, status=MESSAGE_SEND_SUCCESS)
+    create_archived_events(events, participant, status=MESSAGE_SEND_SUCCESS)
 
 
 def failed_send_survey_handler(
@@ -652,15 +652,10 @@ def failed_send_survey_handler(
     create_archived_events(schedules, participant, status=error_message)
 
 
-def create_archived_events(
-    schedules: List[ScheduledEvent],
-    participant: Participant,
-    status: str,
-):
-    # """ Populates event history, does not mark ScheduledEvents as deleted. """
-    mark_as_deleted = status == MESSAGE_SEND_SUCCESS
-    for scheduled_event in schedules:
-        scheduled_event.archive(mark_as_deleted, participant, status=status)
+def create_archived_events(events: List[ScheduledEvent], participant: Participant, status: str):
+    """ Populates event history, does not mark ScheduledEvents as deleted. """
+    for scheduled_event in events:
+        scheduled_event.archive(participant, status=status)
 
 
 # can't be factored out easily because it requires the celerytask function object.

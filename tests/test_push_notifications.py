@@ -177,7 +177,7 @@ class TestSendHandlers(CommonTestCase):
         success_send_survey_handler(
             participant=self.default_participant,
             fcm_token=self.default_fcm_token.token,
-            schedules=[event],
+            events=[event],
         )
         
         self.assertEqual(ArchivedEvent.objects.count(), 1)
@@ -198,7 +198,7 @@ class TestSendHandlers(CommonTestCase):
         success_send_survey_handler(
             participant=self.default_participant,
             fcm_token=self.default_fcm_token.token,
-            schedules=[event],
+            events=[event],
         )
         
         self.assertEqual(ArchivedEvent.objects.count(), 1)

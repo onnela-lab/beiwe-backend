@@ -9,6 +9,7 @@ from django.db import models
 from django.db.models import Manager
 from django.utils.timezone import make_aware
 
+from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.schedule_constants import ScheduleTypes
 from database.common_models import TimestampedModel
 from database.survey_models import Survey, SurveyArchive
@@ -113,7 +114,7 @@ class WeeklySchedule(TimestampedModel):
         day_of_week is an integer, day 0 is Sunday.
         
         The timings schema mimics the Java.util.Calendar.DayOfWeek specification: it is zero-indexed
-         with day 0 as Sunday."""
+        with day 0 as Sunday. """
     
     survey: Survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='weekly_schedules')
     day_of_week = models.PositiveIntegerField(validators=[MaxValueValidator(6)])
@@ -245,36 +246,28 @@ class ScheduledEvent(TimestampedModel):
         
     def archive(
         self,
-        self_delete: bool,
         participant: Participant,
         status: str,
     ):
         """ Create an ArchivedEvent from a ScheduledEvent. """
-        ## Participant is passed in here to avoid a database call.
-        # We need to handle the case of no-existing-survey-archive on the referenced survey,  Could
-        # be cleaner, but there is an interaction with a migration that will break; not worth it.
-        try:
-            survey_archive = self.survey.most_recent_archive()
-        except SurveyArchive.DoesNotExist:
-            self.survey.archive()
-            survey_archive = self.survey.most_recent_archive()
-        
-        if participant.can_handle_push_notification_resends:
-            the_uuid = self.uuid
-        else:
-            the_uuid = None
+        ## Hot code path, Participant is passed in here to avoid a database call.
+        survey_archive_pk = self.survey.most_recent_archive_pk()  
+        the_uuid = self.uuid if participant.can_handle_push_notification_resends else None
         
         # create ArchivedEvent, link to most_recent_event, conditionally mark self as deleted.
         archive = ArchivedEvent(
-            survey_archive=survey_archive,
+            survey_archive_id=survey_archive_pk,
             participant=self.participant,
             schedule_type=self.get_schedule_type(),
             scheduled_time=self.scheduled_time,
             status=status,
             uuid=the_uuid,
+            was_resend=self.most_recent_event is not None,
         )
         archive.save()
-        self.update(most_recent_event=archive, deleted=self_delete)
+        
+        # mark self as deleted on success.
+        self.update(most_recent_event=archive, deleted=status == MESSAGE_SEND_SUCCESS)
     
     def __str__(self):
         t = "Manual"
@@ -298,6 +291,7 @@ class ArchivedEvent(TimestampedModel):
     status = models.TextField(null=False, blank=False, db_index=True)
     uuid = models.UUIDField(null=True, blank=True, db_index=True)  # see comment below field listing
     confirmed_received = models.BooleanField(default=False, db_index=True, null=True)
+    was_resend = models.BooleanField(default=False, null=False)
     
     # The uuid field cannot have not-null or unique constraints because there is behavior that
     # depends on those value. We are using uuids to connect ArchivedEvents to ScheduledEvents, and

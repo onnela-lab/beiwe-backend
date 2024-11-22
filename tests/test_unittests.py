@@ -299,7 +299,7 @@ class TestParticipantDataDeletion(CommonTestCase):
     @data_purge_mock_s3_calls
     def test_confirm_ArchivedEvent(self):
         sched_event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
-        sched_event.archive(True, self.default_participant, status="deleted")
+        sched_event.archive(self.default_participant, status="deleted")
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
