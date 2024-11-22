@@ -118,11 +118,14 @@ td.custom-field-value:hover span.custom-field-edit-link {
     display: inline-block;
 }
 
-.tableRowSuccess {
-    background-color: #dff0d8;
+.tableRowReceived {
+    background-color: #dff0d8 !important;
 }
 .tableRowError {
-    background-color: #f2dede;
+    background-color: #f2dede !important;
+}
+.tableRowPending {
+    background-color: rgb(41, 98, 146, 0.5) !important;
 }
 
 .survey-label {

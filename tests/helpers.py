@@ -929,6 +929,7 @@ class DatabaseHelperMixin:
             deleted=False,
             permanently_retired=False,
             last_version_name=IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+            last_version_code="aaah!!! does not matter",
             os_type=IOS_API,
         )
         self.default_fcm_token

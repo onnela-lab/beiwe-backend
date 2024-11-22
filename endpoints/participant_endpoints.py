@@ -412,13 +412,20 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
     # defaults to false, looks for the string 'true'.
     include_keepalive = request.GET.get('include_keepalive', "false").lower() == 'true'
     
-    # archived events are survey notification events, we have logic that expects page size of 25.
+    # archived events are survey notification events, logic that expects page size of 25.
     archived_events = Paginator(query_values_for_notification_history(participant.id), 25)
     try:
         archived_events_page = archived_events.page(page_number)
     except EmptyPage:
         return HttpResponse(content="", status=404)
     last_page_number = archived_events.page_range.stop - 1
+    
+    # obscure: this changes the internal objects_list from a query to a list
+    notifcation_uuids = [event["uuid"] for event in archived_events_page if event["uuid"]]
+    uuids_to_received_time = dict(
+        participant.notification_reports.filter(notification_uuid__in=notifcation_uuids)
+        .values_list("notification_uuid", "created_on")
+    )
     
     if include_keepalive:
         # get the heartbeats that are relevant to this page
@@ -437,7 +444,7 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
         key=lambda list_or_dict: list_or_dict["created_on"] if isinstance(list_or_dict, dict) else list_or_dict,
         reverse=True,
     )
-    
+    participant.archived_events.values_list("uuid")
     # again based on object type we can determine which dictionaryifier to call, and we're done with
     # this INSANITY.
     notification_attempts = []
@@ -445,7 +452,7 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
     for notification in all_notifications:
         if isinstance(notification, dict):
             notification_attempts.append(
-                notification_details_archived_event(notification, study.timezone, survey_names)
+                notification_details_archived_event(notification, study.timezone, survey_names, uuids_to_received_time)
             )
         else:
             notification_attempts.append(
