@@ -324,7 +324,7 @@ class Participant(AbstractPasswordUser):
     
     @property 
     def can_handle_push_notification_resends(self) -> bool:
-        if self.os_type != IOS_API:
+        if self.os_type != IOS_API or self.last_version_code is None or self.last_version_name is None:
             return False
         
         # does all the tests for None-ness etc.
