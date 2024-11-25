@@ -209,14 +209,14 @@ class TestGetLatestSurveys(ParticipantSessionTest):
         output_survey = orjson.loads(resp.content.decode())
         reference_output = self.BASIC_SURVEY_CONTENT
         reference_output[0]["timings"] = MIDNIGHT_EVERY_DAY_OF_WEEK()
-        WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
+        WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         self.assertEqual(output_survey, self.BASIC_SURVEY_CONTENT)
     
     def test_weekly_basics2(self):
         self.default_survey
         reference_output = self.BASIC_SURVEY_CONTENT
         reference_output[0]["timings"] = MIDNIGHT_EVERY_DAY_OF_WEEK()
-        WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
+        WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         resp = self.smart_post_status_code(200)
         output_survey = orjson.loads(resp.content.decode())
         self.assertEqual(output_survey, reference_output)

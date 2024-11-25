@@ -367,31 +367,31 @@ class TestWeeklyTimingsSchedules(CommonTestCase, SchedulePersistenceCheck):
     
     def test_create_weekly_schedules(self):
         # assert we handle no surveys case
-        WeeklySchedule.create_weekly_schedules(EMPTY_WEEKLY_SURVEY_TIMINGS(), self.default_survey)
+        WeeklySchedule.configure_weekly_schedules(EMPTY_WEEKLY_SURVEY_TIMINGS(), self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 0)
         # assert we created a survey for every week
-        WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
+        WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 7)
         self.assertEqual(
             sorted(list(WeeklySchedule.objects.values_list("day_of_week", flat=True))),
             list(range(0, 7)),
         )
     
-    def test_create_weekly_schedules_details(self):
+    def test_create_weekly_schedules_time_details(self):
         timings = EMPTY_WEEKLY_SURVEY_TIMINGS()
         timings[0].append(3600 + 120)  # schedule 1am and 2 minutes on sunday
-        WeeklySchedule.create_weekly_schedules(timings, self.default_survey)
+        WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 1)
         weekly = WeeklySchedule.objects.first()
         self.assertEqual(weekly.day_of_week, 0)
         self.assertEqual(weekly.hour, 1)
         self.assertEqual(weekly.minute, 2)
     
-    def test_create_weekly_schedules_details_2(self):
+    def test_create_weekly_schedules_time_details_2(self):
         # as test_create_weekly_schedules_details, but we drop seconds because we only have minutes
         timings = EMPTY_WEEKLY_SURVEY_TIMINGS()
         timings[0].append(3600 + 120 + 1)  # schedule 1am and 1 minute and 1 second on sunday
-        WeeklySchedule.create_weekly_schedules(timings, self.default_survey)
+        WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 1)
         weekly = WeeklySchedule.objects.first()
         self.assertEqual(weekly.day_of_week, 0)
@@ -404,35 +404,51 @@ class TestWeeklyTimingsSchedules(CommonTestCase, SchedulePersistenceCheck):
             timings = [[0] for _ in range(i)]
             if len(timings) != 7:
                 self.assertRaises(
-                    BadWeeklyCount, WeeklySchedule.create_weekly_schedules, timings, self.default_survey
+                    BadWeeklyCount, WeeklySchedule.configure_weekly_schedules, timings, self.default_survey
                 )
             else:
-                WeeklySchedule.create_weekly_schedules(timings, self.default_survey)
+                WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
                 self.assertEqual(WeeklySchedule.objects.count(), 7)
+    
+    def assert_is_just_weekly_midnight(self):
+        self.assertEqual(WeeklySchedule.objects.count(), 7)
+        for i, sched in enumerate(WeeklySchedule.objects.order_by("day_of_week")):
+            self.assertEqual(sched.day_of_week, i)
+            self.assertEqual(sched.hour, 0)
+            self.assertEqual(sched.minute, 0)
     
     def test_create_weekly_clears(self):
         # test that deleted surveys and empty timings lists delete stuff
-        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
-        self.assertFalse(duplicates)
-        self.assertEqual(WeeklySchedule.objects.count(), 7)
-        duplicates = WeeklySchedule.create_weekly_schedules([], self.default_survey)
-        self.assertFalse(duplicates)
+        WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
+        self.assert_is_just_weekly_midnight()
+        # test empty case
+        WeeklySchedule.configure_weekly_schedules([], self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 0)
-        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
-        self.assertFalse(duplicates)
-        self.assertEqual(WeeklySchedule.objects.count(), 7)
+        WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
+        self.assert_is_just_weekly_midnight()
+        # test deleted survey case
         self.default_survey.update(deleted=True)
-        duplicates = WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
-        self.assertFalse(duplicates)
+        WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 0)
+        self.default_survey.update(deleted=False)
+        WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
+        self.assert_is_just_weekly_midnight()
     
-    def test_duplicates_return_value(self):
-        timings = MIDNIGHT_EVERY_DAY_OF_WEEK()
-        timings[0].append(0)
-        duplicates = WeeklySchedule.create_weekly_schedules(timings, self.default_survey)
-        self.assertTrue(duplicates)
-        self.assertEqual(WeeklySchedule.objects.count(), 7)
-
+    def test_create_weekly_replaces_not_deletes(self):
+        timings = MIDNIGHT_EVERY_DAY_OF_WEEK()  #[[0], [0], [0], [0], [0], [0], [0]]
+        WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
+        self.assert_is_just_weekly_midnight()
+        pks = set(WeeklySchedule.objects.values_list("pk", flat=True))
+        timings[0].append(3600) # add a 1am
+        WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
+        self.assertEqual(WeeklySchedule.objects.count(), 8)
+        pks_2 = set(WeeklySchedule.objects.values_list("pk", flat=True))
+        self.assertEqual(len(pks_2 - pks), 1)
+        extra_pk = (pks_2 - pks).pop()
+        extra_sched = WeeklySchedule.objects.get(pk=extra_pk)
+        self.assertEqual(extra_sched.day_of_week, 0)
+        self.assertEqual(extra_sched.hour, 1)
+        self.assertEqual(extra_sched.minute, 0)
 
 
 class TestSchedules(CommonTestCase, SchedulePersistenceCheck):
@@ -464,10 +480,10 @@ class TestSchedules(CommonTestCase, SchedulePersistenceCheck):
     #
     
     def create_weekly_midnight(self):
-        WeeklySchedule.create_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
+        WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
     
     def create_weekly_noon(self):
-        WeeklySchedule.create_weekly_schedules(NOON_EVERY_DAY_OF_WEEK(), self.default_survey)
+        WeeklySchedule.configure_weekly_schedules(NOON_EVERY_DAY_OF_WEEK(), self.default_survey)
     
     def iterate_weekday_absolute_schedules(self):
         # iterates over days of the week and populates absolute schedules and scheduled events

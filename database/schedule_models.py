@@ -125,7 +125,7 @@ class WeeklySchedule(TimestampedModel):
     scheduled_events: Manager[ScheduledEvent]
     
     @staticmethod
-    def create_weekly_schedules(timings: List[List[int]], survey: Survey) -> bool:
+    def configure_weekly_schedules(timings: List[List[int]], survey: Survey):
         """ Creates new WeeklySchedule objects from a frontend-style list of seconds into the day. """
         if survey.deleted or not timings:
             survey.weekly_schedules.all().delete()
@@ -136,22 +136,19 @@ class WeeklySchedule(TimestampedModel):
             raise BadWeeklyCount(
                 f"Must have schedule for every day of the week, found {len(timings)} instead."
             )
-        survey.weekly_schedules.all().delete()
         
-        duplicated = False
+        new_pks: List[int] = []
         for day in range(7):
             for seconds in timings[day]:
                 # should be all ints, use integer division.
                 hour = seconds // 3600
                 minute = seconds % 3600 // 60
-                # using get_or_create to catch duplicate schedules
-                _, created = WeeklySchedule.objects.get_or_create(
+                instance, created = WeeklySchedule.objects.get_or_create(
                     survey=survey, day_of_week=day, hour=hour, minute=minute
                 )
-                if not created:
-                    duplicated = True
+                new_pks.append(instance.pk)
         
-        return duplicated
+        survey.weekly_schedules.exclude(id__in=new_pks).delete()
     
     @classmethod
     def export_survey_timings(cls, survey: Survey) -> List[List[int]]:

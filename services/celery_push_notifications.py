@@ -69,7 +69,7 @@ def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[Schedule
 ####################################################################################################
 
 
-def lost_notification_checkin_query():
+def undelete_events_based_on_lost_notification_checkin():
     """
     Participants upload a list of uuids of their received notifications, these uuids are stashed in
     SurveyNotificationReport, are sourced from ScheduledEvents, and recorded on ArchivedEvents.
@@ -419,7 +419,7 @@ def create_survey_push_notification_tasks():
     
     # though complex this query logic really should be on the order of a few seconds max. Running it
     # before every push notification task means we might actually hit the 30 minute timeout.
-    lost_notification_checkin_query()
+    undelete_events_based_on_lost_notification_checkin()
     
     now = timezone.now()
     surveys, schedules, patient_ids = get_surveys_and_schedules(now)

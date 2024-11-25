@@ -105,27 +105,21 @@ def update_survey(request: ResearcherRequest, study_id: int, survey_id: int):
     
     # For each of the schedule types, creates Schedule objects and ScheduledEvent objects
     weekly_timings = json.loads(request.POST.get('weekly_timings'))
-    w_duplicated = WeeklySchedule.create_weekly_schedules(weekly_timings, survey)
+    WeeklySchedule.configure_weekly_schedules(weekly_timings, survey)
     repopulate_weekly_survey_schedule_events(survey)
     
     absolute_timings = json.loads(request.POST.get('absolute_timings'))
-    a_duplicated = AbsoluteSchedule.create_absolute_schedules(absolute_timings, survey)
+    AbsoluteSchedule.create_absolute_schedules(absolute_timings, survey)
     repopulate_absolute_survey_schedule_events(survey)
     
     relative_timings = json.loads(request.POST.get('relative_timings'))
-    r_duplicated = RelativeSchedule.create_relative_schedules(relative_timings, survey)
+    RelativeSchedule.create_relative_schedules(relative_timings, survey)
     repopulate_relative_survey_schedule_events(survey)
     
     # These three all stay JSON when added to survey
     content = json.dumps(content)
     settings = request.POST.get('settings')
     survey.update(content=content, settings=settings)
-    
-    # if any duplicate schedules were submitted, flash a message
-    if w_duplicated or a_duplicated or r_duplicated:
-        messages.success(
-            request, 'Duplicate schedule was submitted. Only one of the duplicates was created.'
-        )
     return HttpResponse(status=201)
 
 

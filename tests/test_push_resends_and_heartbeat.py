@@ -1,9 +1,10 @@
 # trunk-ignore-all(ruff/B018)
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Tuple
+from typing import Tuple
 from unittest.mock import MagicMock, patch
 
+import time_machine
 from dateutil.tz import gettz
 from django.utils import timezone
 from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
@@ -20,7 +21,7 @@ from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     SurveyNotificationReport)
 from services.celery_push_notifications import (create_heartbeat_tasks, get_surveys_and_schedules,
-    heartbeat_query, lost_notification_checkin_query)
+    heartbeat_query, undelete_events_based_on_lost_notification_checkin)
 from tests.common import CommonTestCase
 
 
@@ -407,9 +408,9 @@ class TestResendLogicQuery(CommonTestCase):
         global_settings = GlobalSettings.get_singleton_instance()
         global_settings.update(earliest_possible_time_of_push_notification_resend=self.THE_BEGINNING_OF_TIME)
     
-    def run_resend_logic_and_refresh_these_models(self, *args: List[UtilityModel]):
+    def run_resend_logic_and_refresh_these_models(self, *args: UtilityModel):
         self.BEFORE_RUN = timezone.now()
-        lost_notification_checkin_query()
+        undelete_events_based_on_lost_notification_checkin()
         self.AFTER_RUN = timezone.now()
         for model in args:
             model.refresh_from_db()
@@ -497,13 +498,13 @@ class TestResendLogicQuery(CommonTestCase):
     
     def test_no_data(self):
         self.assert_counts(0, 0, 0)
-        lost_notification_checkin_query()
+        undelete_events_based_on_lost_notification_checkin()
         self.assert_counts(0, 0, 0)
     
     def test_one_participant_nothing_else(self):
         self.using_default_participant()
         self.assert_counts(0, 0, 0)
-        lost_notification_checkin_query()
+        undelete_events_based_on_lost_notification_checkin()
         self.assert_counts(0, 0, 0)
     
     # version restrictions
@@ -571,6 +572,25 @@ class TestResendLogicQuery(CommonTestCase):
         self.assert_last_updated_not_equal(archive, sched_event)
     
     # archivedevent and scheduledevent behavior
+    
+    # FIXME: this test failing is a bug, maybe a timezone bug, maybe something else
+    from dateutil.tz import gettz
+    t = datetime(2024, 11, 25, 18, 30, 0, 0, tzinfo=gettz("America/New_York"))
+    # with time_machine.travel(t):
+    @time_machine.travel(t)
+    def test_uhoh_bug_archive_last_updated_less_than_30_minutes_ago_does_nothing(self):
+        # recently updated archive should not result in resend
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        ArchivedEvent.fltr(pk=archive.pk).update(last_updated=self.NOW_SORTA - timedelta(minutes=29))
+        old_archive_last_updated = archive.last_updated
+        self.assertEqual(old_archive_last_updated, self.THE_PAST)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertNotEqual(archive.last_updated, old_archive_last_updated)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
     
     def test_archive_last_updated_less_than_30_minutes_ago_does_nothing(self):
         # recently updated archive should not result in resend
