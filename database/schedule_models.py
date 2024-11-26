@@ -25,8 +25,10 @@ except ImportError:
 class BadWeeklyCount(Exception): pass
 InterventionPK = int
 DaysAfter = int
+Year = int
+Month = int
+Day = int
 SecondsIntoDay = int
-
 
 class AbsoluteSchedule(TimestampedModel):
     survey: Survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='absolute_schedules')
@@ -49,25 +51,24 @@ class AbsoluteSchedule(TimestampedModel):
         )
     
     @staticmethod
-    def create_absolute_schedules(timings: List[List[int]], survey: Survey) -> bool:
-        """ Creates new AbsoluteSchedule objects from a frontend-style list of dates and times"""
-        survey.absolute_schedules.all().delete()
+    def configure_absolute_schedules(timings: List[Tuple[Year, Month, Day, SecondsIntoDay]], survey: Survey):
+        """ Creates and deletes AbsoluteSchedules for a survey to match the frontend's absolute
+        schedule timings, a list of year, month, day, seconds-into-the-day defining a time. """
         
         if survey.deleted or not timings:
+            survey.absolute_schedules.all().delete()
             return False
         
-        duplicated = False
+        valid_pks = []
         for year, month, day, num_seconds in timings:
-            _, created = AbsoluteSchedule.objects.get_or_create(
+            instance, _ = AbsoluteSchedule.objects.get_or_create(
                 survey=survey,
                 date=date(year=year, month=month, day=day),
                 hour=num_seconds // 3600,
                 minute=num_seconds % 3600 // 60
             )
-            if not created:
-                duplicated = True
-        
-        return duplicated
+            valid_pks.append(instance.pk)
+        survey.absolute_schedules.exclude(id__in=valid_pks).delete()
 
 
 class RelativeSchedule(TimestampedModel):
@@ -91,12 +92,14 @@ class RelativeSchedule(TimestampedModel):
     
     @staticmethod
     def configure_relative_schedules(timings: List[Tuple[InterventionPK, DaysAfter, SecondsIntoDay]], survey: Survey):
-        """ Creates or deletes RelativeSchedules for a survey to match the input timings. """
+        """ Creates and deletes RelativeSchedules for a survey to match the frontend's relative
+        schedule input timings, the pk of the relevant intervention to target, the number of days
+        after, and the number of seconds into that day. """
         
         if survey.deleted or not timings:
             survey.relative_schedules.all().delete()
             return False
-                
+            
         valid_pks: List[int] = []
         for intervention_pk, days_after, num_seconds in timings:
             # using get_or_create to catch duplicate schedules
@@ -128,7 +131,7 @@ class WeeklySchedule(TimestampedModel):
     
     @staticmethod
     def configure_weekly_schedules(timings: List[List[int]], survey: Survey):
-        """ Creates or deletes WeeklySchedule for a survey to match the input timings. """
+        """ Creates and deletes WeeklySchedule for a survey to match the input timings. """
         if survey.deleted or not timings:
             survey.weekly_schedules.all().delete()
             return False
@@ -149,7 +152,6 @@ class WeeklySchedule(TimestampedModel):
                     survey=survey, day_of_week=day, hour=hour, minute=minute
                 )
                 valid_pks.append(instance.pk)
-        
         survey.weekly_schedules.exclude(id__in=valid_pks).delete()
     
     @classmethod

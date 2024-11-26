@@ -109,7 +109,7 @@ def update_survey(request: ResearcherRequest, study_id: int, survey_id: int):
     repopulate_weekly_survey_schedule_events(survey)
     
     absolute_timings = json.loads(request.POST.get('absolute_timings'))
-    AbsoluteSchedule.create_absolute_schedules(absolute_timings, survey)
+    AbsoluteSchedule.configure_absolute_schedules(absolute_timings, survey)
     repopulate_absolute_survey_schedule_events(survey)
     
     relative_timings = json.loads(request.POST.get('relative_timings'))

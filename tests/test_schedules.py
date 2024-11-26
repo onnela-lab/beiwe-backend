@@ -478,6 +478,7 @@ class TestWeeklyTimingsSchedules(CommonTestCase):
         self.assertEqual(first.day_of_week, 1)
         self.assertEqual(last.day_of_week, 6)
 
+
 class TestRelativeSchedulesCreation(CommonTestCase):
     
     @property
@@ -556,6 +557,81 @@ class TestRelativeSchedulesCreation(CommonTestCase):
         self.assertEqual(two.days_after, two_again.days_after)
         self.assertEqual(two.hour, two_again.hour)
         self.assertEqual(two.minute, two_again.minute)
+
+
+class TestAbsoluteSchedulesCreation(CommonTestCase):
+    TODAY = timezone.now().today().date()
+    TOMORROW = TODAY + timedelta(days=1)
+    
+    @property
+    def today_at_one(self):
+        return self.TODAY.year, self.TODAY.month, self.TODAY.day, 3600
+    
+    @property
+    def tomorrow_at_two(self):
+        return self.TOMORROW.year, self.TOMORROW.month, self.TOMORROW.day, 3600*2
+    
+    def test_create_absolute_schedule(self):
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)
+        AbsoluteSchedule.objects.get()
+        self.assertEqual(AbsoluteSchedule.objects.get().date, self.TODAY)
+        self.assertEqual(AbsoluteSchedule.objects.get().hour, 1)
+    
+    def test_create_two_absolute_schedules(self):
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one, self.tomorrow_at_two], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 2)
+        one, two = AbsoluteSchedule.objects.order_by("date")
+        self.assertEqual(one.date, self.TODAY)
+        self.assertEqual(one.hour, 1)
+        self.assertEqual(two.date, self.TOMORROW)
+        self.assertEqual(two.hour, 2)
+    
+    def test_create_absolute_schedule_clears(self):
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)
+        AbsoluteSchedule.configure_absolute_schedules([], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 0)
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)
+        self.default_survey.update(deleted=True)
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 0)
+    
+    def test_create_absolute_schedule_deduplicates(self):
+        # identical schedules should not be duplicated
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)
+        AbsoluteSchedule.objects.all().delete()
+        # should result in a single schedule
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one, self.today_at_one], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)
+        # should create only one new schedule
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one, self.tomorrow_at_two], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 2)
+    
+    def test_create_absolute_schedule_does_not_delete_existing(self):
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
+        one = AbsoluteSchedule.objects.get()
+        AbsoluteSchedule.configure_absolute_schedules([self.today_at_one, self.tomorrow_at_two], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 2)
+        one_again, two = AbsoluteSchedule.objects.order_by("date")
+        self.assertEqual(one.hour, 1)
+        self.assertEqual(one.pk, one_again.pk)
+        self.assertEqual(one.date, one_again.date)
+        self.assertEqual(one.hour, one_again.hour)
+        # and then test that it deletes the correct one
+        AbsoluteSchedule.configure_absolute_schedules([self.tomorrow_at_two], self.default_survey)
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)
+        two_again = AbsoluteSchedule.objects.get()
+        self.assertEqual(two.pk, two_again.pk)
+        self.assertEqual(two.date, self.TOMORROW)
+        self.assertEqual(two_again.date, self.TOMORROW)
+        self.assertEqual(two.hour, 2)
+        self.assertEqual(two_again.hour, 2)
+    
 
 
 class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
