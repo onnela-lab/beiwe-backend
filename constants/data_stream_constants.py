@@ -20,7 +20,6 @@ TEXTS_LOG = "texts"
 VOICE_RECORDING = "audio_recordings"
 WIFI = "wifi"
 
-
 ALL_DATA_STREAMS = [
     ACCELEROMETER,
     AMBIENT_AUDIO,
@@ -49,7 +48,7 @@ SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
 UPLOAD_FILE_TYPE_MAPPING = {
     "accel": ACCELEROMETER,
     "bluetoothLog": BLUETOOTH,
-    "omniring": OMNIRING,
+    "omniRingLog": OMNIRING,
     "callLog": CALL_LOG,
     "devicemotion": DEVICEMOTION,
     "gps": GPS,
@@ -119,7 +118,6 @@ CHUNKABLE_FILES = {
 # annoyingly long
 DEVICE_IDENTIFIERS_HEADER = \
     "patient_id,MAC,phone_number,device_id,device_os,os_version,product,brand,hardware_id,manufacturer,model,beiwe_version\n"
-
 
 ## Dashboard constants
 
