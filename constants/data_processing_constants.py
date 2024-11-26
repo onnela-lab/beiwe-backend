@@ -29,6 +29,10 @@ REFERENCE_CHUNKREGISTRY_HEADERS = {
         ANDROID_API: b'timestamp,UTC time,hashed MAC,RSSI',
         IOS_API: b'timestamp,UTC time,hashed MAC,RSSI',  # android-only data stream
     },
+    OMNIRING: {
+        ANDROID_API: b'timestamp,UTC time,PPG_red,PPG_IR,PPG_Green,IMU_Accel_x,IMU_Accel_y,IMU_Accel_z,IMU_Gyro_x,IMU_Gyro_y,IMU_Gyro_z,IMU_Mag_x,IMU_Mag_y,IMU_Mag_z,temperature,timestamp',
+        IOS_API: b'timestamp,UTC time,PPG_red,PPG_IR,PPG_Green,IMU_Accel_x,IMU_Accel_y,IMU_Accel_z,IMU_Gyro_x,IMU_Gyro_y,IMU_Gyro_z,IMU_Mag_x,IMU_Mag_y,IMU_Mag_z,temperature,timestamp',
+    },
     CALL_LOG: {
         ANDROID_API: b'timestamp,UTC time,hashed phone number,call type,duration in seconds',
         IOS_API: b'timestamp,UTC time,hashed phone number,call type,duration in seconds',  # android-only data stream
