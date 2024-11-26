@@ -23,6 +23,9 @@ except ImportError:
 
 
 class BadWeeklyCount(Exception): pass
+InterventionPK = int
+DaysAfter = int
+SecondsIntoDay = int
 
 
 class AbsoluteSchedule(TimestampedModel):
@@ -83,30 +86,29 @@ class RelativeSchedule(TimestampedModel):
         time" of the ScheduledEvent, which is shifted to the participant timezone. """
         # The time of day (hour, minute) are not offsets, they are absolute times of day.
         # doing self.study.timezone here is a database query so don't do that
+        # make_aware handles shifting ambiguous times so the code doesn't crash.
         return make_aware(datetime.combine(a_date, time(self.hour, self.minute)), tz)
     
     @staticmethod
-    def create_relative_schedules(timings: List[List[int]], survey: Survey) -> bool:
-        """ Creates new RelativeSchedule objects from a frontend-style list of interventions and times
-        If you modify this you must check create_relative_schedules_by_name in libs.schedules too. """
-        survey.relative_schedules.all().delete()
-        if survey.deleted or not timings:
-            return False
+    def configure_relative_schedules(timings: List[Tuple[InterventionPK, DaysAfter, SecondsIntoDay]], survey: Survey):
+        """ Creates or deletes RelativeSchedules for a survey to match the input timings. """
         
-        duplicated = False
-        for intervention_id, days_after, num_seconds in timings:
+        if survey.deleted or not timings:
+            survey.relative_schedules.all().delete()
+            return False
+                
+        valid_pks: List[int] = []
+        for intervention_pk, days_after, num_seconds in timings:
             # using get_or_create to catch duplicate schedules
-            _, created = RelativeSchedule.objects.get_or_create(
+            instance, _ = RelativeSchedule.objects.get_or_create(
                 survey=survey,
-                intervention=Intervention.objects.get(id=intervention_id),
+                intervention_id=intervention_pk,
                 days_after=days_after,
                 hour=num_seconds // 3600,
                 minute=num_seconds % 3600 // 60,
             )
-            if not created:
-                duplicated = True
-        
-        return duplicated
+            valid_pks.append(instance.pk)
+        survey.relative_schedules.exclude(id__in=valid_pks).delete()
 
 
 class WeeklySchedule(TimestampedModel):
@@ -126,7 +128,7 @@ class WeeklySchedule(TimestampedModel):
     
     @staticmethod
     def configure_weekly_schedules(timings: List[List[int]], survey: Survey):
-        """ Creates new WeeklySchedule objects from a frontend-style list of seconds into the day. """
+        """ Creates or deletes WeeklySchedule for a survey to match the input timings. """
         if survey.deleted or not timings:
             survey.weekly_schedules.all().delete()
             return False
@@ -137,7 +139,7 @@ class WeeklySchedule(TimestampedModel):
                 f"Must have schedule for every day of the week, found {len(timings)} instead."
             )
         
-        new_pks: List[int] = []
+        valid_pks: List[int] = []
         for day in range(7):
             for seconds in timings[day]:
                 # should be all ints, use integer division.
@@ -146,9 +148,9 @@ class WeeklySchedule(TimestampedModel):
                 instance, created = WeeklySchedule.objects.get_or_create(
                     survey=survey, day_of_week=day, hour=hour, minute=minute
                 )
-                new_pks.append(instance.pk)
+                valid_pks.append(instance.pk)
         
-        survey.weekly_schedules.exclude(id__in=new_pks).delete()
+        survey.weekly_schedules.exclude(id__in=valid_pks).delete()
     
     @classmethod
     def export_survey_timings(cls, survey: Survey) -> List[List[int]]:

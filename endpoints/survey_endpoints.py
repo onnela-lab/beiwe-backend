@@ -113,7 +113,7 @@ def update_survey(request: ResearcherRequest, study_id: int, survey_id: int):
     repopulate_absolute_survey_schedule_events(survey)
     
     relative_timings = json.loads(request.POST.get('relative_timings'))
-    RelativeSchedule.create_relative_schedules(relative_timings, survey)
+    RelativeSchedule.configure_relative_schedules(relative_timings, survey)
     repopulate_relative_survey_schedule_events(survey)
     
     # These three all stay JSON when added to survey

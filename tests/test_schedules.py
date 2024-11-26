@@ -337,7 +337,7 @@ class SchedulePersistenceCheck:
 
 
 
-class TestWeeklyTimingsSchedules(CommonTestCase, SchedulePersistenceCheck):
+class TestWeeklyTimingsSchedules(CommonTestCase):
     
     def test_immutable_defaults(self):
         # assert that this variable creates lists anew.
@@ -434,7 +434,7 @@ class TestWeeklyTimingsSchedules(CommonTestCase, SchedulePersistenceCheck):
         WeeklySchedule.configure_weekly_schedules(MIDNIGHT_EVERY_DAY_OF_WEEK(), self.default_survey)
         self.assert_is_just_weekly_midnight()
     
-    def test_create_weekly_replaces_not_deletes(self):
+    def test_create_weekly_does_not_delete_existing(self):
         timings = MIDNIGHT_EVERY_DAY_OF_WEEK()  #[[0], [0], [0], [0], [0], [0], [0]]
         WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
         self.assert_is_just_weekly_midnight()
@@ -449,9 +449,116 @@ class TestWeeklyTimingsSchedules(CommonTestCase, SchedulePersistenceCheck):
         self.assertEqual(extra_sched.day_of_week, 0)
         self.assertEqual(extra_sched.hour, 1)
         self.assertEqual(extra_sched.minute, 0)
+    
+    def test_create_weekly_deduplicates(self):
+        timings = MIDNIGHT_EVERY_DAY_OF_WEEK()
+        timings[0].append(0)
+        WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
+        self.assert_is_just_weekly_midnight()
+        pks = set(WeeklySchedule.objects.values_list("pk", flat=True))
+        
+        # and then aggain because updating in place should not create duplicates
+        timings = MIDNIGHT_EVERY_DAY_OF_WEEK()  # (should be irrelevant)
+        timings[0].append(0)
+        WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
+        pks2 = set(WeeklySchedule.objects.values_list("pk", flat=True))
+        self.assertEqual(pks, pks2)
+    
+    def test_create_weekly_deletes_correctly(self):
+        timings = MIDNIGHT_EVERY_DAY_OF_WEEK()
+        WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
+        first = WeeklySchedule.objects.order_by("day_of_week").first()
+        last = WeeklySchedule.objects.order_by("day_of_week").last()
+        self.assertEqual(first.day_of_week, 0)
+        self.assertEqual(last.day_of_week, 6)
+        timings[0].pop()
+        WeeklySchedule.configure_weekly_schedules(timings, self.default_survey)
+        first = WeeklySchedule.objects.order_by("day_of_week").first()
+        last = WeeklySchedule.objects.order_by("day_of_week").last()
+        self.assertEqual(first.day_of_week, 1)
+        self.assertEqual(last.day_of_week, 6)
+
+class TestRelativeSchedulesCreation(CommonTestCase):
+    
+    @property
+    def one_day_one_hour(self):
+        return (self.default_intervention.pk, 1, 3600)
+    
+    @property
+    def two_days_two_hours(self):
+        return (self.default_intervention.pk, 2, 7200)
+    
+    def assert_one_day_one_hour(self, r: RelativeSchedule):
+        self.assertEqual(r.intervention_id, self.default_intervention.pk)
+        self.assertEqual(r.days_after, 1)
+        self.assertEqual(r.hour, 1)
+    
+    def assert_two_days_two_hours(self, r: RelativeSchedule):
+        self.assertEqual(r.intervention_id, self.default_intervention.pk)
+        self.assertEqual(r.days_after, 2)
+        self.assertEqual(r.hour, 2)
+    
+    def test_create_one_relative_schedules(self):
+        RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)
+        self.assert_one_day_one_hour(RelativeSchedule.objects.get())
+    
+    def test_create_two_relative_schedules(self):
+        RelativeSchedule.configure_relative_schedules([self.one_day_one_hour, self.two_days_two_hours], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 2)
+        one, two = RelativeSchedule.objects.order_by("hour").all()
+        self.assert_one_day_one_hour(one)
+        self.assert_two_days_two_hours(two)
+    
+    def test_create_relative_schedules_clears(self):
+        RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)  # need populated
+        RelativeSchedule.configure_relative_schedules([], self.default_survey)  # empty case
+        self.assertEqual(RelativeSchedule.objects.count(), 0)
+        RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)  # need populated
+        self.default_survey.update(deleted=True)  # ensure deleted surveys are cleared
+        RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 0)
+    
+    def test_create_relative_schedules_deduplicates(self):
+        RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)
+        RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)
+        RelativeSchedule.objects.all().delete()
+        RelativeSchedule.configure_relative_schedules(
+            [self.one_day_one_hour, self.one_day_one_hour], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)
+    
+    def test_create_relative_schedules_does_not_delete_existing(self):
+        RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
+        one = RelativeSchedule.objects.get()
+        RelativeSchedule.configure_relative_schedules(
+            [self.one_day_one_hour, self.two_days_two_hours], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 2)
+        one_again, two = RelativeSchedule.objects.order_by("created_on")
+        self.assertEqual(one.pk, one_again.pk)
+        self.assertEqual(one.hour, one_again.hour)
+        self.assertEqual(one.days_after, one_again.days_after)
+        self.assertEqual(one.hour, one_again.hour)
+        self.assertEqual(one.minute, one_again.minute)
+        self.assert_one_day_one_hour(one)
+        self.assert_one_day_one_hour(one_again)
+        self.assert_two_days_two_hours(two)
+        # test it deletes the correct one
+        RelativeSchedule.configure_relative_schedules([self.two_days_two_hours], self.default_survey)
+        self.assertEqual(RelativeSchedule.objects.count(), 1)
+        two_again = RelativeSchedule.objects.get()
+        self.assert_two_days_two_hours(two_again)
+        self.assertEqual(two.pk, two_again.pk)
+        self.assertEqual(two.hour, two_again.hour)
+        self.assertEqual(two.days_after, two_again.days_after)
+        self.assertEqual(two.hour, two_again.hour)
+        self.assertEqual(two.minute, two_again.minute)
 
 
-class TestSchedules(CommonTestCase, SchedulePersistenceCheck):
+class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
     # originally started as copy of TestGetLatestSurveys in test_mobile_endpoints.py
     
     @staticmethod

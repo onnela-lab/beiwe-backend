@@ -398,7 +398,7 @@ def create_new_event_objects(
 ):
     new_event_objects_to_create: List[ScheduledEvent] = []
     # we need a slightly different set of arguments to instantiate different ScheduledEvents
-    arg_constructor: callable = arg_constructor_lookup[type_of_schedule]
+    arg_constructor: callable = survey_type_base_query_args[type_of_schedule]
     
     # schudule_pks_by_participant_and_time is a lookup for the abs/week/rel schedule pk
     for schedule_pk, participant_pk, scheduled_time in eventlookups_to_create:
@@ -500,7 +500,7 @@ def weekly_orgs(weekly_sched_pk: int):
     }
 
 
-arg_constructor_lookup = {"absolute": absolute_orgs, "relative": relative_orgs, "weekly": weekly_orgs}
+survey_type_base_query_args = {"absolute": absolute_orgs, "relative": relative_orgs, "weekly": weekly_orgs}
 
 
 # These parameters go into the filter for the ScheduledEvent query.
