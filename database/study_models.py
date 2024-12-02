@@ -234,8 +234,6 @@ class DeviceSettings(TimestampedModel):
     bluetooth_global_offset_seconds = models.PositiveIntegerField(default=0)
     omniring_off_duration_seconds = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
     omniring_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
-    omniring_total_duration_seconds = models.PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
-    omniring_global_offset_seconds = models.PositiveIntegerField(default=0)
     check_for_new_surveys_frequency_seconds = models.PositiveIntegerField(default=3600,
                                                                           validators=[MinValueValidator(30)])
     create_new_data_files_frequency_seconds = models.PositiveIntegerField(default=15 * 60,

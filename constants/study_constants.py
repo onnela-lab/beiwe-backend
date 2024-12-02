@@ -81,9 +81,8 @@ TIMER_VALUES = [
     "bluetooth_on_duration_seconds",
     "bluetooth_total_duration_seconds",
     "bluetooth_global_offset_seconds",
+    "omniring_off_duration_seconds",
     "omniring_on_duration_seconds",
-    "omniring_total_duration_seconds",
-    "omniring_global_offset_seconds",
     "check_for_new_surveys_frequency_seconds",
     "create_new_data_files_frequency_seconds",
     "gps_off_duration_seconds",
@@ -100,7 +99,6 @@ TIMER_VALUES = [
     "devicemotion_on_duration_seconds",
     "heartbeat_timer_minutes",
 ]
-
 
 # Surveys have several types of questions and some special symbols
 
