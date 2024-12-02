@@ -24,7 +24,7 @@ from libs.utils.date_utils import date_is_in_the_past
 # this is an import hack to improve IDE assistance
 try:
     from database.models import (ChunkRegistry, DashboardColorSetting, FileToProcess, Intervention,
-        Participant, ParticipantFieldValue, Researcher, StudyRelation, Survey)
+                                 Participant, ParticipantFieldValue, Researcher, StudyRelation, Survey)
 except ImportError:
     pass
 
@@ -61,9 +61,11 @@ class Study(TimestampedModel, ObjectIDModel):
     easy_enrollment = models.BooleanField(default=False)
     
     # Researcher security settings
-    password_minimum_length = models.PositiveIntegerField(default=8, validators=[MinValueValidator(8), MaxValueValidator(20)])
+    password_minimum_length = models.PositiveIntegerField(default=8,
+                                                          validators=[MinValueValidator(8), MaxValueValidator(20)])
     password_max_age_enabled = models.BooleanField(default=False)
-    password_max_age_days = models.PositiveIntegerField(default=365, validators=[MinValueValidator(30), MaxValueValidator(365)])
+    password_max_age_days = models.PositiveIntegerField(default=365,
+                                                        validators=[MinValueValidator(30), MaxValueValidator(365)])
     mfa_required = models.BooleanField(default=False)
     
     # related field typings (IDE halp)
@@ -111,9 +113,9 @@ class Study(TimestampedModel, ObjectIDModel):
     @classmethod
     def _get_administered_studies_by_name(cls, researcher) -> QuerySet[Study]:
         return cls.get_all_studies_by_name().filter(
-                study_relations__researcher=researcher,
-                study_relations__relationship=ResearcherRole.study_admin,
-            )
+            study_relations__researcher=researcher,
+            study_relations__relationship=ResearcherRole.study_admin,
+        )
     
     @classmethod
     def get_researcher_studies_by_name(cls, researcher) -> QuerySet[Study]:
@@ -223,18 +225,21 @@ class DeviceSettings(TimestampedModel):
     accelerometer_off_duration_seconds = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     accelerometer_on_duration_seconds = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     accelerometer_frequency = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
-    ambient_audio_off_duration_seconds = models.PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_on_duration_seconds = models.PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
+    ambient_audio_off_duration_seconds = models.PositiveIntegerField(default=10 * 60, validators=[MinValueValidator(1)])
+    ambient_audio_on_duration_seconds = models.PositiveIntegerField(default=10 * 60, validators=[MinValueValidator(1)])
     ambient_audio_bitrate = models.PositiveIntegerField(default=24000, validators=[MinValueValidator(16000)])
     ambient_audio_sampling_rate = models.PositiveIntegerField(default=44100, validators=[MinValueValidator(16000)])
     bluetooth_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
     bluetooth_total_duration_seconds = models.PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
     bluetooth_global_offset_seconds = models.PositiveIntegerField(default=0)
+    omniring_off_duration_seconds = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
     omniring_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
     omniring_total_duration_seconds = models.PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
     omniring_global_offset_seconds = models.PositiveIntegerField(default=0)
-    check_for_new_surveys_frequency_seconds = models.PositiveIntegerField(default=3600, validators=[MinValueValidator(30)])
-    create_new_data_files_frequency_seconds = models.PositiveIntegerField(default=15 * 60, validators=[MinValueValidator(30)])
+    check_for_new_surveys_frequency_seconds = models.PositiveIntegerField(default=3600,
+                                                                          validators=[MinValueValidator(30)])
+    create_new_data_files_frequency_seconds = models.PositiveIntegerField(default=15 * 60,
+                                                                          validators=[MinValueValidator(30)])
     gps_off_duration_seconds = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
     gps_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
     seconds_before_auto_logout = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
