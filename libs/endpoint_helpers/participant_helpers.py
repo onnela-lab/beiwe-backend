@@ -120,8 +120,6 @@ def notification_details_archived_event(
 ) -> Dict[str, str]:
     """ assembles the details of a notification attempt for display on a page. """
     
-    
-    
     if archived_event is None:
         return {}
     survey_version = archived_event["survey_version"].strftime("%Y-%m-%d %-I:%M %p")
