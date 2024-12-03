@@ -194,7 +194,7 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
                 
                 elif isinstance(first, datetime) and isinstance(second, datetime):
                     print("\nThese times are not equal:")
-                    print("first:", tformat(first))
+                    print("first: ", tformat(first))
                     print("second:", tformat(second))
                     print()
                 

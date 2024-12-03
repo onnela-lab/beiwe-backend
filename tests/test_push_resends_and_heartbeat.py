@@ -384,10 +384,69 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsInstance(self.default_participant.fcm_tokens.first().unregistered, datetime)
 
 
-class TestResendLogicQuery(CommonTestCase):
+
+
+
+# these two times cause errors inside _attach_archive_to_scheduled_event_as_if_sent
+# operational_t = datetime(2024, 11, 25, 18, 30, 0, 0, tzinfo=gettz("America/New_York"))
+"""
+yields
+in assert_resend_logic_reenabled_schedule_correctly
+self.assertNotEqual(self.THE_PAST, archive.last_updated) errors with
+AssertionError: datetime(2024, 11, 20, 18, 30, tzinfo=tzfile('/usr/share/zoneinfo/America/New_York'))
+             == datetime(2024, 11, 20, 23, 30, tzinfo=datetime.timezone.utc)
+(when run on 2024-12-2 10:22pm eastern computer)
+that looks like a 5 hour timezone offset
+"""
+
+operational_t = datetime(2024, 12, 3, 2, 59, 42, 819456, tzinfo=timezone.utc)
+"""
+causes failure in
+test_archive_last_updated_less_than_30_minutes_ago_does_nothing
+    self.assert_scheduled_event_not_sendable(sched_event)
+assert_scheduled_event_not_sendable
+    self.assertEqual(sched_event.deleted, True)
+AssertionError: False != True
+(when run at 2024-12-2 10:43pm)
+"""
+
+# and this always results in the greaterthan failure, implying there is something not patched by
+# time_machine because a value compared is the last_updated field, which is the real date.
+# operational_t = timezone.now() + timedelta(days=10)
+"""
+causes most tests to fail with 
+_attach_archive_to_scheduled_event_as_if_sent
+    self.assertGreater(sched_event.last_updated, self.NOW_SORTA)
+AssertionError:   datetime(2024, 12, 3, 3, 44, 21, 477593, tzinfo=datetime.timezone.utc)
+not greater than  datetime(2024, 12, 12, 22, 44, tzinfo=tzfile('/usr/share/zoneinfo/America/New_York'))
+
+(when run at 2024-12-2 10:45pm)
+
+This has a timezone mismatch, but also a 9 DAY 19 hour offset
+"""
+
+# this (can) work, so its not the use of time_machine itself
+# operational_t = timezone.now()
+
+# ok finally can read words! something in here is not getting the correct timezone!
+
+# with time_machine.travel(operational_t, tick=True):
+#     class The_Class(CommonTestCase):
+#         # the default study is in America/New_York, absolute time events get _reconstructed_ to be in
+#         # this timezone.  Also we need times with only minute precision.
+#         NOW_SORTA = timezone.now().replace(second=0, microsecond=0).astimezone(gettz('America/New_York'))
+#         THE_BEGINNING_OF_TIME = NOW_SORTA - timedelta(days=1000)
+#         THE_PAST = NOW_SORTA - timedelta(days=5)
+#         THE_FUTURE = NOW_SORTA + timedelta(days=5)
+#         # get populated if you use the run_and_refresh_any_models helper
+#         BEFORE_RUN = None
+#         AFTER_RUN = None
+#         APP_VERSION = IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
+
+
+class The_Class(CommonTestCase):
     """ This test runs the missing_notification_checkin_query across a variety of scenarios, similar
     to the way TestHeartbeatQuery works. """
-    
     # the default study is in America/New_York, absolute time events get _reconstructed_ to be in
     # this timezone.  Also we need times with only minute precision.
     NOW_SORTA = timezone.now().replace(second=0, microsecond=0).astimezone(gettz('America/New_York'))
@@ -397,9 +456,10 @@ class TestResendLogicQuery(CommonTestCase):
     # get populated if you use the run_and_refresh_any_models helper
     BEFORE_RUN = None
     AFTER_RUN = None
-    
     APP_VERSION = IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
-    
+
+
+class TestResendLogicQuery(The_Class):
     def setUp(self):
         super().setUp()
         self.START_OF_TEST_TIME = timezone.now()
@@ -463,7 +523,9 @@ class TestResendLogicQuery(CommonTestCase):
         return sched_event
     
     def _build_base_archived_event(self, sched_event: ScheduledEvent) -> ArchivedEvent:
-        archive = self.generate_archived_event_for_absolute_schedule(sched_event.absolute_schedule, sched_event.uuid)
+        archive = self.generate_archived_event_matching_absolute_schedule(
+            sched_event.absolute_schedule, a_uuid=sched_event.uuid
+        )
         self.assertIsNotNone(archive.uuid)
         self.assertEqual(sched_event.uuid, archive.uuid)
         return archive
@@ -471,7 +533,9 @@ class TestResendLogicQuery(CommonTestCase):
     def _attach_archive_to_scheduled_event_as_if_sent(self, sched_event: ScheduledEvent, archive: ArchivedEvent):
         # this value on archive is "reconstructed" to be in the study timezone, this check catches
         # if we change anything in our database test helpers like a timezone change.
-        self.assertEquals(sched_event.scheduled_time, archive.scheduled_time)
+        
+        # FIXME: this test fails under unknown conditions.
+        self.assertEqual(sched_event.scheduled_time, archive.scheduled_time)
         
         self.assertIsNone(sched_event.most_recent_event)
         self.assertFalse(sched_event.deleted)
@@ -572,25 +636,6 @@ class TestResendLogicQuery(CommonTestCase):
         self.assert_last_updated_not_equal(archive, sched_event)
     
     # archivedevent and scheduledevent behavior
-    
-    # FIXME: this test failing is a bug, maybe a timezone bug, maybe something else
-    from dateutil.tz import gettz
-    t = datetime(2024, 11, 25, 18, 30, 0, 0, tzinfo=gettz("America/New_York"))
-    # with time_machine.travel(t):
-    @time_machine.travel(t)
-    def test_uhoh_bug_archive_last_updated_less_than_30_minutes_ago_does_nothing(self):
-        # recently updated archive should not result in resend
-        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        ArchivedEvent.fltr(pk=archive.pk).update(last_updated=self.NOW_SORTA - timedelta(minutes=29))
-        old_archive_last_updated = archive.last_updated
-        self.assertEqual(old_archive_last_updated, self.THE_PAST)
-        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
-        self.assert_scheduled_event_not_sendable(sched_event)
-        self.assertNotEqual(archive.last_updated, old_archive_last_updated)
-        self.assert_not_touched_in_last_run(archive)
-        self.assert_not_touched_in_last_run(sched_event)
-        self.assert_last_updated_not_equal(archive, sched_event)
-    
     
     def test_archive_last_updated_less_than_30_minutes_ago_does_nothing(self):
         # recently updated archive should not result in resend

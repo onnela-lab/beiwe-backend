@@ -343,7 +343,7 @@ class DatabaseHelperMixin:
             return self._default_study_field
         except AttributeError:
             pass
-        self._default_study_field = self.generate_study_field(
+        self._default_study_field: StudyField = self.generate_study_field(
             self.default_study, self.DEFAULT_STUDY_FIELD_NAME
         )
         return self._default_study_field
@@ -366,7 +366,7 @@ class DatabaseHelperMixin:
         except AttributeError:
             pass
         
-        self._default_participant = self.generate_participant(
+        self._default_participant: Participant = self.generate_participant(
             self.session_study,
             self.DEFAULT_PARTICIPANT_NAME,
             ios=False,
@@ -387,7 +387,7 @@ class DatabaseHelperMixin:
         except AttributeError:
             pass
         
-        self._default_fcm_token = ParticipantFCMHistory(
+        self._default_fcm_token: ParticipantFCMHistory = ParticipantFCMHistory(
             token=self.DEFAULT_FCM_TOKEN, participant=self.default_participant
         )
         self._default_fcm_token.save()
@@ -399,7 +399,7 @@ class DatabaseHelperMixin:
             return self._default_participant_field_value
         except AttributeError:
             pass
-        self._default_participant_field_value = self.generate_participant_field_value(
+        self._default_participant_field_value: ParticipantFieldValue = self.generate_participant_field_value(
             self.default_study_field, self.default_participant, self.DEFAULT_PARTICIPANT_FIELD_VALUE
         )
         return self._default_participant_field_value
@@ -578,8 +578,7 @@ class DatabaseHelperMixin:
             return self._default_relative_schedule
         except AttributeError:
             pass
-        self._default_relative_schedule = \
-            self.generate_relative_schedule(self.default_survey)
+        self._default_relative_schedule = self.generate_relative_schedule(self.default_survey)
         return self._default_relative_schedule
     
     def generate_relative_schedule(
@@ -722,13 +721,15 @@ class DatabaseHelperMixin:
         ]
         return ArchivedEvent.objects.bulk_create(events)
     
-    def generate_archived_event_for_absolute_schedule(self, absolute: AbsoluteSchedule, a_uuid: uuid.UUID = None):
+    def generate_archived_event_matching_absolute_schedule(self, absolute: AbsoluteSchedule, a_uuid: uuid.UUID = None):
         # absolute is super easy
+        the_event_time = absolute.event_time(self.default_study.timezone)
+        # print("the event time:", the_event_time)
         return self.generate_archived_event(
             absolute.survey,
             self.default_participant,
             ScheduleTypes.absolute,
-            absolute.event_time(self.default_study.timezone),
+            the_event_time,
             a_uuid=a_uuid
         )
     

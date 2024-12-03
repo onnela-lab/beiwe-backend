@@ -1,10 +1,9 @@
 import logging
 import operator
 import random
-import uuid
 from datetime import datetime, timedelta
 from functools import reduce
-from typing import List
+from typing import Callable, List
 
 from cronutils import null_error_handler
 from dateutil.tz import gettz
@@ -192,8 +191,8 @@ def base_resend_logic_participant_query(now: datetime) -> List[int]:
 
 
 def update_ArchivedEvents_from_SurveyNotificationReports(
-    participant_pks: List[int], update_timestamp: datetime, log: logging.Logger
-)-> List[uuid.UUID]:
+    participant_pks: List[int], update_timestamp: datetime, log: Callable
+):
     """ Populates confirmed_received and applied on ArchivedEvents and SurveyNotificationReports
     based on the SurveyNotificationReports, sets last_updated. """
     

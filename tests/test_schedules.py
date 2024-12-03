@@ -977,7 +977,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
     def test_good_archive_event_with_absolute_schedule_helper_is_reasonable(self):
         d = MONDAY_JUNE_NOON_6_2022_EDT
         abs_sched = self.generate_absolute_schedule_from_datetime(self.default_survey, d)
-        abs_archive = self.generate_archived_event_for_absolute_schedule(abs_sched)
+        abs_archive = self.generate_archived_event_matching_absolute_schedule(abs_sched)
         # some real simple asserts that the archived event points at the correct items
         self.assertEqual(abs_archive.survey_archive.survey.id, self.default_survey.id)
         self.assertEqual(abs_archive.scheduled_time, MONDAY_JUNE_NOON_6_2022_EDT)
