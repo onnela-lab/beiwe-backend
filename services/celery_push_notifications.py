@@ -530,7 +530,6 @@ def send_scheduled_event_survey_push_notification_logic(
             # condition? Error should be transient, and like all other cases we enqueue the next
             # weekly surveys regardless.
             if "The default Firebase app does not exist" in str(e):
-                enqueue_weekly_surveys(participant, scheduled_events)
                 return
             else:
                 raise
@@ -544,7 +543,7 @@ def send_scheduled_event_survey_push_notification_logic(
 
 def inner_send_survey_push_notification(
     participant: Participant, scheduled_events: List[ScheduledEvent], fcm_token: str
-) -> str:
+):
     # there can be multiple identical survey object_ids. Grouping together many scheduled events
     # may include a survey more than once especially when the participant was previously unreachable
     survey_obj_ids = list(set(scheduled_event.survey.object_id for scheduled_event in scheduled_events))
