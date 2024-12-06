@@ -1,4 +1,3 @@
-import json
 import logging
 import random
 import uuid
@@ -23,7 +22,7 @@ from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ANDROID_API
 from database.schedule_models import ArchivedEvent, ScheduledEvent
-from database.study_models import Study
+from database.survey_models import Survey
 from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantActionLog,
     ParticipantFCMHistory, PushNotificationDisabledEvent)
@@ -33,7 +32,6 @@ from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
 from libs.push_notification_helpers import (base_resend_logic_participant_query,
     fcm_for_pushable_participants, send_custom_notification_safely, slowly_get_stopped_study_ids,
     update_ArchivedEvents_from_SurveyNotificationReports)
-from libs.schedules import repopulate_all_survey_scheduled_events
 from libs.sentry import make_error_sentry, SentryTypes
 
 
@@ -544,26 +542,32 @@ def send_scheduled_event_survey_push_notification_logic(
 def inner_send_survey_push_notification(
     participant: Participant, scheduled_events: List[ScheduledEvent], fcm_token: str
 ):
-    # there can be multiple identical survey object_ids. Grouping together many scheduled events
-    # may include a survey more than once especially when the participant was previously unreachable
-    survey_obj_ids = list(set(scheduled_event.survey.object_id for scheduled_event in scheduled_events))
+    # There can be multiple instances of the same survey for which we need to deduplicate object
+    #   ids, but appropriately map all object ids to schedule uuids.
+    survey_pks_fltr = list(set(scheduled_event.survey_id for scheduled_event in scheduled_events))
+    survey_obj_ids_by_pk = dict(Survey.fltr(pk__in=survey_pks_fltr).values_list("pk", "object_id"))
     
-    uuids_json_string = orjson.dumps(
-        [scheduled_event.uuid for scheduled_event in scheduled_events if scheduled_event.uuid]
-    ).decode()
+    survey_obj_ids_to_uuids = defaultdict(list)
+    for scheduled_event in scheduled_events:
+        if scheduled_event.uuid is None:
+            continue  # probably unreachable
+        survey_obj_ids_to_uuids[survey_obj_ids_by_pk[scheduled_event.survey_id]].append(scheduled_event.uuid)
     
+    # looks like ["object_id": "uuid", "object_id": "uuid,uuid"], used to inform backend of receipt
+    uuids_json_dict_string = orjson.dumps(dict(survey_obj_ids_to_uuids)).decode()
+    # the survey ids for the app to display
+    survey_obj_ids = orjson.dumps(list(survey_obj_ids_by_pk.values())).decode()
+    # used in the app to sort surveys
     earliest_schedule = min(scheduled_events, key=lambda x: x.scheduled_time)
     
     # Include a nonce to bypass notification deduplication.
-    # We used to include this value, it was not used in either app. Updated it to have all uuids.
-    #   'schedule_uuid': (reference_schedule.uuid if reference_schedule else "") or ""
     data_kwargs = {
         # trunk-ignore(bandit/B311): this is a nonce, not a password.
         'nonce': ''.join(random.choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(32)),
         'sent_time': earliest_schedule.scheduled_time.strftime(API_TIME_FORMAT),
         'type': 'survey',
-        'survey_ids': json.dumps(survey_obj_ids),
-        'json_uuids': uuids_json_string,
+        'survey_ids': survey_obj_ids,
+        'survey_uuids_dict': uuids_json_dict_string,
     }
     
     if participant.os_type == ANDROID_API:
