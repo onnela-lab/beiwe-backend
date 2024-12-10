@@ -111,7 +111,8 @@ def undelete_events_based_on_lost_notification_checkin():
     # here, but it causes an endless retry loop because an ArchivedEvent can no longer be
     # instantiated from that scheduled event.
     bugged_uuids = list(ScheduledEvent.objects.filter(
-        weekly_schedule__isnull=True, relative_schedule__isnull=True, absolute_schedule__isnull=True
+        weekly_schedule__isnull=True, relative_schedule__isnull=True, absolute_schedule__isnull=True,
+        uuid__isnull=False
     ).values_list("uuid", flat=True))
     if bugged_uuids:
         ArchivedEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, uuid=None)
