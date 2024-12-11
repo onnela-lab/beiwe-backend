@@ -196,13 +196,21 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     """ Populates confirmed_received and applied on ArchivedEvents and SurveyNotificationReports
     based on the SurveyNotificationReports, sets last_updated. """
     
-    # TOO_EARLY in populated as time of deploy that introduced this feature.
+    # TOO_EARLY is populated as time of deploy that introduced this feature, resend logic
+    # only operates on ArchivedEvents created after that.
     TOO_EARLY = GlobalSettings.get_singleton_instance()\
         .earliest_possible_time_of_push_notification_resend
     
-    # get all notification_report_pk__uuid pairs that are not applied
+    # Possible Bug -- there is some condition where we miss a notification report updating an
+    #  archived event that is supposed to already be applied.  Fix is to always get all of them and
+    #  filter on the update operation. these uuids are unique, and its only active participants.
+    #  I don't know what the cause was, best guess is database state updating between queries?
+    #  We can still track paths of this occurring by looking at last_updated and created_on values.
+    
+    # Get all notification_report_pk and uuid pairs.
     notification_report_pk__uuid = SurveyNotificationReport.objects.filter(
-        participant_id__in=participant_pks, applied=False
+        participant_id__in=participant_pks,
+        # applied=False,  # see bug comment above.
     ).values_list(
         "pk", "notification_uuid"
     )
@@ -211,7 +219,8 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     # ArchivedEvents matching those uuids to `confirmed_received=True` and `last_updated` to now.
     query_update_archive_confirm_received = ArchivedEvent.objects.filter(
         uuid__in=[uuid for _, uuid in notification_report_pk__uuid],
-        created_on__gte=TOO_EARLY,
+        created_on__gte=TOO_EARLY,    # created after the earliest possible allowed time.
+        confirmed_received=False,     # see bug comment above; reduces db load and lets us track.
     ).update(
         confirmed_received=True, last_updated=update_timestamp,
     )
@@ -219,7 +228,8 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     
     # then update NotificationReports `applied` to True so we only do it once.
     query_update_notification_report = SurveyNotificationReport.objects.filter(
-        pk__in=[pk for pk, _ in notification_report_pk__uuid]
+        pk__in=[pk for pk, _ in notification_report_pk__uuid],
+        applied=False,          # see bug comment above; reduces db load and lets us track.
     ).update(
         applied=True, last_updated=update_timestamp
     )

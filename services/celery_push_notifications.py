@@ -74,15 +74,13 @@ def undelete_events_based_on_lost_notification_checkin():
     
     Complex details about how to manipulate ScheduledEvents and ArchivedEvents correctly:
     
-    - Archives from before this feature existed do not have the uuid field populated, this is our
-      first exclusion criteria
-    - This code does not create scheduled events, instead reactivates old ScheduledEvents by uuid.
+    - We exclude Archives from before this feature existed do not have the uuid field populated.
+    - This code does not create scheduled events, it reactivates old ScheduledEvents by uuid.
     - If ScheduledEvents get recalculated we do lose that uuid, and would get stuck in a loop trying
       to find the matching ScheduledEvent by uuid from an old ArchivedEvent. We solve that by
       identifying these non-match-uuids and clearing the uuid field. This will fully retire the
       ArchivedEvent from the resend logic because we exclude those to start with.
-    - This may cause a theoretical problem of being unable to identify the ArchivedEvent that a
-      received SurveyNotificationReport maps to, but I don't think we care about that.
+        FIXME: change this above point not how we do it, let's add a give-up flag and preserve uuids.
     - Note that this will create a "new" ScheduledEvent "in the past", forcing a send on the next
       push notification task, bypassing our time-gating logic from the ArchivedEvent's last_updated
       field.
@@ -95,13 +93,19 @@ def undelete_events_based_on_lost_notification_checkin():
       subject to change and must be documented.
     - Only participants with an app version that passes the version check will create ArchivedEvents
       with uuids, so only push notifications to known-capable devices will activate resends.
-    - Need to make a decision about whether we special-case details of weekly notifications.
+    - Weekly schedules do not require special casing - they get removed from the database after
+      a week anyway, and if the two schedule periods overlap then the app merges them.
     """
     # TOO_EARLY in populated as time of deploy that introduced this feature.
     TOO_EARLY = GlobalSettings.get_singleton_instance()\
         .earliest_possible_time_of_push_notification_resend
     now = timezone.now()
     thirty_minutes_ago = now - timedelta(minutes=30)
+    
+    #FIXME: this solution where we clear the Nones should be replaced with a real db value that we
+    #exclude on in order to have the schedules for manual resends not trigger this..... because we
+    #want the manual resends to work like this and we simply can't be clearing the uuid, its how we
+    #track stuff.
     
     # We have to clear out a somewhat theoretical assumption violation where the _Schedule_ on a
     # ScheduledEvent has been deleted. This _shouldn't_ happen, but it is possible at least due to a
@@ -112,7 +116,7 @@ def undelete_events_based_on_lost_notification_checkin():
     # instantiated from that scheduled event.
     bugged_uuids = list(ScheduledEvent.objects.filter(
         weekly_schedule__isnull=True, relative_schedule__isnull=True, absolute_schedule__isnull=True,
-        uuid__isnull=False
+        uuid__isnull=False  # don't get anything with uuids
     ).values_list("uuid", flat=True))
     if bugged_uuids:
         ArchivedEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, uuid=None)
@@ -155,7 +159,7 @@ def undelete_events_based_on_lost_notification_checkin():
     # a resend for the next 30 minutes.
     query_archive_update_last_updated = ArchivedEvent.objects.filter(
         uuid__in=unconfirmed_notification_uuids,
-        # created_on__gte=the_beginning_of_time,  # already filtered out
+        # created_on__gte=TOO_EARLY,  # already filtered out
     ).update(
         last_updated=now
     )
