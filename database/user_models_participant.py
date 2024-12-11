@@ -28,7 +28,6 @@ from database.models import TimestampedModel
 from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
-from libs.firebase_config import check_firebase_instance
 from libs.s3 import s3_retrieve
 from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
 from libs.utils.security_utils import (compare_password, device_hash, django_password_components,
@@ -237,6 +236,9 @@ class Participant(AbstractPasswordUser):
     
     @property
     def participant_push_enabled(self) -> bool:
+        # this import causes a super stupid import triangle over in celery push notifications
+        # after a refactor that literally just separated code into multiple files. Obviously.
+        from libs.firebase_config import check_firebase_instance
         return (
             self.os_type == ANDROID_API and check_firebase_instance(require_android=True) or
             self.os_type == IOS_API and check_firebase_instance(require_ios=True)
