@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from typing import Tuple
 from unittest.mock import MagicMock, patch
 
-import time_machine
 from dateutil.tz import gettz
 from django.utils import timezone
 from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
@@ -21,7 +20,8 @@ from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     SurveyNotificationReport)
 from services.celery_push_notifications import (create_heartbeat_tasks, get_surveys_and_schedules,
-    heartbeat_query, undelete_events_based_on_lost_notification_checkin)
+    heartbeat_query)
+from services.resend_push_notifications import undelete_events_based_on_lost_notification_checkin
 from tests.common import CommonTestCase
 
 

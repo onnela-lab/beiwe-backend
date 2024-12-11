@@ -21,18 +21,17 @@ from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     UNKNOWN_REMOTE_ERROR)
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ANDROID_API
-from database.schedule_models import ArchivedEvent, ScheduledEvent
+from database.schedule_models import ScheduledEvent
 from database.survey_models import Survey
-from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantActionLog,
     ParticipantFCMHistory, PushNotificationDisabledEvent)
 from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
-from libs.push_notification_helpers import (base_resend_logic_participant_query,
-    fcm_for_pushable_participants, send_custom_notification_safely, slowly_get_stopped_study_ids,
-    update_ArchivedEvents_from_SurveyNotificationReports)
+from libs.push_notification_helpers import (fcm_for_pushable_participants,
+    send_custom_notification_safely, slowly_get_stopped_study_ids)
 from libs.sentry import make_error_sentry, SentryTypes
+from services.resend_push_notifications import undelete_events_based_on_lost_notification_checkin
 
 
 logger = logging.getLogger("push_notifications")
@@ -60,130 +59,6 @@ def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[Schedule
             scheduled_time = timezone.now()
             uuid = uuid.uuid4()
         return [mock_reference_schedule]
-
-
-####################################################################################################
-################################## MISSING NOTIFICATION REPORT 3####################################
-####################################################################################################
-
-
-def undelete_events_based_on_lost_notification_checkin():
-    """
-    Participants upload a list of uuids of their received notifications, these uuids are stashed in
-    SurveyNotificationReport, are sourced from ScheduledEvents, and recorded on ArchivedEvents.
-    
-    Complex details about how to manipulate ScheduledEvents and ArchivedEvents correctly:
-    
-    - We exclude Archives from before this feature existed do not have the uuid field populated.
-    - This code does not create scheduled events, it reactivates old ScheduledEvents by uuid.
-    - If ScheduledEvents get recalculated we do lose that uuid, and would get stuck in a loop trying
-      to find the matching ScheduledEvent by uuid from an old ArchivedEvent. We solve that by
-      identifying these non-match-uuids and clearing the uuid field. This will fully retire the
-      ArchivedEvent from the resend logic because we exclude those to start with.
-        FIXME: change this above point not how we do it, let's add a give-up flag and preserve uuids.
-    - Note that this will create a "new" ScheduledEvent "in the past", forcing a send on the next
-      push notification task, bypassing our time-gating logic from the ArchivedEvent's last_updated
-      field.
-    
-    Other Details:
-    
-    - To inject a "no more than one resend every 30 minutes" we need to add a filtering by last
-      updated time ArchivedEvent query, and "touch" all modified archive events when we check them.
-    - We have to do an app version check for when uuid-reporting was added this feature, that may e
-      subject to change and must be documented.
-    - Only participants with an app version that passes the version check will create ArchivedEvents
-      with uuids, so only push notifications to known-capable devices will activate resends.
-    - Weekly schedules do not require special casing - they get removed from the database after
-      a week anyway, and if the two schedule periods overlap then the app merges them.
-    """
-    # TOO_EARLY in populated as time of deploy that introduced this feature.
-    TOO_EARLY = GlobalSettings.get_singleton_instance()\
-        .earliest_possible_time_of_push_notification_resend
-    now = timezone.now()
-    thirty_minutes_ago = now - timedelta(minutes=30)
-    
-    #FIXME: this solution where we clear the Nones should be replaced with a real db value that we
-    #exclude on in order to have the schedules for manual resends not trigger this..... because we
-    #want the manual resends to work like this and we simply can't be clearing the uuid, its how we
-    #track stuff.
-    
-    # We have to clear out a somewhat theoretical assumption violation where the _Schedule_ on a
-    # ScheduledEvent has been deleted. This _shouldn't_ happen, but it is possible at least due to a
-    # potential race condition in updating schedules, and there there is an oversight in a migration
-    # script, and if we in-the-future allow manual push notifications to resend then it will cause
-    # this, AND I manually created the condition accidentally in testing.  The outcome isn't a bug
-    # here, but it causes an endless retry loop because an ArchivedEvent can no longer be
-    # instantiated from that scheduled event.
-    bugged_uuids = list(ScheduledEvent.objects.filter(
-        weekly_schedule__isnull=True, relative_schedule__isnull=True, absolute_schedule__isnull=True,
-        uuid__isnull=False  # don't get anything with uuids
-    ).values_list("uuid", flat=True))
-    if bugged_uuids:
-        ArchivedEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, uuid=None)
-        ScheduledEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, uuid=None, deleted=True)
-    
-    # OK. Now we can move on with our lives. We start with the common query....
-    
-    pushable_participant_pks = base_resend_logic_participant_query(now)
-    log("pushable_participant_pks:", pushable_participant_pks)
-    
-    # sets last_updated on ArchivedEvents, they are excluded.
-    update_ArchivedEvents_from_SurveyNotificationReports(pushable_participant_pks, now, log)
-    
-    # Now we can filter ArchivedEvents to get all that remain unconfirmed.
-    unconfirmed_notification_uuids = list(set(
-        ArchivedEvent.objects.filter(
-            created_on__gte=TOO_EARLY,                    # created after the earliest possible time,
-            last_updated__lte=thirty_minutes_ago,         # last updated before 30 minutes ago,
-            status=MESSAGE_SEND_SUCCESS,                  # that should have been received,
-            participant_id__in=pushable_participant_pks,  # from relevant participants,
-            confirmed_received=False,                     # that are not confirmed received,
-            uuid__isnull=False,                           # and have uuids.
-        ).values_list(
-            "uuid",
-            flat=True,
-        )
-    ))
-    log("unconfirmed_notification_uuids:", unconfirmed_notification_uuids)
-    
-    # re-enable all ScheduledEvents that were not confirmed received.
-    query_scheduledevents_updated = ScheduledEvent.objects.filter(
-        uuid__in=unconfirmed_notification_uuids,
-        # created_on__gte=TOO_EARLY,  # No. We migrate old ScheduledEvents to have uuids.
-    ).update(
-        deleted=False, last_updated=now
-    )
-    log("query_scheduledevents_updated:", query_scheduledevents_updated)
-    
-    # mark ArchivedEvents that just forced ScheduledEvent.deleted=False as last_updated=now to block
-    # a resend for the next 30 minutes.
-    query_archive_update_last_updated = ArchivedEvent.objects.filter(
-        uuid__in=unconfirmed_notification_uuids,
-        # created_on__gte=TOO_EARLY,  # already filtered out
-    ).update(
-        last_updated=now
-    )
-    log("query_archive_update_last_updated:", query_archive_update_last_updated)
-    
-    # Of the uuids we identified we need to mark any that lack existing ScheduledEvents as
-    # unresendable; we do this by clearing their uuid field.
-    extant_schedule_uuids = list(
-        ScheduledEvent.objects.filter(
-            uuid__in=unconfirmed_notification_uuids,
-            # created_on__gte=the_beginning_of_time,  # already filtered out
-        ).values_list("uuid", flat=True)
-    )
-    log("extant_schedule_uuids:", extant_schedule_uuids)
-    
-    unresendable_archive_uuids = list(set(unconfirmed_notification_uuids) - set(extant_schedule_uuids))
-    log("unresendable_archive_uuids:", unresendable_archive_uuids)
-    
-    query_archive_unresendable = ArchivedEvent.objects.filter(
-        uuid__in=unresendable_archive_uuids
-    ).update(
-        uuid=None, last_updated=now
-    )
-    log("query_archive_unresendable:", query_archive_unresendable)
 
 
 ####################################################################################################
