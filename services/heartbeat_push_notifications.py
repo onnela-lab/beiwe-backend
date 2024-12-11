@@ -5,10 +5,8 @@ from typing import List, Tuple
 from django.utils import timezone
 
 from constants import action_log_messages
-from constants.celery_constants import PUSH_NOTIFICATION_SEND_QUEUE
 from constants.common_constants import RUNNING_TESTS
 from database.user_models_participant import Participant, ParticipantActionLog
-from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
 from libs.push_notification_helpers import (fcm_for_pushable_participants,
     send_custom_notification_safely)
@@ -29,6 +27,7 @@ logd = logger.debug
 ####################################################################################################
 ######################################## HEARTBEAT #################################################
 ####################################################################################################
+
 # There are two senses in which the term "heartbeat" is used in this codebase. One is with respect
 # to the push notification that this celery task pushes to the app, the other is with respect to
 # the periodic checkin that the app makes to the backend.  The periodic checkin is app-code, it hits
@@ -92,37 +91,8 @@ def heartbeat_query() -> List[Tuple[int, str, str, str]]:
     return ret
 
 
-def create_heartbeat_tasks():
-    if not check_firebase_instance():
-        loge("Heartbeat - Firebase credentials are not configured.")
-        return
-    
-    # gonna try timezone.now() and see what happens.
-    expiry = (timezone.now() + timedelta(minutes=5)).replace(second=30, microsecond=0)
-    
-    # to reduce database operations in celery_heartbeat_send_push_notification, which may have
-    # A LOT of participants that it hits, we run the complex query here and do a single database
-    # query in celery_heartbeat_send_push_notification.
-    push_notification_data = heartbeat_query()
-    log(f"Sending heartbeats to {len(push_notification_data)} "
-        "participants considered active in the past week.")
-    
-    # dispatch the push notifications celery tasks
-    for participant_id, fcm_token, os_type, message in heartbeat_query():
-        safe_apply_async(
-            celery_heartbeat_send_push_notification,
-            args=[participant_id, fcm_token, os_type, message],
-            max_retries=0,
-            expires=expiry,
-            task_track_started=True,
-            task_publish_retry=False,
-            retry=False,
-        )
-
-
-# fixme: override the nonce value so it doesn't back up many notifications? need to test behavior if the participant has dismissed the notification before implementing.
-@push_send_celery_app.task(queue=PUSH_NOTIFICATION_SEND_QUEUE)
-def celery_heartbeat_send_push_notification(participant_id: int, fcm_token: str, os_type, message: str):
+# FIXME: override the nonce value so it doesn't back up many notifications? need to test behavior if the participant has dismissed the notification before implementing.
+def celery_heartbeat_send_push_notification_task(participant_id: int, fcm_token: str, os_type, message: str):
     with make_error_sentry(sentry_type=SentryTypes.data_processing):
         now = timezone.now()
         if not check_firebase_instance():
@@ -137,8 +107,3 @@ def celery_heartbeat_send_push_notification(participant_id: int, fcm_token: str,
                 action=action_log_messages.HEARTBEAT_PUSH_NOTIFICATION_SENT,
                 timestamp=now
             )
-
-
-# can't be factored out easily because it requires the celerytask function object.
-# 2024-1-13 - it's not clear anymore if this is required .
-celery_heartbeat_send_push_notification.max_retries = 0

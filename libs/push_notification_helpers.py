@@ -1,9 +1,9 @@
 import logging
 import operator
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import reduce
-from typing import Callable, List
+from typing import List
 
 from cronutils import null_error_handler
 from dateutil.tz import gettz
@@ -16,15 +16,11 @@ from firebase_admin.messaging import (AndroidConfig, Message, Notification, Quot
 from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
-    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
+from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.survey_models import Survey
-from database.system_models import GlobalSettings
-from database.user_models_participant import (Participant, ParticipantFCMHistory,
-    SurveyNotificationReport)
-from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
+from database.user_models_participant import Participant, ParticipantFCMHistory
 
 
 # same logger as in celery_push_notifications

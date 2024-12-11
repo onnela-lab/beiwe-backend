@@ -86,7 +86,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
         self.generate_easy_relative_schedule_event_with_relative_schedule(timedelta(days=5))
         self.assert_no_schedules()
     
-    @patch('services.celery_push_notifications.send_notification')
+    @patch("libs.push_notification_helpers.send_notification")
     def test_absolute_success(self, send_notification: MagicMock):
         send_notification.return_value = None
         
