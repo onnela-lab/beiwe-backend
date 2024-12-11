@@ -19,8 +19,8 @@ from database.survey_models import Survey
 from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     SurveyNotificationReport)
-from services.celery_push_notifications import (create_heartbeat_tasks, get_surveys_and_schedules,
-    heartbeat_query)
+from services.celery_heartbeat_push_notifications import create_heartbeat_tasks, heartbeat_query
+from services.celery_push_notifications import get_surveys_and_schedules
 from services.resend_push_notifications import undelete_events_based_on_lost_notification_checkin
 from tests.common import CommonTestCase
 
@@ -243,8 +243,8 @@ class TestHeartbeatQuery(CommonTestCase):
         thing_to_test.sort(key=lambda x: x[1])
         self.assertListEqual(thing_to_test, correct)
     
-    @patch("services.celery_push_notifications.celery_heartbeat_send_push_notification")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.celery_heartbeat_push_notifications.celery_heartbeat_send_push_notification")
+    @patch("services.celery_heartbeat_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_no_participants(
         self, check_firebase_instance: MagicMock, celery_heartbeat_send_push_notification: MagicMock,
     ):
@@ -256,7 +256,7 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
     
     @patch("libs.push_notification_helpers.send_notification")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.celery_heartbeat_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_one_participant(
         self, check_firebase_instance: MagicMock, send_notification: MagicMock,
     ):
@@ -271,7 +271,7 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsInstance(self.default_participant.last_heartbeat_notification, datetime)
     
     @patch("libs.push_notification_helpers.send_notification")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.celery_heartbeat_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_two_participants(
         self, check_firebase_instance: MagicMock, send_notification: MagicMock,
     ):
@@ -294,7 +294,7 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsInstance(p2.last_heartbeat_notification, datetime)
     
     @patch("libs.push_notification_helpers.send_notification")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.celery_heartbeat_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_two_participants_one_failure(
         self, check_firebase_instance: MagicMock, send_notification: MagicMock,
     ):
@@ -317,7 +317,7 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsInstance(p2.last_heartbeat_notification, datetime)
     
     @patch("libs.push_notification_helpers.send_custom_notification_raw")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.celery_heartbeat_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_errors(
         self, check_firebase_instance: MagicMock, send_custom_notification_raw: MagicMock,
     ):
@@ -337,7 +337,7 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
     
     @patch("libs.push_notification_helpers.send_custom_notification_raw")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.celery_heartbeat_push_notifications.check_firebase_instance")
     def test_heartbeat_notification_errors_swallowed(
         self, check_firebase_instance: MagicMock, send_custom_notification_raw: MagicMock,
     ):
