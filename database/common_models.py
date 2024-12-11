@@ -1,11 +1,12 @@
+# trunk-ignore-all(ruff/E701)
 from __future__ import annotations
 
 import json
-from ast import Dict, Tuple
+from collections import defaultdict
 from datetime import date, datetime
 from pprint import pprint
 from random import choice as random_choice
-from typing import Any, List, Union
+from typing import Any, Dict, List, Sequence, Tuple, Union
 
 import dateutil
 from django.db import models
@@ -239,6 +240,65 @@ class UtilityModel(models.Model):
                 raise Exception(f"unpexpected parameter: {attr}")
             setattr(self, attr, value)
         self.save(update_fields=kwargs.keys())
+    
+    ################################ Convenience Dict Lookups ######################################
+    
+    @classmethod
+    def make_lookup_dict(cls, filters: Dict, key_fields: Sequence[str], value_fields: Sequence[str]) -> Dict:
+        """ Given a base model, a list of key fields, and a list of value fields, this function will
+        return a dictionary that maps the key fields to the value fields. """
+        key_fields, value_fields, query, k_len, v_len, dd = \
+                cls._lookup_dict_setup(filters, key_fields, value_fields)
+        
+        # optimization paths for single keys, these are effectively of the form
+        # for all_fields in query:
+        #     key = all_fields[:key_count][0]
+        #     value = all_fields[key_count:][0]
+        #     dd[key] = (value)
+        if k_len == 1 and v_len == 1:
+            return dict(query)
+        elif k_len == 1:
+            for all_flds in query: dd[all_flds[0]] = all_flds[1:]
+        elif v_len == 1:
+            for all_flds in query: dd[all_flds[:k_len]] = all_flds[-1]
+        else:
+            for all_flds in query: dd[all_flds[:k_len]] = all_flds[k_len:]
+        return dict(dd)
+    
+    @classmethod
+    def make_lookup_dict_list(cls, filters: Dict, key_fields: Sequence[str], value_fields: Sequence[str]) -> Dict:
+        """ Given a base model, a list of key fields, and a list of value fields, this function will
+        return a dictionary that maps the key fields to any number of value fields as lists. """
+        key_fields, value_fields, query, k_len, v_len, dd = \
+                cls._lookup_dict_setup(filters, key_fields, value_fields)
+        
+        # as in make_lookup_dict, but with a defaultdict(list) and append instead of assignment.
+        if k_len == 1 and v_len == 1:
+            for all_flds in query: dd[all_flds[0]].append(all_flds[1])
+        elif k_len == 1:
+            for all_flds in query: dd[all_flds[0]].append(all_flds[1:])
+        elif v_len == 1:
+            for all_flds in query: dd[all_flds[:k_len]].append(all_flds[-1])
+        else:
+            for all_flds in query: dd[all_flds[:k_len]].append(all_flds[k_len:])
+        return dict(dd)
+    
+    @classmethod
+    def _lookup_dict_setup(cls, filters: Dict, key_fields: Sequence[str], value_fields: Sequence[str]):
+        # common parsing of the parameters passed to either of the lookup_dict functions
+        # make single strings more convenient
+        if isinstance(key_fields, str):
+            key_fields = [key_fields]
+        if isinstance(value_fields, str):
+            value_fields = [value_fields]
+        #
+        query = cls.objects.filter(**filters).values_list(*key_fields, *value_fields)
+        keys_count = len(key_fields)
+        values_count = len(value_fields)
+        dd = defaultdict(list)
+        return key_fields, value_fields, query, keys_count, values_count, dd
+    
+    ####################################### __str__! ###############################################
     
     def __str__(self) -> str:
         """ multipurpose object representation """
