@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import datetime, timedelta
 from typing import Callable, List
 
@@ -9,11 +10,14 @@ from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.user_constants import IOS_API, IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
 from database.schedule_models import ArchivedEvent, ScheduledEvent
+from database.study_models import Study
 from database.system_models import GlobalSettings
 from database.user_models_participant import SurveyNotificationReport
-
 from libs.push_notification_helpers import fcm_for_pushable_participants
 from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
+
+
+ParticipantPKs = int
 
 
 logger = logging.getLogger("push_notifications")
@@ -57,11 +61,8 @@ def undelete_events_based_on_lost_notification_checkin():
     - Weekly schedules do not require special casing - they get removed from the database after
       a week anyway, and if the two schedule periods overlap then the app merges them.
     """
-    # TOO_EARLY in populated as time of deploy that introduced this feature.
-    TOO_EARLY = GlobalSettings.get_singleton_instance()\
-        .earliest_possible_time_of_push_notification_resend
     now = timezone.now()
-    thirty_minutes_ago = now - timedelta(minutes=30)
+    # thirty_minutes_ago = now - timedelta(minutes=30)
     
     #FIXME: this solution where we clear the Nones should be replaced with a real db value that we
     #exclude on in order to have the schedules for manual resends not trigger this..... because we
@@ -91,20 +92,8 @@ def undelete_events_based_on_lost_notification_checkin():
     # sets last_updated on ArchivedEvents, they are excluded.
     update_ArchivedEvents_from_SurveyNotificationReports(pushable_participant_pks, now, log)
     
-    # Now we can filter ArchivedEvents to get all that remain unconfirmed.
-    unconfirmed_notification_uuids = list(set(
-        ArchivedEvent.objects.filter(
-            created_on__gte=TOO_EARLY,                    # created after the earliest possible time,
-            last_updated__lte=thirty_minutes_ago,         # last updated before 30 minutes ago,
-            status=MESSAGE_SEND_SUCCESS,                  # that should have been received,
-            participant_id__in=pushable_participant_pks,  # from relevant participants,
-            confirmed_received=False,                     # that are not confirmed received,
-            uuid__isnull=False,                           # and have uuids.
-        ).values_list(
-            "uuid",
-            flat=True,
-        )
-    ))
+    # We have to do some filtering/processing to identify the uuids we can resend.
+    unconfirmed_notification_uuids = get_resendable_uuids(now, pushable_participant_pks)
     log("unconfirmed_notification_uuids:", unconfirmed_notification_uuids)
     
     # re-enable all ScheduledEvents that were not confirmed received.
@@ -147,8 +136,8 @@ def undelete_events_based_on_lost_notification_checkin():
     log("query_archive_unresendable:", query_archive_unresendable)
 
 
-def base_resend_logic_participant_query(now: datetime) -> List[int]:
-    """ Current filter: iOS-only, minimum build version 2024.22. """
+def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
+    """ Current filter: iOS-only, with the minimum build version. """
     one_week_ago = now - timedelta(days=7)
     
     # base - split off of the heartbeat valid participants query
@@ -179,7 +168,7 @@ def base_resend_logic_participant_query(now: datetime) -> List[int]:
 
 
 def update_ArchivedEvents_from_SurveyNotificationReports(
-    participant_pks: List[int], update_timestamp: datetime, log: Callable
+    participant_pks: List[ParticipantPKs], update_timestamp: datetime, log: Callable
 ):
     """ Populates confirmed_received and applied on ArchivedEvents and SurveyNotificationReports
     based on the SurveyNotificationReports, sets last_updated. """
@@ -222,3 +211,42 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
         applied=True, last_updated=update_timestamp
     )
     log(f"query_notification_report: {query_update_notification_report}")
+
+
+def get_resendable_uuids(now: datetime, pushable_participant_pks: List[ParticipantPKs]) -> List[uuid.UUID]:
+    """ get the uuids on studies"""
+    
+    # TOO_EARLY in populated as time of deploy that introduced this feature.
+    TOO_EARLY = GlobalSettings.get_singleton_instance()\
+        .earliest_possible_time_of_push_notification_resend
+    
+    # Now we can filter ArchivedEvents to get all that remain unconfirmed.
+    uuid_info = list(
+        ArchivedEvent.objects.filter(
+            created_on__gte=TOO_EARLY,                    # created after the earliest possible time,
+            # last_updated__lte=thirty_minutes_ago,       # originally hardcoded.
+            status=MESSAGE_SEND_SUCCESS,                  # that should have been received,
+            participant_id__in=pushable_participant_pks,  # from relevant participants,
+            confirmed_received=False,                     # that are not confirmed received,
+            uuid__isnull=False,                           # and have uuids.
+        ).values_list(
+            "uuid",
+            "last_updated",
+            "participant__study_id",
+        )
+    )
+    
+    # every study has a different timeout value, but we exclude 0.
+    study_timouts = {
+        pk: now - timedelta(minutes)
+        for pk, minutes in Study.objects.values_list("pk", "device_settings__resend_period_minutes")
+        if minutes > 0
+    }
+    
+    # filter by last updated time lte the studies timeout value, uniqueify, listify, return.
+    uuids = []
+    for a_uuid, last_updated, study_id in uuid_info:
+        if (timeout:= study_timouts.get(study_id, None)) and last_updated <= timeout:
+            uuids.append(a_uuid)
+    
+    return list(set(uuids))
