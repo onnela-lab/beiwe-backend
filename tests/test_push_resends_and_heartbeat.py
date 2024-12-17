@@ -670,8 +670,7 @@ class TestResendLogicQuery(The_Class):
         # recently updated archive should not result in resend
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         self.default_study.device_settings.update(resend_period_minutes=0)
-        # 29 minutes will occasionally trigger due to if the self.NOW_SORTA is right at the end of a
-        # minute and that minute has passed by the time this test runs. I think.
+        # this time is very in the past.
         ArchivedEvent.fltr(pk=archive.pk).update(last_updated=self.NOW_SORTA - timedelta(minutes=9999))
         old_archive_last_updated = archive.last_updated
         self.assertEqual(old_archive_last_updated, self.THE_PAST)
