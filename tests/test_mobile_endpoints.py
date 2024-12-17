@@ -600,6 +600,7 @@ class TestGetLatestDeviceSettings(ParticipantSessionTest):
             'survey_submit_success_toast_text': SURVEY_SUBMIT_SUCCESS_TOAST_TEXT,
             'heartbeat_message': DEFAULT_HEARTBEAT_MESSAGE,
             'heartbeat_timer_minutes': 60,
+            'resend_period_minutes': 180,
             
             'consent_sections': DEFAULT_CONSENT_SECTIONS,
             

@@ -62,7 +62,6 @@ def undelete_events_based_on_lost_notification_checkin():
       a week anyway, and if the two schedule periods overlap then the app merges them.
     """
     now = timezone.now()
-    # thirty_minutes_ago = now - timedelta(minutes=30)
     
     #FIXME: this solution where we clear the Nones should be replaced with a real db value that we
     #exclude on in order to have the schedules for manual resends not trigger this..... because we
@@ -185,12 +184,18 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     #  We can still track paths of this occurring by looking at last_updated and created_on values.
     
     # Get all notification_report_pk and uuid pairs.
-    notification_report_pk__uuid = SurveyNotificationReport.objects.filter(
+    notification_report_pk__uuid = list(SurveyNotificationReport.objects.filter(
         participant_id__in=participant_pks,
         # applied=False,  # see bug comment above.
     ).values_list(
         "pk", "notification_uuid"
-    )
+    ))
+    
+    if not notification_report_pk__uuid:
+        # this is log and return exist to assist debugging, virtually unreachable on a live server
+        log("no notification reports found to update.\n--")
+        return 
+    
     log(f"notification_report_pk__uuid: {notification_report_pk__uuid}")
     
     # ArchivedEvents matching those uuids to `confirmed_received=True` and `last_updated` to now.
@@ -214,7 +219,8 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
 
 
 def get_resendable_uuids(now: datetime, pushable_participant_pks: List[ParticipantPKs]) -> List[uuid.UUID]:
-    """ get the uuids on studies"""
+    """ Get the uuids of relevant archives. This includes a per-study timeout value for how frequently
+    to resend, and a filter by last updated time. aoeuaoeu eua eou.a aoeui .,..uaoeuaoeuaouiaoeu aoeu oaeu a """
     
     # TOO_EARLY in populated as time of deploy that introduced this feature.
     TOO_EARLY = GlobalSettings.get_singleton_instance()\
@@ -236,9 +242,19 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
         )
     )
     
-    # every study has a different timeout value, but we exclude 0.
-    study_timouts = {
-        pk: now - timedelta(minutes)
+    log(f"found {len(uuid_info)} ArchivedEvents to check.")
+    
+    # handle _some_ off-by-X-minutes issues:
+    # - Clear seconds and microseconds on now to cause all values in the current minute as resendable.
+    # - true off-by-6-minutes requires a `seconds - (seconds % 6)`` operation....
+    # Not fully handling that is ok because it only occurs when push notification went out slow?
+    now_ish = now.replace(second=0, microsecond=0)
+    # print("periodicity:", list(Study.objects.values_list("device_settings__resend_period_minutes", flat=True)))
+    
+    # Every study has a different timeout value, but we exclude 0.
+    # If the last updated timestamp on the archive is before this value, we resend.
+    study_resend_timeouts = {
+        pk: now_ish - timedelta(minutes=minutes)
         for pk, minutes in Study.objects.values_list("pk", "device_settings__resend_period_minutes")
         if minutes > 0
     }
@@ -246,7 +262,15 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
     # filter by last updated time lte the studies timeout value, uniqueify, listify, return.
     uuids = []
     for a_uuid, last_updated, study_id in uuid_info:
-        if (timeout:= study_timouts.get(study_id, None)) and last_updated <= timeout:
+        timeout = study_resend_timeouts.get(study_id, None)
+        # print("study's timeout:", timeout.strftime(DEV_TIME_FORMAT3) if timeout else timeout)
+        # print("last_updated:   ", last_updated.strftime(DEV_TIME_FORMAT3))
+        # print("timeout and last_updated <= timeout:", timeout and last_updated <= timeout)
+        # print()
+        if timeout and last_updated <= timeout:
             uuids.append(a_uuid)
     
-    return list(set(uuids))
+    # deduplicate uuids
+    uuids = list(set(uuids))
+    log(f"found {len(uuids)} ArchivedEvents to resend.")
+    return uuids
