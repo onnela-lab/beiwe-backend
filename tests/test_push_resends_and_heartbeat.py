@@ -665,6 +665,23 @@ class TestResendLogicQuery(The_Class):
         self.assert_not_touched_in_last_run(sched_event)
         self.assert_last_updated_not_equal(archive, sched_event)
     
+    def test_archive_study_disabled_resend(self):
+        self.assertEqual(self.default_study.device_settings.resend_period_minutes, 30)
+        # recently updated archive should not result in resend
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_study.device_settings.update(resend_period_minutes=0)
+        # 29 minutes will occasionally trigger due to if the self.NOW_SORTA is right at the end of a
+        # minute and that minute has passed by the time this test runs. I think.
+        ArchivedEvent.fltr(pk=archive.pk).update(last_updated=self.NOW_SORTA - timedelta(minutes=9999))
+        old_archive_last_updated = archive.last_updated
+        self.assertEqual(old_archive_last_updated, self.THE_PAST)
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertNotEqual(archive.last_updated, old_archive_last_updated)
+        self.assert_not_touched_in_last_run(archive)
+        self.assert_not_touched_in_last_run(sched_event)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
     def test_null_uuid_on_archive(self):
         # should fail to show up in the query resulting in nothing
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()

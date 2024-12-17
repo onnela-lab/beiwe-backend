@@ -272,6 +272,6 @@ class DeviceSettings(TimestampedModel):
     heartbeat_timer_minutes = models.PositiveIntegerField(default=60, validators=[MinValueValidator(30)])
     
     # Resend survey notifications (to sufficiently recent iOS app installs)
-    resend_period_minutes = models.PositiveIntegerField(default=180, validators=[MinValueValidator(1)])
+    resend_period_minutes = models.PositiveIntegerField(default=180, validators=[MinValueValidator(0)])
     
     study: Study = models.OneToOneField(Study, on_delete=models.PROTECT, related_name='device_settings')
