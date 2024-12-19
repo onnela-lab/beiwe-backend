@@ -61,6 +61,10 @@ def undelete_events_based_on_lost_notification_checkin():
     - Weekly schedules do not require special casing - they get removed from the database after
       a week anyway, and if the two schedule periods overlap then the app merges them.
     """
+    # do not run resends if the this is not populated.
+    if GlobalSettings.singleton().push_notification_resend_enabled is None:
+        return
+    
     now = timezone.now()
     
     #FIXME: this solution where we clear the Nones should be replaced with a real db value that we
@@ -172,11 +176,6 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     """ Populates confirmed_received and applied on ArchivedEvents and SurveyNotificationReports
     based on the SurveyNotificationReports, sets last_updated. """
     
-    # TOO_EARLY is populated as time of deploy that introduced this feature, resend logic
-    # only operates on ArchivedEvents created after that.
-    TOO_EARLY = GlobalSettings.get_singleton_instance()\
-        .earliest_possible_time_of_push_notification_resend
-    
     # Possible Bug -- there is some condition where we miss a notification report updating an
     #  archived event that is supposed to already be applied.  Fix is to always get all of them and
     #  filter on the update operation. these uuids are unique, and its only active participants.
@@ -201,7 +200,7 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     # ArchivedEvents matching those uuids to `confirmed_received=True` and `last_updated` to now.
     query_update_archive_confirm_received = ArchivedEvent.objects.filter(
         uuid__in=[uuid for _, uuid in notification_report_pk__uuid],
-        created_on__gte=TOO_EARLY,    # created after the earliest possible allowed time.
+        # created_on__gte=TOO_EARLY,  # no, we can have overlap on users that update early... probably
         confirmed_received=False,     # see bug comment above; reduces db load and lets us track.
     ).update(
         confirmed_received=True, last_updated=update_timestamp,
@@ -222,14 +221,14 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
     """ Get the uuids of relevant archives. This includes a per-study timeout value for how frequently
     to resend, and a filter by last updated time. aoeuaoeu eua eou.a aoeui .,..uaoeuaoeuaouiaoeu aoeu oaeu a """
     
-    # TOO_EARLY in populated as time of deploy that introduced this feature.
-    TOO_EARLY = GlobalSettings.get_singleton_instance()\
-        .earliest_possible_time_of_push_notification_resend
+    # TOO_EARLY is populated AFTER the first run that regenerates all schedules in a periodic task
+    # - only archived events created after this time are considered for resends.
+    TOO_EARLY = GlobalSettings.singleton().push_notification_resend_enabled
     
     # Now we can filter ArchivedEvents to get all that remain unconfirmed.
     uuid_info = list(
         ArchivedEvent.objects.filter(
-            created_on__gte=TOO_EARLY,                    # created after the earliest possible time,
+            created_on__gt=TOO_EARLY,                     # created after the earliest possible time,
             # last_updated__lte=thirty_minutes_ago,       # originally hardcoded.
             status=MESSAGE_SEND_SUCCESS,                  # that should have been received,
             participant_id__in=pushable_participant_pks,  # from relevant participants,
@@ -263,6 +262,7 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
     uuids = []
     for a_uuid, last_updated, study_id in uuid_info:
         timeout = study_resend_timeouts.get(study_id, None)
+        # from constants.common_constants import DEV_TIME_FORMAT3
         # print("study's timeout:", timeout.strftime(DEV_TIME_FORMAT3) if timeout else timeout)
         # print("last_updated:   ", last_updated.strftime(DEV_TIME_FORMAT3))
         # print("timeout and last_updated <= timeout:", timeout and last_updated <= timeout)

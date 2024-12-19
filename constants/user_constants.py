@@ -14,7 +14,7 @@ OS_TYPE_CHOICES = (
 
 
 IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION = "2024.27"
-
+IOS_APP_NO_RESENDS = "2024.26"  # need to co-locate this with the good one or I will lose my mind.
 
 # Researcher User Types
 class ResearcherRole:

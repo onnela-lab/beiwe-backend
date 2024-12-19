@@ -58,6 +58,10 @@ def repopulate_all_survey_scheduled_events(study: Study, participant: Optional[P
     """ Runs all the survey scheduled event generations on the provided entities. """
     log("repopulate_all_survey_scheduled_events")
     
+    # Big Thing - can be removed in like a year from december 2024, Do not set the GlobalSettings
+    # flat push_notification_resend_enabled here - it should be set in script runner's
+    # push_notification_scheduledevent_rebuild function.
+    
     if study.study_is_stopped:
         ScheduledEvent.objects.filter(survey__study_id=study.pk).delete()
         return

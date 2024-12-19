@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import traceback
 from datetime import datetime
+from typing import Union
+from typing_extensions import Self
 
 from django.db import models
 from django.utils import timezone
@@ -34,13 +36,13 @@ class SingletonModel(TimestampedModel):
         abstract = True
     
     @classmethod
-    def get_singleton_instance(cls):  # oof, can't annotate this intelligently.
+    def singleton(cls) -> Self:
         """ An objectively dumb way of making sure we only ever have one of these. """
         count = cls.objects.count()
         if count > 1:
             exclude = cls.objects.order_by("created_on").first().id
             cls.objects.exclude(id=exclude).delete()
-            return cls.get_singleton_instance()
+            return cls.singleton()
         if count == 0:
             ret = cls()
             ret.save()
@@ -59,8 +61,8 @@ class ForestVersion(SingletonModel):
 
 
 class GlobalSettings(SingletonModel):
-    """ A singleton model that holds global settings for the entire website, and for the data
-    processing server(s). """
+    """ A singleton model that holds global settings that may need to be synchronized between
+    several servers, threads etc. Should always be accessed via .singleton() method. """
     
     # see the downtime middleware.
     downtime_enabled = models.BooleanField(default=False)
@@ -68,7 +70,7 @@ class GlobalSettings(SingletonModel):
     # this datetime will be populated when the migration is run, which is the same time the resend
     # notification feature can be activated.  (this defines a check on historical ArchivedEvent
     # created_on times.)
-    earliest_possible_time_of_push_notification_resend = models.DateTimeField(default=timezone.now, null=False)
+    push_notification_resend_enabled = models.DateTimeField(default=None, null=True, blank=True)
 
 
 class DataAccessRecord(TimestampedModel):

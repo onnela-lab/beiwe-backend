@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from constants.celery_constants import SCRIPTS_QUEUE
 from database.study_models import Study
+from database.system_models import GlobalSettings
 from libs.celery_control import safe_apply_async, scripts_celery_app
 from libs.schedules import repopulate_all_survey_scheduled_events
 from libs.sentry import make_error_sentry, SentryTypes
@@ -102,6 +103,16 @@ def celery_process_run_push_notification_scheduledevent_rebuild():
 def push_notification_scheduledevent_rebuild():
     for study in Study.objects.all():
         repopulate_all_survey_scheduled_events(study)
+    
+    # This flag eneables resends. This has to be set _After_ schedules are repopulated because...
+    # on servers where the participants have updated the app before the server has been updated will
+    # possibly be in a position where they receive a resend of every archived event within that period.
+    
+    # - repopulating logic may generate events that were missed (because of old bugs)
+    settings = GlobalSettings().singleton()
+    if settings.push_notification_resend_enabled is None:
+        settings.push_notification_resend_enabled = timezone.now()
+        settings.save()
 
 
 #

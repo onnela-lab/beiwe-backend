@@ -3,7 +3,7 @@ import random
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import List, Tuple
+from typing import DefaultDict, Dict, List, Tuple
 
 import orjson
 from cronutils.error_handler import ErrorSentry
@@ -24,7 +24,6 @@ from database.survey_models import Survey
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     PushNotificationDisabledEvent)
 from libs.firebase_config import check_firebase_instance
-from libs.internal_types import DictOfStrStr, DictOfStrToListOfStr
 from libs.push_notification_helpers import slowly_get_stopped_study_ids
 
 
@@ -59,8 +58,11 @@ def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[Schedule
 ################################### SURVEY PUSH NOTIFICATIONS ######################################
 ####################################################################################################
 
+SurveyReturn = Dict[str, List[str]]     # a dictionary of fcm tokens to lists of survey object ids
+SchedulesReturn = Dict[str, List[int]]  # a dictionary of fcm tokens to lists of schedule pks
+PatientsReturn = Dict[str, str]         # a dictionary of fcm tokens to (individual) patient ids
 
-def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStrToListOfStr, DictOfStrToListOfStr, DictOfStrStr]:
+def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[SurveyReturn, SchedulesReturn, PatientsReturn]:
     """ Mostly this function exists to reduce mess. returns:
     a mapping of fcm tokens to list of survey object ids
     a mapping of fcm tokens to list of schedule ids
@@ -109,8 +111,8 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
     )
     
     # we need a mapping of fcm tokens (a proxy for participants) to surveys and schedule ids (pks)
-    surveys = defaultdict(list)
-    schedules = defaultdict(list)
+    surveys: DefaultDict[str, List[str]] = defaultdict(list)
+    schedules: DefaultDict[str, List[int]] = defaultdict(list)
     patient_ids = {}
     
     # unregistered means that the FCM push notification token has been marked as unregistered, which
@@ -121,18 +123,18 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
     patient_id: str
     survey_obj_id: str
     scheduled_time: datetime  # in UTC
-    schedule_id: int
+    schedule_pk: int
     study_tz_name: str
     participant_tz_name: str
     participant_has_bad_tz: bool
-    for scheduled_time, survey_obj_id, study_tz_name, fcm, schedule_id, patient_id, unregistered, participant_tz_name, participant_has_bad_tz in query:
+    for scheduled_time, survey_obj_id, study_tz_name, fcm, schedule_pk, patient_id, unregistered, participant_tz_name, participant_has_bad_tz in query:
         logd("\nchecking scheduled event:")
         logd("unregistered:", unregistered)
         logd("fcm:", fcm)
         logd("patient_id:", patient_id)
         logd("survey_obj_id:", survey_obj_id)
         logd("scheduled_time:", scheduled_time)
-        logd("schedule_id:", schedule_id)
+        logd("schedule_id:", schedule_pk)
         logd("study_tz_name:", study_tz_name)
         logd("participant_tz_name:", participant_tz_name)
         logd("participant_has_bad_tz:", participant_has_bad_tz)
@@ -166,10 +168,10 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[DictOfStr
         logd("yup, participant time is considered in the past")
         logd(f"{now} <= {participant_time}")
         surveys[fcm].append(survey_obj_id)
-        schedules[fcm].append(schedule_id)
+        schedules[fcm].append(schedule_pk)
         patient_ids[fcm] = patient_id
     
-    return dict(surveys), dict(schedules), patient_ids
+    return  dict(surveys), dict(schedules), patient_ids
 
 
 def send_scheduled_event_survey_push_notification_logic(

@@ -15,7 +15,7 @@ class DowntimeMiddleware:
     
     def __call__(self, request: HttpRequest):
         # if downtime is enabled, return a 503.
-        if GlobalSettings.get_singleton_instance().downtime_enabled:
+        if GlobalSettings.singleton().downtime_enabled:
             return HttpResponse(
                 content="This server is currently undergoing maintenance, please try again later.",
                 status=503

@@ -1,4 +1,4 @@
-# trunk-ignore-all(ruff/B018)
+# trunk-ignore-all(ruff/B018,bandit/B101)
 import uuid
 from datetime import datetime, timedelta
 from typing import Tuple
@@ -10,9 +10,9 @@ from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
     ThirdPartyAuthError, UnregisteredError)
 
 from constants.common_constants import DEV_TIME_FORMAT3
-from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
+from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE, MESSAGE_SEND_SUCCESS
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
-    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
+    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, IOS_APP_NO_RESENDS)
 from database.common_models import TimestampedModel, UtilityModel
 from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, RelativeSchedule,
     ScheduledEvent, WeeklySchedule)
@@ -20,6 +20,7 @@ from database.survey_models import Survey
 from database.system_models import GlobalSettings
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     SurveyNotificationReport)
+from libs.schedules import repopulate_all_survey_scheduled_events
 from services.celery_push_notifications import create_heartbeat_tasks, get_surveys_and_schedules
 from services.heartbeat_push_notifications import heartbeat_query
 from services.resend_push_notifications import undelete_events_based_on_lost_notification_checkin
@@ -477,8 +478,8 @@ class TestResendLogicQuery(The_Class):
         self.already_set_up_default_participant = False
         # these tests were all originally configured with a timer of 30 minutes.
         self.default_study.device_settings.update_only(resend_period_minutes=30)
-        global_settings = GlobalSettings.get_singleton_instance()
-        global_settings.update(earliest_possible_time_of_push_notification_resend=self.THE_BEGINNING_OF_TIME)
+        global_settings = GlobalSettings.singleton()
+        global_settings.update(push_notification_resend_enabled=self.THE_BEGINNING_OF_TIME)
     
     def run_resend_logic_and_refresh_these_models(self, *args: UtilityModel):
         self.BEFORE_RUN = timezone.now()
@@ -1005,8 +1006,8 @@ class TestResendLogicQuery(The_Class):
     ## don't run before earliest resend time
     
     def test_correct_setup_before_earliest_resend_time_restriction_fails(self):
-        global_settings = GlobalSettings.get_singleton_instance()
-        global_settings.update(earliest_possible_time_of_push_notification_resend=self.THE_FUTURE)
+        global_settings = GlobalSettings.singleton()
+        global_settings.update(push_notification_resend_enabled=self.THE_FUTURE)
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         self.assert_scheduled_event_not_sendable(sched_event)
         self.run_resend_logic_and_refresh_these_models(sched_event, archive)
@@ -1109,3 +1110,218 @@ class TestResendLogicQuery(The_Class):
         self.assertEqual(ScheduledEvent.objects.count(), scheduled_event)
         self.assertEqual(ArchivedEvent.objects.count(), archived_event)
         self.assertEqual(SurveyNotificationReport.objects.count(), notification_report)
+
+
+P_BEFORE_ARCHIVE_CREATED = "participant__before_archive_created"
+P_AFTER_ARCHIVE_CREATED = "participant__after_archive_created"
+P_NEVER_ENABLE = "participant__never_enable"
+
+VALID_OPTIONS_PARTICIPANT_UPGRADE = {
+    P_BEFORE_ARCHIVE_CREATED,
+    # too late:
+    P_AFTER_ARCHIVE_CREATED,
+    P_NEVER_ENABLE,
+}
+P_SHOULD_NOT_RESEND = {
+    P_NEVER_ENABLE,
+    P_AFTER_ARCHIVE_CREATED,
+}
+P_SHOULD_RESEND = {
+    P_BEFORE_ARCHIVE_CREATED,
+}
+
+
+R_BEFORE_ARCHIVE_CREATED = "resend__before_archived_events"
+R_AFTER_ARCHIVE_CREATED = "resend__after_archived_events_created"
+R_LEAVE_IT_NONE = "resend__leave_it_none"
+
+VALID_OPTIONS_SET_RESEND = {
+    R_BEFORE_ARCHIVE_CREATED,  # only this one is should resend
+    R_AFTER_ARCHIVE_CREATED,
+    R_LEAVE_IT_NONE,
+}
+R_SHOULD_RESEND = {
+    R_BEFORE_ARCHIVE_CREATED,
+}
+R_SHOULD_NOT_RESEND = {
+    R_AFTER_ARCHIVE_CREATED,
+    R_LEAVE_IT_NONE,
+}
+
+
+# TODO: are we excluding archives lacking uuids? correctly with all the time orderings I have tested?
+
+class TestResendStuff(CommonTestCase):
+    # We can't have *all historical push notifications* trigger when a participant updates their
+    # app version on a server where resend is already enabled. THAT WOULD BE REAL BAD.
+    
+    ## meta test
+    def test_configuration(self):
+        self.assertSetEqual(
+            P_SHOULD_RESEND.union(P_SHOULD_NOT_RESEND),
+            VALID_OPTIONS_PARTICIPANT_UPGRADE,
+            "All items for particiants must be present in the two sets.",
+        )
+        self.assertSetEqual(
+            R_SHOULD_RESEND.union(R_SHOULD_NOT_RESEND),
+            VALID_OPTIONS_SET_RESEND,
+             "All items for resends must be present in the two sets.",
+        )
+    
+    ## test variants
+    def test_R_before_archive_created____P_before_archive_created____uuids(self):
+        self._the_test(R_BEFORE_ARCHIVE_CREATED, P_BEFORE_ARCHIVE_CREATED, uuids=True)
+    
+    def test_R_before_archive_created____P_before_archive_created____no_uuids(self):
+        self._the_test(R_BEFORE_ARCHIVE_CREATED, P_BEFORE_ARCHIVE_CREATED, uuids=False)
+    
+    def test_R_before_archive_created____P_after_archive_created____uuids(self):
+        self._the_test(R_BEFORE_ARCHIVE_CREATED, P_AFTER_ARCHIVE_CREATED, uuids=True)
+    
+    def test_R_before_archive_created____P_after_archive_created____no_uuids(self):
+        self._the_test(R_BEFORE_ARCHIVE_CREATED, P_AFTER_ARCHIVE_CREATED, uuids=False)
+    
+    def test_R_after_archive_created____P_before_archive_created____uuids(self):
+        self._the_test(R_AFTER_ARCHIVE_CREATED, P_BEFORE_ARCHIVE_CREATED, uuids=True)
+    
+    def test_R_after_archive_created____P_before_archive_created____no_uuids(self):
+        self._the_test(R_AFTER_ARCHIVE_CREATED, P_BEFORE_ARCHIVE_CREATED, uuids=False)
+    
+    def test_R_after_archive_created____P_after_archive_created____uuids(self):
+        self._the_test(R_AFTER_ARCHIVE_CREATED, P_AFTER_ARCHIVE_CREATED, uuids=True)
+    
+    def test_R_after_archive_created____P_after_archive_created____no_uuids(self):
+        self._the_test(R_AFTER_ARCHIVE_CREATED, P_AFTER_ARCHIVE_CREATED, uuids=False)
+    
+    def test_R_leave_it_none____P_before_archive_created____uuids(self):
+        self._the_test(R_LEAVE_IT_NONE, P_BEFORE_ARCHIVE_CREATED, uuids=True)
+    
+    def test_R_leave_it_none____P_before_archive_created____no_uuids(self):
+        self._the_test(R_LEAVE_IT_NONE, P_BEFORE_ARCHIVE_CREATED, uuids=False)
+    
+    def test_R_leave_it_none____P_after_archive_created____uuids(self):
+        self._the_test(R_LEAVE_IT_NONE, P_AFTER_ARCHIVE_CREATED, uuids=True)
+    
+    def test_R_leave_it_none____P_after_archive_created____no_uuids(self):
+        self._the_test(R_LEAVE_IT_NONE, P_AFTER_ARCHIVE_CREATED, uuids=False)
+    
+    ## test readability:
+    def global_settings_resend_enabled_to_now(self):
+        GlobalSettings.singleton().update(push_notification_resend_enabled=timezone.now())
+    
+    def set_default_participant_version_no_resends(self):
+        self.default_participant.update(last_upload=timezone.now(), last_version_name=IOS_APP_NO_RESENDS)
+    
+    def set_default_participant_version_yes_resends(self):
+        self.default_participant.update(last_version_name=IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
+    
+    ## The Test But This Time For Real
+    def _the_test(self, set_resend: str, participant_upgrade: str, uuids: bool):
+        self._validate_params(set_resend, participant_upgrade)
+        
+        self.set_default_participant_all_push_notification_features
+        self.set_default_participant_version_no_resends()
+        
+        if set_resend == R_BEFORE_ARCHIVE_CREATED:
+            self.global_settings_resend_enabled_to_now()
+        if participant_upgrade == P_BEFORE_ARCHIVE_CREATED:
+            self.set_default_participant_version_yes_resends()
+        
+        # use the real mechanism for creating two schedules and scheduled events, 60 seconds apart.
+        AbsoluteSchedule.configure_absolute_schedules(
+            [(2020, 1, 1, 0), (2020, 1, 1, 60)], self.default_survey,
+        )
+        repopulate_all_survey_scheduled_events(self.default_study)
+        
+        if participant_upgrade == P_NEVER_ENABLE:
+            self.assertEqual(self.default_participant.last_version_name, IOS_APP_NO_RESENDS)
+        
+        # get the two schedules, create an archive of the first, force last_updated to be old, all
+        # conditions are not satisfied to resend if these external conditions are enabled.
+        yes_archived, no_archive = ScheduledEvent.objects.order_by("scheduled_time")
+        yes_archived.archive(self.default_participant, MESSAGE_SEND_SUCCESS)
+        # (real pre-resend logic archives will not have uuids, other scenarios clear them)
+        ArchivedEvent.objects.update(last_updated=timezone.now() - timedelta(days=1))
+        if not uuids:
+            ArchivedEvent.objects.update(uuid=None)
+        yes_archived.refresh_from_db()
+        
+        if participant_upgrade == P_AFTER_ARCHIVE_CREATED:
+            self.set_default_participant_version_yes_resends()
+        if set_resend == R_AFTER_ARCHIVE_CREATED:
+            self.global_settings_resend_enabled_to_now()
+        
+        now = timezone.now()
+        fcm_token = self.default_participant.get_valid_fcm_token().token
+        
+        # Will be 1 schedule, 1 survey, 1 participant before running resend logic
+        self.assert_find_only_this_schedule(now, fcm_token, no_archive.pk)
+        undelete_events_based_on_lost_notification_checkin()
+        
+        # THE PERMUTATIONS:
+        if participant_upgrade in P_SHOULD_RESEND and set_resend in R_SHOULD_RESEND:
+            # but only for archives with uuids (probably not real but should be handled, other
+            # scenarios exist where we clear the uuid but I also want to remove that....)
+            if uuids:
+                self.assert_find_both_schedules(now, fcm_token, yes_archived, no_archive)
+            else:
+                self.assert_find_only_this_schedule(now, fcm_token, no_archive.pk)
+        elif participant_upgrade in P_SHOULD_NOT_RESEND or set_resend in R_SHOULD_NOT_RESEND:
+            self.assert_find_only_this_schedule(now, fcm_token, no_archive.pk)
+        else:
+            raise Exception("something about the test configuration is wrong, SAW-RYYY")
+        
+        # meta, validate the earliest time to save our future selves if we update the test...
+        # it has to be non-None and in the past, this value is not allowed be set to the future.
+        if set_resend == R_LEAVE_IT_NONE:
+            self.assertIsNone(GlobalSettings.singleton().push_notification_resend_enabled)
+        else:
+            self.assertLess(GlobalSettings.singleton().push_notification_resend_enabled, timezone.now())
+    
+    ## THE ASSERTIONS
+    def assert_find_only_this_schedule(self, now: datetime, fcm_token: str, schedule_pk: int):
+        surveys_by_fcm, schedules_by_fcm, participants_by_fcm = get_surveys_and_schedules(now)
+        # from pprint import pprint
+        # print("fcm_token:", fcm_token)  
+        # print("surveys_by_fcm:")
+        # pprint(surveys_by_fcm)
+        # print("schedules_by_fcm:")
+        # pprint(schedules_by_fcm)
+        # print("participants_by_fcm:")
+        # pprint(participants_by_fcm)
+        # one of each
+        self.assertEqual(len(surveys_by_fcm[fcm_token]), 1)
+        self.assertEqual(len(schedules_by_fcm[fcm_token]), 1)
+        self.assertEqual(len(participants_by_fcm), 1)
+        # should find B
+        should_be_pk_b = schedules_by_fcm[fcm_token][0]
+        self.assertEqual(schedule_pk, should_be_pk_b)
+    
+    def assert_find_both_schedules(self, now: datetime, fcm_token: str, a: ScheduledEvent, b: ScheduledEvent):
+        surveys_by_fcm, schedules_by_fcm, participants_by_fcm = get_surveys_and_schedules(now)
+        # one of each
+        self.assertEqual(len(surveys_by_fcm[fcm_token]), 2)  # not deduplicated yet
+        self.assertEqual(len(schedules_by_fcm[fcm_token]), 2)
+        self.assertEqual(len(participants_by_fcm), 1)
+        # should find both
+        self.assertIn(a.pk, schedules_by_fcm[fcm_token])
+        self.assertIn(b.pk, schedules_by_fcm[fcm_token])
+    
+    def _validate_params(self, set_resend: str, participant_upgrade: str):
+        # after running migrations, the push_notification_resend_enabled should be None.
+        self.assertIsNone(
+            GlobalSettings.singleton().push_notification_resend_enabled,
+            "\n\nYou need to rebuild your test database."
+        )
+        
+        if "resend__" not in set_resend or "participant__" in set_resend:
+            raise ValueError(f"bad set_resend: '{set_resend}'")
+        
+        if "participant__" not in participant_upgrade or "resend__" in participant_upgrade:
+            raise ValueError(f"bad participant_upgrade: '{participant_upgrade}'")
+        
+        if set_resend not in VALID_OPTIONS_SET_RESEND:
+            raise ValueError("set_resend must be a specific value.")
+        
+        if participant_upgrade not in VALID_OPTIONS_PARTICIPANT_UPGRADE:
+            raise ValueError("participant_upgrade must be a specific value.")

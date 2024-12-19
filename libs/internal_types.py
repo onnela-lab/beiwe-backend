@@ -59,7 +59,6 @@ DictOfStrStr = Dict[str, str]
 DictOfStrInt = Dict[str, int]
 DictOfIntStr = Dict[int, str]
 DictOfIntInt = Dict[int, int]
-DictOfStrToListOfStr = Dict[str, List[str]]
 
 # used in s3
 StrOrParticipantOrStudy = Union[str, Participant, Study]

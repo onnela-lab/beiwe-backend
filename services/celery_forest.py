@@ -139,7 +139,7 @@ def celery_run_forest(forest_task_id):
             status=ForestTaskStatus.running,
             process_start_time=timezone.now(),
             forest_version=version,
-            forest_commit=ForestVersion.get_singleton_instance().git_commit,
+            forest_commit=ForestVersion.singleton().git_commit,
         )
     
     # ChunkRegistry "time_bin" hourly chunks are in UTC, with each file containing a discrete hour

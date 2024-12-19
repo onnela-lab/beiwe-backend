@@ -256,7 +256,7 @@ def task_log(request: ResearcherRequest, study_id=None):
         else:
             task_dict["params_dict"] = FOREST_TASKVIEW_PICKLING_EMPTY
         tasks.append(task_dict)
-    forest_info = ForestVersion.get_singleton_instance()
+    forest_info = ForestVersion.singleton()
     return render(
         request,
         "forest/task_log.html",
@@ -454,7 +454,7 @@ def render_create_tasks(request: ResearcherRequest, study: Study):
     )
     start_date = dates[0] if dates else study.created_on.date()
     end_date = dates[-1] if dates else timezone.now().date()
-    forest_info = ForestVersion.get_singleton_instance()
+    forest_info = ForestVersion.singleton()
     
     # start_date = dates[0] if dates and dates[0] >= EARLIEST_POSSIBLE_DATA_DATE else study.created_on.date()
     # end_date = dates[-1] if dates and dates[-1] <= timezone.now().date() else timezone.now().date()

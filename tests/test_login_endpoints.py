@@ -472,11 +472,11 @@ class TestDowntime(BasicSessionTestCase):
         previous_logging_level = logging.getLogger("django.request").level
         try:
             logging.getLogger("django.request").setLevel(logging.CRITICAL)
-            GlobalSettings.get_singleton_instance().update(downtime_enabled=False)
+            GlobalSettings.singleton().update(downtime_enabled=False)
             self.easy_get("login_endpoints.login_page", status_code=200)
-            GlobalSettings.get_singleton_instance().update(downtime_enabled=True)
+            GlobalSettings.singleton().update(downtime_enabled=True)
             self.easy_get("login_endpoints.login_page", status_code=503)
-            GlobalSettings.get_singleton_instance().update(downtime_enabled=False)
+            GlobalSettings.singleton().update(downtime_enabled=False)
             self.easy_get("login_endpoints.login_page", status_code=200)
         except Exception:
             raise
