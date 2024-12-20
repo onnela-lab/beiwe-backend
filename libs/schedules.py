@@ -111,7 +111,7 @@ def repopulate_absolute_survey_schedule_events(survey: Survey, participant: Opti
     log("absolute schedule events")
     existing_events, participant_pks = common_setup(survey, "absolute", participant)
     valid_event_data = setup_info_from_absolute_schedules(survey, participant_pks)
-    schodelod_event_database_update(
+    scheduled_event_database_update(
         existing_events, valid_event_data, "absolute", survey
     )
 
@@ -139,7 +139,7 @@ def repopulate_relative_survey_schedule_events(survey: Survey, participant: Opti
     # fill all_schudule_pks and all_possible_event_times
     valid_event_data = setup_info_from_relative_schedules(survey, participant_pks)
     
-    schodelod_event_database_update(
+    scheduled_event_database_update(
         existing_events, valid_event_data, "relative", survey,
     )
 
@@ -200,7 +200,7 @@ def repopulate_weekly_survey_schedule_events(survey: Survey, participant: Option
     existing_events, participant_pks = common_setup(survey, "weekly", participant)
     valid_event_data, but_dont_actually_create_these = get_info_for_weekly_events(survey, participant_pks)
     
-    schodelod_event_database_update(
+    scheduled_event_database_update(
         existing_events,
         valid_event_data,
         "weekly",
@@ -331,7 +331,7 @@ def decompose_datetime_to_device_weekly_timings(dt: datetime) -> Tuple[int, int]
 #   obscure corner cases that caused bugs in the past.
 
 
-def schodelod_event_database_update(
+def scheduled_event_database_update(
     existing_events: List[ScheduledEvent],
     valid_event_data: List[EventLookup],
     type_of_schedule: str,

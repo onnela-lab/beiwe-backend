@@ -14,7 +14,8 @@ from database.study_models import Study
 from database.system_models import GlobalSettings
 from database.user_models_participant import SurveyNotificationReport
 from libs.push_notification_helpers import fcm_for_pushable_participants
-from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
+from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
+    VersionError)
 
 
 ParticipantPKs = int
@@ -161,11 +162,14 @@ def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
         # I'm injecting an exta check here as a reminder no .... do the thing the message says.
         if os_type != IOS_API:
             raise AssertionError("this code is currently only supposed to be for ios, you to update can_handle_push_notification_resends if you change it.")
-        # build must be greater than or equal to 2024.22
-        if is_participants_version_gte_target(
-            os_type, version_code, version_name, IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
-        ):
-            pushable_participant_pks.append(participant_id)
+        # build must be greater than or equal to 2024.22-or-whatever it turns out to be
+        try:
+            if is_participants_version_gte_target(
+                os_type, version_code, version_name, IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
+            ):
+                pushable_participant_pks.append(participant_id)
+        except VersionError:
+            pass
     
     return pushable_participant_pks
 

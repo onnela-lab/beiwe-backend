@@ -12,7 +12,7 @@ from tests.common import CommonTestCase
 
 class TestPushComponents(CommonTestCase):
     
-    # we don't need to test the different SchodeledEvent types for archive, they're all the same.
+    # we don't need to test the different ScheduledEvent types for archive, they're all the same.
     def test_create_archived_event_one_absolute_schedule_full_features(self):
         self.set_default_participant_all_push_notification_features
         event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())

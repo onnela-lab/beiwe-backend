@@ -274,7 +274,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
 
 
 class SchedulePersistenceCheck:
-    """ A helper class providing a pattern for testing that new identical schoduled events are not
+    """ A helper class providing a pattern for testing that new identical scheduled events are not
     replaced, are instead allowed to remain. """
     
     def type_nonce(self, wkly_sched, rltv_sched, abslt_sched):
