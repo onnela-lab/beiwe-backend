@@ -63,6 +63,7 @@ ACTIVE_PARTICIPANT_FIELDS = (
 PARTICIPANT_STATUS_QUERY_FIELDS = (
     "id",  # the database id, use is clear in the code, not actually part of activeness
     "created_on",
+    "first_register_user",  # added later
     "patient_id",
     "registered",
     "os_type",
@@ -77,7 +78,6 @@ PARTICIPANT_STATUS_QUERY_FIELDS = (
 )
 
 # used in the participant table api/page content
-BASE_TABLE_FIELDS = ["Created On", "Patient ID", "Status", "OS Type"]
 EXTRA_TABLE_FIELDS = {
     "first_register_user": "First Registration Date",
     "last_register_user": "Last Registration",

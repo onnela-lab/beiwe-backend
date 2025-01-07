@@ -1,3 +1,4 @@
+# trunk-ignore-all(ruff/B018)
 from datetime import datetime, timedelta
 from typing import Tuple
 
@@ -101,6 +102,7 @@ class TestStudyParticipantApi(ResearcherSessionTest):
     def setUp(self) -> None:
         # we need a flag for multiple calls to set_session_study_relation
         ret = super().setUp()
+        self.default_study.update(timezone_name="UTC")  # wow this actually matters
         self.STUDY_RELATION_SET = False
         return ret
     
@@ -137,7 +139,13 @@ class TestStudyParticipantApi(ResearcherSessionTest):
             "recordsFiltered":
                 1,
             "data":
-                [[self.SOME_TIMESTAMP_STR, self.default_participant.patient_id, status, "ANDROID"]]
+                [[
+                    self.SOME_TIMESTAMP_STR,
+                    "",  # first_register_user
+                    self.default_participant.patient_id,
+                    status,
+                    "ANDROID"
+                ]]
         }
     
     def test_basics(self):
@@ -286,7 +294,7 @@ class TestStudyParticipantApi(ResearcherSessionTest):
         # created on, patient id, registered, os_type, intervention date, custom field
         # (registered is based on presence of os_type)
         correct_content["data"].append(
-            [p2.created_on.strftime(API_DATE_FORMAT), p2.patient_id, "Inactive", "ANDROID", "", ""]
+            [p2.created_on.strftime(API_DATE_FORMAT), "", p2.patient_id, "Inactive", "ANDROID", "", ""]
         )
         # request, compare
         params = self.DEFAULT_PARAMETERS

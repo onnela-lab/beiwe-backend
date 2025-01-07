@@ -936,19 +936,19 @@ class DatabaseHelperMixin:
         self.default_fcm_token
 
 
-def compare_dictionaries(reference, comparee, ignore=None):
+def compare_dictionaries(first, second, ignore=None):
     """ Compares two dictionary objects and displays the differences in a useful fashion. """
     
-    if not isinstance(reference, dict):
-        raise Exception("reference was %s, not dictionary" % type(reference))
-    if not isinstance(comparee, dict):
-        raise Exception("comparee was %s, not dictionary" % type(comparee))
+    if not isinstance(first, dict):
+        raise Exception("first was %s, not dictionary" % type(first))
+    if not isinstance(second, dict):
+        raise Exception("second was %s, not dictionary" % type(second))
     
     if ignore is None:
         ignore = []
     
-    b = set((x, y) for x, y in comparee.items() if x not in ignore)
-    a = set((x, y) for x, y in reference.items() if x not in ignore)
+    b = set((x, y) for x, y in second.items() if x not in ignore)
+    a = set((x, y) for x, y in first.items() if x not in ignore)
     differences_a = a - b
     differences_b = b - a
     
@@ -961,16 +961,19 @@ def compare_dictionaries(reference, comparee, ignore=None):
     except Exception:
         pass
     
-    print("These dictionaries are not identical:")
+    print("\nThese dictionaries are not identical:")
     if differences_a:
-        print("in reference, not in comparee:")
+        print("in first, not in second:")
         for x, y in differences_a:
-            print("\t", x, y)
+            print(f"    `{x}`: `{y}`")
+    else:
+        print("(Everything in first was in second)")
     if differences_b:
-        print("in comparee, not in reference:")
+        print("in second, not in first:")
         for x, y in differences_b:
-            print("\t", x, y)
-    
+            print(f"    `{x}`: `{y}`")
+    else:
+        print("(Everything in second was in first)")
     return False
 
 

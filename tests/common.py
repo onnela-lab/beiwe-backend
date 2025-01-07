@@ -170,7 +170,7 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
             return super().assertEqual(first, second, msg)
         except AssertionError:
             # walking the stack is slow, so we do some type checking first
-            if not isinstance(first, (bytes, str, datetime)):
+            if not isinstance(first, (bytes, str, datetime, dict)):
                 raise
             
             # We need to know if this is inside an assertRaises call because we don't want that
@@ -186,7 +186,7 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
                 # do type checking first because the stack walking is slow
                 if isinstance(first, (bytes, str)) and isinstance(second, (bytes, str)):
                     # inject our nice diff_strings function
-                    print("first:", first)
+                    print("first: ", first)
                     print()
                     print("second:", second)
                     print()

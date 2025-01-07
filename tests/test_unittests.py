@@ -465,8 +465,9 @@ class TestParticipantActive(CommonTestCase):
             'last_get_latest_device_settings': Optional[datetime],
             'last_register_user': Optional[datetime],
             'last_heartbeat_checkin': Optional[datetime],
+            'return': str,
         }
-        self.assertDictEqual(annotes, correct_annotations)
+        self.assertEqual(annotes, correct_annotations)
     
     def test_participant_is_active_one_week_false(self):
         # this test is self referential...
