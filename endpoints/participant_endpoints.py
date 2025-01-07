@@ -427,6 +427,31 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
         .values_list("notification_uuid", "created_on")
     )
     
+    all_notifications = get_and_sort_notifications(
+        include_keepalive, participant, archived_events_page, page_number
+    )
+    notification_page_content = convert_to_page_expectations(
+        all_notifications, study.timezone, get_survey_names_dict(study), uuids_to_received_time
+    )
+    conditionally_display_locked_message(request, participant)  # and then the conditional message...
+    return render(
+        request,
+        'notification_history.html',
+        context=dict(
+            participant=participant,
+            page=archived_events_page,
+            notification_attempts=notification_page_content,
+            study=study,
+            last_page_number=last_page_number,
+            locked=participant.is_dead,
+            include_keepalive=include_keepalive,
+        )
+    )
+
+
+def get_and_sort_notifications(
+    include_keepalive: bool, participant: Participant, archived_events_page, page_number: int
+):
     if include_keepalive:
         # get the heartbeats that are relevant to this page
         heartbeats_query = get_heartbeats_query(participant, archived_events_page, page_number)
@@ -442,25 +467,9 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
         if isinstance(list_or_dict, dict):
             return list_or_dict["scheduled_time"], list_or_dict["created_on"]
         return list_or_dict, list_or_dict
-    all_notifications.sort(key=srt_func, reverse=True)
     
-    final_output = convert_to_page_expectations(
-        all_notifications, study.timezone, get_survey_names_dict(study), uuids_to_received_time
-    )
-    conditionally_display_locked_message(request, participant)  # and then the conditional message...
-    return render(
-        request,
-        'notification_history.html',
-        context=dict(
-            participant=participant,
-            page=archived_events_page,
-            notification_attempts=final_output,
-            study=study,
-            last_page_number=last_page_number,
-            locked=participant.is_dead,
-            include_keepalive=include_keepalive,
-        )
-    )
+    all_notifications.sort(key=srt_func, reverse=True)
+    return all_notifications
 
 
 @require_http_methods(['GET', 'POST'])

@@ -31,7 +31,6 @@
     
     <table class="table table-bordered table-notifications">
       <thead>
-        <th>Scheduled Time</th>
         <th>Time Sent</th>
         <th>Confirmed At</th>
         <th>Survey</th>
@@ -43,13 +42,12 @@
         {% for attempt in notification_attempts %}
           {% if len(attempt) == 1 %}
             <tr>
-              <th colspan="7" style="text-align: center; font-weight: 400; font-style: italic;">
+              <th colspan="6" style="text-align: center;">
                 {{attempt[0] | safe}}
               </th>
             </tr>
           {% else %}
             <tr class="{{attempt.css_class}}"  title="{{attempt.hover_text}}">
-              <td>{{ attempt.scheduled_time|safe }}</td>
               <td>{{ attempt.attempted_time|safe }}</td>
               <td>{{ attempt.confirmed_time|safe }}</td>
               <td>{{ attempt.survey_name|safe }}</td>

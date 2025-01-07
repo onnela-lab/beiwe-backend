@@ -18,7 +18,7 @@ from database.study_models import Study
 from database.user_models_participant import Participant, ParticipantActionLog
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ArchivedEventQuerySet, ResearcherRequest
-from libs.utils.http_utils import line_break_compact_iso_time_format
+from libs.utils.http_utils import compact_iso_time_format, line_break_compact_iso_time_format
 
 
 def render_participant_page(request: ResearcherRequest, participant: Participant, study: Study):
@@ -113,7 +113,7 @@ def query_values_for_notification_history(participant_id) -> ArchivedEventQueryS
         )
         .values(
             "scheduled_time", "created_on", "survey_id", "survey_version", "schedule_type",
-            "status", "survey_archive__survey__deleted", "uuid", "confirmed_received",
+            "status", "survey_archive__survey__deleted", "uuid", "confirmed_received", "was_resend"
         )
     )
 
@@ -172,17 +172,31 @@ def get_heartbeats_query(participant: Participant, archived_events_page: Paginat
     return heartbeat_query
 
 
+def notification_details_from_archived_events(
+    archived_events: List[Dict], study_timezone: tzinfo, survey_names: Dict, uuids_to_received_times: Dict
+) -> List[Dict[str, str]]:
+    ret = []
+    scheduled_time = compact_iso_time_format(archived_events[0]["scheduled_time"], study_timezone) 
+    # a ~tuple of length 1 is the signal that it is a ~header-like row
+    ret.append( (f"Scheduled Send Time: {scheduled_time}", ) )
+    for event in archived_events:
+        ret.append(  # assemble the dict:
+            notification_details_archived_event(event, study_timezone, survey_names, uuids_to_received_times)
+        )
+    return ret
+
+
 def notification_details_archived_event(
     archived_event: Dict, study_timezone: tzinfo, survey_names: Dict, uuids_to_received_times: Dict
 ) -> Dict[str, str]:
-    """ assembles the details of a notification attempt for display on a page. """
+    """ Assembles the details of a notification attempt for display on a page. """
     
     if archived_event is None:
         return {}
     survey_version = archived_event["survey_version"].strftime("%Y-%m-%d %-I:%M %p")
     hover_text = f"Survey version: {survey_version}"
     
-    a_uuid = archived_event["uuid"]
+    a_uuid = archived_event["uuid"]  # cannot be inlined, we need the None
     if a_uuid:
         hover_text += f"\nPush Notification ID: {str(a_uuid)}"
     
@@ -190,6 +204,7 @@ def notification_details_archived_event(
     # and included a record of receiving this notification.
     confirmed_time = uuids_to_received_times[a_uuid] if a_uuid in uuids_to_received_times else None
     
+    # there is a css class that we target
     if archived_event["confirmed_received"] or confirmed_time:
         css = "tableRowReceived"
         status = "Received"
@@ -200,14 +215,18 @@ def notification_details_archived_event(
         status = "Failed"
         css = "tableRowError"
     
+    schedule_type = archived_event["schedule_type"].title()
+    if archived_event["was_resend"]:  # tack resend onto schedule type
+        schedule_type += " (Resend)"
+    
     return {
-        "scheduled_time": line_break_compact_iso_time_format(archived_event["scheduled_time"], study_timezone),
+        # "scheduled_time": line_break_compact_iso_time_format(archived_event["scheduled_time"], study_timezone),
         "attempted_time": line_break_compact_iso_time_format(archived_event["created_on"], study_timezone),
         "confirmed_time": line_break_compact_iso_time_format(confirmed_time, study_timezone),
         "survey_name": survey_names[archived_event["survey_id"]],
         "survey_id": archived_event["survey_id"],
         "survey_deleted": archived_event["survey_archive__survey__deleted"],
-        "schedule_type": archived_event["schedule_type"].title(),
+        "schedule_type": schedule_type,
         "status": status,
         "css_class": css,
         "hover_text": hover_text,
@@ -218,36 +237,42 @@ def convert_to_page_expectations(
     all_notifications: List[Dict],
     tz: tzinfo,
     survey_names: Dict[int, str],
-    # study: Study,
     uuids_to_received_time: Dict[UUID, datetime],
 ):
     ret = []
-    # prior_sched_time = None
-    # run_of_notifications: List[Dict] = []
+    prior_sched_time = None
+    run_of_notifications: List[Dict] = []
     run_of_heartbeats: List[datetime] = []
     
+    # these functions iterate to a next run of notifications or heartbeats
+    def terminate_run_of_notifications():
+        if run_of_notifications:
+            ret.extend(notification_details_from_archived_events(run_of_notifications, tz, survey_names, uuids_to_received_time))
+            run_of_notifications.clear()
+    def terminate_run_of_heartbeats():
+        if run_of_heartbeats:
+            ret.append(message_from_heartbeat_list(run_of_heartbeats, tz))
+            run_of_heartbeats.clear()
+    
     # track the runs of heartbeats, get their times, create a nice messagce for them as a single row.
-    for maybe_notification in all_notifications:
-        if isinstance(maybe_notification, dict):
-            if run_of_heartbeats:
-                ret.append(message_from_heartbeat_list(run_of_heartbeats, tz))
-                run_of_heartbeats.clear()
-            ret.append(
-                notification_details_archived_event(maybe_notification, tz, survey_names, uuids_to_received_time)
-            )
-            # uhhhh well its something about notification['scheduled_time'] != prior_sched_time....
-            # run_of_notifications.append(maybe_notification)  # its a notification dict.
+    for maybe_notification_maybe_heartbeat in all_notifications:
+        if isinstance(maybe_notification_maybe_heartbeat, dict):
+            terminate_run_of_heartbeats()  # its a notification dict.
+            
+            # old notification scheduled time
+            if maybe_notification_maybe_heartbeat['scheduled_time'] == prior_sched_time:
+                run_of_notifications.append(maybe_notification_maybe_heartbeat)  # its a notification dict.
+            else:  # new notification scheduled time
+                prior_sched_time = maybe_notification_maybe_heartbeat['scheduled_time']
+                terminate_run_of_notifications()  # its a NEW notification dict.
+                run_of_notifications.append(maybe_notification_maybe_heartbeat)
         else:
-            # if run_of_notifications:
-                # ret.append(
-                #     notification_details_from_archived_events(run_of_notifications, tz, survey_names, uuids_to_received_time)
-                # )
-                # run_of_notifications.clear()
-            run_of_heartbeats.append(maybe_notification)  # its a heartbeat.
+            terminate_run_of_notifications()
+            run_of_heartbeats.append(maybe_notification_maybe_heartbeat)  # its a heartbeat.
     
-    if run_of_heartbeats:
-        ret.append(message_from_heartbeat_list(run_of_heartbeats, tz))
-    
+    # have to run these to clear out remaining lists.
+    terminate_run_of_notifications()
+    terminate_run_of_heartbeats()
     return ret
 
 
@@ -277,4 +302,4 @@ def message_from_heartbeat_list(heartbeat_timestamps: List[datetime], tz: tzinfo
 
 
 def gratuitoussmallcaps(text: str) -> str:
-    return '<span style="font-variant: small-caps;">' + text.lower() + '</span>'
+    return '<span style="font-variant: small-caps; font-weight: 400; font-style: italic;">' + text.lower() + '</span>'

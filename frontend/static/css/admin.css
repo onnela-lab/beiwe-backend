@@ -148,30 +148,26 @@ td.custom-field-value:hover span.custom-field-edit-link {
     vertical-align: middle;
 }
 .table.table-notifications td:nth-child(1) {
-    /* Scheduled Time column - 1 */
-    font-family: monospace;
-}
-.table.table-notifications td:nth-child(2) {
     /* Time Sent column - 2 */
     font-family: monospace;
 }
-.table.table-notifications td:nth-child(3) {
+.table.table-notifications td:nth-child(2) {
     /* Time Confirmed column - 3 */
     font-family: monospace;
 }
-.table.table-notifications td:nth-child(4) {
+.table.table-notifications td:nth-child(3) {
     /* Survey column - 4 */
     font-size: small;
     /* tahoma is slightly more compact */
     font-family: Tahoma;  
 }
-.table.table-notifications td:nth-child(5) {
+.table.table-notifications td:nth-child(4) {
     /* Schedule Type column - 5 */
 }
-.table.table-notifications td:nth-child(6) {
+.table.table-notifications td:nth-child(5) {
     /* Status column - 6 */
 }
-.table.table-notifications td:nth-child(7) {
+.table.table-notifications td:nth-child(6) {
     /* button column (7th column) */
     width: 10px;
     text-align: center;
