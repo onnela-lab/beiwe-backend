@@ -29,42 +29,52 @@
       {% endfor %}
     </ul>
     
-    <table class="table table-bordered">
-      <tr>
+    <table class="table table-bordered table-notifications">
+      <thead>
         <th>Scheduled Time</th>
         <th>Time Sent</th>
-        <th>Confirmed By</th>
+        <th>Confirmed At</th>
         <th>Survey</th>
         <th>Schedule type</th>
         <th>Status</th>
         <th></th>
-      </tr>
-      {% for attempt in notification_attempts %}
-        <tr class="{{attempt.css_class}}"  title="{{attempt.hover_text}}">
-          <td>{{ attempt.scheduled_time }}</td>
-          <td>{{ attempt.attempted_time }}</td>
-          <td>{{ attempt.confirmed_time }}</td>
-          <td>{{ attempt.survey_name }}</td>
-          <td>{{ attempt.schedule_type }}</td>
-          <td>{{ attempt.status }}</td>
-          <td>
-          {# we need to only show this button for real push notifications, which we will detect #}
-          {# by checking if the scheduled_time field is a dash #}
-          {% if attempt.scheduled_time != "-" %}
-            {% if attempt.survey_deleted %}
-              (Survey Deleted)
-            {% else %}
-              <form action="{{ easy_url("participant_endpoints.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}" method="post">
-                <input type="hidden" name="survey_id" value="{{ attempt.survey_id }}">
-                <button class="btn btn-sm btn-group btn-warning" type="submit" {% if locked %} disabled {% endif %}>
-                  Resend Push Notification
-                </button>
-              </form>
-            {% endif %}
+      </thead>
+      <tbody>
+        {% for attempt in notification_attempts %}
+          {% if len(attempt) == 1 %}
+            <tr>
+              <th colspan="7" style="text-align: center; font-weight: 400; font-style: italic;">
+                {{attempt[0] | safe}}
+              </th>
+            </tr>
+          {% else %}
+            <tr class="{{attempt.css_class}}"  title="{{attempt.hover_text}}">
+              <td>{{ attempt.scheduled_time|safe }}</td>
+              <td>{{ attempt.attempted_time|safe }}</td>
+              <td>{{ attempt.confirmed_time|safe }}</td>
+              <td>{{ attempt.survey_name|safe }}</td>
+              <td>{{ attempt.schedule_type }}</td>
+              <td>{{ attempt.status }}</td>
+              <td>
+              {# we need to only show this button for real push notifications, which we will detect #}
+              {# by checking if the scheduled_time field is a dash #}
+              {% if attempt.scheduled_time != "-" %}
+                {% if attempt.survey_deleted %}
+                  (Survey Deleted)
+                {% else %}
+                  <form action="{{ easy_url("participant_endpoints.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}" method="post">
+                    <input type="hidden" name="survey_id" value="{{ attempt.survey_id }}">
+                    <button class="btn btn-sm btn-group btn-warning" type="submit" {% if locked %} disabled {% endif %}>
+                      Resend Push Notification
+                    </button>
+                  </form>
+                {% endif %}
+              {% endif %}
+              </td>
+            </tr>
           {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
+        {% endfor %}
+      </tbody>
     </table>
   </div>
 {% endblock %}

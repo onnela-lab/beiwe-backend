@@ -38,7 +38,9 @@ LEGIBLE_TIME_FORMAT = "%Y-%m-%d %H:%M:%S (%Z)"
 DEV_TIME_FORMAT = "%Y-%m-%d %H:%M (%Z)"
 DEV_TIME_FORMAT3 = "%Y-%m-%d %H:%M:%S . %f (%Z)"  # leave the extra spaces
 DEV_TIME_FORMAT4 = "%Y-%m-%d %H:%M:%S (%Z)"
-ISO_TIME_24HR_WITH_TZ = "%Y-%m-%d %H:%M:%S %Z"
+ISO_DATETIME_24HR_WITH_TZ = "%Y-%m-%d %H:%M:%S %Z"
+ISO_JUST_TIME_24HR_WITH_TZ = "%H:%M:%S %Z"
+ISO_JUST_TIME_24HR_NO_SEC_WITH_TZ = "%H:%M %Z"
 DISPLAY_TIME_FORMAT = "%Y-%m-%d %-I:%M%p (%Z)"
 
 ## All s3 file paths must be declared here so that we know where they are for participant data purge.

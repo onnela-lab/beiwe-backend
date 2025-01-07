@@ -6,7 +6,7 @@ from dateutil import tz
 from django.http.request import HttpRequest
 from django.urls.base import reverse
 
-from constants.common_constants import API_TIME_FORMAT_WITH_TZ
+from constants.common_constants import API_TIME_FORMAT_WITH_TZ, ISO_DATETIME_24HR_WITH_TZ
 from constants.user_constants import ANDROID_API, IOS_API
 from libs.internal_types import ParticipantRequest
 
@@ -27,6 +27,28 @@ def astimezone_with_tz(dt: datetime, timezone: Union[tzinfo, str]) -> str:
 def time_with_tz(dt: datetime) -> str:
     """ context processor function for displaying a time with a timezone """
     return dt.strftime(API_TIME_FORMAT_WITH_TZ)
+
+
+def compact_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
+    """ output looks Tue 2024-8-25 4:31 PM """
+    if dt is None:
+        return ""
+    if isinstance(timezone, str):
+        timezone = tz.gettz(timezone)
+    final_dt = dt.astimezone(timezone)
+    return final_dt.strftime(ISO_DATETIME_24HR_WITH_TZ)
+
+
+def line_break_compact_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
+    """ output looks Tue 2024-8-25<br>4:31 PM """
+    if dt is None:
+        return ""
+    if isinstance(timezone, str):
+        timezone = tz.gettz(timezone)
+    final_dt = dt.astimezone(timezone)
+    format = "%Y-%m-%d<br>%H:%M:%S %Z"
+    
+    return final_dt.strftime(format)
 
 
 def niceish_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:

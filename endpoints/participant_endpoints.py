@@ -32,8 +32,8 @@ from database.survey_models import Survey
 from database.user_models_participant import Participant
 from libs.django_forms.forms import ParticipantExperimentForm
 from libs.endpoint_helpers.participant_helpers import (conditionally_display_locked_message,
-    get_heartbeats_query, get_survey_names_dict, notification_details_archived_event,
-    notification_details_heartbeat, query_values_for_notification_history, render_participant_page)
+    convert_to_page_expectations, get_heartbeats_query, get_survey_names_dict,
+    query_values_for_notification_history, render_participant_page)
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ResearcherRequest
 from libs.intervention_utils import add_fields_and_interventions
@@ -406,7 +406,7 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
         abort(400)
     
     # use the provided study id because authentication already validated it
-    study = get_object_or_404(Study, pk=study_id) 
+    study = get_object_or_404(Study, pk=study_id)
     participant = get_object_or_404(Participant, patient_id=patient_id)
     
     # defaults to false, looks for the string 'true'.
@@ -430,44 +430,31 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
     if include_keepalive:
         # get the heartbeats that are relevant to this page
         heartbeats_query = get_heartbeats_query(participant, archived_events_page, page_number)
-        # shove everything into one list.
-        all_notifications = list(
+        all_notifications = list( # shove everything into one list.
             chain(archived_events_page, heartbeats_query.values_list("timestamp", flat=True))
         )
     else:
         all_notifications = list(archived_events_page)
     
-    # Sort by the datetime objects we have, using a dictionary to detect (gross but we need to
-    # interleave them) while we have datetime objects because we are using the super nice datetime
-    # string formatting that is not sortable.
-    all_notifications.sort(
-        key=lambda list_or_dict: list_or_dict["created_on"] if isinstance(list_or_dict, dict) else list_or_dict,
-        reverse=True,
-    )
-    participant.archived_events.values_list("uuid")
-    # again based on object type we can determine which dictionaryifier to call, and we're done with
-    # this INSANITY.
-    notification_attempts = []
-    survey_names = get_survey_names_dict(study)  # we need the survey names
-    for notification in all_notifications:
-        if isinstance(notification, dict):
-            notification_attempts.append(
-                notification_details_archived_event(notification, study.timezone, survey_names, uuids_to_received_time)
-            )
-        else:
-            notification_attempts.append(
-                notification_details_heartbeat(notification, study.timezone)
-            )
+    # Mingle all the data together - sort notification data by scheduled time then by created on
+    # time, vs. heartbeat timestamps
+    def srt_func(list_or_dict):
+        if isinstance(list_or_dict, dict):
+            return list_or_dict["scheduled_time"], list_or_dict["created_on"]
+        return list_or_dict, list_or_dict
+    all_notifications.sort(key=srt_func, reverse=True)
     
-    # and then the conditional message
-    conditionally_display_locked_message(request, participant)
+    final_output = convert_to_page_expectations(
+        all_notifications, study.timezone, get_survey_names_dict(study), uuids_to_received_time
+    )
+    conditionally_display_locked_message(request, participant)  # and then the conditional message...
     return render(
         request,
         'notification_history.html',
         context=dict(
             participant=participant,
             page=archived_events_page,
-            notification_attempts=notification_attempts,
+            notification_attempts=final_output,
             study=study,
             last_page_number=last_page_number,
             locked=participant.is_dead,

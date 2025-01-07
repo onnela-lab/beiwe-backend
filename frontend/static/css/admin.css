@@ -136,6 +136,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
     color: inherit;
 }
 
+/* Text modifiers */
 .bold {
     font-weight: bold;
 }
@@ -143,15 +144,50 @@ td.custom-field-value:hover span.custom-field-edit-link {
     color: rgb(32, 32, 32);
 }
 
+.table.table-notifications td {
+    vertical-align: middle;
+}
+.table.table-notifications td:nth-child(1) {
+    /* Scheduled Time column - 1 */
+    font-family: monospace;
+}
+.table.table-notifications td:nth-child(2) {
+    /* Time Sent column - 2 */
+    font-family: monospace;
+}
+.table.table-notifications td:nth-child(3) {
+    /* Time Confirmed column - 3 */
+    font-family: monospace;
+}
+.table.table-notifications td:nth-child(4) {
+    /* Survey column - 4 */
+    font-size: small;
+    /* tahoma is slightly more compact */
+    font-family: Tahoma;  
+}
+.table.table-notifications td:nth-child(5) {
+    /* Schedule Type column - 5 */
+}
+.table.table-notifications td:nth-child(6) {
+    /* Status column - 6 */
+}
+.table.table-notifications td:nth-child(7) {
+    /* button column (7th column) */
+    width: 10px;
+    text-align: center;
+}
+
+.center-text {
+    text-align: center;
+}
+
+
 .h3-margins {
     margin-block-start: 1em;
     margin-block-end: 1em;
     /* margin-inline-start: -4em; */
     margin-inline-end: -4em;
 }
-
-
-
 .h2-margins-vertical {
     margin-block-start: 1.5em;
     margin-block-end: 1em;

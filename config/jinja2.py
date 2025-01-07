@@ -47,6 +47,7 @@ def environment(**options: Dict[str, Any]) -> Environment:
             "ASSETS": ASSETS,
             "SENTRY_JAVASCRIPT_DSN": SENTRY_JAVASCRIPT_DSN,
             "current_year": date.today().year,
+            "len": len,
         }
     )
     return env
