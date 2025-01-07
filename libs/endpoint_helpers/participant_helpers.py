@@ -4,9 +4,8 @@ from uuid import UUID
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import F
+from django.db.models import F, Manager
 from django.shortcuts import render
-from rest_framework.relations import Manager
 
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
 from constants.common_constants import (API_DATE_FORMAT, ISO_DATETIME_24HR_WITH_TZ,
