@@ -140,6 +140,7 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
         ]
         SurveyNotificationReport.objects.bulk_create(potentially_new_uuids, ignore_conflicts=True)
 
+
 def extract_notification_uuids(request: HttpRequest) -> list:
     # uuids are a json list of strings, filter for strings, and may contain other entries.
     # the raw value is stored in the database for debugging purposes, the uuids are needed to handle

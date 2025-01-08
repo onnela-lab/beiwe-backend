@@ -68,42 +68,34 @@ def undelete_events_based_on_lost_notification_checkin():
     
     now = timezone.now()
     
-    #FIXME: this solution where we clear the Nones should be replaced with a real db value that we
-    #exclude on in order to have the schedules for manual resends not trigger this..... because we
-    #want the manual resends to work like this and we simply can't be clearing the uuid, its how we
-    #track stuff.
-    
     # We have to clear out a somewhat theoretical assumption violation where the _Schedule_ on a
-    # ScheduledEvent has been deleted. This _shouldn't_ happen, but it is possible at least due to a
-    # potential race condition in updating schedules, and there there is an oversight in a migration
-    # script, and if we in-the-future allow manual push notifications to resend then it will cause
-    # this, AND I manually created the condition accidentally in testing.  The outcome isn't a bug
-    # here, but it causes an endless retry loop because an ArchivedEvent can no longer be
-    # instantiated from that scheduled event.
+    # ScheduledEvent has been deleted. This can occur: 1) due to a possible race condition in
+    # updating schedules, 2) there there is an oversight in a migration script, 3) when we update
+    # manual push notifications to be resend that could create this (it depends). The outcome is an
+    # endless retry loop in normal send logic because an ArchivedEvent cannot be instantiated from
+    # that scheduled event.
     bugged_uuids = list(ScheduledEvent.objects.filter(
         weekly_schedule__isnull=True, relative_schedule__isnull=True, absolute_schedule__isnull=True,
         uuid__isnull=False  # don't get anything with uuids
     ).values_list("uuid", flat=True))
     if bugged_uuids:
-        ArchivedEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, uuid=None)
-        ScheduledEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, uuid=None, deleted=True)
+        ArchivedEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now)
+        ScheduledEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, no_resend=True, deleted=True)
     
     # OK. Now we can move on with our lives. We start with the common query....
     
     pushable_participant_pks = base_resend_logic_participant_query(now)
     log("pushable_participant_pks:", pushable_participant_pks)
     
-    # sets last_updated on ArchivedEvents, they are excluded.
+    # UUIDs a NotificationReports are checked to confirm receipt of a notification.
     update_ArchivedEvents_from_SurveyNotificationReports(pushable_participant_pks, now, log)
-    
-    # We have to do some filtering/processing to identify the uuids we can resend.
     unconfirmed_notification_uuids = get_resendable_uuids(now, pushable_participant_pks)
     log("unconfirmed_notification_uuids:", unconfirmed_notification_uuids)
     
     # re-enable all ScheduledEvents that were not confirmed received.
     query_scheduledevents_updated = ScheduledEvent.objects.filter(
         uuid__in=unconfirmed_notification_uuids,
-        # created_on__gte=TOO_EARLY,  # No. We migrate old ScheduledEvents to have uuids.
+        # created_on__gte=TOO_EARLY,  # No. We migrate old ScheduledEvents, not archives, to have uuids.
     ).update(
         deleted=False, last_updated=now
     )
@@ -229,6 +221,9 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
     # - only archived events created after this time are considered for resends.
     TOO_EARLY = GlobalSettings.singleton().push_notification_resend_enabled
     
+    # retired just means this flag has been set to True for some reason
+    retired_uuids = ScheduledEvent.objects.filter(no_resend=True).values_list("uuid", flat=True)
+    
     # Now we can filter ArchivedEvents to get all that remain unconfirmed.
     uuid_info = list(
         ArchivedEvent.objects.filter(
@@ -238,6 +233,8 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
             participant_id__in=pushable_participant_pks,  # from relevant participants,
             confirmed_received=False,                     # that are not confirmed received,
             uuid__isnull=False,                           # and have uuids.
+        ).exclude(
+            uuid__in=retired_uuids,                        # exclude schedules that have been retired.
         ).values_list(
             "uuid",
             "last_updated",

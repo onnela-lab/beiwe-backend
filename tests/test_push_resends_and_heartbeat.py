@@ -615,7 +615,7 @@ class TestResendLogicQuery(The_Class):
     def test_participant_inactive_more_than_one_week(self):
         # should not update anything in the database, we can check archive and schedule last updated
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        self.default_participant.update(last_upload=self.THE_PAST - timedelta(days=8))
+        self.default_participant.update_only(last_upload=self.THE_PAST - timedelta(days=8))
         old_archive_last_updated = archive.last_updated
         old_sched_event_last_updated = sched_event.last_updated
         # this will find and operate on no database objects, confirm with last_updated on archive
@@ -628,7 +628,7 @@ class TestResendLogicQuery(The_Class):
     
     def test_participant_deleted(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        self.default_participant.update(deleted=True)
+        self.default_participant.update_only(deleted=True)
         old_archive_last_updated = archive.last_updated
         old_sched_event_last_updated = sched_event.last_updated
         self.run_resend_logic_and_refresh_these_models(sched_event, archive)
@@ -639,7 +639,19 @@ class TestResendLogicQuery(The_Class):
     
     def test_participant_retired(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        self.default_participant.update(permanently_retired=True)
+        self.default_participant.update_only(permanently_retired=True)
+        old_archive_last_updated = archive.last_updated
+        old_sched_event_last_updated = sched_event.last_updated
+        self.run_resend_logic_and_refresh_these_models(sched_event, archive)
+        self.assert_scheduled_event_not_sendable(sched_event)
+        self.assertEqual(archive.last_updated, old_archive_last_updated)
+        self.assertEqual(sched_event.last_updated, old_sched_event_last_updated)
+        self.assert_last_updated_not_equal(archive, sched_event)
+    
+    def test_schedule_resend_disabled(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.default_study.device_settings.update(resend_period_minutes=0)
+        sched_event.update_only(no_resend=True)
         old_archive_last_updated = archive.last_updated
         old_sched_event_last_updated = sched_event.last_updated
         self.run_resend_logic_and_refresh_these_models(sched_event, archive)
@@ -790,8 +802,8 @@ class TestResendLogicQuery(The_Class):
         self.assertLess(archive.last_updated, self.AFTER_RUN)
         self.assertGreater(sched_event.last_updated, self.BEFORE_RUN)
         self.assertLess(sched_event.last_updated, self.AFTER_RUN)
-        self.assertIsNone(archive.uuid)
-        self.assertIsNone(sched_event.uuid)
+        self.assertIsNotNone(archive.uuid)
+        self.assertIsNotNone(sched_event.uuid)
     
     def test_schedule_already_enabled(self):
         # should "work" in the sense that all the database objects will be modified and correct.
@@ -1058,6 +1070,10 @@ class TestResendLogicQuery(The_Class):
             
             # the logic updates everything with the same last_updated time
             self.assert_last_updated_equal(archive, sched_event)
+            
+            # in general an enabled schedule should not have no_resend True.
+            self.assertFalse(sched_event.no_resend, "\n\nIn general an enabled schedule should not have no_resend True.")
+            
         except AssertionError:
             print()
             print("NOW_SORTA:", self.NOW_SORTA.strftime(DEV_TIME_FORMAT3))
