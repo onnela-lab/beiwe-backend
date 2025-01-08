@@ -40,7 +40,6 @@ def get_studies(request: ApiResearcherRequest):
     If a GET request, access_key and secret_key must be provided in the URL as GET params. If
     a POST request (strongly preferred!), access_key and secret_key must be in the POST
     request body.
-    :return: string: JSON-dumped dict {object_id: name}
     """
     # site admin needs to get all non-deleted studies
     if request.api_researcher.site_admin:

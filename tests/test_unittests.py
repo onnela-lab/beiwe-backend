@@ -16,6 +16,7 @@ from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS
     ERR_TARGET_VERSION_CANNOT_BE_MISSING, ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
+from database.models import ArchivedEvent, ScheduledEvent
 from database.profiling_models import EncryptionErrorMetadata, LineEncryptionError, UploadTracking
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
@@ -82,6 +83,33 @@ class TestBinifyFromTimecode(unittest.TestCase):
     def test_binify_from_timecode_91_days(self):
         timestamp = str(int(time.mktime((datetime.utcnow() + timedelta(days=91)).timetuple())))
         self.assertRaises(BadTimecodeError, binify_from_timecode, timestamp.encode())
+
+
+class TestDatabaseCriticalDetails(CommonTestCase):
+    
+    def test_scheduled_event_deletion_does_not_delete_archived_event(self):
+        self.set_working_heartbeat_notification_fully_valid
+        self.set_default_participant_all_push_notification_features
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        archive = self.generate_archived_event_from_scheduled_event(event)
+        self.assertEqual(archive.uuid, event.uuid)
+        self.assertEqual(ScheduledEvent.objects.count(), 1)
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        event.delete()
+        self.assertEqual(ScheduledEvent.objects.count(), 0)
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+    
+    def test_scheduled_event_deletion_does_not_delete_archived_event_2(self):
+        self.set_working_heartbeat_notification_fully_valid
+        self.set_default_participant_all_push_notification_features
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        archive = self.generate_archived_event_from_scheduled_event(event)
+        self.assertEqual(archive.uuid, event.uuid)
+        self.assertEqual(ScheduledEvent.objects.count(), 1)
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        ScheduledEvent.objects.all().delete()
+        self.assertEqual(ScheduledEvent.objects.count(), 0)
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
 
 
 class TestParticipantDataDeletion(CommonTestCase):

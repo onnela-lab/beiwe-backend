@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 from django.db.models import Manager, QuerySet
 from django.http.request import HttpRequest

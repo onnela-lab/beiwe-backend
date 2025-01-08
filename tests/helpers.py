@@ -705,6 +705,15 @@ class DatabaseHelperMixin:
         archived_event.save()
         return archived_event
     
+    def generate_archived_event_from_scheduled_event(self, scheduled_event: ScheduledEvent):
+        return self.generate_archived_event(
+            scheduled_event.survey,
+            scheduled_event.participant,
+            scheduled_event.get_schedule_type(),
+            scheduled_event.scheduled_time,
+            a_uuid=scheduled_event.uuid
+        )
+    
     def bulk_generate_archived_events(
         self, quantity: int, survey: Survey, participant: Participant, schedule_type: str = None,
         scheduled_time: datetime = None, status: str = None
