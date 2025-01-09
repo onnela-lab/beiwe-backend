@@ -42,14 +42,6 @@ def undelete_events_based_on_lost_notification_checkin():
     
     - We exclude Archives from before this feature existed do not have the uuid field populated.
     - This code does not create scheduled events, it reactivates old ScheduledEvents by uuid.
-    - If ScheduledEvents get recalculated we do lose that uuid, and would get stuck in a loop trying
-      to find the matching ScheduledEvent by uuid from an old ArchivedEvent. We solve that by
-      identifying these non-match-uuids and clearing the uuid field. This will fully retire the
-      ArchivedEvent from the resend logic because we exclude those to start with.
-        FIXME: change this above point not how we do it, let's add a give-up flag and preserve uuids.
-    - Note that this will create a "new" ScheduledEvent "in the past", forcing a send on the next
-      push notification task, bypassing our time-gating logic from the ArchivedEvent's last_updated
-      field.
     
     Other Details:
     
@@ -59,30 +51,16 @@ def undelete_events_based_on_lost_notification_checkin():
       subject to change and must be documented.
     - Only participants with an app version that passes the version check will create ArchivedEvents
       with uuids, so only push notifications to known-capable devices will activate resends.
-    - Weekly schedules do not require special casing - they get removed from the database after
-      a week anyway, and if the two schedule periods overlap then the app merges them.
+    - Weekly schedules do not require special casing - they get removed from the database after a
+      week anyway, and if the two schedule periods overlap then the app merges them.
     """
-    # do not run resends if the this is not populated.
+    
     if GlobalSettings.singleton().push_notification_resend_enabled is None:
-        return
+        return  # do not run resends if the this is not populated.
     
+    # Start time, clear out any problems from the past, Go.
     now = timezone.now()
-    
-    # We have to clear out a somewhat theoretical assumption violation where the _Schedule_ on a
-    # ScheduledEvent has been deleted. This can occur: 1) due to a possible race condition in
-    # updating schedules, 2) there there is an oversight in a migration script, 3) when we update
-    # manual push notifications to be resend that could create this (it depends). The outcome is an
-    # endless retry loop in normal send logic because an ArchivedEvent cannot be instantiated from
-    # that scheduled event.
-    bugged_uuids = list(ScheduledEvent.objects.filter(
-        weekly_schedule__isnull=True, relative_schedule__isnull=True, absolute_schedule__isnull=True,
-        uuid__isnull=False  # don't get anything with uuids
-    ).values_list("uuid", flat=True))
-    if bugged_uuids:
-        ArchivedEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now)
-        ScheduledEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, no_resend=True, deleted=True)
-    
-    # OK. Now we can move on with our lives. We start with the common query....
+    disable_resend_on_problem_scheduled_events(now)
     
     pushable_participant_pks = base_resend_logic_participant_query(now)
     log("pushable_participant_pks:", pushable_participant_pks)
@@ -130,6 +108,27 @@ def undelete_events_based_on_lost_notification_checkin():
         uuid=None, last_updated=now
     )
     log("query_archive_unresendable:", query_archive_unresendable)
+
+
+def disable_resend_on_problem_scheduled_events(now: datetime):
+    """ Situations where a ScheduledEvent must be flagged to block resends:
+    1) If (all) _Schedules_ on a ScheduledEvent are None - this causes the send push notification
+    code to get stuck in a retry loop because creating the ArchivedEvent fails if the schedule is
+    ever resurrected by resend logic.
+      - I think there is a race condition in updating schedules.
+      - There is an oversight in a migration script - can't affect new deployments.
+      - Manual push notifications (pre-integrating with resend logic) have this form by design.
+      (This also bypassing time-gating logic from the ArchivedEvent's last_updated field, it pushes
+      the notification every 6 minutes.) """
+    
+    bugged_uuids = list(ScheduledEvent.objects.filter(
+        weekly_schedule__isnull=True, relative_schedule__isnull=True, absolute_schedule__isnull=True,
+        no_resend=False  # don't get anything that is already disabled
+    ).values_list("uuid", flat=True))
+    if bugged_uuids:
+        log(f"Discovered and disabled {len(bugged_uuids)} problemy ScheduledEvents.")
+        ArchivedEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now)  # tracking...
+        ScheduledEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, no_resend=True, deleted=True)
 
 
 def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
