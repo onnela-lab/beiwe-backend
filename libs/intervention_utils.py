@@ -61,6 +61,7 @@ def survey_history_export(study: Study) -> bytes:
     return orjson.dumps(survey_archives)
 
 
+# FIXME: this issues too many queries.
 def add_fields_and_interventions(participant: Participant, study: Study):
     """ Creates empty ParticipantFieldValue and InterventionDate objects for newly created
      participants, doesn't affect existing instances. """

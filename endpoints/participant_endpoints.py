@@ -260,7 +260,6 @@ def participant_csv_generator(study_id, number_of_new_patients):
         # Creates an empty file on s3 indicating that this user exists
         s3_upload(patient_id, b"", study)
         create_client_key_pair(patient_id, study.object_id)
-        repopulate_all_survey_scheduled_events(study, participant)
         
         filewriter.writerow([patient_id, password])
         yield si.getvalue()
@@ -487,30 +486,38 @@ def participant_page(request: ResearcherRequest, study_id: int, patient_id: str)
     if request.method == 'GET':
         return render_participant_page(request, participant, study)
     
+    ## Post request start.
     end_redirect = redirect(
         easy_url("participant_endpoints.participant_page", study_id=study_id, patient_id=patient_id)
     )
     
+    #FIXME: handle some errors for field values...
+    # update custom fields dates for participant
+    for field in study.fields.all():
+        input_id = f"field{field.id}"
+        clean_val = None if (fv:= request.POST.get(input_id)) is None else bleach.clean(fv.strip())
+        db_field_value = participant.field_values.get(field=field)
+        db_field_value.update(value=clean_val)
+    
     # update intervention dates for participant
+    study_has_interventions = False
     for intervention in study.interventions.all():
+        study_has_interventions = True
         input_date = request.POST.get(f"intervention{intervention.id}", None)
         intervention_date = participant.intervention_dates.get(intervention=intervention)
         if input_date:
-            try:
+            # FIXME: if this errors ing on invalid dates then we could hit database inconsistencies with relative schedules (until they are recalculated in an hour)
+            try:  # we need to run database validation logic on input values for all of them.
                 intervention_date.update(date=datetime.strptime(input_date, API_DATE_FORMAT).date())
             except ValueError:
                 messages.error(request, 'Invalid date format, please use the date selector or YYYY-MM-DD.')
                 return end_redirect
     
-    # update custom fields dates for participant
-    for field in study.fields.all():
-        input_id = f"field{field.id}"
-        field_value = participant.field_values.get(field=field)
-        field_value.update(value=request.POST.get(input_id, None))
-    
-    # always call through the repopulate everything call, even though we only need to handle
-    # relative surveys, the function handles extra cases.
-    repopulate_all_survey_scheduled_events(study, participant)
+    # if there were changes on intervention dates then they may need to me updated.
+    # (don't need to update the non-relative surveys but its not like this endpoint is fast anyway)
+    if study_has_interventions:
+        repopulate_all_survey_scheduled_events(study, participant)
+        # repopulate_relative_survey_schedule_events(survey, participant)
     
     messages.success(request, f'Successfully edited participant {participant.patient_id}.')
     return end_redirect
