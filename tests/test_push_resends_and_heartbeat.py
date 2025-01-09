@@ -23,7 +23,7 @@ from database.user_models_participant import (Participant, ParticipantFCMHistory
 from libs.schedules import repopulate_all_survey_scheduled_events
 from services.celery_push_notifications import create_heartbeat_tasks, get_surveys_and_schedules
 from services.heartbeat_push_notifications import heartbeat_query
-from services.resend_push_notifications import undelete_events_based_on_lost_notification_checkin
+from services.resend_push_notifications import restore_scheduledevents_logic
 from tests.common import CommonTestCase
 
 
@@ -483,7 +483,7 @@ class TestResendLogicQuery(The_Class):
     
     def run_resend_logic_and_refresh_these_models(self, *args: UtilityModel):
         self.BEFORE_RUN = timezone.now()
-        undelete_events_based_on_lost_notification_checkin()
+        restore_scheduledevents_logic()
         self.AFTER_RUN = timezone.now()
         for model in args:
             model.refresh_from_db()
@@ -575,13 +575,13 @@ class TestResendLogicQuery(The_Class):
     
     def test_no_data(self):
         self.assert_counts(0, 0, 0)
-        undelete_events_based_on_lost_notification_checkin()
+        restore_scheduledevents_logic()
         self.assert_counts(0, 0, 0)
     
     def test_one_participant_nothing_else(self):
         self.using_default_participant()
         self.assert_counts(0, 0, 0)
-        undelete_events_based_on_lost_notification_checkin()
+        restore_scheduledevents_logic()
         self.assert_counts(0, 0, 0)
     
     # version restrictions
@@ -1272,7 +1272,7 @@ class TestResendStuff(CommonTestCase):
         
         # Will be 1 schedule, 1 survey, 1 participant before running resend logic
         self.assert_find_only_this_schedule(now, fcm_token, no_archive.pk)
-        undelete_events_based_on_lost_notification_checkin()
+        restore_scheduledevents_logic()
         
         # THE PERMUTATIONS:
         if participant_upgrade in P_SHOULD_RESEND and set_resend in R_SHOULD_RESEND:

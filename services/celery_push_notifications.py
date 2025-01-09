@@ -12,7 +12,7 @@ from libs.firebase_config import check_firebase_instance
 from libs.sentry import make_error_sentry, SentryTypes
 from services.heartbeat_push_notifications import (celery_heartbeat_send_push_notification_task,
     heartbeat_query)
-from services.resend_push_notifications import undelete_events_based_on_lost_notification_checkin
+from services.resend_push_notifications import restore_scheduledevents_logic
 from services.survey_push_notifications import (get_surveys_and_schedules,
     send_scheduled_event_survey_push_notification_logic)
 
@@ -43,7 +43,7 @@ def create_survey_push_notification_tasks():
     
     # though complex this query logic really should be on the order of a few seconds max. Running it
     # before every push notification task means we might actually hit the 30 minute timeout.
-    undelete_events_based_on_lost_notification_checkin()
+    restore_scheduledevents_logic()
     
     now = timezone.now()
     surveys, schedules, patient_ids = get_surveys_and_schedules(now)

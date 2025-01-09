@@ -14,6 +14,7 @@ from database.study_models import Study
 from database.system_models import GlobalSettings
 from database.user_models_participant import SurveyNotificationReport
 from libs.push_notification_helpers import fcm_for_pushable_participants
+from libs.sentry import time_warning_data_processing
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
     VersionError)
 
@@ -33,7 +34,8 @@ loge = logger.error
 logd = logger.debug
 
 
-def undelete_events_based_on_lost_notification_checkin():
+time_warning_data_processing("Warning: resend logic took over 30 seconds", 30)
+def restore_scheduledevents_logic():
     """
     Participants upload a list of uuids of their received notifications, these uuids are stashed in
     SurveyNotificationReport, are sourced from ScheduledEvents, and recorded on ArchivedEvents.
