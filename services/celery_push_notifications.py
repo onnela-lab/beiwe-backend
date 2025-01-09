@@ -9,7 +9,7 @@ from constants.celery_constants import PUSH_NOTIFICATION_SEND_QUEUE
 from constants.common_constants import RUNNING_TESTS
 from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
-from libs.sentry import make_error_sentry, SentryTypes
+from libs.sentry import make_error_sentry, SentryTypes, time_warning_data_processing
 from services.heartbeat_push_notifications import (celery_heartbeat_send_push_notification_task,
     heartbeat_query)
 from services.resend_push_notifications import restore_scheduledevents_logic
@@ -36,6 +36,7 @@ UTC = gettz("UTC")
 ####################################################################################################
 
 
+@time_warning_data_processing("global push notification queuing task took over 3 minutes", 3*60)
 def create_survey_push_notification_tasks():
     # we reuse the high level strategy from data processing celery tasks, see that documentation.
     # (this used datetime.utcnow().... I hope nothing breaks?)

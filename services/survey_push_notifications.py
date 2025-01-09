@@ -25,6 +25,7 @@ from database.user_models_participant import (Participant, ParticipantFCMHistory
     PushNotificationDisabledEvent)
 from libs.firebase_config import check_firebase_instance
 from libs.push_notification_helpers import slowly_get_stopped_study_ids
+from libs.sentry import time_warning_data_processing
 
 
 logger = logging.getLogger("push_notifications")
@@ -62,6 +63,7 @@ SurveyReturn = Dict[str, List[str]]     # a dictionary of fcm tokens to lists of
 SchedulesReturn = Dict[str, List[int]]  # a dictionary of fcm tokens to lists of schedule pks
 PatientsReturn = Dict[str, str]         # a dictionary of fcm tokens to (individual) patient ids
 
+@time_warning_data_processing("push notification query logic took over 30 seconds", 30)
 def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[SurveyReturn, SchedulesReturn, PatientsReturn]:
     """ Mostly this function exists to reduce mess. returns:
     a mapping of fcm tokens to list of survey object ids

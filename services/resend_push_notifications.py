@@ -34,7 +34,7 @@ loge = logger.error
 logd = logger.debug
 
 
-time_warning_data_processing("Warning: resend logic took over 30 seconds", 30)
+@time_warning_data_processing("Warning: resend logic took over 30 seconds", 30)
 def restore_scheduledevents_logic():
     """
     Participants upload a list of uuids of their received notifications, these uuids are stashed in
