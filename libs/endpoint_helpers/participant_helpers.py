@@ -8,8 +8,8 @@ from django.db.models import F, Manager
 from django.shortcuts import render
 
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
-from constants.common_constants import (API_DATE_FORMAT, ISO_DATETIME_24HR_WITH_TZ,
-    ISO_JUST_TIME_24HR_NO_SEC_WITH_TZ)
+from constants.common_constants import (API_DATE_FORMAT, DT_12HR_N_TZ_N_SEC_N_PAREN,
+    DT_24HR_W_TZ_W_SEC_N_PAREN, T_24HR_W_TZ_N_SEC_N_PAREN)
 from constants.message_strings import PARTICIPANT_LOCKED
 from constants.user_constants import DATA_DELETION_ALLOWED_RELATIONS
 from database.schedule_models import ArchivedEvent
@@ -17,7 +17,8 @@ from database.study_models import Study
 from database.user_models_participant import Participant, ParticipantActionLog
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ArchivedEventQuerySet, ResearcherRequest
-from libs.utils.http_utils import compact_iso_time_format, line_break_compact_iso_time_format
+from libs.utils.http_utils import (compact_iso_time_format, line_break_compact_iso_time_format,
+    niceish_iso_time_format)
 
 
 def render_participant_page(request: ResearcherRequest, participant: Participant, study: Study):
@@ -59,6 +60,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
         study.timezone,
         get_survey_names_dict(study),
         uuids_to_received_times,
+        format_func=niceish_iso_time_format,
     )
     
     conditionally_display_locked_message(request, participant)
@@ -175,24 +177,32 @@ def notification_details_from_archived_events(
     archived_events: List[Dict], study_timezone: tzinfo, survey_names: Dict, uuids_to_received_times: Dict
 ) -> List[Dict[str, str]]:
     ret = []
-    scheduled_time = compact_iso_time_format(archived_events[0]["scheduled_time"], study_timezone) 
+    scheduled_time = compact_iso_time_format(archived_events[0]["scheduled_time"], study_timezone)
     # a ~tuple of length 1 is the signal that it is a ~header-like row
     ret.append( (f"Scheduled Send Time: {scheduled_time}", ) )
     for event in archived_events:
         ret.append(  # assemble the dict:
             notification_details_archived_event(event, study_timezone, survey_names, uuids_to_received_times)
         )
+    #to inject a bit of logic here to coditionally display the button on only some lines we would
+    # need to track the survey ID for these items, we are not currently doing that.
+    # ret[-(len(archived_events))]["show_resend_button"] = True
     return ret
 
 
 def notification_details_archived_event(
-    archived_event: Dict, study_timezone: tzinfo, survey_names: Dict, uuids_to_received_times: Dict
+    archived_event: Dict,
+    study_timezone: tzinfo,
+    survey_names: Dict,
+    uuids_to_received_times: Dict,
+    format_func: callable = line_break_compact_iso_time_format
 ) -> Dict[str, str]:
     """ Assembles the details of a notification attempt for display on a page. """
     
     if archived_event is None:
         return {}
-    survey_version = archived_event["survey_version"].strftime("%Y-%m-%d %-I:%M %p")
+    
+    survey_version = archived_event["survey_version"].strftime(DT_12HR_N_TZ_N_SEC_N_PAREN)
     hover_text = f"Survey version: {survey_version}"
     
     a_uuid = archived_event["uuid"]  # cannot be inlined, we need the None
@@ -219,9 +229,9 @@ def notification_details_archived_event(
         schedule_type += " (Resend)"
     
     return {
-        # "scheduled_time": line_break_compact_iso_time_format(archived_event["scheduled_time"], study_timezone),
-        "attempted_time": line_break_compact_iso_time_format(archived_event["created_on"], study_timezone),
-        "confirmed_time": line_break_compact_iso_time_format(confirmed_time, study_timezone),
+        "scheduled_time": format_func(archived_event["scheduled_time"], study_timezone),  # participant page
+        "attempted_time": format_func(archived_event["created_on"], study_timezone),
+        "confirmed_time": format_func(confirmed_time, study_timezone),
         "survey_name": survey_names[archived_event["survey_id"]],
         "survey_id": archived_event["survey_id"],
         "survey_deleted": archived_event["survey_archive__survey__deleted"],
@@ -281,19 +291,19 @@ def message_from_heartbeat_list(heartbeat_timestamps: List[datetime], tz: tzinfo
     num_beats = len(heartbeat_timestamps)
     d1 = heartbeat_timestamps[0].astimezone(tz)
     if num_beats == 1:
-        t1 = gratuitoussmallcaps(d1.strftime(ISO_DATETIME_24HR_WITH_TZ))
+        t1 = gratuitoussmallcaps(d1.strftime(DT_24HR_W_TZ_W_SEC_N_PAREN))
         ret = f"Ono heartbeat notification sent to the device at {t1}."
     else:
         d2 = heartbeat_timestamps[-1].astimezone(tz)
         if d1.date() == d2.date():
-            t1 = gratuitoussmallcaps(d1.strftime(ISO_JUST_TIME_24HR_NO_SEC_WITH_TZ))
-            t2 = gratuitoussmallcaps(d2.strftime(ISO_JUST_TIME_24HR_NO_SEC_WITH_TZ))
+            t1 = gratuitoussmallcaps(d1.strftime(T_24HR_W_TZ_N_SEC_N_PAREN))
+            t2 = gratuitoussmallcaps(d2.strftime(T_24HR_W_TZ_N_SEC_N_PAREN))
             day = d2.date().isoformat()
             # t2 actually comes before t1
             ret = f"{num_beats} heartbeat notifications sent to the device on {day} between {t2} and {t1}."
         else:
-            t1 = gratuitoussmallcaps(d1.strftime(ISO_DATETIME_24HR_WITH_TZ))
-            t2 = gratuitoussmallcaps(d2.strftime(ISO_DATETIME_24HR_WITH_TZ))
+            t1 = gratuitoussmallcaps(d1.strftime(DT_24HR_W_TZ_W_SEC_N_PAREN))
+            t2 = gratuitoussmallcaps(d2.strftime(DT_24HR_W_TZ_W_SEC_N_PAREN))
             # t2 actually comes before t1
             ret = f"{num_beats} heartbeat notifications sent to the device between {t2} and {t1}."
     print(ret)

@@ -6,7 +6,9 @@ from dateutil import tz
 from django.http.request import HttpRequest
 from django.urls.base import reverse
 
-from constants.common_constants import API_TIME_FORMAT_WITH_TZ, ISO_DATETIME_24HR_WITH_TZ
+from constants.common_constants import (API_TIME_FORMAT_WITH_TZ, DT_24HR_W_TZ_W_SEC_N_PAREN,
+    DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDS_12HR_N_TZ_N_SEC_N_PAREN, DT_WDS_12HR_W_TZ_N_SEC_W_PAREN,
+    LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN)
 from constants.user_constants import ANDROID_API, IOS_API
 from libs.internal_types import ParticipantRequest
 
@@ -19,8 +21,7 @@ def easy_url(url: str, *args, **kwargs) -> str:
 
 def astimezone_with_tz(dt: datetime, timezone: Union[tzinfo, str]) -> str:
     """ context processor function for converting and displaying a time with a timezone """
-    if isinstance(timezone, str):
-        timezone = tz.gettz(timezone)
+    timezone = tz.gettz(timezone) if isinstance(timezone, str) else timezone
     return dt.astimezone(timezone).strftime(API_TIME_FORMAT_WITH_TZ)
 
 
@@ -33,54 +34,41 @@ def compact_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
     """ output looks Tue 2024-8-25 4:31 PM """
     if dt is None:
         return ""
-    if isinstance(timezone, str):
-        timezone = tz.gettz(timezone)
-    final_dt = dt.astimezone(timezone)
-    return final_dt.strftime(ISO_DATETIME_24HR_WITH_TZ)
+    timezone = tz.gettz(timezone) if isinstance(timezone, str) else timezone
+    return dt.astimezone(timezone).strftime(DT_24HR_W_TZ_W_SEC_N_PAREN)
 
 
 def line_break_compact_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
     """ output looks Tue 2024-8-25<br>4:31 PM """
     if dt is None:
         return ""
-    if isinstance(timezone, str):
-        timezone = tz.gettz(timezone)
-    final_dt = dt.astimezone(timezone)
-    format = "%Y-%m-%d<br>%H:%M:%S %Z"
-    
-    return final_dt.strftime(format)
+    timezone = tz.gettz(timezone) if isinstance(timezone, str) else timezone
+    return dt.astimezone(timezone).strftime(LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN)
 
 
 def niceish_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
     """ output looks like Tue 2024-8-25, 4:31 PM """
     if dt is None:
         return ""
-    if isinstance(timezone, str):
-        timezone = tz.gettz(timezone)
-    final_dt = dt.astimezone(timezone)
-    return final_dt.strftime('%a %Y-%m-%d, %-I:%M %p')
+    timezone = tz.gettz(timezone) if isinstance(timezone, str) else timezone
+    return dt.astimezone(timezone).strftime(DT_WDS_12HR_N_TZ_N_SEC_N_PAREN)
 
 
-
-def nice_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
-    """ output looks like Tuesday 2024-8-25, 4:31 PM """
+def nice_iso_dt_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
+    """ output looks like Tuesday 2024-8-25, 4:31 (PM) """
     if dt is None:
         return ""
-    if isinstance(timezone, str):
-        timezone = tz.gettz(timezone)
-    final_dt = dt.astimezone(timezone)
-    return final_dt.strftime('%A %Y-%m-%d, %-I:%M %p')
+    timezone = tz.gettz(timezone) if isinstance(timezone, str) else timezone
+    return dt.astimezone(timezone).strftime(DT_WDS_12HR_W_TZ_N_SEC_W_PAREN)
 
 
-def really_nice_time_format_with_tz(dt: Optional[datetime], timezone: Union[tzinfo, str]) -> str:
+def fancy_dt_format_with_tz(dt: Optional[datetime], timezone: Union[tzinfo, str]) -> str:
     """ output looks like Tuesday Aug 25, 2020, 4:31 PM (EST) """
     if dt is None:
         return ""
     # getting that timezone shortname is odd because it actually depends on the time of the event
-    if isinstance(timezone, str):
-        timezone = tz.gettz(timezone)
-    final_dt = dt.astimezone(timezone)
-    return final_dt.strftime('%A %b %-d, %Y, %-I:%M %p') + " (" + timezone.tzname(final_dt) + ")"
+    timezone = tz.gettz(timezone) if isinstance(timezone, str) else timezone
+    return dt.astimezone(timezone).strftime(DT_WDL_12HR_W_TZ_N_SEC_W_PAREN)
 
 
 def list_of_checkbox_strings_to_booleans(list_checkbox_params: List[str], dict_all_params: Dict) -> None:

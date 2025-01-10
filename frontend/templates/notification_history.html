@@ -63,7 +63,7 @@
                   <form action="{{ easy_url("participant_endpoints.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}" method="post">
                     <input type="hidden" name="survey_id" value="{{ attempt.survey_id }}">
                     <button class="btn btn-sm btn-group btn-warning" type="submit" {% if locked %} disabled {% endif %}>
-                      Resend Push Notification
+                      Send Manual Push Notification
                     </button>
                   </form>
                 {% endif %}

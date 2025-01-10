@@ -9,7 +9,7 @@ from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.utils.functional import Promise
 
-from constants.common_constants import API_DATE_FORMAT, LEGIBLE_TIME_FORMAT
+from constants.common_constants import API_DATE_FORMAT, LEGIBLE_DT_FORMAT
 from constants.user_constants import EXTRA_TABLE_FIELDS, PARTICIPANT_STATUS_QUERY_FIELDS
 from database.study_models import Study
 from database.user_models_participant import Participant
@@ -298,7 +298,7 @@ def zip_extra_fields_into_participant_table_data(table_data: List[List[str]], st
         for i, some_value in enumerate(field_values):
             # print(i, list(EXTRA_TABLE_FIELDS.keys())[i], type(some_value), some_value)
             if isinstance(some_value, datetime):
-                extra_fields_strings.append(some_value.strftime(LEGIBLE_TIME_FORMAT))
+                extra_fields_strings.append(some_value.strftime(LEGIBLE_DT_FORMAT))
             elif isinstance(some_value, str):
                 extra_fields_strings.append(some_value)
             elif some_value is None:

@@ -143,6 +143,43 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .text-blackish{
     color: rgb(32, 32, 32);
 }
+.center-text {
+    text-align: center;
+}
+.text-center {
+    text-align: center;
+}
+.text-small {
+    font-size: small;
+}
+.text-small-italic {
+    font-size: small;
+    font-style: italic;
+}
+.text-smaller {
+    font-size: smaller;
+}
+.text-smaller-italic {
+    font-size: smaller;
+    font-style: italic;
+}
+.text-mono {
+    font-family: monospace;
+}
+.text-uppercase {
+    text-transform: uppercase;
+}
+.text-smallcaps {
+    text-transform: lowercase;
+    font-variant: small-caps;
+}
+.text-condensed {
+    font-stretch: condensed;
+}
+.text-light {
+    font-weight: lighter;
+}
+
 
 .table.table-notifications td {
     vertical-align: middle;
@@ -170,10 +207,6 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .table.table-notifications td:nth-child(6) {
     /* button column (7th column) */
     width: 10px;
-    text-align: center;
-}
-
-.center-text {
     text-align: center;
 }
 

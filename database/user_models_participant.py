@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from config.settings import DOMAIN_NAME
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
-from constants.common_constants import LEGIBLE_TIME_FORMAT, RUNNING_TESTS
+from constants.common_constants import LEGIBLE_DT_FORMAT, RUNNING_TESTS
 from constants.data_stream_constants import ALL_DATA_STREAMS, IDENTIFIERS
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
     IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, OS_TYPE_CHOICES)
@@ -435,7 +435,7 @@ class Participant(AbstractPasswordUser):
             query = query.filter(action=action)
         tz = self.timezone
         return [
-            f"{t.astimezone(tz).strftime(LEGIBLE_TIME_FORMAT)}: '{action}'" for t, action in query
+            f"{t.astimezone(tz).strftime(LEGIBLE_DT_FORMAT)}: '{action}'" for t, action in query
         ]
     
     @property

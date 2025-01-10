@@ -13,7 +13,7 @@ from markupsafe import escape
 from authentication.admin_authentication import (abort, assert_admin, assert_site_admin,
     authenticate_admin, authenticate_researcher_login, authenticate_researcher_study_access,
     get_researcher_allowed_studies_as_query_set)
-from constants.common_constants import DISPLAY_TIME_FORMAT, RUNNING_TEST_OR_FROM_A_SHELL
+from constants.common_constants import DT_12HR_N_TZ_N_SEC_W_PAREN, RUNNING_TEST_OR_FROM_A_SHELL
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
 from constants.user_constants import ResearcherRole
 from database.data_access_models import FileToProcess
@@ -85,7 +85,7 @@ def view_study_page(request: ResearcherRequest, study_id=None):
         )
         for info in survey_info:
             info["last_updated"] = \
-                 info["last_updated"].astimezone(study.timezone).strftime(DISPLAY_TIME_FORMAT)
+                 info["last_updated"].astimezone(study.timezone).strftime(DT_12HR_N_TZ_N_SEC_W_PAREN)
         return survey_info
     
     # unavoidable query, used to populate the edit study button

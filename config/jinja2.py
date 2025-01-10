@@ -11,9 +11,10 @@ from jinja2 import Environment
 from jinja2.ext import Extension
 
 from config.settings import SENTRY_JAVASCRIPT_DSN
+from libs.endpoint_helpers.participant_helpers import niceish_iso_time_format
 from libs.utils.dev_utils import p
-from libs.utils.http_utils import (astimezone_with_tz, easy_url, really_nice_time_format_with_tz,
-    time_with_tz)
+from libs.utils.http_utils import (astimezone_with_tz, easy_url, fancy_dt_format_with_tz,
+    nice_iso_dt_format, time_with_tz)
 
 
 #
@@ -42,7 +43,9 @@ def environment(**options: Dict[str, Any]) -> Environment:
             "easy_url": easy_url,
             "astimezone_with_tz": astimezone_with_tz,
             "time_with_tz": time_with_tz,
-            "really_nice_time_format_with_tz": really_nice_time_format_with_tz,
+            "fancy_dt_format_with_tz": fancy_dt_format_with_tz,
+            "nice_iso_dt_format": nice_iso_dt_format,
+            "niceish_iso_time_format": niceish_iso_time_format,
             "p": timer,
             "ASSETS": ASSETS,
             "SENTRY_JAVASCRIPT_DSN": SENTRY_JAVASCRIPT_DSN,
@@ -51,7 +54,6 @@ def environment(**options: Dict[str, Any]) -> Environment:
         }
     )
     return env
-
 
 
 ## Local and CDN Javascript/CSS libraries.
