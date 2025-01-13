@@ -6,9 +6,9 @@ from dateutil import tz
 from django.http.request import HttpRequest
 from django.urls.base import reverse
 
-from constants.common_constants import (API_TIME_FORMAT_WITH_TZ, DT_24HR_W_TZ_W_SEC_N_PAREN,
-    DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDS_12HR_N_TZ_N_SEC_N_PAREN, DT_WDS_12HR_W_TZ_N_SEC_W_PAREN,
-    LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN)
+from constants.common_constants import (API_TIME_FORMAT_WITH_TZ, DT_24HR_N_TZ_N_SEC_W_PAREN,
+    DT_24HR_W_TZ_W_SEC_N_PAREN, DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDS_12HR_N_TZ_N_SEC_N_PAREN,
+    DT_WDS_12HR_W_TZ_N_SEC_W_PAREN, LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN)
 from constants.user_constants import ANDROID_API, IOS_API
 from libs.internal_types import ParticipantRequest
 
@@ -25,13 +25,26 @@ def astimezone_with_tz(dt: datetime, timezone: Union[tzinfo, str]) -> str:
     return dt.astimezone(timezone).strftime(API_TIME_FORMAT_WITH_TZ)
 
 
+def null_time_format(dt: Optional[datetime], timezone: Union[tzinfo, str]) -> None:
+    # don't format the time, just accept args
+    return
+
+
 def time_with_tz(dt: datetime) -> str:
     """ context processor function for displaying a time with a timezone """
     return dt.strftime(API_TIME_FORMAT_WITH_TZ)
 
 
-def compact_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
+def more_compact_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
     """ output looks Tue 2024-8-25 4:31 PM """
+    if dt is None:
+        return ""
+    timezone = tz.gettz(timezone) if isinstance(timezone, str) else timezone
+    return dt.astimezone(timezone).strftime(DT_24HR_N_TZ_N_SEC_W_PAREN)
+
+
+def compact_iso_time_format(dt: datetime, timezone: Union[tzinfo, str]) -> str:
+    """ output looks Tue 2024-8-25 4:31:00 PM """
     if dt is None:
         return ""
     timezone = tz.gettz(timezone) if isinstance(timezone, str) else timezone

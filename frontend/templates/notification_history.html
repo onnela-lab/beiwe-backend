@@ -31,18 +31,17 @@
     
     <table class="table table-bordered table-notifications">
       <thead>
-        <th>Time Sent</th>
-        <th>Confirmed At</th>
-        <th>Survey</th>
+        <th style="width: 220px">Time Sent</th>
+        <th style="width: 220px">Confirmed At</th>
         <th>Schedule type</th>
         <th>Status</th>
-        <th></th>
+        <th style="width: 220px"> Action</th>
       </thead>
       <tbody>
         {% for attempt in notification_attempts %}
           {% if len(attempt) == 1 %}
             <tr>
-              <th colspan="6" style="text-align: center;">
+              <th colspan="5" class="text-center text-regular">
                 {{attempt[0] | safe}}
               </th>
             </tr>
@@ -50,7 +49,6 @@
             <tr class="{{attempt.css_class}}"  title="{{attempt.hover_text}}">
               <td>{{ attempt.attempted_time|safe }}</td>
               <td>{{ attempt.confirmed_time|safe }}</td>
-              <td>{{ attempt.survey_name|safe }}</td>
               <td>{{ attempt.schedule_type }}</td>
               <td>{{ attempt.status }}</td>
               <td>
@@ -63,7 +61,7 @@
                   <form action="{{ easy_url("participant_endpoints.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}" method="post">
                     <input type="hidden" name="survey_id" value="{{ attempt.survey_id }}">
                     <button class="btn btn-sm btn-group btn-warning" type="submit" {% if locked %} disabled {% endif %}>
-                      Send Manual Push Notification
+                      Send as Manual Push Notification
                     </button>
                   </form>
                 {% endif %}

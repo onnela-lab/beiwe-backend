@@ -1,7 +1,9 @@
+# trunk-ignore-all(bandit/B101)
 from datetime import date, datetime, tzinfo
 from typing import Dict, List, Tuple
 from uuid import UUID
 
+import bleach
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import F, Manager
@@ -17,8 +19,8 @@ from database.study_models import Study
 from database.user_models_participant import Participant, ParticipantActionLog
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ArchivedEventQuerySet, ResearcherRequest
-from libs.utils.http_utils import (compact_iso_time_format, line_break_compact_iso_time_format,
-    niceish_iso_time_format)
+from libs.utils.http_utils import (compact_iso_time_format, more_compact_iso_time_format,
+    niceish_iso_time_format, null_time_format)
 
 
 def render_participant_page(request: ResearcherRequest, participant: Participant, study: Study):
@@ -60,7 +62,9 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
         study.timezone,
         get_survey_names_dict(study),
         uuids_to_received_times,
-        format_func=niceish_iso_time_format,
+        scheduled_formatter=niceish_iso_time_format,
+        attempt_formatter=niceish_iso_time_format,
+        confirmed_formatter=niceish_iso_time_format,
     )
     
     conditionally_display_locked_message(request, participant)
@@ -94,12 +98,13 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
 
 def get_survey_names_dict(study: Study) -> Dict[int, str]:
     survey_names = {}
-    for survey in study.surveys.all():
-        if survey.name:
-            survey_names[survey.id] = survey.name
+    fields = ("pk", "name", "survey_type", "object_id")
+    for survey_id, survey_name, survey_type, obj_id in study.surveys.values_list(*fields):
+        if survey_name:
+            survey_names[survey_id] = survey_name
         else:
-            survey_names[survey.id] =\
-                ("Audio Survey " if survey.survey_type == "audio_survey" else "Survey ") + survey.object_id
+            survey_names[survey_id] =\
+                ("Audio Survey " if survey_type == "audio_survey" else "Survey ") + obj_id
     
     return survey_names
 
@@ -173,29 +178,14 @@ def get_heartbeats_query(participant: Participant, archived_events_page: Paginat
     return heartbeat_query
 
 
-def notification_details_from_archived_events(
-    archived_events: List[Dict], study_timezone: tzinfo, survey_names: Dict, uuids_to_received_times: Dict
-) -> List[Dict[str, str]]:
-    ret = []
-    scheduled_time = compact_iso_time_format(archived_events[0]["scheduled_time"], study_timezone)
-    # a ~tuple of length 1 is the signal that it is a ~header-like row
-    ret.append( (f"Scheduled Send Time: {scheduled_time}", ) )
-    for event in archived_events:
-        ret.append(  # assemble the dict:
-            notification_details_archived_event(event, study_timezone, survey_names, uuids_to_received_times)
-        )
-    #to inject a bit of logic here to coditionally display the button on only some lines we would
-    # need to track the survey ID for these items, we are not currently doing that.
-    # ret[-(len(archived_events))]["show_resend_button"] = True
-    return ret
-
-
 def notification_details_archived_event(
     archived_event: Dict,
     study_timezone: tzinfo,
     survey_names: Dict,
     uuids_to_received_times: Dict,
-    format_func: callable = line_break_compact_iso_time_format
+    scheduled_formatter: callable,
+    attempt_formatter: callable,
+    confirmed_formatter: callable,
 ) -> Dict[str, str]:
     """ Assembles the details of a notification attempt for display on a page. """
     
@@ -229,9 +219,9 @@ def notification_details_archived_event(
         schedule_type += " (Resend)"
     
     return {
-        "scheduled_time": format_func(archived_event["scheduled_time"], study_timezone),  # participant page
-        "attempted_time": format_func(archived_event["created_on"], study_timezone),
-        "confirmed_time": format_func(confirmed_time, study_timezone),
+        "scheduled_time": scheduled_formatter(archived_event["scheduled_time"], study_timezone),  # participant page
+        "attempted_time": attempt_formatter(archived_event["created_on"], study_timezone),
+        "confirmed_time": confirmed_formatter(confirmed_time, study_timezone),
         "survey_name": survey_names[archived_event["survey_id"]],
         "survey_id": archived_event["survey_id"],
         "survey_deleted": archived_event["survey_archive__survey__deleted"],
@@ -256,7 +246,8 @@ def convert_to_page_expectations(
     # these functions iterate to a next run of notifications or heartbeats
     def terminate_run_of_notifications():
         if run_of_notifications:
-            ret.extend(notification_details_from_archived_events(run_of_notifications, tz, survey_names, uuids_to_received_time))
+            ret.extend(frontend_details_for_history_run_from_archived_events(
+                run_of_notifications, tz, survey_names, uuids_to_received_time))
             run_of_notifications.clear()
     def terminate_run_of_heartbeats():
         if run_of_heartbeats:
@@ -285,6 +276,54 @@ def convert_to_page_expectations(
     return ret
 
 
+def frontend_details_for_history_run_from_archived_events(
+    archived_events: List[Dict], study_timezone: tzinfo, survey_names: Dict, uuids_to_received_times: Dict
+) -> List[Dict[str, str]]:
+    """ When listing on the notification history page:
+    - Iteration is in reverse chronological order by _schedule_ time.
+    - Need to sort by survey_id - in place.
+    - Only the most recent notification attempt should say "Received", priors should say "Sent"
+    """
+    ret = []
+    scheduled_time = archived_events[0]["scheduled_time"]
+    scheduled_time_repr = gratuitoussmallcaps(
+        more_compact_iso_time_format(archived_events[0]["scheduled_time"], study_timezone)
+    )
+    # scheduled_time_repr = '<span class="text-mono">' + scheduled_time_repr + "</span>"
+    archived_events.sort(key=lambda x: x["survey_id"])
+    
+    # assemble frontend details
+    prev_survey_id = None
+    for event in archived_events:
+        assert scheduled_time == event["scheduled_time"], "all events must have the same scheduled time"
+        notification_details = notification_details_archived_event(
+            event,
+            study_timezone,
+            survey_names,
+            uuids_to_received_times,
+            scheduled_formatter=null_time_format,
+            attempt_formatter=compact_iso_time_format,
+            confirmed_formatter=compact_iso_time_format,
+        )
+        
+        title = f"{scheduled_time_repr}"
+        if prev_survey_id == notification_details["survey_id"]:
+            # if survey did not change ...
+            if notification_details["status"] == "Received":
+                notification_details["status"] = "Sent"
+        else:
+            title += f' - <i>{bleach.clean(notification_details["survey_name"])}</i><br>'
+            ret.append( (title, ) ) # a container of length 1 is the signal that it is a ~header-like row
+            prev_survey_id = notification_details["survey_id"]
+        
+        ret.append(notification_details)
+    
+    #to inject a bit of logic here to coditionally display the button on only some lines we would
+    # need to track the survey ID for these items, we are not currently doing that.
+    # ret[-(len(archived_events))]["show_resend_button"] = True
+    return ret
+
+
 def message_from_heartbeat_list(heartbeat_timestamps: List[datetime], tz: tzinfo) -> Tuple[str]:
     """ Needs to return an item with length 1 containing a string. """
     
@@ -292,7 +331,7 @@ def message_from_heartbeat_list(heartbeat_timestamps: List[datetime], tz: tzinfo
     d1 = heartbeat_timestamps[0].astimezone(tz)
     if num_beats == 1:
         t1 = gratuitoussmallcaps(d1.strftime(DT_24HR_W_TZ_W_SEC_N_PAREN))
-        ret = f"Ono heartbeat notification sent to the device at {t1}."
+        ret = f"One keepalive notification sent to the device at {t1}."
     else:
         d2 = heartbeat_timestamps[-1].astimezone(tz)
         if d1.date() == d2.date():
@@ -300,12 +339,12 @@ def message_from_heartbeat_list(heartbeat_timestamps: List[datetime], tz: tzinfo
             t2 = gratuitoussmallcaps(d2.strftime(T_24HR_W_TZ_N_SEC_N_PAREN))
             day = d2.date().isoformat()
             # t2 actually comes before t1
-            ret = f"{num_beats} heartbeat notifications sent to the device on {day} between {t2} and {t1}."
+            ret = f"{num_beats} keepalive notifications sent to the device on {day} between {t2} and {t1}."
         else:
             t1 = gratuitoussmallcaps(d1.strftime(DT_24HR_W_TZ_W_SEC_N_PAREN))
             t2 = gratuitoussmallcaps(d2.strftime(DT_24HR_W_TZ_W_SEC_N_PAREN))
             # t2 actually comes before t1
-            ret = f"{num_beats} heartbeat notifications sent to the device between {t2} and {t1}."
+            ret = f"{num_beats} keepalive notifications sent to the device between {t2} and {t1}."
     print(ret)
     return (ret, )
 

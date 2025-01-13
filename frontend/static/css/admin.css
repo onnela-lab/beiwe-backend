@@ -179,6 +179,12 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .text-light {
     font-weight: lighter;
 }
+.text-regular {
+    font-weight: normal;
+}
+.text-bold {
+    font-weight: bold;
+}
 
 
 .table.table-notifications td {
