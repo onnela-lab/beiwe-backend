@@ -221,7 +221,7 @@ def notification_details_archived_event(
     return {
         "scheduled_time": scheduled_formatter(archived_event["scheduled_time"], study_timezone),  # participant page
         "attempted_time": attempt_formatter(archived_event["created_on"], study_timezone),
-        "confirmed_time": confirmed_formatter(confirmed_time, study_timezone),
+        "confirmed_time": confirmed_formatter(confirmed_time, study_timezone) or "-",
         "survey_name": survey_names[archived_event["survey_id"]],
         "survey_id": archived_event["survey_id"],
         "survey_deleted": archived_event["survey_archive__survey__deleted"],
