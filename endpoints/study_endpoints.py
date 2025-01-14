@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http.response import FileResponse, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from markupsafe import escape
 
@@ -14,9 +15,11 @@ from authentication.admin_authentication import (abort, assert_admin, assert_sit
     authenticate_admin, authenticate_researcher_login, authenticate_researcher_study_access,
     get_researcher_allowed_studies_as_query_set)
 from constants.common_constants import DT_12HR_N_TZ_N_SEC_W_PAREN, RUNNING_TEST_OR_FROM_A_SHELL
+from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
 from constants.user_constants import ResearcherRole
 from database.data_access_models import FileToProcess
+from database.models import ScheduledEvent
 from database.study_models import Study
 from database.survey_models import Survey
 from database.user_models_researcher import Researcher, StudyRelation
@@ -384,6 +387,8 @@ def device_settings(request: ResearcherRequest, study_id=None):
     trim_whitespace(request, params)  # there's a frontend bug where whitespace can get inserted.
     trim_whitespace(request, consent_sections)
     
+    old_resend_was_0 = study.device_settings.resend_period_minutes == 0
+    
     # logic to display changes to the user
     notify_changes(request, params, study.device_settings.as_dict(), "Settings for ")
     try:
@@ -393,9 +398,17 @@ def device_settings(request: ResearcherRequest, study_id=None):
     except json.JSONDecodeError:
         pass
     
-    # final params setup, attempt db update, redirect to edit study page
+    # final params setup, attempt db update, then handle a complex side effect (see the message string)
     params["consent_sections"] = json.dumps(consent_sections)
-    try_update_device_settings(request, params, study)
+    try_update_device_settings(request, params, study)  # saves
+    
+    # if updated from 0, mark all events to never resend (because this is likely to cause spam.
+    if old_resend_was_0 and (new_resend:= study.device_settings.resend_period_minutes) > 0:
+        now = timezone.now()
+        ScheduledEvent.fltr(participant__in=study.participants.all(), scheduled_time__lt=now) \
+            .update(no_resend=True, last_updated=now)
+        messages.warning(request, DEVICE_SETTINGS_RESEND_FROM_0.format(new_resend))
+    
     return redirect(f'/edit_study/{study.id}')
 
 
