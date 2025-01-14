@@ -338,7 +338,7 @@ class Participant(AbstractPasswordUser):
                 IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
             )
         
-        except VersionError():
+        except VersionError:
             return False
     
     ################################################################################################
