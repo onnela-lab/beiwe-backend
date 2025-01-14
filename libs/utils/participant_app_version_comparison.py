@@ -109,7 +109,7 @@ def _is_participants_version_op_than_target(
     if os_type == ANDROID_API:
         return _android_is_version_op_than(op, participant_version_code, target_version)
     
-    raise AssertionError("unreachable")
+    raise VersionError(ERR_UNKNOWN_OS_TYPE(os_type))
 
 
 def _is_this_version_op_than_participants(
@@ -123,18 +123,18 @@ def _is_this_version_op_than_participants(
     if os_type == ANDROID_API:
         return _android_is_version_op_than(op, target_version, participant_version_code)
     
-    raise ValueError(ERR_UNKNOWN_OS_TYPE(os_type))
+    raise VersionError(ERR_UNKNOWN_OS_TYPE(os_type))
 
 
 def _validate_target_and_os(os_type: str, target_version: str) -> None:
     if not isinstance(target_version, str):
-        raise ValueError(ERR_TARGET_VERSION_MUST_BE_STRING(type(target_version)))
+        raise VersionError(ERR_TARGET_VERSION_MUST_BE_STRING(type(target_version)))
     
     if target_version == "missing":
-        raise ValueError(ERR_TARGET_VERSION_CANNOT_BE_MISSING)
+        raise VersionError(ERR_TARGET_VERSION_CANNOT_BE_MISSING)
     
     if os_type not in (IOS_API, ANDROID_API):
-        raise ValueError(ERR_UNKNOWN_OS_TYPE(os_type))
+        raise VersionError(ERR_UNKNOWN_OS_TYPE(os_type))
 
 
 def _ios_is_this_version_op_than(
