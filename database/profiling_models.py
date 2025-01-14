@@ -7,8 +7,8 @@ from django.db import models
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from constants.data_stream_constants import (DATA_STREAM_TO_S3_FILE_NAME_STRING,
-    UPLOAD_FILE_TYPE_MAPPING)
+from constants.data_stream_constants import (ALL_DATA_STREAMS, DATA_STREAM_TO_S3_FILE_NAME_STRING,
+    IDENTIFIERS, UPLOAD_FILE_TYPE_MAPPING)
 from database.common_models import UtilityModel
 from database.models import JSONTextField, TimestampedModel
 from database.user_models_participant import Participant
@@ -181,11 +181,31 @@ class UploadTracking(UtilityModel):
         FileToProcess.objects.bulk_create(new_ftps)
     
     @classmethod
-    def reprocess_participant(cls, participant: Participant):
+    def reprocess_participant(cls, participant: Participant, destructive: bool, data_streams: list):
         """ Re-adds the most recent [limit] files that have been uploaded recently to FiletToProcess.
             (this is fairly optimized because it is part of debugging file processing) """
         from database.data_access_models import FileToProcess
-
+        
+        for dtype in data_streams:
+            if dtype == IDENTIFIERS:
+                raise ValueError("identifiers are not processed through data upload!!!")
+            if dtype not in ALL_DATA_STREAMS:
+                raise ValueError(f"invalid data type: {dtype}")
+        
+        if destructive:
+            print("This action will remove all chunk registries that are not IDENTIFIERS for this participant.")
+            y_n = input("Enter 'yes' to continue with destructive reprocessing.")
+            if y_n != "yes":
+                print("aborting.")
+                return
+            
+            print("deleting chunk registry database entries for participant, this may take a while.")
+            t1 = timezone.now()
+            x = participant.chunk_registries.filter(data_type__in=data_streams).delete()
+            t2 = timezone.now()
+            print(f"deletion took {(t2-t1).total_seconds()} seconds.")
+            print(f"output from deletion: {x}")
+        
         # ordering by file path happens to be A) deterministic and B) sequential time order C)
         # results in ideal back-fill
         query = participant.upload_trackers.values_list("file_path", flat=True).order_by("file_path").distinct()
