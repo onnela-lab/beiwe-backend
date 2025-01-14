@@ -283,6 +283,7 @@ def frontend_details_for_history_run_from_archived_events(
     - Iteration is in reverse chronological order by _schedule_ time.
     - Need to sort by survey_id - in place.
     - Only the most recent notification attempt should say "Received", priors should say "Sent"
+    - Confirmed time is - if not received, or the time it was received if it was received.
     """
     ret = []
     scheduled_time = archived_events[0]["scheduled_time"]
@@ -311,6 +312,7 @@ def frontend_details_for_history_run_from_archived_events(
             # if survey did not change ...
             if notification_details["status"] == "Received":
                 notification_details["status"] = "Sent"
+                notification_details["confirmed_time"] = "-"
         else:
             title += f' - <i>{bleach.clean(notification_details["survey_name"])}</i><br>'
             ret.append( (title, ) ) # a container of length 1 is the signal that it is a ~header-like row
