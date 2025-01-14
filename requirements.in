@@ -1,6 +1,6 @@
 # core libraries
 Django>=4.2.17
-Django<=5.0.0
+Django<5.0.0
 firebase-admin==5.4.0
 Jinja2 # used to require pinning, I guess review if there is a major version bump.
 zstd>=1.5.5.1 # can be stuck on older versions sometimes
