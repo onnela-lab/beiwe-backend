@@ -83,9 +83,10 @@ R = RESEARCHER  # Shorthand for RESEARCHER, just type r = R("someone") and you a
 def SURVEY(id_or_name: Union[str, int]):
     """ Get a Survey, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
-        return Survey.objects.get(pk=id_or_name)
+        ret = Survey.objects.get(pk=id_or_name)
+    
     try:
-        return Survey.objects.get(object_id=id_or_name)
+        ret = Survey.objects.get(object_id=id_or_name)
     except Survey.DoesNotExist:
         surveys = Survey.fltr(name__icontains=id_or_name)
         if surveys.count() == 0:
@@ -93,14 +94,21 @@ def SURVEY(id_or_name: Union[str, int]):
         if surveys.count() == 1:
             return surveys.get()
         pprint(list(surveys.values_list("name", "id")))
+    
+    if ret.name:
+        print(ret.name)
+    else:
+        print(ret.object_id)
+    return ret
 
 
 def STUDY(id_or_name: Union[str, int]):
     """ Get a Study, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
-        return Study.objects.get(pk=id_or_name)
+        ret = Study.objects.get(pk=id_or_name)
+    
     try:
-        return Study.objects.get(object_id=id_or_name)
+        ret = Study.objects.get(object_id=id_or_name)
     except Study.DoesNotExist:
         studies = Study.fltr(name__icontains=id_or_name)
         count = studies.count()
@@ -109,6 +117,10 @@ def STUDY(id_or_name: Union[str, int]):
         if count < 1:
             raise Study.DoesNotExist() from None
         pprint(list(studies.values_list("name", "id")))
+        return None
+    
+    print(ret.name)
+    return ret
 
 
 def file_process_count():

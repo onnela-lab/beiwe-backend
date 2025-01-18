@@ -14,6 +14,7 @@ from django.db.models import Q, QuerySet
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import RelatedField
 from django.utils.timezone import localtime
+from typing_extensions import Self
 
 from constants.common_constants import DEV_TIME_FORMAT3
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
@@ -37,7 +38,7 @@ class ObjectIDModel(models.Model):
     """ Provides logic for generating unique objectid strings for a field. """
     
     @classmethod
-    def generate_objectid_string(cls, field_name):
+    def generate_objectid_string(cls, field_name: str) -> str:
         """ Takes a django database class and a field name, generates a unique BSON-ObjectId-like
         string for that field.
         In order to preserve functionality throughout the codebase we need to generate a random
@@ -69,36 +70,34 @@ class UtilityModel(models.Model):
     ######################################## Query Shortcuts #######################################
     
     @classmethod
+    def obj_get(cls, *args, **kwargs) -> Self:
+        return cls.objects.get(*args, **kwargs)  # type: ignore[no-any-return] # (mypy is wrong, typeshed is correct, classmethod problem?)
+    
+    @classmethod
     def vlist(cls, *args, **kwargs) -> QuerySet[Any]:
-        """ Shortcut for cls.objects.values(*arg), you can still filter etc. """
-        return cls.objects.values_list(*args, **{"flat": True, **kwargs} if len(args) == 1 else kwargs)    
+        return cls.objects.values_list(*args, **{"flat": True, **kwargs} if len(args) == 1 else kwargs)
     
     @classmethod
-    def vdict(cls, *args, **kwargs) -> QuerySet[Any]:
-        """ Shortcut for cls.objects.values_list(*arg, flat=True), you can still filter etc. """
-        return cls.objects.values(*args, **kwargs)    
+    def vdict(cls, *args, **kwargs) -> QuerySet[dict]:
+        return cls.objects.values(*args, **kwargs)
     
     @classmethod
-    def fltr(cls, *args, **kwargs) -> QuerySet[Any]:
-        """ Shortcut for cls.objects.filter(*args, **kwargs) """
+    def fltr(cls, *args, **kwargs) -> QuerySet[Self]:
         return cls.objects.filter(*args, **kwargs)
     
     @classmethod
-    def xcld(cls, *args, **kwargs) -> QuerySet[Any]:
-        """ Shortcut for cls.objects.exclude(*args, **kwargs) """
+    def xcld(cls, *args, **kwargs) -> QuerySet[Self]:
         return cls.objects.exclude(*args, **kwargs)
     
     @classmethod
     def flat(cls, field_name: str, **filter_kwargs) -> QuerySet[Any]:
-        """ Shortcut for cls.objects.filter(**filter_kwargs).values_list(field_name, flat=True) """
         return cls.objects.filter(**filter_kwargs).values_list(field_name, flat=True)
     
     ################################## Show nice information #######################################
     
     @classmethod
     def nice_count(cls):
-        count = cls.objects.count()
-        print("{:,}".format(count))
+        print("{:,}".format(count:= cls.objects.count()))
         return count
     
     @property
@@ -126,13 +125,13 @@ class UtilityModel(models.Model):
             else:
                 print(f"{field.name} - {type(field).__name__}")
             info = []
-            if field.blank: 
+            if field.blank:
                 info.append("blank")
-            if field.null: 
+            if field.null:
                 info.append("null")
-            if field.db_index: 
+            if field.db_index:
                 info.append("db_index")
-            if field.default != NOT_PROVIDED: 
+            if field.default != NOT_PROVIDED:
                 info.append(f'default: {field.default}')
             if info:
                 print("\t", ", ".join(info), "\n", sep="")
@@ -141,7 +140,7 @@ class UtilityModel(models.Model):
     
     ###################################### Basic Serialization #####################################
     
-    def as_dict(self):
+    def as_dict(self) -> Dict[str, Any]:
         """ Provides a dictionary representation of the object """
         return {field.name: getattr(self, field.name) for field in self._meta.fields}
     
