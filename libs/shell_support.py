@@ -84,16 +84,16 @@ def SURVEY(id_or_name: Union[str, int]):
     """ Get a Survey, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
         ret = Survey.objects.get(pk=id_or_name)
-    
-    try:
-        ret = Survey.objects.get(object_id=id_or_name)
-    except Survey.DoesNotExist:
-        surveys = Survey.fltr(name__icontains=id_or_name)
-        if surveys.count() == 0:
-            raise Survey.DoesNotExist() from None
-        if surveys.count() == 1:
-            return surveys.get()
-        pprint(list(surveys.values_list("name", "id")))
+    else:
+        try:
+            ret = Survey.objects.get(object_id=id_or_name)
+        except Survey.DoesNotExist:
+            surveys = Survey.fltr(name__icontains=id_or_name)
+            if surveys.count() == 0:
+                raise Survey.DoesNotExist() from None
+            if surveys.count() == 1:
+                return surveys.get()
+            pprint(list(surveys.values_list("name", "id")))
     
     if ret.name:
         print(ret.name)
@@ -106,18 +106,18 @@ def STUDY(id_or_name: Union[str, int]):
     """ Get a Study, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
         ret = Study.objects.get(pk=id_or_name)
-    
-    try:
-        ret = Study.objects.get(object_id=id_or_name)
-    except Study.DoesNotExist:
-        studies = Study.fltr(name__icontains=id_or_name)
-        count = studies.count()
-        if count == 1:
-            return studies.get()
-        if count < 1:
-            raise Study.DoesNotExist() from None
-        pprint(list(studies.values_list("name", "id")))
-        return None
+    else:
+        try:
+            ret = Study.objects.get(object_id=id_or_name)
+        except Study.DoesNotExist:
+            studies = Study.fltr(name__icontains=id_or_name)
+            count = studies.count()
+            if count == 1:
+                return studies.get()
+            if count < 1:
+                raise Study.DoesNotExist() from None
+            pprint(list(studies.values_list("name", "id")))
+            return None
     
     print(ret.name)
     return ret

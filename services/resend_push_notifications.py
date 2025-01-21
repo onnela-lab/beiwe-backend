@@ -223,7 +223,7 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
     TOO_EARLY = GlobalSettings.singleton().push_notification_resend_enabled
     
     # retired just means this flag has been set to True for some reason
-    retired_uuids = ScheduledEvent.objects.filter(no_resend=True).values_list("uuid", flat=True)
+    retired_uuids = set(ScheduledEvent.objects.filter(no_resend=True).values_list("uuid", flat=True))
     
     # Now we can filter ArchivedEvents to get all that remain unconfirmed.
     uuid_info = list(
@@ -234,14 +234,18 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
             participant_id__in=pushable_participant_pks,  # from relevant participants,
             confirmed_received=False,                     # that are not confirmed received,
             uuid__isnull=False,                           # and have uuids.
-        ).exclude(
-            uuid__in=retired_uuids,                        # exclude schedules that have been retired.
+        # well this failed in preduction....
+        # ).exclude(
+            # uuid__in=retired_uuids,                        # exclude schedules that have been retired.
         ).values_list(
             "uuid",
             "last_updated",
             "participant__study_id",
         )
     )
+    # probably due to too many uuids, excluding these from the query directly Simple Doesn't Work,
+    # so I guess to exclude it in python?
+    uuid_info = [info for info in uuid_info if info[0] not in retired_uuids]
     
     log(f"found {len(uuid_info)} ArchivedEvents to check.")
     

@@ -56,7 +56,6 @@ class LineEncryptionError(TimestampedModel):
     participant: Participant = models.ForeignKey(Participant, null=True, on_delete=models.PROTECT)
 
 
-
 # WARNING: this table is huge. Several-to-many multiples of ChunkRegistry, though it is not as
 # complex and rows are individually less bulky. Never pull this table into memory, always use
 # .iterator() in combination with .values() or .values_list() and test your query on your largest
