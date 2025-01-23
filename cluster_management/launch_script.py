@@ -307,15 +307,13 @@ def create_swap():
 
 
 def do_fail_if_environment_does_not_exist(name):
-    environment_exists = check_if_eb_environment_exists(name)
-    if not environment_exists:
+    if not check_if_eb_environment_exists(name):
         log.error("There is already an environment named '%s'" % name.lower())
         EXIT(1)
 
 
 def do_fail_if_environment_exists(name):
-    environment_exists = check_if_eb_environment_exists(name)
-    if environment_exists:
+    if check_if_eb_environment_exists(name):
         log.error("There is already an environment named '%s'" % name.lower())
         EXIT(1)
 
@@ -341,8 +339,7 @@ def prompt_for_new_eb_environment_name(with_prompt=True):
 def prompt_for_extant_eb_environment_name():
     print(EXTANT_ENVIRONMENT_PROMPT)
     name = input()
-    environment_exists = check_if_eb_environment_exists(name)
-    if not environment_exists:
+    if not check_if_eb_environment_exists(name):
         log.error("There is no environment with the name %s" % name)
         EXIT(1)
     validate_beiwe_environment_config(name)
@@ -520,8 +517,7 @@ def do_create_manager():
 def do_create_worker():
     name = prompt_for_extant_eb_environment_name()
     do_fail_if_environment_does_not_exist(name)
-    manager_instance = get_manager_instance_by_eb_environment_name(name)
-    if manager_instance is None:
+    if get_manager_instance_by_eb_environment_name(name) is None:
         log.error(
             "There is no manager server for the %s cluster, cannot deploy a worker until there is." % name)
         EXIT(1)
