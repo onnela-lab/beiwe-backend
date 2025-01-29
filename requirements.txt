@@ -16,15 +16,15 @@ billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.35.98
+boto3==1.36.8
     # via -r requirements.in
-botocore==1.35.98
+botocore==1.36.8
     # via
     #   boto3
     #   s3transfer
 cachecontrol==0.14.2
     # via firebase-admin
-cachetools==5.5.0
+cachetools==5.5.1
     # via google-auth
 celery==5.4.0
     # via -r requirements.in
@@ -57,7 +57,7 @@ decorator==5.1.1
     # via
     #   ipython
     #   librosa
-django==4.2.17
+django==4.2.18
     # via
     #   -r requirements.in
     #   django-extensions
@@ -66,22 +66,22 @@ django-extensions==3.2.3
     # via -r requirements.in
 django-timezone-field==4.1.1
     # via -r requirements.in
-executing==2.1.0
+executing==2.2.0
     # via stack-data
 firebase-admin==5.4.0
     # via -r requirements.in
 forest @ git+https://git@github.com/onnela-lab/forest@592e303c85be6b38bd3512b6c90bcfba36e210f4
     # via -r requirements.in
-google-api-core[grpc]==2.24.0
+google-api-core[grpc]==2.24.1
     # via
     #   firebase-admin
     #   google-api-python-client
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.159.0
+google-api-python-client==2.160.0
     # via firebase-admin
-google-auth==2.37.0
+google-auth==2.38.0
     # via
     #   google-api-core
     #   google-api-python-client
@@ -109,15 +109,15 @@ googleapis-common-protos==1.66.0
     # via
     #   google-api-core
     #   grpcio-status
-grpcio==1.69.0
+grpcio==1.70.0
     # via
     #   google-api-core
     #   grpcio-status
-grpcio-status==1.69.0
+grpcio-status==1.70.0
     # via google-api-core
-h3==4.1.2
+h3==4.2.0
     # via timezonefinder
-holidays==0.64
+holidays==0.65
     # via forest
 httplib2==0.22.0
     # via
@@ -145,7 +145,7 @@ lazy-loader==0.4
     # via librosa
 librosa==0.10.2.post1
     # via forest
-llvmlite==0.43.0
+llvmlite==0.44.0
     # via numba
 markupsafe==3.0.2
     # via jinja2
@@ -155,11 +155,11 @@ msgpack==1.1.0
     # via
     #   cachecontrol
     #   librosa
-numba==0.60.0
+numba==0.61.0
     # via
     #   librosa
     #   ssqueezepy
-numpy==2.0.2
+numpy==2.1.3
     # via
     #   forest
     #   librosa
@@ -190,11 +190,11 @@ platformdirs==4.3.6
     # via pooch
 pooch==1.8.2
     # via librosa
-prompt-toolkit==3.0.48
+prompt-toolkit==3.0.50
     # via
     #   click-repl
     #   ipython
-proto-plus==1.25.0
+proto-plus==1.26.0
     # via
     #   google-api-core
     #   google-cloud-firestore
@@ -205,7 +205,7 @@ protobuf==5.29.3
     #   googleapis-common-protos
     #   grpcio-status
     #   proto-plus
-psycopg==3.2.3
+psycopg==3.2.4
     # via -r requirements.in
 ptyprocess==0.7.0
     # via pexpect
@@ -257,7 +257,7 @@ requests==2.32.3
     #   pooch
 rsa==4.9
     # via google-auth
-s3transfer==0.10.4
+s3transfer==0.11.2
     # via boto3
 scikit-learn==1.6.1
     # via librosa
@@ -273,7 +273,7 @@ shapely==2.0.6
     # via forest
 six==1.17.0
     # via python-dateutil
-soundfile==0.13.0
+soundfile==0.13.1
     # via librosa
 soxr==0.5.0.post1
     # via librosa
@@ -285,7 +285,7 @@ stack-data==0.6.3
     # via ipython
 threadpoolctl==3.5.0
     # via scikit-learn
-timezonefinder==6.5.7
+timezonefinder==6.5.8
     # via forest
 traitlets==5.14.3
     # via
@@ -295,7 +295,7 @@ typing-extensions==4.12.2
     # via
     #   librosa
     #   psycopg
-tzdata==2024.2
+tzdata==2025.1
     # via
     #   celery
     #   kombu
@@ -320,5 +320,5 @@ webencodings==0.5.1
     # via bleach
 wheel==0.45.1
     # via forest
-zstd==1.5.6.1
+zstd==1.5.6.2
     # via -r requirements.in
