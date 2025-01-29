@@ -92,7 +92,9 @@ def heartbeat_query() -> List[Tuple[int, str, str, str]]:
 
 
 # FIXME: override the nonce value so it doesn't back up many notifications? need to test behavior if the participant has dismissed the notification before implementing.
-def celery_heartbeat_send_push_notification_task(participant_id: int, fcm_token: str, os_type, message: str):
+def celery_heartbeat_send_push_notification_task(
+    participant_id: int, fcm_token: str, os_type: str, message: str
+):
     with make_error_sentry(sentry_type=SentryTypes.data_processing):
         now = timezone.now()
         if not check_firebase_instance():
