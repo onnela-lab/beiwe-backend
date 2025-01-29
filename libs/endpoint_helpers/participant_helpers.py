@@ -73,6 +73,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
     relation = request.session_researcher.get_study_relation(study.id)
     can_delete = request.session_researcher.site_admin or relation in DATA_DELETION_ALLOWED_RELATIONS
     
+    enable_interventions = check_firebase_instance(require_ios=True) or check_firebase_instance(require_android=True)
     return render(
         request,
         "participant.html",
@@ -83,8 +84,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
             field_values=field_data,
             notification_attempts_count=participant.archived_events.count(),
             latest_notification_attempt=latest_notification_attempt,
-            push_notifications_enabled_for_ios=check_firebase_instance(require_ios=True),
-            push_notifications_enabled_for_android=check_firebase_instance(require_android=True),
+            enable_interventions=enable_interventions,
             study_easy_enrollment=study.easy_enrollment,
             participant_easy_enrollment=participant.easy_enrollment,
             locked=participant.is_dead,

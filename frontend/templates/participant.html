@@ -298,38 +298,49 @@
         </div>
     </div>
   {% endif %}
-
+  
+  {% if study_interventions_exists or study_fields_exists %}
+    <form action="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}" class="form-horizontal" method="POST">
+  {% endif %}
+  
   {% if study_interventions_exists %}
-    <div class="col-md-6 col-sm-12 well">
-      <form action="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}" class="form-horizontal" method="POST">
-      {% if push_notifications_enabled_for_ios or push_notifications_enabled_for_android %}
+    <div class="col-md-6 col-sm-12 well vertical-padding-3">
+      {% if enable_interventions %}
         <h3>Interventions</h3>
         {% for intervention_id, intervention_name, intervention_date in intervention_data %}
           <div class="form-group">
-            <label class="control-label col-sm-2" for="intervention{{ intervention_id }}" > {{ intervention_name }}</label>
-              <div class="col-sm-3">
+            <label class="col-xs-9 h3-margins" for="intervention{{ intervention_id }}" > {{ intervention_name }}</label>
+              <div class="col-xs-3 center-text">
               {% if intervention_date %}
-                <input id="intervention{{ intervention_id }}" name="intervention{{ intervention_id }}"
+                <input id="intervention{{ intervention_id }}" name="intervention{{ intervention_id }}" class="h3-margins"
                  class="form-control" type="date" value="{{ intervention_date }}" {% if locked %} disabled {% endif %}>
               {% else %}
-                <input id="intervention{{ intervention_id }}" name="intervention{{ intervention_id }}"
+                <input id="intervention{{ intervention_id }}" name="intervention{{ intervention_id }}" class="h3-margins"
                  class="form-control" type="date" {% if locked %} disabled {% endif %}>
               {% endif %}
             </div>
           </div>
         {% endfor %}
+      {% else %}
+        <h3>Interventions</h3>
+        (Not currently available)
       {% endif %}
+      
     </div>
   {% endif %}
     
   {% if study_fields_exists %}
-    <div class="col-md-6 col-sm-12 well">
-      <h3>Custom Fields</h3>
     
+    {% if study_interventions_exists %}
+      <div class="col-md-6 col-sm-12 well vertical-padding-3">
+    {% else %}
+      <div class="col-xs-12 well vertical-padding-3">
+    {% endif %}
+      <h3>Custom Fields</h3>
       {% for field_id, field_name, value in field_values %}
         <div class="form-group">
-          <label class="col-sm-2 control-label" for="field{{ field_id }}">{{ field_name }}</label>
-          <div class="col-sm-4">
+          <label class="col-sm-5 control-label" for="field{{ field_id }}">{{ field_name }}</label>
+          <div class="col-sm-7">
             <input id="field{{ field_id }}" name="field{{ field_id }}" class="form-control" type="text"
                    value="{{ value }}" {% if locked %} disabled {% endif %}>
           </div>
@@ -344,7 +355,9 @@
         {% if locked %} disabled {% endif %}>Save Changes</button>
     {% endif %}
   {% endif %}
-  </form>
+  {% if study_interventions_exists or study_fields_exists %}
+    </form>
+  {% endif %}
 </div>
 
 {% endblock %}
