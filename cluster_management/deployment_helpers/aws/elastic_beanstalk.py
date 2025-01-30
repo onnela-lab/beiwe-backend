@@ -79,9 +79,10 @@ def get_python312_platform_arn():
     
     # platform arns are not necessarily human-alphanumerically, but a best effort here is fine.
     # looks like this:
-    # ['arn:aws:elasticbeanstalk:us-east-1::platform/Python 3.6 running on 64bit'Amazon Linux/2.9.2',
-    #  'arn:aws:elasticbeanstalk:us-east-1::platform/Python 3.6 running on 64bit Amazon Linux/2.9.3']
-    platforms.sort()
+    #  arn:aws:elasticbeanstalk:us-east-1::platform/Python 3.12 running on 64bit Amazon Linux 2023/4.3.2
+    #  arn:aws:elasticbeanstalk:us-east-1::platform/Python 3.12 running on 64bit Amazon Linux 2023/4.4.0
+    
+    platforms.sort()  # sort, we pick the last one.  I guess if this is wrong report a bug.
     
     if len(platforms) == 0:
         raise PythonPlatformDiscoveryError("could not find python 3.12 platform")
