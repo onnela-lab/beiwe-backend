@@ -18,7 +18,8 @@ from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS, UNEXPECTED_SERVICE_RESPONSE,
     UNKNOWN_REMOTE_ERROR)
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import ANDROID_API
+from constants.user_constants import (ANDROID_API, IOS_API,
+    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
 from database.schedule_models import ScheduledEvent
 from database.survey_models import Survey
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
@@ -26,6 +27,8 @@ from database.user_models_participant import (Participant, ParticipantFCMHistory
 from libs.firebase_config import check_firebase_instance
 from libs.push_notification_helpers import slowly_get_stopped_study_ids
 from libs.sentry import time_warning_data_processing
+from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
+    VersionError)
 
 
 logger = logging.getLogger("push_notifications")
@@ -41,6 +44,7 @@ logd = logger.debug
 
 UTC = gettz("UTC")
 
+ScheduledEventPK = int
 
 def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[ScheduledEvent]:
     """ In order to have debug functions and certain tests run we need to be able to mock a schedule
@@ -200,6 +204,7 @@ def send_scheduled_event_survey_push_notification_logic(
         
         # we need to mock the reference_schedule object in debug mode... it is stupid.
         scheduled_events = get_or_mock_schedules(schedule_pks, debug)
+        scheduled_events.extend(get_unconfirmed_notification_schedules(participant, schedule_pks))
         
         try:
             inner_send_survey_push_notification(participant, scheduled_events, fcm_token)
@@ -377,3 +382,36 @@ def create_archived_events(events: List[ScheduledEvent], participant: Participan
     """ Populates event history, does not mark ScheduledEvents as deleted. """
     for scheduled_event in events:
         scheduled_event.archive(participant, status=status)
+
+
+## this is very v1 and literally not tested in any way
+
+def get_unconfirmed_notification_schedules(
+    participant: Participant, excluded_pks: list[ScheduledEventPK]
+) -> list[ScheduledEvent]:
+    """ We need to send missed surveys to along with all other surveys whenever we send a notification. """
+    
+    if participant.os_type != IOS_API:
+        return []
+    
+    # cribbed from base_resend_logic_participant_query
+    try:
+        proceed = is_participants_version_gte_target(
+            participant.os_type,
+            participant.version_code,
+            participant.version_name,
+            IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+        )
+        if not proceed:
+            return []
+    except VersionError:
+        return []
+    
+    # not putting this import in the global scope that is a disaster waiting to happen
+    from services.resend_push_notifications import get_resendable_uuids
+
+    # get All the possible resends, skip the excluded ones (already selected).
+    way_in_the_future = timezone.now() + timedelta(days=365)
+    resend_uuids = get_resendable_uuids(way_in_the_future, [participant.pk])
+    events = participant.scheduled_events.filter(uuid__in=resend_uuids).exclude(pk__in=excluded_pks)
+    return list(events)
