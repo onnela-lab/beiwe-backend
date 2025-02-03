@@ -50,6 +50,6 @@ django-timezone-field==4.1.1
 # pip-tools>=7.3.0
 
 # this target points at what is currently the "beiwe-taskrunner" branch of the forest repo.
-git+https://git@github.com/onnela-lab/forest@592e303c85be6b38bd3512b6c90bcfba36e210f4
+git+https://git@github.com/onnela-lab/forest@dc4191eeab1ca8ef383ba2eb08272385f7ca67c2
 
 celery==5.4.0

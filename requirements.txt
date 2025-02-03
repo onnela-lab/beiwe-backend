@@ -12,13 +12,15 @@ asttokens==3.0.0
     # via stack-data
 audioread==3.0.1
     # via librosa
+beiwe-forest @ git+https://git@github.com/onnela-lab/forest@dc4191eeab1ca8ef383ba2eb08272385f7ca67c2
+    # via -r requirements.in
 billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.36.8
+boto3==1.36.12
     # via -r requirements.in
-botocore==1.36.8
+botocore==1.36.12
     # via
     #   boto3
     #   s3transfer
@@ -28,7 +30,7 @@ cachetools==5.5.1
     # via google-auth
 celery==5.4.0
     # via -r requirements.in
-certifi==2024.12.14
+certifi==2025.1.31
     # via
     #   pyproj
     #   requests
@@ -70,8 +72,6 @@ executing==2.2.0
     # via stack-data
 firebase-admin==5.4.0
     # via -r requirements.in
-forest @ git+https://git@github.com/onnela-lab/forest@592e303c85be6b38bd3512b6c90bcfba36e210f4
-    # via -r requirements.in
 google-api-core[grpc]==2.24.1
     # via
     #   firebase-admin
@@ -97,7 +97,7 @@ google-cloud-core==2.4.1
     #   google-cloud-storage
 google-cloud-firestore==2.20.0
     # via firebase-admin
-google-cloud-storage==2.19.0
+google-cloud-storage==3.0.0
     # via firebase-admin
 google-crc32c==1.6.0
     # via
@@ -115,17 +115,17 @@ grpcio==1.70.0
     #   grpcio-status
 grpcio-status==1.70.0
     # via google-api-core
-h3==4.2.0
+h3==4.2.1
     # via timezonefinder
-holidays==0.65
-    # via forest
+holidays==0.66
+    # via beiwe-forest
 httplib2==0.22.0
     # via
     #   google-api-python-client
     #   google-auth-httplib2
 idna==3.10
     # via requests
-ipython==8.31.0
+ipython==8.32.0
     # via -r requirements.in
 jedi==0.19.2
     # via ipython
@@ -144,7 +144,7 @@ kombu==5.4.2
 lazy-loader==0.4
     # via librosa
 librosa==0.10.2.post1
-    # via forest
+    # via beiwe-forest
 llvmlite==0.44.0
     # via numba
 markupsafe==3.0.2
@@ -161,7 +161,7 @@ numba==0.61.0
     #   ssqueezepy
 numpy==2.1.3
     # via
-    #   forest
+    #   beiwe-forest
     #   librosa
     #   numba
     #   pandas
@@ -173,7 +173,7 @@ numpy==2.1.3
     #   ssqueezepy
     #   timezonefinder
 openrouteservice==2.3.3
-    # via forest
+    # via beiwe-forest
 orjson==3.9.15
     # via -r requirements.in
 packaging==24.2
@@ -181,7 +181,7 @@ packaging==24.2
     #   lazy-loader
     #   pooch
 pandas==2.2.3
-    # via forest
+    # via beiwe-forest
 parso==0.8.4
     # via jedi
 pexpect==4.9.0
@@ -230,27 +230,28 @@ pyparsing==3.2.1
 pypng==0.20220715.0
     # via -r requirements.in
 pyproj==3.7.0
-    # via forest
+    # via beiwe-forest
 pyqrcode==1.2.1
     # via -r requirements.in
 python-dateutil==2.9.0.post0
     # via
     #   -r requirements.in
+    #   beiwe-forest
     #   botocore
     #   celery
     #   holidays
     #   pandas
-pytz==2024.2
+pytz==2025.1
     # via
+    #   beiwe-forest
     #   django-timezone-field
-    #   forest
     #   pandas
 ratelimit==2.2.1
-    # via forest
+    # via beiwe-forest
 requests==2.32.3
     # via
+    #   beiwe-forest
     #   cachecontrol
-    #   forest
     #   google-api-core
     #   google-cloud-storage
     #   openrouteservice
@@ -263,14 +264,14 @@ scikit-learn==1.6.1
     # via librosa
 scipy==1.15.1
     # via
-    #   forest
+    #   beiwe-forest
     #   librosa
     #   scikit-learn
     #   ssqueezepy
 sentry-sdk==2.20.0
     # via cronutils
-shapely==2.0.6
-    # via forest
+shapely==2.0.7
+    # via beiwe-forest
 six==1.17.0
     # via python-dateutil
 soundfile==0.13.1
@@ -280,13 +281,13 @@ soxr==0.5.0.post1
 sqlparse==0.5.3
     # via django
 ssqueezepy==0.6.5
-    # via forest
+    # via beiwe-forest
 stack-data==0.6.3
     # via ipython
 threadpoolctl==3.5.0
     # via scikit-learn
 timezonefinder==6.5.8
-    # via forest
+    # via beiwe-forest
 traitlets==5.14.3
     # via
     #   ipython
@@ -318,7 +319,5 @@ wcwidth==0.2.13
     # via prompt-toolkit
 webencodings==0.5.1
     # via bleach
-wheel==0.45.1
-    # via forest
 zstd==1.5.6.2
     # via -r requirements.in
