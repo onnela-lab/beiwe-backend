@@ -3,7 +3,6 @@ import random
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import DefaultDict, Dict, List, Tuple
 
 import orjson
 from cronutils.error_handler import ErrorSentry
@@ -18,8 +17,7 @@ from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS, UNEXPECTED_SERVICE_RESPONSE,
     UNKNOWN_REMOTE_ERROR)
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import (ANDROID_API, IOS_API,
-    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
+from constants.user_constants import ANDROID_API
 from database.schedule_models import ScheduledEvent
 from database.survey_models import Survey
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
@@ -27,8 +25,7 @@ from database.user_models_participant import (Participant, ParticipantFCMHistory
 from libs.firebase_config import check_firebase_instance
 from libs.push_notification_helpers import slowly_get_stopped_study_ids
 from libs.sentry import time_warning_data_processing
-from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
-    VersionError)
+from services.resend_push_notifications import get_unconfirmed_notification_schedules
 
 
 logger = logging.getLogger("push_notifications")
@@ -44,31 +41,29 @@ logd = logger.debug
 
 UTC = gettz("UTC")
 
-ScheduledEventPK = int
-
-def get_or_mock_schedules(schedule_pks: List[str], debug: bool) -> List[ScheduledEvent]:
+def get_or_mock_schedules(event_pks: list[int], debug: bool) -> list[ScheduledEvent]:
     """ In order to have debug functions and certain tests run we need to be able to mock a schedule
     object. In all other cases we query the database. """
     if not debug:
-        return list(ScheduledEvent.objects.filter(pk__in=schedule_pks))
+        return list(ScheduledEvent.objects.filter(pk__in=event_pks))
     else:
         # object needs a scheduled_time attribute, and a falsey uuid attribute.
         class mock_reference_schedule:
             scheduled_time = timezone.now()
             uuid = uuid.uuid4()
-        return [mock_reference_schedule]
+        return [mock_reference_schedule]  # type: ignore
 
 
 ####################################################################################################
 ################################### SURVEY PUSH NOTIFICATIONS ######################################
 ####################################################################################################
 
-SurveyReturn = Dict[str, List[str]]     # a dictionary of fcm tokens to lists of survey object ids
-SchedulesReturn = Dict[str, List[int]]  # a dictionary of fcm tokens to lists of schedule pks
-PatientsReturn = Dict[str, str]         # a dictionary of fcm tokens to (individual) patient ids
+SurveyReturn = dict[str, list[str]]     # a dictionary of fcm tokens to lists of survey object ids
+SchedulesReturn = dict[str, list[int]]  # a dictionary of fcm tokens to lists of schedule pks
+PatientsReturn = dict[str, str]         # a dictionary of fcm tokens to (individual) patient ids
 
 @time_warning_data_processing("push notification query logic took over 30 seconds", 30)
-def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[SurveyReturn, SchedulesReturn, PatientsReturn]:
+def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> tuple[SurveyReturn, SchedulesReturn, PatientsReturn]:
     """ Mostly this function exists to reduce mess. returns:
     a mapping of fcm tokens to list of survey object ids
     a mapping of fcm tokens to list of schedule ids
@@ -117,8 +112,8 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[SurveyRet
     )
     
     # we need a mapping of fcm tokens (a proxy for participants) to surveys and schedule ids (pks)
-    surveys: DefaultDict[str, List[str]] = defaultdict(list)
-    schedules: DefaultDict[str, List[int]] = defaultdict(list)
+    surveys: defaultdict[str, list[str]] = defaultdict(list)
+    schedules: defaultdict[str, list[int]] = defaultdict(list)
     patient_ids = {}
     
     # unregistered means that the FCM push notification token has been marked as unregistered, which
@@ -182,8 +177,8 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> Tuple[SurveyRet
 
 def send_scheduled_event_survey_push_notification_logic(
     fcm_token: str,
-    survey_obj_ids: List[str],
-    schedule_pks: List[int],
+    survey_obj_ids: list[str],
+    schedule_pks: list[int],
     error_handler: ErrorSentry,
     debug: bool = False
 ):
@@ -263,7 +258,7 @@ def send_scheduled_event_survey_push_notification_logic(
 
 
 def inner_send_survey_push_notification(
-    participant: Participant, scheduled_events: List[ScheduledEvent], fcm_token: str
+    participant: Participant, scheduled_events: list[ScheduledEvent], fcm_token: str
 ):
     # There can be multiple instances of the same survey for which we need to deduplicate object
     #   ids, but appropriately map all object ids to schedule uuids.
@@ -306,7 +301,7 @@ def inner_send_survey_push_notification(
     send_notification(message)
 
 
-def success_send_survey_handler(participant: Participant, fcm_token: str, events: List[ScheduledEvent]):
+def success_send_survey_handler(participant: Participant, fcm_token: str, events: list[ScheduledEvent]):
     # If the query was successful archive the schedules.  Clear the fcm unregistered flag
     # if it was set (this shouldn't happen. ever. but in case we hook in a ui element we need it.)
     log(f"Survey push notification send succeeded for {participant.patient_id}.")
@@ -327,7 +322,7 @@ def failed_send_survey_handler(
     participant: Participant,
     fcm_token: str,
     error_message: str,
-    schedules: List[ScheduledEvent],
+    schedules: list[ScheduledEvent],
     debug: bool,
 ):
     """ Contains body of code for unregistering a participants push notification behavior.
@@ -378,40 +373,7 @@ def failed_send_survey_handler(
     create_archived_events(schedules, participant, status=error_message)
 
 
-def create_archived_events(events: List[ScheduledEvent], participant: Participant, status: str):
+def create_archived_events(events: list[ScheduledEvent], participant: Participant, status: str):
     """ Populates event history, does not mark ScheduledEvents as deleted. """
     for scheduled_event in events:
         scheduled_event.archive(participant, status=status)
-
-
-## this is very v1 and literally not tested in any way
-
-def get_unconfirmed_notification_schedules(
-    participant: Participant, excluded_pks: list[ScheduledEventPK]
-) -> list[ScheduledEvent]:
-    """ We need to send missed surveys to along with all other surveys whenever we send a notification. """
-    
-    if participant.os_type != IOS_API:
-        return []
-    
-    # cribbed from base_resend_logic_participant_query
-    try:
-        proceed = is_participants_version_gte_target(
-            participant.os_type,
-            participant.version_code,
-            participant.version_name,
-            IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
-        )
-        if not proceed:
-            return []
-    except VersionError:
-        return []
-    
-    # not putting this import in the global scope that is a disaster waiting to happen
-    from services.resend_push_notifications import get_resendable_uuids
-
-    # get All the possible resends, skip the excluded ones (already selected).
-    way_in_the_future = timezone.now() + timedelta(days=365)
-    resend_uuids = get_resendable_uuids(way_in_the_future, [participant.pk])
-    events = participant.scheduled_events.filter(uuid__in=resend_uuids).exclude(pk__in=excluded_pks)
-    return list(events)

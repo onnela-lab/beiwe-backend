@@ -5,14 +5,14 @@ from typing import Callable, List
 
 from django.utils import timezone
 
-# do not import from libs.schedules
+# do not import from libs.schedules or services.survey_push_natifications !!!
 from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.user_constants import IOS_API, IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.study_models import Study
 from database.system_models import GlobalSettings
-from database.user_models_participant import SurveyNotificationReport
+from database.user_models_participant import Participant, SurveyNotificationReport
 from libs.push_notification_helpers import fcm_for_pushable_participants
 from libs.sentry import time_warning_data_processing
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
@@ -20,7 +20,7 @@ from libs.utils.participant_app_version_comparison import (is_participants_versi
 
 
 ParticipantPKs = int
-
+ScheduledEventPK = int
 
 logger = logging.getLogger("push_notifications")
 if RUNNING_TESTS:
@@ -165,6 +165,35 @@ def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
             pass
     
     return pushable_participant_pks
+
+
+def get_unconfirmed_notification_schedules(
+    participant: Participant, excluded_pks: list[ScheduledEventPK]
+) -> list[ScheduledEvent]:
+    """ We need to send all unconfirmed surveys to along with all other surveys whenever we send a notification. """
+    
+    if participant.os_type != IOS_API:
+        return []
+    
+    # cribbed from base_resend_logic_participant_query, adapted to participant object,
+    try:
+        proceed = is_participants_version_gte_target(
+            participant.os_type,
+            participant.version_code,
+            participant.version_name,
+            IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+        )
+        if not proceed:
+            return []
+    except VersionError:
+        return []
+    
+    # get All the possible resends, skip the excluded ones (already selected).
+    # (this _is_ the logic for getting all unconfirmed notifications)
+    way_in_the_future = timezone.now() + timedelta(days=365)
+    resend_uuids = get_resendable_uuids(way_in_the_future, [participant.pk])
+    events = participant.scheduled_events.filter(uuid__in=resend_uuids).exclude(pk__in=excluded_pks)
+    return list(events)
 
 
 def update_ArchivedEvents_from_SurveyNotificationReports(
