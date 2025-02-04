@@ -28,7 +28,7 @@ class TestCreateSurvey(ResearcherSessionTest):
         resp = self.smart_get_redirect(self.session_study.id, survey_type)
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(Survey.objects.count(), 1)
-        survey: Survey = Survey.objects.get()
+        survey: Survey = Survey.obj_get()
         self.assertEqual(survey_type, survey.survey_type)
 
 

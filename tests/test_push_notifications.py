@@ -20,7 +20,7 @@ class TestPushComponents(CommonTestCase):
         event.refresh_from_db()
         
         self.assertEqual(ArchivedEvent.objects.count(), 1)
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         
         self.assertTrue(event.deleted)
         self.assertEqual(archive.uuid, event.uuid)
@@ -32,7 +32,7 @@ class TestPushComponents(CommonTestCase):
         event.refresh_from_db()
         
         self.assertEqual(ArchivedEvent.objects.count(), 1)
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         
         self.assertTrue(event.deleted)
         self.assertIsNone(archive.uuid)
@@ -44,7 +44,7 @@ class TestPushComponents(CommonTestCase):
         event.refresh_from_db()
         
         self.assertEqual(ArchivedEvent.objects.count(), 1)
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         
         self.assertFalse(event.deleted) 
         self.assertEqual(archive.uuid, event.uuid)  # should still have a uuid
@@ -120,7 +120,7 @@ class TestSendHandlers(CommonTestCase):
             schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         self.assertEqual(archive.status, UNEXPECTED_SERVICE_RESPONSE)
     
     def test_error_invalid_length(self):
@@ -131,7 +131,7 @@ class TestSendHandlers(CommonTestCase):
             schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         self.assertEqual(archive.status, UNKNOWN_REMOTE_ERROR)
     
     def test_error_connection_pool(self):
@@ -142,7 +142,7 @@ class TestSendHandlers(CommonTestCase):
             schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         self.assertEqual(archive.status, FAILED_TO_ESTABLISH_CONNECTION)
     
     def test_error_aborted(self):
@@ -153,7 +153,7 @@ class TestSendHandlers(CommonTestCase):
             schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         self.assertEqual(archive.status, CONNECTION_ABORTED)
     
     def test_invalid_token(self):
@@ -164,7 +164,7 @@ class TestSendHandlers(CommonTestCase):
             schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         self.assertEqual(archive.status, ACCOUNT_NOT_FOUND)
     
     #
@@ -181,7 +181,7 @@ class TestSendHandlers(CommonTestCase):
         )
         
         self.assertEqual(ArchivedEvent.objects.count(), 1)
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         self.assertEqual(archive.uuid, None)
         
         self.assertEqual(archive.status, "success")
@@ -202,7 +202,7 @@ class TestSendHandlers(CommonTestCase):
         )
         
         self.assertEqual(ArchivedEvent.objects.count(), 1)
-        archive = ArchivedEvent.objects.get()
+        archive = ArchivedEvent.obj_get()
         self.assertEqual(archive.status, "success")
         self.assertEqual(archive.uuid, event.uuid)
         
