@@ -852,7 +852,7 @@ class TestMobileUpload(ParticipantSessionTest):
         self.assert_no_files_to_process
         # happens to be bad length decryption key
         self.assertEqual(GenericEvent.objects.count(), 1)
-        self.assertIn("Decryption key not 128 bits", GenericEvent.objects.get().note)
+        self.assertIn("Decryption key not 128 bits", GenericEvent.obj_get().note)
     
     @patch("libs.endpoint_helpers.participant_file_upload_helpers.s3_upload")
     @patch("database.user_models_participant.Participant.get_private_key")
@@ -861,7 +861,7 @@ class TestMobileUpload(ParticipantSessionTest):
         self.smart_post_status_code(200, file_name="whatever.csv", file="some_content/\\")
         self.assert_no_files_to_process
         self.assertEqual(GenericEvent.objects.count(), 1)
-        self.assertIn("Key not base64 encoded:", GenericEvent.objects.get().note)
+        self.assertIn("Key not base64 encoded:", GenericEvent.obj_get().note)
     
     @patch("libs.endpoint_helpers.participant_file_upload_helpers.s3_upload")
     @patch("database.user_models_participant.Participant.get_private_key")
@@ -872,7 +872,7 @@ class TestMobileUpload(ParticipantSessionTest):
         self.assertEqual(GenericEvent.objects.count(), 1)
         self.assertIn(
             "invalid length 2 after padding was removed.",
-            GenericEvent.objects.get().note
+            GenericEvent.obj_get().note
         )
     
     # TODO: add invalid decrypted key length test...
