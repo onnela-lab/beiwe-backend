@@ -26,6 +26,7 @@ API_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 # Data Streams
 ACCELEROMETER = "accelerometer"
 BLUETOOTH = "bluetooth"
+OMNIRING = "omniring"
 CALL_LOG = "calls"
 GPS = "gps"
 IDENTIFIERS = "identifiers"

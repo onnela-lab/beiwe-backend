@@ -12,9 +12,11 @@ from django.db.models import Manager
 from config.settings import DOMAIN_NAME
 from constants.celery_constants import ForestTaskStatus
 from constants.forest_constants import (DEFAULT_FOREST_PARAMETERS, FOREST_PICKLING_ERROR,
-    ForestTree, NON_PICKLED_PARAMETERS, OAK_DATE_FORMAT_PARAMETER, PARAMETER_ALL_BV_SET,
-    PARAMETER_ALL_MEMORY_DICT, PARAMETER_CONFIG_PATH, PARAMETER_INTERVENTIONS_FILEPATH,
-    ROOT_FOREST_TASK_PATH, SYCAMORE_DATE_FORMAT)
+                                        ForestTree, NON_PICKLED_PARAMETERS, OAK_DATE_FORMAT_PARAMETER,
+                                        PARAMETER_ALL_BV_SET,
+                                        PARAMETER_ALL_MEMORY_DICT, PARAMETER_CONFIG_PATH,
+                                        PARAMETER_INTERVENTIONS_FILEPATH,
+                                        ROOT_FOREST_TASK_PATH, SYCAMORE_DATE_FORMAT)
 from database.common_models import TimestampedModel
 from database.user_models_participant import Participant
 from libs.utils.date_utils import datetime_to_list
@@ -96,7 +98,6 @@ class ForestTask(TimestampedModel):
             # "all_bv_set_s3_key": self.all_bv_set_s3_key,
             # "all_memory_dict_s3_key": self.all_memory_dict_s3_key,
         }
-    
     
     #
     ## forest tree parameters
@@ -289,6 +290,7 @@ class SummaryStatisticDaily(TimestampedModel):
     beiwe_ambient_audio_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_app_log_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_bluetooth_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    beiwe_omniring_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_calls_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_devicemotion_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_gps_bytes = models.PositiveBigIntegerField(null=True, blank=True)
@@ -364,10 +366,14 @@ class SummaryStatisticDaily(TimestampedModel):
     oak_cadence = models.FloatField(null=True, blank=True)
     
     # points to the task that populated this data set. ()
-    jasmine_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
-    willow_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
-    sycamore_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="sycamore_summary_statistics")
-    oak_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="oak_summary_statistics")
+    jasmine_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT,
+                                                 related_name="jasmine_summary_statistics")
+    willow_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT,
+                                                related_name="willow_summary_statistics")
+    sycamore_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT,
+                                                  related_name="sycamore_summary_statistics")
+    oak_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT,
+                                             related_name="oak_summary_statistics")
     
     class Meta:
         constraints = [

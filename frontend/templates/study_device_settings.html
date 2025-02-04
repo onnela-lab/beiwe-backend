@@ -334,6 +334,29 @@
           value="{{ settings['bluetooth_global_offset_seconds'] }}" {{ "disabled" if readonly }}>
       </div>
     </div>
+  
+    {# OmniRing #}
+    <div class="col-xs-12 col-md-2">
+      <div class="form-group">
+        <label for="omniring" class="control-label">OmniRing:</label>
+        <input name="omniring" id="omniring" type="checkbox" {{ "checked" if settings["omniring"] }} {{ "disabled" if readonly }}/>
+      </input>
+      </div>
+    </div>
+    <div class="col-xs-12 col-md-5">
+      <div class="form-group">
+        <label for="omniring_on_duration_seconds" class="control-label app-settings-align-70">OmniRing <b>on</b> duration:</label>
+        <input id="omniring_on_duration_seconds" name="omniring_on_duration_seconds" class="form-control" type="number" 
+          value="{{ settings['omniring_on_duration_seconds'] }}" {{ "disabled" if readonly }}>
+      </div>
+    </div>
+    <div class="col-xs-12 col-md-5">
+      <div class="form-group">
+        <label for="omniring_off_duration_seconds" class="control-label app-settings-align-70">OmniRing <b>off</b> duration:</label>
+        <input id="omniring_off_duration_seconds" name="omniring_off_duration_seconds" class="form-control" type="number" 
+          value="{{ settings['omniring_off_duration_seconds'] }}" {{ "disabled" if readonly }}>
+      </div>
+    </div>
   </div>
   
   {% if not readonly %}
