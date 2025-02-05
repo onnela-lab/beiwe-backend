@@ -148,6 +148,7 @@ def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
             "participant__last_version_name",
         )
     )
+    # log("pushable_participant_info:", pushable_participant_info)
     
     # complex filters, participant app version and os type
     pushable_participant_pks = []
@@ -168,9 +169,10 @@ def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
 
 
 def get_unconfirmed_notification_schedules(
-    participant: Participant, excluded_pks: list[ScheduledEventPK]
+    participant: Participant, excluded_pks: list[ScheduledEventPK] = None,
 ) -> list[ScheduledEvent]:
     """ We need to send all unconfirmed surveys to along with all other surveys whenever we send a notification. """
+    excluded_pks = excluded_pks or []
     
     if participant.os_type != IOS_API:
         return []
@@ -179,8 +181,8 @@ def get_unconfirmed_notification_schedules(
     try:
         proceed = is_participants_version_gte_target(
             participant.os_type,
-            participant.version_code,
-            participant.version_name,
+            participant.last_version_code,
+            participant.last_version_name,
             IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
         )
         if not proceed:
@@ -192,8 +194,12 @@ def get_unconfirmed_notification_schedules(
     # (this _is_ the logic for getting all unconfirmed notifications)
     way_in_the_future = timezone.now() + timedelta(days=365)
     resend_uuids = get_resendable_uuids(way_in_the_future, [participant.pk])
-    events = participant.scheduled_events.filter(uuid__in=resend_uuids).exclude(pk__in=excluded_pks)
-    return list(events)
+    
+    # Exclude should be faster than a python deduplication, because this pulls full model objects,
+    # and there will be some participnts with a lot of schedules until they age out.
+    return list(
+        participant.scheduled_events.filter(uuid__in=resend_uuids).exclude(pk__in=excluded_pks)
+    )
 
 
 def update_ArchivedEvents_from_SurveyNotificationReports(
