@@ -3,8 +3,10 @@ from datetime import date, datetime, timedelta
 from posixpath import abspath
 from sys import argv as _argv
 
-from dateutil.tz import UTC
+from dateutil.tz import gettz
 
+EASTERN = EDT = EST = gettz("America/New_York")
+UTC = gettz("UTC")
 
 BEIWE_PROJECT_ROOT = abspath(__file__.rsplit("/", 2)[0] + "/")  # this does not end in a slash...
 PROJECT_PARENT_FOLDER = BEIWE_PROJECT_ROOT.rsplit("/", 2)[0] + "/"
@@ -51,10 +53,11 @@ DT_24HR_N_TZ_N_SEC_N_PAREN = "%Y-%m-%d %H:%M"
 DT_12HR_N_TZ_N_SEC_W_PAREN = "%Y-%m-%d %-I:%M%p (%Z)"
 DT_24HR_N_TZ_N_SEC_W_PAREN = "%Y-%m-%d %H:%M %Z"
 
+DT_24HR_N_TZ_W_SEC_N_PAREN = "%Y-%m-%d %H:%M:%S %Z"
+
 DT_12HR_W_TZ_W_SEC_N_PAREN = "%Y-%m-%d %-I:%M:%S%p %Z"
 DT_24HR_W_TZ_W_SEC_N_PAREN = "%Y-%m-%d %H:%M:%S %Z"
 LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN = "%Y-%m-%d<br>%H:%M:%S %Z"
-
 DT_12HR_W_TZ_W_SEC_W_PAREN = "%Y-%m-%d %-I:%M:%S%p (%Z)"
 DT_24HR_W_TZ_W_SEC_W_PAREN = "%Y-%m-%d %H:%M:%S (%Z)"
 

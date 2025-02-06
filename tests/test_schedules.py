@@ -10,6 +10,7 @@ from dateutil import tz
 from dateutil.tz import gettz
 from django.utils import timezone
 
+from constants.common_constants import EASTERN
 from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
 from constants.testing_constants import (EDT_WEEK, EST_WEEK, MIDNIGHT_EVERY_DAY_OF_WEEK,
     MONDAY_JUNE_NOON_6_2022_EDT, NOON_EVERY_DAY_OF_WEEK, THURS_OCT_6_NOON_2022_NY,
@@ -27,8 +28,7 @@ from tests.common import CommonTestCase
 
 
 # timezones should be compared using the 'is' operator
-THE_ONE_TRUE_TIMEZONE = gettz("America/New_York")
-THE_OTHER_ACCEPTABLE_TIMEZONE = gettz("UTC")
+UTC = gettz("UTC")
 
 SCHEDULEDEVENT_IDENTITY_FIELDS = [
     "participant_id",
@@ -997,7 +997,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
             day=d.day + 1,
             hour=1,
             minute=1,
-            tzinfo=THE_ONE_TRUE_TIMEZONE
+            tzinfo=EASTERN,
         )
         
         rel_archive = self.generate_archived_event_for_relative_schedule(
