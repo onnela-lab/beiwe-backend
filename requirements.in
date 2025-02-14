@@ -1,9 +1,9 @@
 # core libraries
-Django>=4.2.17
+Django>=4.2.19
 Django<5.0.0
 firebase-admin==5.4.0
 Jinja2 # used to require pinning, I guess review if there is a major version bump.
-zstd>=1.5.5.1 # can be stuck on older versions sometimes
+zstd>=1.5.6.1 # can be stuck on older versions sometimes - 1.5.6.2 got yanked due to build problem
 orjson==3.9.15
 
 # django-extensions for some really nice management commands and terminal helpers.
@@ -23,7 +23,7 @@ pypng
 pyotp
 
 # This version of pycryptodome results in "from Cryptodome import ..." imports.
-pycryptodomex==3.20.0  # locked version, only update this manuallly, has had breaking changes in the past
+pycryptodomex==3.21.0  # locked version, only update this manuallly, has had breaking changes in the past
 
 # error reporting
 cronutils==0.4.2
@@ -37,7 +37,7 @@ psycopg>=3.1.18
 # ipython can exhibit weird issues that make it look like the codebase is broken.  Most issues
 # are resolved by forcing this relatively new version of ipython.
 ipython>=8.12.2
-uwsgi>=2.0.24
+gunicorn
 
 # Keep these dependencies up to date
 boto3

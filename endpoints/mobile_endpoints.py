@@ -347,7 +347,7 @@ def contains_valid_extension(file_name: str):
 
 
 @determine_os_api
-@authenticate_participant
+@minimal_validation
 def get_latest_device_settings(request: ParticipantRequest, OS_API=""):
     """ Extremely simple endpoint that returns the device settings for the study as a json string. 
     Endpoint is used by the app to periodically check for changes to the device settings. """
@@ -360,7 +360,7 @@ def get_latest_device_settings(request: ParticipantRequest, OS_API=""):
 
 
 @determine_os_api
-@authenticate_participant
+@minimal_validation
 def get_latest_surveys(request: ParticipantRequest, OS_API=""):
     """ This is the endpoint hit by the app to download the current survey and survey schedule 
     information.  The app's representation of surveys is of the current week. """
@@ -446,7 +446,7 @@ def format_survey_for_device(survey: Survey, participant: Participant):
 #   of the validation error, which actually occurs at the get-or-create line resulting in the bug.
 #  Probably use a transaction?
 @require_POST
-@authenticate_participant
+@minimal_validation
 def set_fcm_token(request: ParticipantRequest):
     """ Sets a participants Firebase Cloud Messaging (FCM) instance token, called whenever a new
     token is generated. Expects a patient_id and and fcm_token in the request body. """

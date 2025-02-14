@@ -16,9 +16,9 @@ billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.36.8
+boto3==1.36.20
     # via -r requirements.in
-botocore==1.36.8
+botocore==1.36.20
     # via
     #   boto3
     #   s3transfer
@@ -28,7 +28,7 @@ cachetools==5.5.1
     # via google-auth
 celery==5.4.0
     # via -r requirements.in
-certifi==2024.12.14
+certifi==2025.1.31
     # via
     #   pyproj
     #   requests
@@ -57,7 +57,7 @@ decorator==5.1.1
     # via
     #   ipython
     #   librosa
-django==4.2.18
+django==4.2.19
     # via
     #   -r requirements.in
     #   django-extensions
@@ -79,7 +79,7 @@ google-api-core[grpc]==2.24.1
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.160.0
+google-api-python-client==2.161.0
     # via firebase-admin
 google-auth==2.38.0
     # via
@@ -97,7 +97,7 @@ google-cloud-core==2.4.1
     #   google-cloud-storage
 google-cloud-firestore==2.20.0
     # via firebase-admin
-google-cloud-storage==2.19.0
+google-cloud-storage==3.0.0
     # via firebase-admin
 google-crc32c==1.6.0
     # via
@@ -105,7 +105,7 @@ google-crc32c==1.6.0
     #   google-resumable-media
 google-resumable-media==2.7.2
     # via google-cloud-storage
-googleapis-common-protos==1.66.0
+googleapis-common-protos==1.67.0
     # via
     #   google-api-core
     #   grpcio-status
@@ -115,9 +115,11 @@ grpcio==1.70.0
     #   grpcio-status
 grpcio-status==1.70.0
     # via google-api-core
-h3==4.2.0
+gunicorn==23.0.0
+    # via -r requirements.in
+h3==4.2.1
     # via timezonefinder
-holidays==0.65
+holidays==0.66
     # via forest
 httplib2==0.22.0
     # via
@@ -125,7 +127,7 @@ httplib2==0.22.0
     #   google-auth-httplib2
 idna==3.10
     # via requests
-ipython==8.31.0
+ipython==8.32.0
     # via -r requirements.in
 jedi==0.19.2
     # via ipython
@@ -178,6 +180,7 @@ orjson==3.9.15
     # via -r requirements.in
 packaging==24.2
     # via
+    #   gunicorn
     #   lazy-loader
     #   pooch
 pandas==2.2.3
@@ -219,7 +222,7 @@ pyasn1-modules==0.4.1
     # via google-auth
 pycparser==2.22
     # via cffi
-pycryptodomex==3.20.0
+pycryptodomex==3.21.0
     # via -r requirements.in
 pygments==2.19.1
     # via ipython
@@ -240,7 +243,7 @@ python-dateutil==2.9.0.post0
     #   celery
     #   holidays
     #   pandas
-pytz==2024.2
+pytz==2025.1
     # via
     #   django-timezone-field
     #   forest
@@ -267,9 +270,9 @@ scipy==1.15.1
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.20.0
+sentry-sdk==2.21.0
     # via cronutils
-shapely==2.0.6
+shapely==2.0.7
     # via forest
 six==1.17.0
     # via python-dateutil
@@ -307,8 +310,6 @@ urllib3==2.3.0
     #   botocore
     #   requests
     #   sentry-sdk
-uwsgi==2.0.28
-    # via -r requirements.in
 vine==5.1.0
     # via
     #   amqp
@@ -320,5 +321,5 @@ webencodings==0.5.1
     # via bleach
 wheel==0.45.1
     # via forest
-zstd==1.5.6.2
+zstd==1.5.6.1
     # via -r requirements.in
