@@ -1,7 +1,7 @@
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Callable, List
+from typing import Callable
 
 from django.utils import timezone
 
@@ -19,7 +19,7 @@ from libs.utils.participant_app_version_comparison import (is_participants_versi
     VersionError)
 
 
-ParticipantPKs = int
+ParticipantPK = int
 ScheduledEventPK = int
 
 logger = logging.getLogger("push_notifications")
@@ -133,7 +133,7 @@ def disable_resend_on_problem_scheduled_events(now: datetime):
         ScheduledEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, no_resend=True, deleted=True)
 
 
-def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
+def base_resend_logic_participant_query(now: datetime) -> list[ParticipantPK]:
     """ Current filter: iOS-only, with the minimum build version. """
     one_week_ago = now - timedelta(days=7)
     
@@ -203,7 +203,7 @@ def get_unconfirmed_notification_schedules(
 
 
 def update_ArchivedEvents_from_SurveyNotificationReports(
-    participant_pks: List[ParticipantPKs], update_timestamp: datetime, log: Callable
+    participant_pks: list[ParticipantPK], update_timestamp: datetime, log: Callable
 ):
     """ Populates confirmed_received and applied on ArchivedEvents and SurveyNotificationReports
     based on the SurveyNotificationReports, sets last_updated. """
@@ -249,9 +249,12 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     log(f"query_notification_report: {query_update_notification_report}")
 
 
-def get_resendable_uuids(now: datetime, pushable_participant_pks: List[ParticipantPKs]) -> List[uuid.UUID]:
+from constants.common_constants import DEV_TIME_FORMAT3
+
+
+def get_resendable_uuids(now: datetime, pushable_participant_pks: list[ParticipantPK]) -> list[uuid.UUID]:
     """ Get the uuids of relevant archives. This includes a per-study timeout value for how frequently
-    to resend, and a filter by last updated time. aoeuaoeu eua eou.a aoeui .,..uaoeuaoeuaouiaoeu aoeu oaeu a """
+    to resend, and a filter by last updated time. """
     
     # TOO_EARLY is populated AFTER the first run that regenerates all schedules in a periodic task
     # - only archived events created after this time are considered for resends.
@@ -269,46 +272,65 @@ def get_resendable_uuids(now: datetime, pushable_participant_pks: List[Participa
             participant_id__in=pushable_participant_pks,  # from relevant participants,
             confirmed_received=False,                     # that are not confirmed received,
             uuid__isnull=False,                           # and have uuids.
+            participant__study__device_settings__resend_period_minutes__gt=0,
         # well this failed in preduction....
         # ).exclude(
-            # uuid__in=retired_uuids,                        # exclude schedules that have been retired.
+        #     uuid__in=retired_uuids,                      # exclude schedules that have been retired.
         ).values_list(
             "uuid",
             "last_updated",
             "participant__study_id",
         )
     )
+    
     # probably due to too many uuids, excluding these from the query directly Simple Doesn't Work,
     # so I guess to exclude it in python?
     uuid_info = [info for info in uuid_info if info[0] not in retired_uuids]
-    
     log(f"found {len(uuid_info)} ArchivedEvents to check.")
     
     # handle _some_ off-by-X-minutes issues:
     # - Clear seconds and microseconds on now to cause all values in the current minute as resendable.
     # - true off-by-6-minutes requires a `seconds - (seconds % 6)`` operation....
     # Not fully handling that is ok because it only occurs when push notification went out slow?
-    now_ish = now.replace(second=0, microsecond=0)
-    # print("periodicity:", list(Study.objects.values_list("device_settings__resend_period_minutes", flat=True)))
+    minute_rounded = now.minute - now.minute % 6
+    # now_ish = (now + timedelta(minutes=6)).replace(minute=minute_rounded, second=0, microsecond=0)
+    now_ish = now.replace(minute=minute_rounded, second=0, microsecond=0)
     
-    # Every study has a different timeout value, but we exclude 0.
+    # print("periodicity:", list(Study.objects.values_list("device_settings__resend_period_minutes", flat=True)))
+    log("now:", now.strftime(DEV_TIME_FORMAT3))
+    log("now_ish:", now_ish.strftime(DEV_TIME_FORMAT3))
+    
+    timeouts = list(
+        Study.fltr(device_settings__resend_period_minutes__gt=0) \
+            .values_list("pk", "device_settings__resend_period_minutes")
+    )
+    
+    # Every study has a different timeout values, 0 gets ignored
     # If the last updated timestamp on the archive is before this value, we resend.
-    study_resend_timeouts = {
-        pk: now_ish - timedelta(minutes=minutes)
-        for pk, minutes in Study.objects.values_list("pk", "device_settings__resend_period_minutes")
-        if minutes > 0
-    }
+    adjusted_timeouts = {pk: now_ish - timedelta(minutes=minutes) for pk, minutes in timeouts}
+    # raw_timeouts = {pk: now - timedelta(minutes=minutes) for pk, minutes in timeouts}
     
     # filter by last updated time lte the studies timeout value, uniqueify, listify, return.
     uuids = []
-    for a_uuid, last_updated, study_id in uuid_info:
-        timeout = study_resend_timeouts.get(study_id, None)
-        # from constants.common_constants import DEV_TIME_FORMAT3
-        # print("study's timeout:", timeout.strftime(DEV_TIME_FORMAT3) if timeout else timeout)
-        # print("last_updated:   ", last_updated.strftime(DEV_TIME_FORMAT3))
-        # print("timeout and last_updated <= timeout:", timeout and last_updated <= timeout)
-        # print()
-        if timeout and last_updated <= timeout:
+    for a_uuid, sent_time_raw, study_id in uuid_info:
+        resend_timeout_adj = adjusted_timeouts[study_id]
+        # resend_timeout_raw = raw_timeouts[study_id]
+        
+        # round down to the nearest 6 minutes - the periodicity of our push notification resend checks
+        minute_rounded = (sent_time_raw.minute - sent_time_raw.minute % 6)
+        sent_time_adj = sent_time_raw.replace(minute=minute_rounded, second=0, microsecond=0)
+        
+        # resend_timeout_raw_str = resend_timeout_raw.strftime(DEV_TIME_FORMAT3)
+        # resend_timeout_adj_str = resend_timeout_adj.strftime(DEV_TIME_FORMAT3)
+        # sent_time_raw_str = sent_time_raw.strftime(DEV_TIME_FORMAT3)
+        # sent_time_adj_str = sent_time_adj.strftime(DEV_TIME_FORMAT3)
+        # log("sent_time:      ", sent_time_raw_str, "~>", sent_time_adj_str)
+        # log("resend timeout: ", resend_timeout_raw_str, "~>", resend_timeout_adj_str)
+        # log("sent time (raw) <= resend timout (raw):", sent_time_raw <= resend_timeout_raw, f"{'(equals)' if sent_time_raw == resend_timeout_raw else ''}")
+        # log("sent time (adj) <= resend timout (adj):", sent_time_adj <= resend_timeout_adj, f"{'(equals)' if sent_time_adj == resend_timeout_adj else ''}")
+        # log("sent time (adj) <= resend timout (raw):", sent_time_adj <= resend_timeout_raw, f"{'(equals)' if sent_time_adj == resend_timeout_raw else ''}")
+        # log("sent time (raw) <= resend timout (adj):", sent_time_raw <= resend_timeout_adj, f"{'(equals)' if sent_time_raw == resend_timeout_adj else ''}")
+        if sent_time_adj <= resend_timeout_adj:
             uuids.append(a_uuid)
     
     # deduplicate uuids
