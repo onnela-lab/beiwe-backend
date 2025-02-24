@@ -25,7 +25,7 @@ from database.user_models_participant import (Participant, ParticipantFCMHistory
 from libs.firebase_config import check_firebase_instance
 from libs.push_notification_helpers import slowly_get_stopped_study_ids
 from libs.sentry import time_warning_data_processing
-from services.resend_push_notifications import get_unconfirmed_notification_schedules
+from services.resend_push_notifications import get_all_unconfirmed_notification_schedules
 
 
 logger = logging.getLogger("push_notifications")
@@ -199,7 +199,7 @@ def send_scheduled_event_survey_push_notification_logic(
         
         # we need to mock the reference_schedule object in debug mode... it is stupid.
         scheduled_events = get_or_mock_schedules(schedule_pks, debug)
-        scheduled_events.extend(get_unconfirmed_notification_schedules(participant, schedule_pks))
+        scheduled_events.extend(get_all_unconfirmed_notification_schedules(participant, schedule_pks))
         
         try:
             inner_send_survey_push_notification(participant, scheduled_events, fcm_token)

@@ -70,7 +70,7 @@ class GlobalSettings(SingletonModel):
     # this datetime will be populated when the migration is run, which is the same time the resend
     # notification feature can be activated.  (this defines a check on historical ArchivedEvent
     # created_on times.)
-    push_notification_resend_enabled = models.DateTimeField(default=None, null=True, blank=True)
+    push_notification_resend_enabled: datetime = models.DateTimeField(default=None, null=True, blank=True)
 
 
 class DataAccessRecord(TimestampedModel):

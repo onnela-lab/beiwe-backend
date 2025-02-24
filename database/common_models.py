@@ -233,12 +233,23 @@ class UtilityModel(models.Model):
     
     def update_only(self, **kwargs):
         """ As update, but only saves the fields provided. (its extremely concise) """
+        if "last_updated" in kwargs and hasattr(self, "last_updated"):
+            raise ValueError("last_updated cannot be updated directly.")
+        
         for attr, value in kwargs.items():
             if not hasattr(self, attr):
-                # This safety is good enough, only fails when using defer.
                 raise Exception(f"unpexpected parameter: {attr}")
             setattr(self, attr, value)
         self.save(update_fields=kwargs.keys())
+    
+    def force_update_only(self, **kwargs):
+        """ As update_only, but uses alternate mechanism that does not check for last_updated and
+        will pull the rest of the data from the database. 2 DB queries required. """
+        for attr, value in kwargs.items():
+            if not hasattr(self, attr):
+                raise Exception(f"unpexpected parameter: {attr}")
+        self.__class__.objects.filter(pk=self.pk).update(**kwargs)
+        self.refresh_from_db()
     
     ################################ Convenience Dict Lookups ######################################
     
