@@ -22,9 +22,16 @@ from database.user_models_participant import (Participant, ParticipantFCMHistory
     SurveyNotificationReport)
 from libs.schedules import repopulate_all_survey_scheduled_events
 from services.celery_push_notifications import get_surveys_and_schedules
-from services.resend_push_notifications import (get_all_unconfirmed_notification_schedules,
-    restore_scheduledevents_logic)
+from services.resend_push_notifications import (
+    get_all_unconfirmed_notification_schedules_for_bundling, restore_scheduledevents_logic)
 from tests.common import CommonTestCase
+
+
+#
+##  THIs TEST FILE IS WRETCHED
+##  This feature was incredibly hard to get right, there are probably a lot of tests of duplicate
+##  or seemingly-duplicate functionality.
+#
 
 
 ArchiveOrDt = ArchivedEvent|datetime
@@ -792,124 +799,128 @@ class TestResendLogicQuery(The_Meta_Class):
         self.assertEqual(patient_ids_2, {fcm_token: self.default_participant.patient_id})
 
 
-get_all_unconfirmed_notification_schedules = get_all_unconfirmed_notification_schedules  # for brevity
 class TestGetUnconfirmedNotificationSchedules(The_Meta_Class):
     
     def test_one_participant_nothing_else(self):
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
+    
+    def test_base_case(self):
+        sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
     
     def test_ios_version_restriction_blocks(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         self.assertIsNotNone(sched_event.uuid)
         self.assertIsNotNone(archive.uuid)
         self.default_participant.update(os_type=IOS_API, last_version_name="2024.21")
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_ios_version_restriction_allows_equal(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         self.default_participant.update(os_type=IOS_API, last_version_name=self.APP_VERSION)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [sched_event])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
     
     def test_ios_version_restriction_allows_higher(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         self.default_participant.update(os_type=IOS_API, last_version_name="2024.29")
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [sched_event])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
     
     def test_android_os_restriction_blocks(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         self.default_participant.update(os_type=ANDROID_API)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
-    def test_schedule_resend_disabled(self):
+    def test_schedule_resend_feature_disabled_still_finds_resend(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         self.default_study.device_settings.update(resend_period_minutes=0)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        # yes, we want to bundle on studies with resends disabled. it is a a different and always desireable feature
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
     
     def test_created_too_early(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         archive.update(created_on=self.THE_PAST - timedelta(days=100000))
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_exclude_excludes(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant, [sched_event.pk]), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant, [sched_event.pk]), [])
     
     def test_different_uuids_on_scheduled_event_and_archive(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         ScheduledEvent.objects.filter(pk=sched_event.pk).update(uuid=uuid.uuid4())
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_archive_with_uuid_and_scheduled_with_no_uuid(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         ScheduledEvent.objects.filter(pk=sched_event.pk).update(uuid=None)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_archive_with_no_uuid_and_scheduled_with_uuid(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         ArchivedEvent.objects.filter(pk=archive.pk).update(uuid=None)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_archive_with_no_uuid_and_scheduled_with_no_uuid(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         ArchivedEvent.objects.filter(pk=archive.pk).update(uuid=None)
         ScheduledEvent.objects.filter(pk=sched_event.pk).update(uuid=None)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_archive_with_uuid_and_scheduled_actually_deleted(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         ScheduledEvent.objects.all().delete()
         self.assertEqual(ArchivedEvent.objects.count(), 1)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_not_resendable_with_scheduled_event_that_has_no_schedule(self):
         sendable_sched_event = self._build_base_sched_event(self.default_participant)
         sendable_sched_event.update(absolute_schedule=None)  # its an absolute schedule
         self.assertIsNone(sendable_sched_event.absolute_schedule)
         self.assertFalse(sendable_sched_event.deleted)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_archive_last_updated_more_than_30_minutes_ago(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         archive.update(last_updated=self.NOW_SORTA - timedelta(minutes=31))
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [sched_event])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
     
     def test_archive_last_updated_more_than_just_now_minutes_ago(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         archive.update(last_updated=timezone.now())
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [sched_event])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
     
     def test_archive_last_updated_way_in_the_past(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         archive.update(last_updated=timezone.now() - timedelta(days=999))
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [sched_event])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
     
     def test_archive_last_updated_in_the_future(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         archive.update(last_updated=timezone.now() + timedelta(hours=999))
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [sched_event])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
     
     def test_schedule_unsent_in_past_no_archive(self):
         sched_event = self._build_base_sched_event(self.default_participant)
         sched_event.update(scheduled_time=timezone.now() - timedelta(hours=999))  # redundant
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_schedule_unsent_in_future_no_archive(self):
         sched_event = self._build_base_sched_event(self.default_participant)
         sched_event.update(scheduled_time=timezone.now() + timedelta(hours=999))
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [])
     
     def test_2_participants_both_with_resends_only_gets_correct_participant(self):
         sched_event, archive = self.do_setup_for_resend_with_no_notification_report()
         p2 = self.setup_participant_2
         p2_sched_event, p2_archive = self.do_setup_for_resend_with_no_notification_report(p2)
-        self.assertEqual(get_all_unconfirmed_notification_schedules(self.default_participant), [sched_event])
-        self.assertEqual(get_all_unconfirmed_notification_schedules(p2), [p2_sched_event])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant), [sched_event])
+        self.assertEqual(get_all_unconfirmed_notification_schedules_for_bundling(p2), [p2_sched_event])
     
     def test_multiple_archive_and_scheduled_events_on_one_survey(self):
         sched_event_1, archive_1 = self.do_setup_for_resend_with_no_notification_report()
         sched_event_2, archive_2 = self.do_setup_for_resend_with_no_notification_report()
         # ack sorting may not be deterministic
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         scheds.sort(key=lambda x: x.id)
         scheds_compare = [sched_event_1, sched_event_2]
         scheds_compare.sort(key=lambda x: x.id)
@@ -927,7 +938,7 @@ class TestGetUnconfirmedNotificationSchedules(The_Meta_Class):
         self._attach_archive_to_scheduled_event_as_if_sent(sched_event_2, archive)
         
         # ack sorting may not be deterministic
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         scheds.sort(key=lambda x: x.id)
         scheds_compare = [sched_event_1, sched_event_2]
         scheds_compare.sort(key=lambda x: x.id)
@@ -943,7 +954,7 @@ class TestGetUnconfirmedNotificationSchedules(The_Meta_Class):
         self.assertEqual(archive_2.was_resend, False)  # technically should not be possible
         self.assertEqual(archive_1.confirmed_received, False)
         self.assertEqual(archive_2.confirmed_received, False)
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         scheds_compare = [sched_event]
         self.assertEqual(scheds, scheds_compare)
     
@@ -951,7 +962,7 @@ class TestGetUnconfirmedNotificationSchedules(The_Meta_Class):
         sched_event, archive_1 = self.do_setup_for_resend_with_no_notification_report()
         archive_2 = self.build_base_archived_event(sched_event, self.default_participant)
         archive_2.update(was_resend=True)
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         scheds_compare = [sched_event]
         self.assertEqual(scheds, scheds_compare)
     
@@ -965,7 +976,7 @@ class TestGetUnconfirmedNotificationSchedules(The_Meta_Class):
         # invalid state: archive 1 is the resend
         archive_1.force_update_only(was_resend=True, last_updated=ago_90)
         archive_2.force_update_only(was_resend=False, last_updated=ago_30)
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         scheds_compare = [sched_event]
         self.assertEqual(scheds, scheds_compare)
     
@@ -978,28 +989,28 @@ class TestGetUnconfirmedNotificationSchedules(The_Meta_Class):
         
         # single schedule before resend period is over - still trigger:
         archive_1.force_update_only(last_updated=ago_30)
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         self.assertEqual(scheds, scheds_compare)
         # resend timer activated, still trigger:
         archive_1.force_update_only(last_updated=ago_90)
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         self.assertEqual(scheds, scheds_compare)
         # second archive, resend timer inactive, still trigger:
         archive_2 = self.build_base_archived_event(sched_event, self.default_participant)
         archive_2.force_update_only(was_resend=True, last_updated=ago_30)
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         self.assertEqual(scheds, scheds_compare)
         
         # 30 minutes pass, still trigger:
         with time_machine.travel(now + timedelta(minutes=30)):
-            scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+            scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
             self.assertEqual(scheds, scheds_compare)
-        # 60 minutes pass, no longer trigger:
+        # 60 minutes pass, still trigger:
         with time_machine.travel(now + timedelta(minutes=60)):
-            scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+            scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
             self.assertEqual(scheds, scheds_compare)
     
-    def test_3(self):
+    def test_3_on_out_recent(self):
         sched_event, archive_1 = self.do_setup_for_resend_with_no_notification_report()
         self.default_study.device_settings.update(resend_period_minutes=60)
         archive_2 = self.build_base_archived_event(sched_event, self.default_participant)
@@ -1010,8 +1021,8 @@ class TestGetUnconfirmedNotificationSchedules(The_Meta_Class):
         ago_90 = now - timedelta(minutes=90)
         archive_1.force_update_only(was_resend=False, last_updated=ago_90)
         archive_2.force_update_only(was_resend=True, last_updated=ago_30)  # this is not within the
-        # archive_2.force_update_only(was_resend=True, last_updated=ago_12)
-        scheds = get_all_unconfirmed_notification_schedules(self.default_participant)
+        archive_3.force_update_only(was_resend=True, last_updated=ago_12)
+        scheds = get_all_unconfirmed_notification_schedules_for_bundling(self.default_participant)
         scheds_compare = [sched_event]
         self.assertEqual(scheds, scheds_compare)
     
@@ -1027,7 +1038,7 @@ class TestGetUnconfirmedNotificationSchedules(The_Meta_Class):
 
 
 #
-##
+## even more setup for more duplicate tests
 #
 
 
