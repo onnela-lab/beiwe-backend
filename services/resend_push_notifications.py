@@ -326,8 +326,11 @@ def all_resendable_uuids_query(pushable_participant_pks: list[ParticipantPK]) ->
 def get_resendable_uuid_info(pushable_participant_pks: list[ParticipantPK]) -> list[tuple[uuid.UUID, datetime, str]]:
     # get data needed to do study timeout logic
     query, retired_uuids = all_resendable_uuids_query(pushable_participant_pks)
-    uuid_info = query.values_list("uuid", "last_updated", "participant__study_id")
-    uuid_info = [info for info in uuid_info if info[0] not in retired_uuids]  
+    uuid_info = query.order_by("created_on").values_list("uuid", "last_updated", "participant__study_id")
+    # sorted by created_on, deduplicate by uuid - causes the last uuid created in that uuid group to
+    # remain in the dict when iteration finishes. This matters because bundled resends will would
+    # cause an old uuid to be resent after a bundled resend created a new one at an unrelated time.
+    uuid_info = list({info[0]: info for info in uuid_info if info[0] not in retired_uuids}.values())
     log(f"found {len(uuid_info)} ArchivedEvents to check.")
     return uuid_info
 
