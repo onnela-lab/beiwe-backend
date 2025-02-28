@@ -984,6 +984,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.assertIsNotNone(abs_archive.uuid)
     
     def test_good_archive_event_with_relative_schedule_helper_is_reasonable(self):
+        
         rel_sched = self.generate_relative_schedule(
             self.default_survey, self.default_intervention, days_after=1, hours_after=1, minutes_after=1
         )
@@ -994,11 +995,11 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         reference_time = datetime(
             year=d.year,
             month=d.month,
-            day=d.day + 1,
+            day=d.day,
             hour=1,
             minute=1,
             tzinfo=EASTERN,
-        )
+        ) + timedelta(days=1)  # lol this test failed on the end of the month once...
         
         rel_archive = self.generate_archived_event_for_relative_schedule(
             rel_sched, self.default_participant
