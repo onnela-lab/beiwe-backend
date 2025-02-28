@@ -7,6 +7,7 @@
 .coverage
 .vscode
 htmlcov/
+.ropeproject
 
 # A place to stick your files
 env/*
