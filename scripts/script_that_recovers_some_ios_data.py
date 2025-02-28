@@ -15,6 +15,11 @@ from libs.endpoint_helpers.participant_file_upload_helpers import (
 from libs.s3 import s3_list_files, s3_retrieve
 
 
+# Please see the postmortem in this issue on Github for more information.
+#    https://github.com/onnela-lab/beiwe-backend/issues/360 
+# This script will not be intentionally maintained.
+
+
 ####################################################################################################
 # This script will process all the files in the PROBLEM_UPLOADS folder of AWS S3, which contains all
 # uploaded files that we were unable to decrypt. The existence of these files was due to a bug
@@ -35,6 +40,7 @@ from libs.s3 import s3_list_files, s3_retrieve
 #    code + thorough testing) the encryption key WAS present _but on the wrong line in the file_.
 #    These files are fully recoverable, as are any instances of 2) that lost their keys to these
 #    malformatted files.
+#
 ####################################################################################################
 #
 # THIS SCRIPT...
@@ -253,7 +259,7 @@ def process_a_participants_file(s3_file_location: str):
     
     # and then frequently there is a line before the header that is junk, probably encrypted in
     # the context of the previous file. We can find the true start of any csv by looking for 
-    # 'timestamp,' and removing everything before that. (it will be bintary noise)
+    # 'timestamp,' and removing everything before that. (it will be binary noise)
     if not decryptor.decrypted_file:
         log("but it was an empty decrypted file...")  # probably unreachable
         return
