@@ -65,6 +65,9 @@ alias gd='git diff'
 alias dw='git diff -w'
 alias gs='git diff --stat'
 alias pull="git pull --ff-only"
+alias purr="git pull --rebase"
+alias checkout="git checkout"
+alias gct="git checkout"
 
 
 #File locations
