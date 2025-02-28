@@ -47,7 +47,7 @@ def determine_file_name(chunk):
             return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
     
     # all other files have this form:
-    return f"{patient_id}/{data_stream}/{time_bin}.{extension})"
+    return f"{patient_id}/{data_stream}/{time_bin}.{extension}"
 
 
 def batch_retrieve_s3(chunk: dict) -> Tuple[dict, bytes]:
