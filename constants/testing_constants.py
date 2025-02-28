@@ -1,7 +1,6 @@
 from datetime import datetime
 
-from dateutil import tz
-
+from constants.common_constants import EASTERN
 from constants.user_constants import ResearcherRole
 
 
@@ -153,30 +152,29 @@ def NOON_EVERY_DAY_OF_WEEK():
 
 
 # we need some moments in space-time, so I guess we will use October Thursdays in New York of 2022
-_MURICA_NY = tz.gettz("America/New_York")
-THURS_OCT_6_NOON_2022_NY = datetime(2022, 10, 6, 12, tzinfo=_MURICA_NY)  # Thursday
-THURS_OCT_13_NOON_2022_NY = datetime(2022, 10, 13, 12, tzinfo=_MURICA_NY)  # Thursday
-THURS_OCT_20_NOON_2022_NY = datetime(2022, 10, 20, 12, tzinfo=_MURICA_NY)  # Thursday
-THURS_OCT_27_NOON_2022_NY = datetime(2022, 10, 27, 12, tzinfo=_MURICA_NY)  # Thursday
+THURS_OCT_6_NOON_2022_NY = datetime(2022, 10, 6, 12, tzinfo=EASTERN)  # Thursday
+THURS_OCT_13_NOON_2022_NY = datetime(2022, 10, 13, 12, tzinfo=EASTERN)  # Thursday
+THURS_OCT_20_NOON_2022_NY = datetime(2022, 10, 20, 12, tzinfo=EASTERN)  # Thursday
+THURS_OCT_27_NOON_2022_NY = datetime(2022, 10, 27, 12, tzinfo=EASTERN)  # Thursday
 
 
 # a whole week starting on a Monday June 5th 2022 during EASTERN DAYLIGHT TIME
-MONDAY_JUNE_NOON_6_2022_EDT = datetime(2022, 6, 6, 12, tzinfo=_MURICA_NY)  # Monday
-TUESDAY_JUNE_NOON_7_2022_EDT = datetime(2022, 6, 7, 12, tzinfo=_MURICA_NY)  # Tuesday
-WEDNESDAY_JUNE_NOON_8_2022_EDT = datetime(2022, 6, 8, 12, tzinfo=_MURICA_NY)  # Wednesday
-THURSDAY_JUNE_NOON_9_2022_EDT = datetime(2022, 6, 9, 12, tzinfo=_MURICA_NY)  # Thursday
-FRIDAY_JUNE_NOON_10_2022_EDT = datetime(2022, 6, 10, 12, tzinfo=_MURICA_NY)  # Friday
-SATURDAY_JUNE_NOON_11_2022_EDT = datetime(2022, 6, 11, 12, tzinfo=_MURICA_NY)  # Saturday
-SUNDAY_JUNE_NOON_12_2022_EDT = datetime(2022, 6, 12, 12, tzinfo=_MURICA_NY)  # Sunday
+MONDAY_JUNE_NOON_6_2022_EDT = datetime(2022, 6, 6, 12, tzinfo=EASTERN)  # Monday
+TUESDAY_JUNE_NOON_7_2022_EDT = datetime(2022, 6, 7, 12, tzinfo=EASTERN)  # Tuesday
+WEDNESDAY_JUNE_NOON_8_2022_EDT = datetime(2022, 6, 8, 12, tzinfo=EASTERN)  # Wednesday
+THURSDAY_JUNE_NOON_9_2022_EDT = datetime(2022, 6, 9, 12, tzinfo=EASTERN)  # Thursday
+FRIDAY_JUNE_NOON_10_2022_EDT = datetime(2022, 6, 10, 12, tzinfo=EASTERN)  # Friday
+SATURDAY_JUNE_NOON_11_2022_EDT = datetime(2022, 6, 11, 12, tzinfo=EASTERN)  # Saturday
+SUNDAY_JUNE_NOON_12_2022_EDT = datetime(2022, 6, 12, 12, tzinfo=EASTERN)  # Sunday
 
 # a whole week starting Monday January 9th 2022 during EASTERN DAYLIGHT SAVINGS TIME
-MONDAY_JAN_10_NOON_2022_EST = datetime(2022, 1, 10, 12, tzinfo=_MURICA_NY)  # Monday
-TUESDAY_JAN_11_NOON_2022_EST = datetime(2022, 1, 11, 12, tzinfo=_MURICA_NY)  # Tuesday
-WEDNESDAY_JAN_12_NOON_2022_EST = datetime(2022, 1, 12, 12, tzinfo=_MURICA_NY)  # Wednesday
-THURSDAY_JAN_13_NOON_2022_EST = datetime(2022, 1, 13, 12, tzinfo=_MURICA_NY)  # Thursday
-FRIDAY_JAN_14_NOON_2022_EST = datetime(2022, 1, 14, 12, tzinfo=_MURICA_NY)  # Friday
-SATURDAY_JAN_15_NOON_2022_EST = datetime(2022, 1, 15, 12, tzinfo=_MURICA_NY)  # Saturday
-SUNDAY_JAN_16_NOON_2022_EST = datetime(2022, 1, 16, 12, tzinfo=_MURICA_NY)  # Sunday
+MONDAY_JAN_10_NOON_2022_EST = datetime(2022, 1, 10, 12, tzinfo=EASTERN)  # Monday
+TUESDAY_JAN_11_NOON_2022_EST = datetime(2022, 1, 11, 12, tzinfo=EASTERN)  # Tuesday
+WEDNESDAY_JAN_12_NOON_2022_EST = datetime(2022, 1, 12, 12, tzinfo=EASTERN)  # Wednesday
+THURSDAY_JAN_13_NOON_2022_EST = datetime(2022, 1, 13, 12, tzinfo=EASTERN)  # Thursday
+FRIDAY_JAN_14_NOON_2022_EST = datetime(2022, 1, 14, 12, tzinfo=EASTERN)  # Friday
+SATURDAY_JAN_15_NOON_2022_EST = datetime(2022, 1, 15, 12, tzinfo=EASTERN)  # Saturday
+SUNDAY_JAN_16_NOON_2022_EST = datetime(2022, 1, 16, 12, tzinfo=EASTERN)  # Sunday
 
 EDT_WEEK = [
     MONDAY_JUNE_NOON_6_2022_EDT,

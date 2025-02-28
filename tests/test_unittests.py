@@ -10,6 +10,7 @@ import dateutil
 from dateutil.tz import gettz
 from django.utils import timezone
 
+from constants.common_constants import EASTERN, UTC
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
@@ -31,10 +32,6 @@ from libs.utils.participant_app_version_comparison import (is_this_version_gt_pa
     is_this_version_lte_participants)
 from tests.common import CommonTestCase
 
-
-# timezones should be compared using the 'is' operator
-THE_ONE_TRUE_TIMEZONE = gettz("America/New_York")
-THE_OTHER_ACCEPTABLE_TIMEZONE = gettz("UTC")
 
 COUNT_OF_PATHS_RETURNED_FROM_GET_ALL_FILE_PATH_PREFIXES = 4
 
@@ -403,7 +400,7 @@ class TestParticipantTimeZone(CommonTestCase):
         # THIS TEST MAY NOT PASS ON NON-LINUX COMPUTERS? Will have to test mac, we don't actually support raw windows.
         self.assertIsInstance(self.default_participant.timezone, dateutil.tz.tzfile)
         # test that the timezone is the expected object
-        self.assertIs(self.default_participant.timezone, THE_ONE_TRUE_TIMEZONE)
+        self.assertIs(self.default_participant.timezone, EASTERN)
     
     def test_try_null(self):
         # discovered weird behavior where a None passed into gettz returns utc.
@@ -425,36 +422,36 @@ class TestParticipantTimeZone(CommonTestCase):
         # the unknown_timezone flag should be false at the start and true at the end.
         p = self.default_participant
         self.assertEqual(p.timezone_name, "America/New_York")
-        self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
+        self.assertIs(p.timezone, EASTERN)
         self.assertEqual(p.unknown_timezone, False)  # A
         self.default_study.update(timezone_name="UTC")
         p.try_set_timezone("a bad string")
         # behavior should be to grab the study's timezone name, which for tests was unexpectedly UTC...
         self.assertEqual(p.timezone_name, "UTC")
-        self.assertIs(p.timezone, THE_OTHER_ACCEPTABLE_TIMEZONE)
+        self.assertIs(p.timezone, UTC)
         self.assertEqual(p.unknown_timezone, True)  # A
     
     def test_try_bad_string_resets_unknown_timezone(self):
         p = self.default_participant
         p.update_only(unknown_timezone=False)  # force value to false
         self.assertEqual(p.timezone_name, "America/New_York")
-        self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
+        self.assertIs(p.timezone, EASTERN)
         self.assertEqual(p.unknown_timezone, False)  # A
         self.default_study.update(timezone_name="UTC")
         p.try_set_timezone("a bad string")
         self.assertEqual(p.timezone_name, "UTC")
-        self.assertIs(p.timezone, THE_OTHER_ACCEPTABLE_TIMEZONE)
+        self.assertIs(p.timezone, UTC)
         self.assertEqual(p.unknown_timezone, True)  # B
     
     def test_same_timezone_name_still_updates_unknown_timezone_flag(self):
         p = self.default_participant
         last_update = p.last_updated
         self.assertEqual(p.timezone_name, "America/New_York")
-        self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
+        self.assertIs(p.timezone, EASTERN)
         self.assertEqual(p.unknown_timezone, False)  # A
         p.try_set_timezone("America/New_York")
         self.assertEqual(p.timezone_name, "America/New_York")
-        self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
+        self.assertIs(p.timezone, EASTERN)
         self.assertEqual(p.unknown_timezone, False)  # B
         self.assertEqual(p.last_updated, last_update)
     
@@ -463,7 +460,7 @@ class TestParticipantTimeZone(CommonTestCase):
         p = self.default_participant
         last_update = p.last_updated
         self.assertEqual(p.timezone_name, "America/New_York")
-        self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
+        self.assertIs(p.timezone, EASTERN)
         self.assertEqual(p.unknown_timezone, False)
         p.try_set_timezone("America/Los_Angeles")
         self.assertEqual(p.timezone_name, "America/Los_Angeles")

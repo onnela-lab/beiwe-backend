@@ -1,3 +1,4 @@
+# trunk-ignore-all(ruff/B018)
 import logging
 import os
 import traceback
@@ -26,13 +27,10 @@ from database.study_models import Study
 from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.internal_types import ResponseOrRedirect, StrOrBytes
-from libs.shell_support import diff_strings, tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
 from urls import urlpatterns
 
-
-# trunk-ignore-all(ruff/B018)
 
 # if we import this from constants.url_constants then its not populated because ... Django.
 ENDPOINTS_BY_NAME = {pattern.name: pattern for pattern in urlpatterns}
@@ -59,8 +57,7 @@ s3.S3_BUCKET = Exception   # force disable potentially active s3 connections.
 logging.getLogger("django.request").setLevel(logging.ERROR)
 
 
-class MisconfiguredTestException(Exception):
-    pass
+class MisconfiguredTestException(Exception): pass
 
 
 # This parameter sets the password iteration count, which directly adds to the runtime of ALL user
@@ -166,6 +163,8 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
     
     def assertEqual(self, first, second, msg=None):
         """ Overrides and inserts our diff_strings func to make the error easy to parse. """
+        from libs.shell_support import diff_strings
+        
         try:
             return super().assertEqual(first, second, msg)
         except AssertionError:

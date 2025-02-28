@@ -307,7 +307,6 @@ class Participant(AbstractPasswordUser):
         values = [getattr(self, key) for key in ACTIVE_PARTICIPANT_FIELDS]
         return max([v for v in values if v is not None], default=None)
     
-    
     @property
     def is_dead(self) -> bool:
         return self.deleted or self.has_deletion_event
