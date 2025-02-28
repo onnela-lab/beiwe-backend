@@ -952,7 +952,10 @@ class DatabaseHelperMixin:
             self.default_fcm_token
         else:
             self.generate_fcm_token(participant)
-
+    
+    def reload_models(self, *models):
+        for m in models:
+            m.refresh_from_db()
 
 def compare_dictionaries(first, second, ignore=None):
     """ Compares two dictionary objects and displays the differences in a useful fashion. """

@@ -1264,16 +1264,15 @@ class TestResendBlockers(CommonTestCase):
         
         if participant_upgrade not in VALID_OPTIONS_PARTICIPANT_UPGRADE:
             raise ValueError("participant_upgrade must be a specific value.")
-    
-    
+
+
 class TestResendTiming(The_Most_Meta_Class):
+    
     def _test_setup(self):
         self.setup_participant_resend_push_basics
         self.default_study.device_settings.update(resend_period_minutes=30)  # force...
         GlobalSettings().update(push_notification_resend_enabled=timezone.now())
-    def refresh(self, *models):
-        for m in models:
-            m.refresh_from_db()
+    
     def create_extra_schedules(self):
         AbsoluteSchedule.configure_absolute_schedules(
             [(2020, 1, 1, 60), (2021, 1, 1, 60)],
@@ -1377,7 +1376,7 @@ class TestResendTiming(The_Most_Meta_Class):
     ### Assertions
     def assert_resend_reenabled(self, sched_event: ScheduledEvent, archives: list[ArchivedEvent], times: list[datetime]):
         self.assertEqual(len(archives), len(times))
-        self.refresh(sched_event, *archives)
+        self.reload_models(sched_event, *archives)
         self.assertFalse(sched_event.no_resend, "\n\nScheduledEvent should not have no_resend True.")
         self.assertFalse(sched_event.deleted, "\n\nScheduledEvent.deleted was not set during resend.")
         
@@ -1398,7 +1397,7 @@ class TestResendTiming(The_Most_Meta_Class):
     
     def assert_resend_inactive(self, sched_event: ScheduledEvent, archives: list[ArchivedEvent], times: list[datetime]):
         self.assertEqual(len(archives), len(times))
-        self.refresh(sched_event, *archives)
+        self.reload_models(sched_event, *archives)
         self.assertFalse(sched_event.no_resend, "\n\nthese tests are not for disabling resends.")
         self.assertTrue(sched_event.deleted, "\n\nScheduledEvent.deleted was not set during resend.")                
         
