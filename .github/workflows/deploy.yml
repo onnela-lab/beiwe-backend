@@ -121,7 +121,7 @@ jobs:
             # need to install forest, update existing requirements, update data processing requirements \
             # (we have to uninstall forest because pointing at a new commit will not force updated  \
             # subrequirements, for some reason.).  Also update pip and friends.
-            /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip uninstall forest -y; \
+            /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip uninstall forest beiwe-forest -y; \
             /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip install --upgrade pip setuptools wheel; \
             /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip install -r requirements.txt; \
             sudo pkill -HUP supervisord;'; \
