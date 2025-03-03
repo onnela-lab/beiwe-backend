@@ -1,6 +1,7 @@
 [project]
 
 name = "Beiwe-Backend"
+version = "0"  # This is a rolling release, if the need arises we will add a version number.
 
 # This pyproject.toml file is not complete. All tooling and information that can be moved into this
 # file should be incorporated, especially if it removes a configuration file from the repository.
