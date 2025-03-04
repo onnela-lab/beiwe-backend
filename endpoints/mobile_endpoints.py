@@ -34,7 +34,7 @@ from libs.endpoint_helpers.participant_file_upload_helpers import (
     upload_and_create_file_to_process_and_log, upload_problem_file)
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ParticipantRequest, ScheduledEventQuerySet
-from libs.s3 import get_client_public_key_string, s3_upload
+from libs.s3 import get_client_public_key_string, StorageManager
 from libs.schedules import (decompose_datetime_to_device_weekly_timings,
     export_weekly_survey_timings, repopulate_all_survey_scheduled_events)
 from libs.sentry import get_sentry_client, SentryTypes
@@ -246,7 +246,9 @@ def register_user(request: ParticipantRequest, OS_API=""):
                       os_version, product, brand, hardware_id, manufacturer, model,
                       beiwe_version)).encode()
     
-    s3_upload(file_name, file_contents, participant)
+    storage = StorageManager(file_name, participant)
+    storage.file_content = file_contents
+    storage.push_to_storage_and_clear()
     FileToProcess.append_file_for_processing(file_name, participant)
     
     # set up device.
