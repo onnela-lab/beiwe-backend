@@ -40,12 +40,6 @@ ENDPOINTS_BY_NAME = {pattern.name: pattern for pattern in urlpatterns}
 VERBOSE_2_OR_3 = ("-v2" in argv or "-v3" in argv) and "-v1" not in argv
 VERBOSE_3 = "-v3" in argv and "-v2" not in argv and "-v1" not in argv
 
-
-# trunk-ignore(ruff/E402,ruff/E703)
-from libs import s3;  # (the ; and this comment blocks automatic reformatting of imports here.
-s3.S3_BUCKET = Exception   # force disable potentially active s3 connections.
-
-
 # 2023-11-21: for unknown reasons importing oak, jasmine, or willow from Forest anywhere at all
 # (currently that is limited to the celery forest, so this doesn't happen on webserver code) causes
 # the django requests logger to be set to WARNING, which causes a lot of noise in the test output.

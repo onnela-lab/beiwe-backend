@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Generator, Sequence
+from unittest.mock import MagicMock
 
 import boto3
 import zstd
@@ -10,12 +11,10 @@ from Cryptodome.PublicKey import RSA
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
+from constants.common_constants import RUNNING_TESTS
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.rsa import generate_key_pairing, get_RSA_cipher, prepare_X509_key_for_java
 
-
-# NOTE: S3_BUCKET is patched during tests to be the Exception class, which is (obviously) invalid.
-# The asserts in this file are protections for runninsg s3 commands inside tests.
 
 try:
     from libs.internal_types import StrOrParticipantOrStudy  # this is purely for ide assistance
@@ -32,7 +31,6 @@ COMPRESSION_FILE_CONTENT_NOT_SET = "S3Compressed: file_content was not set befor
 COMPRESSION_FILE_CONTENT_NONE = "S3Compressed: file_content was None at compression time"
 
 
-
 conn: BaseClient = boto3.client(
     's3',
     aws_access_key_id=BEIWE_SERVER_AWS_ACCESS_KEY_ID,
@@ -40,6 +38,11 @@ conn: BaseClient = boto3.client(
     region_name=S3_REGION_NAME,
     endpoint_url=S3_ENDPOINT
 )
+
+if RUNNING_TESTS:                       # Nhis lets us cut out some boilerplate in tests
+    S3_REGION_NAME = "us-east-1"        # Tests that need to mock S3 can mock the conn object
+    S3_BUCKET = "test_bucket"
+    conn = MagicMock()
 
 
 def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
@@ -69,7 +72,8 @@ def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy):
     return study_object_id + "/" + key_path
 
 
-class S3Compressed:
+class StorageManager:
+    """ Class that handles encrypting, compressing, finding files on S3.  """
     
     bypass_study_folder: bool
     compressed_data: bytes
@@ -78,7 +82,9 @@ class S3Compressed:
     s3_path_zstd: str
     smart_key_obj: StrOrParticipantOrStudy
     
-    def __init__(self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool) -> None:
+    def __init__(
+        self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool = False
+    ) -> None:
         if s3_path.endswith(".zstd"):
             raise ValueError("path should never end with .zstd")
         
@@ -101,6 +107,11 @@ class S3Compressed:
             self.compress_data_and_clear()
         s3_upload(self.s3_path_zstd, self.compressed_data, self.smart_key_obj, raw_path=self.bypass_study_folder)
     
+    def push_to_storage_and_clear(self):
+        """ Compress local data, clear internal uncompressed state, send to S3 compressed, clear compressed state. """
+        self.push_to_storage()
+        del self.compressed_data
+    
     ## Compression
     
     def compress_data_and_clear(self):
@@ -117,6 +128,12 @@ class S3Compressed:
             1,  # compression level (1 yields better compression on average across our data streams
             0,  # auto-tune the number of threads based on cpu cores (no apparent drawbacks)
         )
+    
+    ## Memory Management
+    
+    def clear(self):
+        del self.file_content
+        del self.compressed_data
     
     ## Download
     
@@ -165,7 +182,6 @@ def s3_upload(
         key_path = s3_construct_study_key_path(key_path, obj)
     
     data = encrypt_for_server(data_string, smart_get_study_encryption_key(obj))
-    assert S3_BUCKET is not Exception, "libs.s3.s3_upload called inside test"
     _do_upload(key_path, data)
 
 
@@ -176,8 +192,6 @@ def s3_upload_plaintext(upload_path: str, data_string: bytes) -> None:
 
 def _do_upload(key_path: str, data_string: bytes, number_retries=3):
     """ In ~April 2022 this api call started occasionally failing, so wrapping it in a retry. """
-    
-    assert S3_BUCKET is not Exception, "libs.s3._do_upload called inside test"
     
     try:
         conn.put_object(Body=data_string, Bucket=S3_BUCKET, Key=key_path)
@@ -197,7 +211,6 @@ def s3_retrieve(key_path: str, obj: StrOrParticipantOrStudy, raw_path: bool = Fa
     if not raw_path:
         key_path = s3_construct_study_key_path(key_path, obj)
     encrypted_data = _do_retrieve(S3_BUCKET, key_path, number_retries=number_retries)['Body'].read()
-    assert S3_BUCKET is not Exception, "libs.s3.s3_retrieve called inside test"
     return decrypt_server(encrypted_data, smart_get_study_encryption_key(obj))
 
 
@@ -208,7 +221,6 @@ def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
 
 def _do_retrieve(bucket_name: str, key_path: str, number_retries=3):
     """ Run-logic to do a data retrieval for a file in an S3 bucket."""
-    assert S3_BUCKET is not Exception, "libs.s3._s3_retrieve(!!!) called inside test"
     try:
         return conn.get_object(Bucket=bucket_name, Key=key_path, ResponseContentType='string')
     except Exception as boto_error_unknowable_type:
@@ -228,19 +240,16 @@ def _do_retrieve(bucket_name: str, key_path: str, number_retries=3):
 def s3_list_files(prefix: str, as_generator=False) -> list[str]|Generator[str]:
     """ Lists s3 keys matching prefix. as generator returns a generator instead of a list.
     WARNING: passing in an empty string can be dangerous. """
-    assert S3_BUCKET is not Exception, "libs.s3.s3_list_files called inside test"
     return _do_list_files(S3_BUCKET, prefix, as_generator=as_generator)
 
 
 def smart_s3_list_study_files(prefix: str, obj: StrOrParticipantOrStudy):
     """ Lists s3 keys matching prefix, autoinserting the study object id at start of key path. """
-    assert S3_BUCKET is not Exception, "libs.s3.smart_s3_list_study_files called inside test"
     return s3_list_files(s3_construct_study_key_path(prefix, obj))
 
 
 def _do_list_files(bucket_name: str, prefix: str, as_generator=False) -> list[str]|Generator[str]:
     paginator = conn.get_paginator('list_objects_v2')
-    assert S3_BUCKET is not Exception, "libs.s3.__s3_list_files(!!!) called inside test"
     
     page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
     if as_generator:
@@ -266,8 +275,6 @@ def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None], None, None]
     """ Generator of all matching key paths and their version ids.  Performance in unpredictable, it
     is based on the historical presence of key paths matching the prefix, it is paginated, but we
     don't care about deletion markers """
-    
-    assert S3_BUCKET is not Exception, "libs.s3.s3_list_versions called inside test"
     for page in conn.get_paginator('list_object_versions').paginate(Bucket=S3_BUCKET, Prefix=prefix):
         # Page structure - each page is a dictionary with these keys:
         #    Name, ResponseMetadata, Versions, MaxKeys, Prefix, KeyMarker, IsTruncated, VersionIdMarker
@@ -291,7 +298,6 @@ def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None], None, None]
 
 
 def s3_delete(key_path: str) -> bool:
-    assert S3_BUCKET is not Exception, "libs.s3.s3_delete called inside test"
     resp = conn.delete_object(Bucket=S3_BUCKET, Key=key_path)
     if not resp["DeleteMarker"]:
         raise S3DeletionException(f"Failed to delete {resp['Key']} version {resp['VersionId']}")
@@ -299,7 +305,6 @@ def s3_delete(key_path: str) -> bool:
 
 
 def s3_delete_versioned(key_path: str, version_id: str) -> bool:
-    assert S3_BUCKET is not Exception, "libs.s3.s3_delete_versioned called inside test"
     resp = conn.delete_object(Bucket=S3_BUCKET, Key=key_path, VersionId=version_id)
     if not resp["DeleteMarker"]:
         raise S3DeletionException(f"Failed to delete {resp['Key']} version {resp['VersionId']}")
@@ -310,7 +315,6 @@ def s3_delete_many_versioned(paths_version_ids: list[tuple[str, str]]):
     """ Takes a list of (key_path, version_id) tuples and deletes them all using the boto3
     delete_objects API.  Returns the number of files deleted, raises errors with reasonable
     clarity inside an errorhandler bundled error. """
-    assert S3_BUCKET is not Exception, "libs.s3.s3_delete_many_versioned called inside test"
     error_handler = ErrorHandler()  # use an ErrorHandler to bundle up all errors and raise them at the end.
     
     # construct the usual insane boto3 dict - if version id is falsey, it must be a string, not None.
