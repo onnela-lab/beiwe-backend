@@ -1,14 +1,13 @@
 # trunk-ignore-all(ruff/F405)
 
 from django.db.models.fields import (BooleanField, CharField, DateField, DateTimeField, FloatField,
-    IntegerField, TextField)
+                                     IntegerField, TextField)
 
 # trunk-ignore(ruff/F403)
 from constants.data_stream_constants import *
 from constants import DjangoDropdown
 
 from forest.constants import Frequency
-
 
 # the canonical location where any files are allocated for forest tasks.
 ROOT_FOREST_TASK_PATH = "/tmp/forest/"
@@ -91,7 +90,6 @@ DEFAULT_FOREST_PARAMETERS = {
     },
 }
 
-
 # special tree parameters
 PARAMETER_ALL_BV_SET = "all_bv_set"
 PARAMETER_ALL_MEMORY_DICT = "all_memory_dict"
@@ -108,7 +106,6 @@ NON_PICKLED_PARAMETERS = [
     PARAMETER_INTERVENTIONS_FILEPATH,
 ]
 
-
 # documented at https://forest.beiwe.org/en/latest/#forest-trees
 # Don't forget about FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES in tableau_api_constants.py
 FOREST_TREE_REQUIRED_DATA_STREAMS = {
@@ -118,7 +115,6 @@ FOREST_TREE_REQUIRED_DATA_STREAMS = {
     ForestTree.sycamore: [SURVEY_ANSWERS, SURVEY_TIMINGS],
     ForestTree.willow: [CALL_LOG, TEXTS_LOG],
 }
-
 
 ## The following dictionary is a mapping of output CSV fields from various Forest Trees to their
 # summary statistic names.  Note that this data structure is imported and used in tableau constants.
@@ -185,7 +181,6 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     "cadence": "oak_cadence",
 }
 
-
 # Metadata
 SUMMARY_METADATA_FIELD_NAMES = [
     "date",
@@ -204,6 +199,7 @@ DATA_QUANTITY_FIELD_MAP = {
     AMBIENT_AUDIO: "beiwe_ambient_audio_bytes",
     ANDROID_LOG_FILE: "beiwe_app_log_bytes",
     BLUETOOTH: "beiwe_bluetooth_bytes",
+    OMNIRING: "beiwe_omniring_bytes",
     CALL_LOG: "beiwe_calls_bytes",
     DEVICEMOTION: "beiwe_devicemotion_bytes",
     GPS: "beiwe_gps_bytes",
@@ -251,7 +247,6 @@ JASMINE_FIELDS = [
 NICE_JASMINE_FIELDS = [
     name.replace("jasmine_", "").replace("_", " ").title() for name in JASMINE_FIELDS
 ]
-
 
 WILLOW_FIELDS = [
     # Willow, Texts
@@ -308,12 +303,11 @@ NICE_OAK_FIELDS = [
 ]
 
 SERIALIZABLE_FIELD_NAMES = SUMMARY_METADATA_FIELD_NAMES + DATA_QUANTITY_FIELD_NAMES \
-    + JASMINE_FIELDS + WILLOW_FIELDS + SYCAMORE_FIELDS + OAK_FIELDS
+                           + JASMINE_FIELDS + WILLOW_FIELDS + SYCAMORE_FIELDS + OAK_FIELDS
 
 # SERIALIZABLE_FIELD_NAMES.extend(TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS.values())
 NICE_SERIALIZABLE_FIELD_NAMES = NICE_SUMMARY_METADATA_FIELD_NAMES + NICE_BEIWE_DATA_QUANTITY_FIELD_NAMES \
-    + NICE_JASMINE_FIELDS + NICE_WILLOW_FIELDS + NICE_SYCAMORE_FIELDS + NICE_OAK_FIELDS
-
+                                + NICE_JASMINE_FIELDS + NICE_WILLOW_FIELDS + NICE_SYCAMORE_FIELDS + NICE_OAK_FIELDS
 
 FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES = {
     ForestTree.jasmine: JASMINE_FIELDS,
@@ -321,7 +315,6 @@ FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES = {
     ForestTree.sycamore: SYCAMORE_FIELDS,
     ForestTree.oak: OAK_FIELDS,
 }
-
 
 SERIALIZABLE_FIELD_NAMES_DROPDOWN = [(f, f) for f in SERIALIZABLE_FIELD_NAMES]
 
