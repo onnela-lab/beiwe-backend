@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from typing import Generator, List, Optional, Tuple
+from typing import Generator, Sequence
 
 import boto3
 import zstd
-from botocore.client import BaseClient, Paginator
+from botocore.client import BaseClient
 from cronutils import ErrorHandler
 from Cryptodome.PublicKey import RSA
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
-from constants.common_constants import CHUNKS_FOLDER
 from libs.aes import decrypt_server, encrypt_for_server
-from libs.file_processing.data_fixes import normalize_s3_file_path
 from libs.rsa import generate_key_pairing, get_RSA_cipher, prepare_X509_key_for_java
 
 
@@ -26,9 +24,13 @@ except ImportError:
 
 
 class NoSuchKeyException(Exception): pass
+class S3DeletionException(Exception): pass
+FULL_LOOP_DIDNT_REMOVE = "S3Compressed: full loop didn't remove file_content"
+FULL_LOOP_DIDNT_CREATE = "S3Compressed: full loop didn't create compressed_data"
+COMPRESSION_ALREADY_EXISTS = "S3Compressed: compressed_data already exists"
+COMPRESSION_FILE_CONTENT_NOT_SET = "S3Compressed: file_content was not set before compression"
+COMPRESSION_FILE_CONTENT_NONE = "S3Compressed: file_content was None at compression time"
 
-
-class S3DeleteException(Exception): pass
 
 
 conn: BaseClient = boto3.client(
@@ -67,9 +69,10 @@ def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy):
     return study_object_id + "/" + key_path
 
 
-
 class S3Compressed:
+    
     bypass_study_folder: bool
+    compressed_data: bytes
     file_content: bytes|None
     s3_path_raw: str 
     s3_path_zstd: str
@@ -80,44 +83,34 @@ class S3Compressed:
             raise ValueError("path should never end with .zstd")
         
         self.s3_path_raw = s3_path
-        # self.s3_path_normalized = normalize_s3_file_path(s3_path)
         self.s3_path_zstd = s3_path + ".zstd"
         
         self.bypass_study_folder = bypass_study_folder
         self.smart_key_obj = obj
         
         self.file_content = None
+        
+        # only need for domain-specific compression.
+        # self.s3_path_normalized = normalize_s3_file_path(s3_path)
     
-    def download(self):
-        try:
-            self._download_as_compressed()
-        except NoSuchKeyException:
-            self._download_as_uncompressed_full_loop()
+    # Upload
     
-    def _download_as_uncompressed_full_loop(self):
-        """ Forces a file to be compressed, manages instance state so it works """
-        raw_data = s3_retrieve(self.s3_path_raw, self.smart_key_obj, self.bypass_study_folder)
-        self.file_content = raw_data
-        self.push_data()  # compresses
-        assert not hasattr(self, "file_content"), "S3Compressed: full loop didn't remove file_content"
-        assert hasattr(self, "compressed_data"), "S3Compressed: full loop didn't create compressed_data"
-        s3_delete(self.s3_path_raw)
-        del self.compressed_data  # remove the compressed data from memory
-        self.file_content = raw_data
-        # scope exit, one reference to file_content, 
+    def push_to_storage(self):
+        """ Compress local data, clear internal uncompressed state, send to S3 compressed. """
+        if not hasattr(self, "compressed_data"):
+            self.compress_data_and_clear()
+        s3_upload(self.s3_path_zstd, self.compressed_data, self.smart_key_obj, raw_path=self.bypass_study_folder)
     
-    def _download_as_compressed(self):
-        raw_data = s3_retrieve(self.s3_path_zstd, self.smart_key_obj, self.bypass_study_folder)
-        self.file_content = zstd.decompress(raw_data)
+    ## Compression
     
-    def compress_data(self):
+    def compress_data_and_clear(self):
         self._do_compress()
         del self.file_content  # removes the uncompressed data from memory
     
     def _do_compress(self):
-        assert not hasattr(self, "compressed_data"), "S3Compressed: compressed_data already exists"
-        assert hasattr(self, "file_content"), "S3Compressed: file_content was not set before compression"
-        assert self.file_content is not None, "S3Compressed: file_content was None at compression time"
+        assert not hasattr(self, "compressed_data"), COMPRESSION_ALREADY_EXISTS
+        assert hasattr(self, "file_content"), COMPRESSION_FILE_CONTENT_NOT_SET
+        assert self.file_content is not None, COMPRESSION_FILE_CONTENT_NONE
         
         self.compressed_data = zstd.compress(
             self.file_content,
@@ -125,10 +118,41 @@ class S3Compressed:
             0,  # auto-tune the number of threads based on cpu cores (no apparent drawbacks)
         )
     
-    def push_data(self):
-        if not hasattr(self, "compressed_data"):
-            self.compress_data()
-        s3_upload(self.s3_path_zstd, self.compressed_data, self.smart_key_obj, raw_path=self.bypass_study_folder)
+    ## Download
+    
+    def download(self):
+        try:
+            self._download_as_compressed()
+        except NoSuchKeyException:
+            self._download_as_uncompressed_full_loop()
+    
+    def _download_as_compressed(self):
+        raw_data = s3_retrieve(self.s3_path_zstd, self.smart_key_obj, self.bypass_study_folder)
+        self.file_content = zstd.decompress(raw_data)
+    
+    def _download_as_uncompressed_full_loop(self):
+        """ Force file to be stored compressed, handle internal and externalstate so it just works. """
+        
+        raw_data = s3_retrieve(self.s3_path_raw, self.smart_key_obj, self.bypass_study_folder)
+        self.file_content = raw_data
+        self.push_to_storage()  # compresses
+        
+        assert not hasattr(self, "file_content"), FULL_LOOP_DIDNT_REMOVE
+        assert hasattr(self, "compressed_data"), FULL_LOOP_DIDNT_CREATE
+        
+        s3_delete(self.s3_path_raw)
+        del self.compressed_data  # remove the compressed data from memory
+        self.file_content = raw_data
+
+
+## MetaData
+
+
+def s3_get_size(key_path: str):
+    return conn.head_object(Bucket=S3_BUCKET, Key=key_path)["ContentLength"]
+
+
+## Upload
 
 
 def s3_upload(
@@ -136,16 +160,25 @@ def s3_upload(
 ) -> None:
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
+    
     if not raw_path:
         key_path = s3_construct_study_key_path(key_path, obj)
+    
     data = encrypt_for_server(data_string, smart_get_study_encryption_key(obj))
     assert S3_BUCKET is not Exception, "libs.s3.s3_upload called inside test"
     _do_upload(key_path, data)
 
 
+def s3_upload_plaintext(upload_path: str, data_string: bytes) -> None:
+    """ Extremely simple, uploads a file (bytes object) to s3 without any encryption. """
+    conn.put_object(Body=data_string, Bucket=S3_BUCKET, Key=upload_path)
+
+
 def _do_upload(key_path: str, data_string: bytes, number_retries=3):
     """ In ~April 2022 this api call started occasionally failing, so wrapping it in a retry. """
+    
     assert S3_BUCKET is not Exception, "libs.s3._do_upload called inside test"
+    
     try:
         conn.put_object(Body=data_string, Bucket=S3_BUCKET, Key=key_path)
     except Exception as e:
@@ -154,13 +187,7 @@ def _do_upload(key_path: str, data_string: bytes, number_retries=3):
         _do_upload(key_path, data_string, number_retries=number_retries - 1)
 
 
-def s3_upload_plaintext(upload_path: str, data_string: bytes) -> None:
-    """ Extremely simple, uploads a file (bytes object) to s3 without any encryption. """
-    conn.put_object(Body=data_string, Bucket=S3_BUCKET, Key=upload_path)
-
-
-def s3_get_size(key_path: str):
-    return conn.head_object(Bucket=S3_BUCKET, Key=key_path)["ContentLength"]
+## Download
 
 
 def s3_retrieve(key_path: str, obj: StrOrParticipantOrStudy, raw_path: bool = False, number_retries=3) -> bytes:
@@ -196,7 +223,9 @@ def _do_retrieve(bucket_name: str, key_path: str, number_retries=3):
         raise
 
 
-def s3_list_files(prefix: str, as_generator=False) -> List[str]:
+## List Files Matching Prefix
+
+def s3_list_files(prefix: str, as_generator=False) -> list[str]|Generator[str]:
     """ Lists s3 keys matching prefix. as generator returns a generator instead of a list.
     WARNING: passing in an empty string can be dangerous. """
     assert S3_BUCKET is not Exception, "libs.s3.s3_list_files called inside test"
@@ -209,19 +238,13 @@ def smart_s3_list_study_files(prefix: str, obj: StrOrParticipantOrStudy):
     return s3_list_files(s3_construct_study_key_path(prefix, obj))
 
 
-# just fyi this is not actually tested?  Please delete this comment if you know it works.
-def smart_s3_list_chunked_files(prefix: str, obj: StrOrParticipantOrStudy):
-    """ Lists s3 keys matching prefix, autoinserting the study object id at start of key path. """
-    assert S3_BUCKET is not Exception, "libs.s3.smart_s3_list_study_files called inside test"
-    return s3_list_files(f"{CHUNKS_FOLDER}/{s3_construct_study_key_path(prefix, obj)}")
-
-
-def _do_list_files(bucket_name: str, prefix: str, as_generator=False) -> List[str]:
+def _do_list_files(bucket_name: str, prefix: str, as_generator=False) -> list[str]|Generator[str]:
     paginator = conn.get_paginator('list_objects_v2')
     assert S3_BUCKET is not Exception, "libs.s3.__s3_list_files(!!!) called inside test"
-    page_iterator: Paginator = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+    
+    page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
     if as_generator:
-        return _do_list_files_generator(page_iterator)
+        return _do_list_files_generator(page_iterator)  # type: ignore
     
     items = []
     for page in page_iterator:
@@ -231,7 +254,7 @@ def _do_list_files(bucket_name: str, prefix: str, as_generator=False) -> List[st
     return items
 
 
-def _do_list_files_generator(page_iterator: Paginator):
+def _do_list_files_generator(page_iterator: Sequence) -> Generator[str]:
     for page in page_iterator:
         if 'Contents' not in page:
             return
@@ -239,62 +262,7 @@ def _do_list_files_generator(page_iterator: Paginator):
             yield item['Key'].strip("/")
 
 
-# todo: test
-def s3_delete(key_path: str) -> bool:
-    assert S3_BUCKET is not Exception, "libs.s3.s3_delete called inside test"
-    resp = conn.delete_object(Bucket=S3_BUCKET, Key=key_path)
-    if not resp["DeleteMarker"]:
-        raise Exception(f"Failed to delete {resp['Key']} version {resp['VersionId']}")
-    return resp["DeleteMarker"]
-
-
-# todo: test
-def s3_delete_versioned(key_path: str, version_id: str) -> bool:
-    assert S3_BUCKET is not Exception, "libs.s3.s3_delete_versioned called inside test"
-    resp = conn.delete_object(Bucket=S3_BUCKET, Key=key_path, VersionId=version_id)
-    if not resp["DeleteMarker"]:
-        raise Exception(f"Failed to delete {resp['Key']} version {resp['VersionId']}")
-    return resp["DeleteMarker"]
-
-
-# todo: test
-def s3_delete_many_versioned(paths_version_ids: List[Tuple[str, str]]):
-    """ Takes a lisnt of (key_path, version_id) tuples and deletes them all using the boto3
-    delete_objects API.  Returns the number of files deleted, raises errors with reasonable
-    clarity inside an errorhandler bundled error. """
-    assert S3_BUCKET is not Exception, "libs.s3.s3_delete_many_versioned called inside test"
-    error_handler = ErrorHandler()  # use an ErrorHandler to bundle up all errors and raise them at the end.
-    
-    # construct the usual insane boto3 dict - if version id is falsey, it must be a string, not None.
-    if not paths_version_ids:
-        raise Exception("s3_delete_many_versioned called with no paths.")
-    
-    delete_params = {
-        'Objects': [{'Key': key_path, 'VersionId': version_id or "null"}
-                    for key_path, version_id in paths_version_ids]
-    }
-    resp = conn.delete_objects(Bucket=S3_BUCKET, Delete=delete_params)
-    deleted = resp['Deleted'] if "Deleted" in resp else []
-    errors = resp['Errors'] if 'Errors' in resp else []
-    
-    # make legible error messages, bundle them up
-    for e in errors:
-        with error_handler:
-            raise Exception(
-                f"Error trying to delete {e['Key']} version {e['VersionId']}: {e['Code']} - {e['Message']}"
-            )
-    if resp['ResponseMetadata']['HTTPStatusCode'] != 200:
-        with error_handler:
-            raise Exception(f"HTTP status code {resp['ResponseMetadata']['HTTPStatusCode']} from s3.delete_objects")
-    if 'Deleted' not in resp:
-        with error_handler:
-            raise Exception("No Deleted key in response from s3.delete_objects")
-    
-    error_handler.raise_errors()
-    return len(deleted)  # will always error above if empty, cannot return 0.
-
-
-def s3_list_versions(prefix: str) -> Generator[Tuple[str, Optional[str]], None, None]:
+def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None], None, None]:
     """ Generator of all matching key paths and their version ids.  Performance in unpredictable, it
     is based on the historical presence of key paths matching the prefix, it is paginated, but we
     don't care about deletion markers """
@@ -318,6 +286,63 @@ def s3_list_versions(prefix: str) -> Generator[Tuple[str, Optional[str]], None, 
                 version = None
             yield s3_version['Key'], version
 
+
+## Delete
+
+
+def s3_delete(key_path: str) -> bool:
+    assert S3_BUCKET is not Exception, "libs.s3.s3_delete called inside test"
+    resp = conn.delete_object(Bucket=S3_BUCKET, Key=key_path)
+    if not resp["DeleteMarker"]:
+        raise S3DeletionException(f"Failed to delete {resp['Key']} version {resp['VersionId']}")
+    return resp["DeleteMarker"]
+
+
+def s3_delete_versioned(key_path: str, version_id: str) -> bool:
+    assert S3_BUCKET is not Exception, "libs.s3.s3_delete_versioned called inside test"
+    resp = conn.delete_object(Bucket=S3_BUCKET, Key=key_path, VersionId=version_id)
+    if not resp["DeleteMarker"]:
+        raise S3DeletionException(f"Failed to delete {resp['Key']} version {resp['VersionId']}")
+    return resp["DeleteMarker"]
+
+
+def s3_delete_many_versioned(paths_version_ids: list[tuple[str, str]]):
+    """ Takes a list of (key_path, version_id) tuples and deletes them all using the boto3
+    delete_objects API.  Returns the number of files deleted, raises errors with reasonable
+    clarity inside an errorhandler bundled error. """
+    assert S3_BUCKET is not Exception, "libs.s3.s3_delete_many_versioned called inside test"
+    error_handler = ErrorHandler()  # use an ErrorHandler to bundle up all errors and raise them at the end.
+    
+    # construct the usual insane boto3 dict - if version id is falsey, it must be a string, not None.
+    if not paths_version_ids:
+        raise Exception("s3_delete_many_versioned called with no paths.")
+    
+    delete_params = {
+        'Objects': [{'Key': key_path, 'VersionId': version_id or "null"}
+                    for key_path, version_id in paths_version_ids]
+    }
+    resp = conn.delete_objects(Bucket=S3_BUCKET, Delete=delete_params)
+    deleted = resp['Deleted'] if "Deleted" in resp else []
+    errors = resp['Errors'] if 'Errors' in resp else []
+    
+    # make legible error messages, bundle them up
+    for e in errors:
+        with error_handler:
+            raise S3DeletionException(
+                f"Error trying to delete {e['Key']} version {e['VersionId']}: {e['Code']} - {e['Message']}"
+            )
+    if resp['ResponseMetadata']['HTTPStatusCode'] != 200:
+        with error_handler:
+            raise S3DeletionException(f"HTTP status code {resp['ResponseMetadata']['HTTPStatusCode']} from s3.delete_objects")
+    if 'Deleted' not in resp:
+        with error_handler:
+            raise S3DeletionException("No Deleted key in response from s3.delete_objects")
+    
+    error_handler.raise_errors()
+    return len(deleted)  # will always error above if empty, cannot return 0.
+
+
+#TODO: move to security_utils.py, fix circular imports
 
 ################################################################################
 ######################### Client Key Management ################################
