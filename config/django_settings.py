@@ -267,3 +267,21 @@ if not DEBUG and SENTRY_ELASTIC_BEANSTALK_DSN:
     }
 
 TEST_RUNNER = "redgreenunittest.django.runner.RedGreenDiscoverRunner"
+
+
+def assert_assertions_not_disabled():
+    """ stick in function to keep namespace clear. """
+    success = False
+    try:
+        assert False
+    except AssertionError:
+        success = True
+    
+    if not success:
+        raise ImproperlyConfigured(
+            "Assertions are disabled. Assertions are a completely reasonable control flow "
+            "construct and need to be enabled for proper functioning of The Beiwe Platform."
+        )
+
+
+assert_assertions_not_disabled()
