@@ -19,7 +19,7 @@ from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import REAL_ROLES
 from constants.user_constants import (ANDROID_API, IOS_API,
-    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, NULL_OS, ResearcherRole)
+    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, NULL_OS, ResearcherRole)
 from database.common_models import generate_objectid_string
 from database.data_access_models import ChunkRegistry, FileToProcess
 from database.forest_models import ForestTask, SummaryStatisticDaily
@@ -31,7 +31,7 @@ from database.user_models_participant import (AppHeartbeats, DeviceStatusReportH
     ParticipantActionLog, ParticipantDeletionEvent, ParticipantFCMHistory, ParticipantFieldValue)
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.internal_types import Schedule
-from libs.schedules import set_next_weekly
+from libs.schedules import repopulate_weekly_survey_schedule_events
 from libs.utils.security_utils import device_hash, generate_easy_alphanumeric_string
 
 
@@ -42,6 +42,74 @@ ABS_STATIC_ROOT = (BEIWE_PROJECT_ROOT + STATIC_ROOT).encode()
 CURRENT_TEST_DATE = timezone.now().today().date()
 CURRENT_TEST_DATE_TEXT = CURRENT_TEST_DATE.isoformat()
 CURRENT_TEST_DATE_BYTES = CURRENT_TEST_DATE_TEXT.encode()
+
+# the default participant must have all fields populated here and documented
+# In General - the expectation should be that the default participant will not satisfy conditions
+# where they are required and so will be set within the tests.
+DEFAULT_PARTICIPANT_PARAMS = {
+    # obvious base state
+    "deleted": False,
+    "permanently_retired": False,
+    
+    # explicit feature/setting flags should default to off
+    "easy_enrollment": False,
+    
+    # timezone
+    "timezone_name": "America/New_York",  # matching the default study
+    "unknown_timezone": False,
+    
+    # app version info, set in tests that care
+    "last_os_version": None,
+    "last_version_code": None,
+    "last_version_name": None,
+    
+    # server-side tracking timestamps
+    "last_heartbeat_notification": None,
+    "first_push_notification_checkin": None,
+    "first_register_user": None,  # barely used
+    
+    # ... its a push notification setting, 0 is correct because that is in fact the true number.
+    "push_notification_unreachable_count": 0,
+    
+    # beta features, enable manually if there are any tests for them at all
+    "enable_aggressive_background_persistence": False,
+    "enable_beta_features": False,
+    "enable_binary_uploads": False,
+    "enable_developer_datastream": False,
+    "enable_extensive_device_info_tracking": False,
+    "enable_new_authentication": False,
+    
+    # device action timestamps - only set these when there is an explicit test
+    # The default expectation should be that the default participant will not satisfy conditions.
+    "last_get_latest_device_settings": None,
+    "last_get_latest_surveys": None,
+    "last_heartbeat_checkin": None,
+    "last_push_notification_checkin": None,
+    "last_register_user": None,
+    "last_set_fcm_token": None,
+    "last_set_password": None,
+    "last_survey_checkin": None,
+    "last_upload": None,
+    
+    # remote device state, used in debugging, should be None and manipulated in tests
+    "device_status_report": None,
+    "raw_notification_report": None,
+    "last_active_survey_ids": None,
+}
+
+# populated elsewvhere, note that user is an android user.
+_skip = ("id","created_on","last_updated","password","patient_id","device_id","os_type","study")
+
+_all_field_names = [field.name for field in Participant._meta.fields]
+_unskipped_names = [field_name for field_name in _all_field_names if field_name not in _skip]
+
+for _field_name in _unskipped_names:
+    if _field_name not in DEFAULT_PARTICIPANT_PARAMS:
+        raise (f"field {_field_name} is not populated in DEFAULT_PARTICIPANT_PARAMS." )
+for _field_name in DEFAULT_PARTICIPANT_PARAMS:
+    if _field_name not in _all_field_names:
+        raise (f"field {_field_name} is not in the Participant model." )
+
 
 # this is a real, if simple, survey, it contains logically displayed questions based on the slider Q
 
@@ -275,7 +343,7 @@ class DatabaseHelperMixin:
             return self._default_study_field
         except AttributeError:
             pass
-        self._default_study_field = self.generate_study_field(
+        self._default_study_field: StudyField = self.generate_study_field(
             self.default_study, self.DEFAULT_STUDY_FIELD_NAME
         )
         return self._default_study_field
@@ -297,8 +365,13 @@ class DatabaseHelperMixin:
             return self._default_participant
         except AttributeError:
             pass
-        self._default_participant = self.generate_participant(
-            self.session_study, self.DEFAULT_PARTICIPANT_NAME
+        
+        self._default_participant: Participant = self.generate_participant(
+            self.session_study,
+            self.DEFAULT_PARTICIPANT_NAME,
+            ios=False,
+            device_id=self.DEFAULT_PARTICIPANT_DEVICE_ID,
+            **DEFAULT_PARTICIPANT_PARAMS,
         )
         return self._default_participant
     
@@ -308,12 +381,17 @@ class DatabaseHelperMixin:
         self.default_participant
     
     @property
-    def populate_default_fcm_token(self) -> ParticipantFCMHistory:
-        token = ParticipantFCMHistory(
+    def default_fcm_token(self) -> ParticipantFCMHistory:
+        try:
+            return self._default_fcm_token
+        except AttributeError:
+            pass
+        
+        self._default_fcm_token: ParticipantFCMHistory = ParticipantFCMHistory(
             token=self.DEFAULT_FCM_TOKEN, participant=self.default_participant
         )
-        token.save()
-        return token
+        self._default_fcm_token.save()
+        return self._default_fcm_token
     
     @property
     def default_participant_field_value(self) -> ParticipantFieldValue:
@@ -321,7 +399,7 @@ class DatabaseHelperMixin:
             return self._default_participant_field_value
         except AttributeError:
             pass
-        self._default_participant_field_value = self.generate_participant_field_value(
+        self._default_participant_field_value: ParticipantFieldValue = self.generate_participant_field_value(
             self.default_study_field, self.default_participant, self.DEFAULT_PARTICIPANT_FIELD_VALUE
         )
         return self._default_participant_field_value
@@ -345,7 +423,7 @@ class DatabaseHelperMixin:
         return [self.generate_participant(self.session_study) for _ in range(10)]
     
     def generate_participant(
-        self, study: Study, patient_id: str = None, ios=False, device_id=None
+        self, study: Study, patient_id: str = None, ios=False, device_id=None, **kwargs,
     ) -> Participant:
         participant = Participant(
             patient_id=patient_id or generate_easy_alphanumeric_string(),
@@ -353,6 +431,7 @@ class DatabaseHelperMixin:
             study=study,
             device_id=device_id or self.DEFAULT_PARTICIPANT_DEVICE_ID,
             password=self.SOME_SHA1_PASSWORD_COMPONENTS,
+            **kwargs,
         )
         participant.set_password(self.DEFAULT_PARTICIPANT_PASSWORD)  # saves
         return participant
@@ -499,8 +578,7 @@ class DatabaseHelperMixin:
             return self._default_relative_schedule
         except AttributeError:
             pass
-        self._default_relative_schedule = \
-            self.generate_relative_schedule(self.default_survey)
+        self._default_relative_schedule = self.generate_relative_schedule(self.default_survey)
         return self._default_relative_schedule
     
     def generate_relative_schedule(
@@ -573,14 +651,13 @@ class DatabaseHelperMixin:
         )
     
     def generate_a_real_weekly_schedule_event_with_schedule(
-        self, day_of_week: int = 0, hour: int = 0, minute: int = 0
+        self, day_of_week: int = 0, hour: int = 0, minute: int = 0, tz: tzinfo = None
     ) -> Tuple[ScheduledEvent, int]:
-        """ The creation of weekly events is weird, it best to use the real machinery and build
-        some unit tests for it. At time of documenting none exist, but there are some integration
-        tests. """
-        # 0 indexes to sunday, 6 indexes to saturday.
-        self.generate_weekly_schedule(self.default_survey, day_of_week, hour, minute)
-        return set_next_weekly(self.default_participant, self.default_survey)
+        raise NotImplementedError("take the code below and paste it into your test, or use an absolute survey")
+        # 0,0,0 is a sunday at midnight
+        sched = self.generate_weekly_schedule(self.default_survey, day_of_week, hour, minute)
+        repopulate_weekly_survey_schedule_events(self.default_survey)
+        events = ScheduledEvent.objects.filter(weekly_schedule=sched)
     
     def generate_scheduled_event(
         self,
@@ -628,6 +705,15 @@ class DatabaseHelperMixin:
         archived_event.save()
         return archived_event
     
+    def generate_archived_event_from_scheduled_event(self, scheduled_event: ScheduledEvent):
+        return self.generate_archived_event(
+            scheduled_event.survey,
+            scheduled_event.participant,
+            scheduled_event.get_schedule_type(),
+            scheduled_event.scheduled_time,
+            a_uuid=scheduled_event.uuid
+        )
+    
     def bulk_generate_archived_events(
         self, quantity: int, survey: Survey, participant: Participant, schedule_type: str = None,
         scheduled_time: datetime = None, status: str = None
@@ -644,13 +730,15 @@ class DatabaseHelperMixin:
         ]
         return ArchivedEvent.objects.bulk_create(events)
     
-    def generate_archived_event_for_absolute_schedule(self, absolute: AbsoluteSchedule, a_uuid: uuid.UUID = None):
+    def generate_archived_event_matching_absolute_schedule(self, absolute: AbsoluteSchedule, a_uuid: uuid.UUID = None):
         # absolute is super easy
+        the_event_time = absolute.event_time(self.default_study.timezone)
+        # print("the event time:", the_event_time)
         return self.generate_archived_event(
             absolute.survey,
             self.default_participant,
             ScheduleTypes.absolute,
-            absolute.event_time(self.default_study.timezone),
+            the_event_time,
             a_uuid=a_uuid
         )
     
@@ -833,7 +921,7 @@ class DatabaseHelperMixin:
     def set_working_push_notification_basices(self):
         # we are not testing fcm token details in these tests.
         self.default_participant.update(deleted=False, permanently_retired=False)
-        self.populate_default_fcm_token
+        self.default_fcm_token
     
     @property
     def set_working_heartbeat_notification_fully_valid(self):
@@ -843,32 +931,33 @@ class DatabaseHelperMixin:
         self.default_participant.update(
             deleted=False, permanently_retired=False, last_upload=now - timedelta(minutes=61),
         )
-        self.populate_default_fcm_token
+        self.default_fcm_token
     
     @property
     def set_default_participant_all_push_notification_features(self):
         self.default_participant.update(
             deleted=False,
             permanently_retired=False,
-            last_version_name=IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+            last_version_name=IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+            last_version_code="aaah!!! does not matter",
             os_type=IOS_API,
         )
-        self.populate_default_fcm_token
+        self.default_fcm_token
 
 
-def compare_dictionaries(reference, comparee, ignore=None):
+def compare_dictionaries(first, second, ignore=None):
     """ Compares two dictionary objects and displays the differences in a useful fashion. """
     
-    if not isinstance(reference, dict):
-        raise Exception("reference was %s, not dictionary" % type(reference))
-    if not isinstance(comparee, dict):
-        raise Exception("comparee was %s, not dictionary" % type(comparee))
+    if not isinstance(first, dict):
+        raise Exception("first was %s, not dictionary" % type(first))
+    if not isinstance(second, dict):
+        raise Exception("second was %s, not dictionary" % type(second))
     
     if ignore is None:
         ignore = []
     
-    b = set((x, y) for x, y in comparee.items() if x not in ignore)
-    a = set((x, y) for x, y in reference.items() if x not in ignore)
+    b = set((x, y) for x, y in second.items() if x not in ignore)
+    a = set((x, y) for x, y in first.items() if x not in ignore)
     differences_a = a - b
     differences_b = b - a
     
@@ -881,16 +970,19 @@ def compare_dictionaries(reference, comparee, ignore=None):
     except Exception:
         pass
     
-    print("These dictionaries are not identical:")
+    print("\nThese dictionaries are not identical:")
     if differences_a:
-        print("in reference, not in comparee:")
+        print("in first, not in second:")
         for x, y in differences_a:
-            print("\t", x, y)
+            print(f"    `{x}`: `{y}`")
+    else:
+        print("(Everything in first was in second)")
     if differences_b:
-        print("in comparee, not in reference:")
+        print("in second, not in first:")
         for x, y in differences_b:
-            print("\t", x, y)
-    
+            print(f"    `{x}`: `{y}`")
+    else:
+        print("(Everything in second was in first)")
     return False
 
 

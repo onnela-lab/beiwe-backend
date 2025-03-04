@@ -32,14 +32,13 @@ from deployment_helpers.constants import (APT_MANAGER_INSTALLS, APT_SINGLE_SERVE
     get_server_configuration_variables, get_server_configuration_variables_path,
     GET_WORKER_IP_ADDRESS_HELP, HELP_SETUP_NEW_ENVIRONMENT, HELP_SETUP_NEW_ENVIRONMENT_END,
     HELP_SETUP_NEW_ENVIRONMENT_HELP, LOCAL_AMI_ENV_CONFIG_FILE_PATH, LOCAL_APACHE_CONFIG_FILE_PATH,
-    LOCAL_CRONJOB_MANAGER_FILE_PATH, LOCAL_CRONJOB_SINGLE_SERVER_AMI_FILE_PATH,
-    LOCAL_CRONJOB_WORKER_FILE_PATH, LOCAL_INSTALL_CELERY_WORKER, LOCAL_RABBIT_MQ_CONFIG_FILE_PATH,
-    LOG_FILE, MANAGER_SERVER_INSTANCE_TYPE, PURGE_COMMAND_BLURB, PURGE_INSTANCE_PROFILES_HELP,
-    PUSHED_FILES_FOLDER, RABBIT_MQ_PORT, REMOTE_APACHE_CONFIG_FILE_PATH, REMOTE_CRONJOB_FILE_PATH,
-    REMOTE_HOME_DIR, REMOTE_INSTALL_CELERY_WORKER, REMOTE_PROJECT_DIR,
-    REMOTE_RABBIT_MQ_CONFIG_FILE_PATH, REMOTE_RABBIT_MQ_FINAL_CONFIG_FILE_PATH,
-    REMOTE_RABBIT_MQ_PASSWORD_FILE_PATH, REMOTE_USERNAME, STAGED_FILES,
-    TERMINATE_PROCESSING_SERVERS_HELP, WORKER_SERVER_INSTANCE_TYPE)
+    LOCAL_CRONJOB_MANAGER_FILE_PATH, LOCAL_CRONJOB_WORKER_FILE_PATH, LOCAL_INSTALL_CELERY_WORKER,
+    LOCAL_RABBIT_MQ_CONFIG_FILE_PATH, LOG_FILE, MANAGER_SERVER_INSTANCE_TYPE, PURGE_COMMAND_BLURB,
+    PURGE_INSTANCE_PROFILES_HELP, PUSHED_FILES_FOLDER, RABBIT_MQ_PORT,
+    REMOTE_APACHE_CONFIG_FILE_PATH, REMOTE_CRONJOB_FILE_PATH, REMOTE_HOME_DIR,
+    REMOTE_INSTALL_CELERY_WORKER, REMOTE_PROJECT_DIR, REMOTE_RABBIT_MQ_CONFIG_FILE_PATH,
+    REMOTE_RABBIT_MQ_FINAL_CONFIG_FILE_PATH, REMOTE_RABBIT_MQ_PASSWORD_FILE_PATH, REMOTE_USERNAME,
+    STAGED_FILES, TERMINATE_PROCESSING_SERVERS_HELP, WORKER_SERVER_INSTANCE_TYPE)
 from deployment_helpers.general_utils import current_time_string, do_zip_reduction, EXIT, log, retry
 from fabric.api import cd, env as fabric_env, put, run, sudo
 
@@ -261,11 +260,6 @@ def apt_installs(manager=False, single_server_ami=False):
     sudo("service supervisor stop")
     if installs_failed:
         raise Exception("Could not install software on remote machine.")
-
-
-def setup_single_server_ami_cron():
-    put(LOCAL_CRONJOB_SINGLE_SERVER_AMI_FILE_PATH, REMOTE_CRONJOB_FILE_PATH)
-    run(f'crontab -u {REMOTE_USERNAME} {REMOTE_CRONJOB_FILE_PATH}')
 
 
 def push_beiwe_configuration(eb_environment_name, single_server_ami=False):
@@ -579,7 +573,7 @@ def do_create_worker():
 #     python = "/home/ubuntu/.pyenv/versions/beiwe/bin/python"
 #     manage_script_filepath = path_join(REMOTE_HOME_DIR, "beiwe-backend/manage.py")
 #     run(f'{python} {manage_script_filepath} migrate')
-#     setup_single_server_ami_cron()
+#     setup_manager_cron()
 #     configure_apache()
 #     remove_unneeded_ssh_keys()
 #     push_home_directory_files2()  # ??

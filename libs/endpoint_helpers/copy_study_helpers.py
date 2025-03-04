@@ -134,8 +134,8 @@ def add_new_surveys(study: Study, new_survey_settings: List[Dict]):
         
         # create survey, schedules, schedule events.
         survey = Survey.create_with_object_id(study=study, **survey_settings)
-        AbsoluteSchedule.create_absolute_schedules(absolute_schedules, survey)
-        WeeklySchedule.create_weekly_schedules(weekly_schedules, survey)
+        AbsoluteSchedule.configure_absolute_schedules(absolute_schedules, survey)
+        WeeklySchedule.configure_weekly_schedules(weekly_schedules, survey)
         create_relative_schedules_by_name(relative_schedules, survey)
         
         # and if the context is adding surveys to an existing study this must execute.

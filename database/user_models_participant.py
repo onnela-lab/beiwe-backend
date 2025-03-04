@@ -19,16 +19,15 @@ from django.utils import timezone
 
 from config.settings import DOMAIN_NAME
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
-from constants.common_constants import LEGIBLE_TIME_FORMAT, RUNNING_TESTS
+from constants.common_constants import LEGIBLE_DT_FORMAT, RUNNING_TESTS
 from constants.data_stream_constants import ALL_DATA_STREAMS, IDENTIFIERS
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
-    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, OS_TYPE_CHOICES)
+    IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, OS_TYPE_CHOICES)
 from database.common_models import UtilityModel
 from database.models import TimestampedModel
 from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
-from libs.firebase_config import check_firebase_instance
 from libs.s3 import s3_retrieve
 from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
 from libs.utils.security_utils import (compare_password, device_hash, django_password_components,
@@ -237,6 +236,9 @@ class Participant(AbstractPasswordUser):
     
     @property
     def participant_push_enabled(self) -> bool:
+        # this import causes a super stupid import triangle over in celery push notifications
+        # after a refactor that literally just separated code into multiple files. Obviously.
+        from libs.firebase_config import check_firebase_instance
         return (
             self.os_type == ANDROID_API and check_firebase_instance(require_android=True) or
             self.os_type == IOS_API and check_firebase_instance(require_ios=True)
@@ -260,6 +262,11 @@ class Participant(AbstractPasswordUser):
     ################################################################################################
     ################################## PARTICIPANT STATE ###########################################
     ################################################################################################
+    
+    @property
+    def is_allowed_surveys(self) -> bool:
+        from libs.schedules import participant_allowed_surveys
+        return participant_allowed_surveys(self)
     
     @property
     def is_active_one_week(self) -> bool:
@@ -319,14 +326,15 @@ class Participant(AbstractPasswordUser):
     
     @property 
     def can_handle_push_notification_resends(self) -> bool:
-        if self.os_type != IOS_API:
+        if self.os_type != IOS_API or self.last_version_code is None or self.last_version_name is None:
             return False
         
+        # does all the tests for None-ness etc.
         return is_participants_version_gte_target(
             self.os_type,
             self.last_version_code,
             self.last_version_name,
-            IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+            IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
         )
     
     ################################################################################################
@@ -427,7 +435,7 @@ class Participant(AbstractPasswordUser):
             query = query.filter(action=action)
         tz = self.timezone
         return [
-            f"{t.astimezone(tz).strftime(LEGIBLE_TIME_FORMAT)}: '{action}'" for t, action in query
+            f"{t.astimezone(tz).strftime(LEGIBLE_DT_FORMAT)}: '{action}'" for t, action in query
         ]
     
     @property

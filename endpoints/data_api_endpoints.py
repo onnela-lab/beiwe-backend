@@ -40,7 +40,6 @@ def get_studies(request: ApiResearcherRequest):
     If a GET request, access_key and secret_key must be provided in the URL as GET params. If
     a POST request (strongly preferred!), access_key and secret_key must be in the POST
     request body.
-    :return: string: JSON-dumped dict {object_id: name}
     """
     # site admin needs to get all non-deleted studies
     if request.api_researcher.site_admin:
@@ -112,7 +111,7 @@ def get_participant_table_data(request: ApiStudyResearcherRequest):
     if data_format not in ("json", "json_table", "csv"):
         return HttpResponse(MISSING_JSON_CSV_MESSAGE, status=400)
     
-    column_names = get_table_columns(request.api_study)
+    column_names = get_table_columns(request.api_study, frontend=False)
     table_data = common_data_extraction_for_apis(request.api_study)
     
     # virtually if not literally identical to the button api

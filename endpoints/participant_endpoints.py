@@ -32,8 +32,8 @@ from database.survey_models import Survey
 from database.user_models_participant import Participant
 from libs.django_forms.forms import ParticipantExperimentForm
 from libs.endpoint_helpers.participant_helpers import (conditionally_display_locked_message,
-    get_heartbeats_query, get_survey_names_dict, notification_details_archived_event,
-    notification_details_heartbeat, query_values_for_notification_history, render_participant_page)
+    convert_to_page_expectations, get_heartbeats_query, get_survey_names_dict,
+    query_values_for_notification_history, render_participant_page)
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ResearcherRequest
 from libs.intervention_utils import add_fields_and_interventions
@@ -260,7 +260,6 @@ def participant_csv_generator(study_id, number_of_new_patients):
         # Creates an empty file on s3 indicating that this user exists
         s3_upload(patient_id, b"", study)
         create_client_key_pair(patient_id, study.object_id)
-        repopulate_all_survey_scheduled_events(study, participant)
         
         filewriter.writerow([patient_id, password])
         yield si.getvalue()
@@ -406,13 +405,13 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
         abort(400)
     
     # use the provided study id because authentication already validated it
-    study = get_object_or_404(Study, pk=study_id) 
+    study = get_object_or_404(Study, pk=study_id)
     participant = get_object_or_404(Participant, patient_id=patient_id)
     
     # defaults to false, looks for the string 'true'.
     include_keepalive = request.GET.get('include_keepalive', "false").lower() == 'true'
     
-    # archived events are survey notification events, we have logic that expects page size of 25.
+    # archived events are survey notification events, logic that expects page size of 25.
     archived_events = Paginator(query_values_for_notification_history(participant.id), 25)
     try:
         archived_events_page = archived_events.page(page_number)
@@ -420,53 +419,56 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
         return HttpResponse(content="", status=404)
     last_page_number = archived_events.page_range.stop - 1
     
-    if include_keepalive:
-        # get the heartbeats that are relevant to this page
-        heartbeats_query = get_heartbeats_query(participant, archived_events_page, page_number)
-        # shove everything into one list.
-        all_notifications = list(
-            chain(archived_events_page, heartbeats_query.values_list("timestamp", flat=True))
-        )
-    else:
-        all_notifications = list(archived_events_page)
-    
-    # Sort by the datetime objects we have, using a dictionary to detect (gross but we need to
-    # interleave them) while we have datetime objects because we are using the super nice datetime
-    # string formatting that is not sortable.
-    all_notifications.sort(
-        key=lambda list_or_dict: list_or_dict["created_on"] if isinstance(list_or_dict, dict) else list_or_dict,
-        reverse=True,
+    # obscure: this changes the internal objects_list from a query to a list
+    notifcation_uuids = [event["uuid"] for event in archived_events_page if event["uuid"]]
+    uuids_to_received_time = dict(
+        participant.notification_reports.filter(notification_uuid__in=notifcation_uuids)
+        .values_list("notification_uuid", "created_on")
     )
     
-    # again based on object type we can determine which dictionaryifier to call, and we're done with
-    # this INSANITY.
-    notification_attempts = []
-    survey_names = get_survey_names_dict(study)  # we need the survey names
-    for notification in all_notifications:
-        if isinstance(notification, dict):
-            notification_attempts.append(
-                notification_details_archived_event(notification, study.timezone, survey_names)
-            )
-        else:
-            notification_attempts.append(
-                notification_details_heartbeat(notification, study.timezone)
-            )
-    
-    # and then the conditional message
-    conditionally_display_locked_message(request, participant)
+    all_notifications = get_and_sort_notifications(
+        include_keepalive, participant, archived_events_page, page_number
+    )
+    notification_page_content = convert_to_page_expectations(
+        all_notifications, study.timezone, get_survey_names_dict(study), uuids_to_received_time
+    )
+    conditionally_display_locked_message(request, participant)  # and then the conditional message...
     return render(
         request,
         'notification_history.html',
         context=dict(
             participant=participant,
             page=archived_events_page,
-            notification_attempts=notification_attempts,
+            notification_attempts=notification_page_content,
             study=study,
             last_page_number=last_page_number,
             locked=participant.is_dead,
             include_keepalive=include_keepalive,
         )
     )
+
+
+def get_and_sort_notifications(
+    include_keepalive: bool, participant: Participant, archived_events_page, page_number: int
+):
+    if include_keepalive:
+        # get the heartbeats that are relevant to this page
+        heartbeats_query = get_heartbeats_query(participant, archived_events_page, page_number)
+        all_notifications = list( # shove everything into one list.
+            chain(archived_events_page, heartbeats_query.values_list("timestamp", flat=True))
+        )
+    else:
+        all_notifications = list(archived_events_page)
+    
+    # Mingle all the data together - sort notification data by scheduled time then by created on
+    # time, vs. heartbeat timestamps
+    def srt_func(list_or_dict):
+        if isinstance(list_or_dict, dict):
+            return list_or_dict["scheduled_time"], list_or_dict["created_on"]
+        return list_or_dict, list_or_dict
+    
+    all_notifications.sort(key=srt_func, reverse=True)
+    return all_notifications
 
 
 @require_http_methods(['GET', 'POST'])
@@ -484,30 +486,38 @@ def participant_page(request: ResearcherRequest, study_id: int, patient_id: str)
     if request.method == 'GET':
         return render_participant_page(request, participant, study)
     
+    ## Post request start.
     end_redirect = redirect(
         easy_url("participant_endpoints.participant_page", study_id=study_id, patient_id=patient_id)
     )
     
+    #FIXME: handle some errors for field values...
+    # update custom fields dates for participant
+    for field in study.fields.all():
+        input_id = f"field{field.id}"
+        clean_val = None if (fv:= request.POST.get(input_id)) is None else bleach.clean(fv.strip())
+        db_field_value = participant.field_values.get(field=field)
+        db_field_value.update(value=clean_val)
+    
     # update intervention dates for participant
+    study_has_interventions = False
     for intervention in study.interventions.all():
+        study_has_interventions = True
         input_date = request.POST.get(f"intervention{intervention.id}", None)
         intervention_date = participant.intervention_dates.get(intervention=intervention)
         if input_date:
-            try:
+            # FIXME: if this errors ing on invalid dates then we could hit database inconsistencies with relative schedules (until they are recalculated in an hour)
+            try:  # we need to run database validation logic on input values for all of them.
                 intervention_date.update(date=datetime.strptime(input_date, API_DATE_FORMAT).date())
             except ValueError:
                 messages.error(request, 'Invalid date format, please use the date selector or YYYY-MM-DD.')
                 return end_redirect
     
-    # update custom fields dates for participant
-    for field in study.fields.all():
-        input_id = f"field{field.id}"
-        field_value = participant.field_values.get(field=field)
-        field_value.update(value=request.POST.get(input_id, None))
-    
-    # always call through the repopulate everything call, even though we only need to handle
-    # relative surveys, the function handles extra cases.
-    repopulate_all_survey_scheduled_events(study, participant)
+    # if there were changes on intervention dates then they may need to me updated.
+    # (don't need to update the non-relative surveys but its not like this endpoint is fast anyway)
+    if study_has_interventions:
+        repopulate_all_survey_scheduled_events(study, participant)
+        # repopulate_relative_survey_schedule_events(survey, participant)
     
     messages.success(request, f'Successfully edited participant {participant.patient_id}.')
     return end_redirect

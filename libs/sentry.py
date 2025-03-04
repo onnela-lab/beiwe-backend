@@ -1,7 +1,10 @@
 # WARNING: THIS FILE IS IMPORTED IN THE DJANGO CONF FILE. BE CAREFUL WITH IMPORTS.
+import functools
+from datetime import datetime
 
+import sentry_sdk
 from cronutils.error_handler import ErrorSentry, null_error_handler
-from sentry_sdk import Client as SentryClient, set_tag
+from sentry_sdk import capture_message, Client as SentryClient, set_tag
 from sentry_sdk.transport import HttpTransport
 
 from config.settings import (SENTRY_DATA_PROCESSING_DSN, SENTRY_ELASTIC_BEANSTALK_DSN,
@@ -59,9 +62,7 @@ def make_error_sentry(sentry_type: str, tags: dict = None, force_null_error_hand
     
     tags = tags or {}
     tags["sentry_type"] = sentry_type
-    
-    # set tags? we don't know if this works
-    for tagk, tagv in tags.items():
+    for tagk, tagv in tags.items():  # (how does this work?)
         set_tag(tagk, str(tagv))
     
     # this used to error on invalid DSNs, but now it doesn't and that is a problem because it makes
@@ -83,3 +84,48 @@ def data_processing_error_sentry(*args, **kwargs) -> ErrorSentry:
 
 def script_runner_error_sentry(*args, **kwargs) -> ErrorSentry:
     return make_error_sentry(SentryTypes.script_runner, *args, **kwargs)
+
+
+####################################################################################################
+
+
+class send_warn_on_timer():
+    """ Wrap a function with a timer that sends a warning to sentry if the function takes too long. """
+    
+    def __init__(self, sentry_type: str, message: str, timeout_seconds: int,  tags: dict = None):
+        self.message = message
+        self.timeout_seconds = timeout_seconds
+        self.tags = tags or {}
+        self.tags["sentry_type"] = sentry_type
+        self.tags["JUST_A_WARNING"] = True
+        sentry_sdk.init(get_dsn_from_string(sentry_type), transport=HttpTransport)
+    
+    def __call__(self, some_function):
+        
+        @functools.wraps(some_function)
+        def wrapper(*args, **kwargs):
+            t = datetime.now()
+            try:
+                return some_function(*args, **kwargs)
+            finally:
+                if (t_total:= (datetime.now() - t).total_seconds()) > self.timeout_seconds:
+                    for tagk, tagv in self.tags.items():
+                        set_tag(tagk, str(tagv))
+                    set_tag("function_name", some_function.__name__)
+                    
+                    ext = f" - call `{some_function.__name__}` took {t_total} seconds to run."
+                    capture_message(self.message + ext, level="warning")
+        
+        return wrapper
+
+
+def time_warning_elastic_beanstalk(message: str, timeout_seconds: int,  tags: dict = None) -> send_warn_on_timer:
+    return send_warn_on_timer(SentryTypes.elastic_beanstalk, message, timeout_seconds, tags)
+
+
+def time_warning_data_processing(message: str, timeout_seconds: int,  tags: dict = None) -> send_warn_on_timer:
+    return send_warn_on_timer(SentryTypes.data_processing, message, timeout_seconds, tags)
+
+
+def time_warning_script_runner(message: str, timeout_seconds: int,  tags: dict = None) -> send_warn_on_timer:
+    return send_warn_on_timer(SentryTypes.script_runner, message, timeout_seconds, tags)

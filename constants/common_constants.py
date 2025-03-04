@@ -34,11 +34,37 @@ LATEST_POSSIBLE_DATA_TIMESTAMP = int(time.mktime((datetime.utcnow() + timedelta(
 API_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"  # this is the isoformat without timezone
 API_TIME_FORMAT_WITH_TZ = "%Y-%m-%dT%H:%M:%S (%Z)"
 API_DATE_FORMAT = "%Y-%m-%d"
-LEGIBLE_TIME_FORMAT = "%Y-%m-%d %H:%M:%S (%Z)"
+
+
 DEV_TIME_FORMAT = "%Y-%m-%d %H:%M (%Z)"
 DEV_TIME_FORMAT3 = "%Y-%m-%d %H:%M:%S . %f (%Z)"  # leave the extra spaces
 DEV_TIME_FORMAT4 = "%Y-%m-%d %H:%M:%S (%Z)"
-DISPLAY_TIME_FORMAT = "%Y-%m-%d %-I:%M%p (%Z)"
+
+LEGIBLE_DT_FORMAT = "%Y-%m-%d %H:%M:%S (%Z)"
+
+T_24HR_W_TZ_N_SEC_N_PAREN = "%H:%M %Z"
+T_24HR_W_TZ_W_SEC_N_PAREN = "%H:%M:%S %Z"
+
+DT_12HR_N_TZ_N_SEC_N_PAREN = "%Y-%m-%d %-I:%M %p"
+DT_24HR_N_TZ_N_SEC_N_PAREN = "%Y-%m-%d %H:%M"
+
+DT_12HR_N_TZ_N_SEC_W_PAREN = "%Y-%m-%d %-I:%M%p (%Z)"
+DT_24HR_N_TZ_N_SEC_W_PAREN = "%Y-%m-%d %H:%M %Z"
+
+DT_12HR_W_TZ_W_SEC_N_PAREN = "%Y-%m-%d %-I:%M:%S%p %Z"
+DT_24HR_W_TZ_W_SEC_N_PAREN = "%Y-%m-%d %H:%M:%S %Z"
+LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN = "%Y-%m-%d<br>%H:%M:%S %Z"
+
+DT_12HR_W_TZ_W_SEC_W_PAREN = "%Y-%m-%d %-I:%M:%S%p (%Z)"
+DT_24HR_W_TZ_W_SEC_W_PAREN = "%Y-%m-%d %H:%M:%S (%Z)"
+
+DT_WDS_12HR_N_TZ_N_SEC_N_PAREN = "%a %Y-%m-%d %-I:%M %p"
+DT_WDS_12HR_W_TZ_N_SEC_N_PAREN = "%a %Y-%m-%d %-I:%M:%S %Z"
+
+# full date requires a comma
+DT_WDS_12HR_W_TZ_N_SEC_W_PAREN = "%a %b %-d, %Y, %-I:%M%p (%Z)"
+DT_WDL_12HR_W_TZ_N_SEC_W_PAREN = "%A %b %-d, %Y, %-I:%M%p (%Z)"
+
 
 ## All s3 file paths must be declared here so that we know where they are for participant data purge.
 CHUNKS_FOLDER = "CHUNKED_DATA"

@@ -9,6 +9,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import F, Func, Manager
 from django.db.models.query import QuerySet
+from django.utils import timezone
 from django.utils.timezone import localtime
 
 from constants.data_stream_constants import ALL_DATA_STREAMS
@@ -133,7 +134,7 @@ class Study(TimestampedModel, ObjectIDModel):
     
     def now(self) -> datetime:
         """ Returns a timezone.now() equivalence in the study's timezone. """
-        return localtime(localtime(), timezone=self.timezone)  # localtime(localtime(... saves an import... :D
+        return localtime(timezone.now(), timezone=self.timezone)
     
     @property
     def timezone(self) -> tzinfo:
@@ -155,8 +156,14 @@ class Study(TimestampedModel, ObjectIDModel):
     
     @classmethod
     def active_studies(cls):
-        """ Returns a queryset of active studies. """
-        return cls.objects.filter(deleted=False, manually_stopped=False, end_date__gt=self.now())
+        """ Returns a list of active studies, kinda slow. """
+        active_studies = []
+        
+        for study in cls.objects.filter(deleted=False, manually_stopped=False):
+            if study.study_is_stopped:
+                continue
+            active_studies.append(study)
+        return active_studies
     
     @property
     def data_quantity_metrics(self):
@@ -269,5 +276,8 @@ class DeviceSettings(TimestampedModel):
     # heartbeat settings
     heartbeat_message = models.TextField(default=DEFAULT_HEARTBEAT_MESSAGE)
     heartbeat_timer_minutes = models.PositiveIntegerField(default=60, validators=[MinValueValidator(30)])
+    
+    # Resend survey notifications (to sufficiently recent iOS app installs)
+    resend_period_minutes = models.PositiveIntegerField(default=180, validators=[MinValueValidator(0)])
     
     study: Study = models.OneToOneField(Study, on_delete=models.PROTECT, related_name='device_settings')

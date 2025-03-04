@@ -16,7 +16,7 @@ from database.profiling_models import UploadTracking
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.study_models import Study
 from database.survey_models import Survey
-from database.user_models_participant import Participant
+from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import Researcher
 from libs.s3 import s3_list_files
 from libs.utils.dev_utils import disambiguate_participant_survey, TxtClr
@@ -52,7 +52,7 @@ def PARTICIPANT(patient_id: Union[str, int]):
     try:
         return Participant.objects.get(patient_id=patient_id)
     except Participant.DoesNotExist:
-        participants = Participant.objects.filter(patient_id__icontains=patient_id)
+        participants = Participant.fltr(patient_id__icontains=patient_id)
         if participants.count() == 0:
             raise Participant.DoesNotExist() from None
         if participants.count() == 1:
@@ -70,7 +70,7 @@ def RESEARCHER(username: Union[str, int]):
     try:
         return Researcher.objects.get(username=username)
     except Researcher.DoesNotExist:
-        researchers = Researcher.objects.filter(username__icontains=username)
+        researchers = Researcher.fltr(username__icontains=username)
         if researchers.count() == 0:
             raise Researcher.DoesNotExist() from None
         if researchers.count() == 1:
@@ -87,7 +87,7 @@ def SURVEY(id_or_name: Union[str, int]):
     try:
         return Survey.objects.get(object_id=id_or_name)
     except Survey.DoesNotExist:
-        surveys = Survey.objects.filter(name__icontains=id_or_name)
+        surveys = Survey.fltr(name__icontains=id_or_name)
         if surveys.count() == 0:
             raise Survey.DoesNotExist() from None
         if surveys.count() == 1:
@@ -102,7 +102,7 @@ def STUDY(id_or_name: Union[str, int]):
     try:
         return Study.objects.get(object_id=id_or_name)
     except Study.DoesNotExist:
-        studies = Study.objects.filter(name__icontains=id_or_name)
+        studies = Study.fltr(name__icontains=id_or_name)
         count = studies.count()
         if count == 1:
             return studies.get()
@@ -193,7 +193,7 @@ def watch_uploads():
     """ Runs a loop that prints out the number of files uploaded in the past minute. ctrl+c to stop."""
     while True:
         start = localtime()
-        data = list(UploadTracking.objects.filter(
+        data = list(UploadTracking.fltr(
             timestamp__gte=(start - timedelta(minutes=1))).values_list("file_size", flat=True))
         end = localtime()
         total = abs((start - end).total_seconds())
@@ -216,12 +216,12 @@ def watch_celery():
 def get_and_summarize(patient_id: str):
     """ Get a participant and summarize their data uploads and files to process. """
     p = Participant.objects.get(patient_id=patient_id)
-    byte_sum = sum(UploadTracking.objects.filter(participant=p).values_list("file_size", flat=True))
+    byte_sum = sum(UploadTracking.fltr(participant=p).values_list("file_size", flat=True))
     print(f"Total Data Uploaded: {byte_sum/1024/1024}MB")
     
     counter = Counter(
         path.split("/")[2] for path in
-        FileToProcess.objects.filter(participant=p).values_list("s3_file_path", flat=True)
+        FileToProcess.fltr(participant=p).values_list("s3_file_path", flat=True)
     )
     return counter.most_common()
 
@@ -256,7 +256,7 @@ def find_notification_events(
     # order by participant to separate out the core related events, then order by survey
     # to group the participant's related events together, and do this in order of most recent
     # at the top of all sub-lists.
-    query = ArchivedEvent.objects.filter(**filters).order_by(
+    query = ArchivedEvent.fltr(**filters).order_by(
         "participant__patient_id", "survey_archive__survey__object_id", "-created_on")
     
     print(f"There were {query.count()} sent scheduled events matching your query.")
@@ -298,7 +298,8 @@ def find_notification_events(
 
 @disambiguate_participant_survey
 def find_pending_events(
-        participant: Participant = None, survey: Survey or str = None,
+        participant: Participant = None,
+        survey: Survey or str = None,
         tz: tzinfo = gettz('America/New_York'),
 ):
     """ Provides a information about PENDING notification events for a participant or survey.
@@ -315,7 +316,7 @@ def find_pending_events(
     elif participant:  # if no survey, yes participant:
         filters["survey__in"] = participant.study.surveys.all()
     
-    query = ScheduledEvent.objects.filter(**filters).order_by(
+    query = ScheduledEvent.fltr(**filters).order_by(
         "survey__object_id", "participant__patient_id", "-scheduled_time", "-created_on"
     )
     survey_id = ""
@@ -331,6 +332,88 @@ def find_pending_events(
         print(
             f"  {a.get_schedule_type()} FOR {TxtClr.CYAN}{a.participant.patient_id}{TxtClr.BLACK}"
             f" AT {TxtClr.GREEN}{sched_time_print}{TxtClr.BLACK}",
+        )
+
+
+@disambiguate_participant_survey
+def find_scheduled_events_with_no_notification_checkin(
+    participant: Participant = None,
+    survey: Survey or str = None,
+    schedule_type: str = None,
+    tz: tzinfo = gettz('America/New_York'),
+):
+    filters = {}
+    if participant:
+        filters['participant'] = participant
+    if schedule_type:
+        filters["schedule_type"] = schedule_type
+    if survey:
+        filters["survey_archive__survey"] = survey
+    
+    query = ScheduledEvent.fltr(**filters).order_by(
+        "survey__object_id", "participant__patient_id", "-scheduled_time", "-created_on"
+    )
+    
+    participant_pk_to_notification_uuids = SurveyNotificationReport.make_lookup_dict_list(
+        {'participant_id': participant.pk} if participant else {},
+        "participant_id",
+        "notification_uuid",
+    )
+    _common_print(query, participant_pk_to_notification_uuids, tz)
+
+
+@disambiguate_participant_survey
+def find_archived_events_with_no_notification_checkin(
+    participant: Participant = None,
+    survey: Survey or str = None,
+    schedule_type: str = None,
+    tz: tzinfo = gettz('America/New_York'),
+):
+    filters = {}
+    if participant:
+        filters['participant'] = participant
+    if schedule_type:
+        filters["schedule_type"] = schedule_type
+    if survey:
+        filters["survey_archive__survey"] = survey
+    
+    query = ArchivedEvent.fltr(**filters).order_by(
+        "survey_archive__survey__object_id", "participant__patient_id", "-scheduled_time", "-created_on"
+    )
+    
+    participant_pk_to_notification_uuids = SurveyNotificationReport.make_lookup_dict_list(
+        {'participant_id': participant.pk} if participant else {},
+        "participant_id",
+        "notification_uuid",
+    )
+    _common_print(query, participant_pk_to_notification_uuids, tz)
+
+
+def _common_print(query, participant_pk_to_notification_uuids, tz):
+    prior_survey_id = ""
+    prior_p_pk = None
+    x: Union[ScheduledEvent, ArchivedEvent]
+    for x in query:
+        schedule_type = x.get_schedule_type() if isinstance(x, ScheduledEvent) else x.schedule_type
+        # only print participant name and survey id when it changes
+        if x.participant_id != prior_p_pk:
+            print(f"\nparticipant {TxtClr.CYAN}{x.participant.patient_id}{TxtClr.BLACK}:")
+            prior_p_pk = x.participant.pk
+        if x.survey.object_id != prior_survey_id:
+            print(f"{x.survey.survey_type} {TxtClr.CYAN}{x.survey.object_id}{TxtClr.BLACK}:")
+            prior_survey_id = x.survey.object_id
+        
+        exists = "  (exists)" if x.uuid in participant_pk_to_notification_uuids[x.participant_id] else " "
+        
+        # data points of interest for sending information
+        sched_time = localtime(x.scheduled_time, tz)
+        sched_time_print = datetime.strftime(sched_time, DEV_TIME_FORMAT)
+        created = localtime(x.created_on, tz).strftime(DEV_TIME_FORMAT)
+        print(
+            exists,
+            f"{schedule_type} FOR {TxtClr.CYAN}{x.participant.patient_id}{TxtClr.BLACK}"
+            f" AT {TxtClr.GREEN}{sched_time_print}{TxtClr.BLACK}"
+            f" with uuid {x.uuid} created {created}"
         )
 
 

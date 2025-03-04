@@ -7,9 +7,10 @@ $(document).ready(function(){
             url: "/study/" + studyId + "/get_participants_api/",
             type: 'POST'  // Get request size ballooned past 4k characters, so use POST
         },
+        "order": [1, 'asc'],
         "columnDefs": [
             // Format the second column (index 1) to be a link to the View Participant page
-            {"targets": 1, "render": function(data, type, row, meta) {
+            {"targets": 2, "render": function(data, type, row, meta) {
                 if(type === 'display') {
                     data = '<b><a class="link-fill" href="/view_study/' + studyId + '/participant/' + data + '">' + data + '</a></b>'
                 }

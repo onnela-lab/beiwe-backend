@@ -1,11 +1,12 @@
+# trunk-ignore-all(ruff/E701)
 from __future__ import annotations
 
 import json
-from ast import Dict, Tuple
+from collections import defaultdict
 from datetime import date, datetime
 from pprint import pprint
 from random import choice as random_choice
-from typing import Any, List, Union
+from typing import Any, Dict, List, Sequence, Tuple, Union
 
 import dateutil
 from django.db import models
@@ -240,6 +241,23 @@ class UtilityModel(models.Model):
             setattr(self, attr, value)
         self.save(update_fields=kwargs.keys())
     
+    ################################ Convenience Dict Lookups ######################################
+    
+    #TODO: make filters keywords, validate inputs by type for misuse
+    @classmethod
+    def make_lookup_dict(cls, filters: Dict, keys: Sequence[str], values: Sequence[str]) -> Dict:
+        """ Given a base model, a list of key fields, and a list of value fields, this function will
+        return a dictionary that maps the key fields to the value fields. """
+        return make_lookup_dict(cls.objects, keys, values, **filters)
+    
+    @classmethod
+    def make_lookup_dict_list(cls, filters: Dict, keys: Sequence[str], values: Sequence[str]) -> Dict:
+        """ Given a base model, a list of key fields, and a list of value fields, this function will
+        return a dictionary that maps the key fields to any number of value fields as lists. """
+        return make_lookup_dict_list(cls.objects, keys, values, **filters)
+    
+    ####################################### __str__! ###############################################
+    
     def __str__(self) -> str:
         """ multipurpose object representation """
         if hasattr(self, 'study') and hasattr(self, 'name') and self.name:
@@ -267,3 +285,57 @@ class TimestampedModel(CreatedOnModel):
     last_updated = models.DateTimeField(auto_now=True)
     class Meta:
         abstract = True
+
+
+#################################### Lookup Dictionaries ###########################################
+
+
+def make_lookup_dict(queryable, keys: Sequence[str], values: Sequence[str], **filters) -> Dict:
+    """ Given quuery, filters, a list of key fields, and a list of value fields, this function will
+    return a dictionary that maps the key fields to the value fields. """
+    keys, values, queryable, k_len, v_len, dd = lookup_dict_setup(queryable, keys, values, **filters)
+    
+    # optimization paths for single keys, these are effectively of the form
+    # for all_fld_vals in query:
+    #     key = all_fld_vals[:key_count][0]
+    #     value = all_fld_vals[key_count:][0]
+    #     dd[key] = (value)
+    if k_len == 1 and v_len == 1:
+        return dict(queryable)
+    elif k_len == 1:
+        for all_fld_vals in queryable: dd[all_fld_vals[0]] = all_fld_vals[1:]
+    elif v_len == 1:
+        for all_fld_vals in queryable: dd[all_fld_vals[:k_len]] = all_fld_vals[-1]
+    else:
+        for all_fld_vals in queryable: dd[all_fld_vals[:k_len]] = all_fld_vals[k_len:]
+    return dict(dd)
+
+
+def make_lookup_dict_list(queryable, keys: Sequence[str], values: Sequence[str], **filters) -> Dict:
+    """ Given quuery, filters, a list of key fields, and a list of value fields, this function will
+    return a dictionary that maps the key fields to any number of value fields as lists. """
+    keys, values, queryable, k_len, v_len, dd = lookup_dict_setup(queryable, keys, values, **filters)
+    
+    # as in make_lookup_dict, but with a defaultdict(list) and append instead of assignment.
+    if k_len == 1 and v_len == 1:
+        for all_fld_vals in queryable: dd[all_fld_vals[0]].append(all_fld_vals[1])
+    elif k_len == 1:
+        for all_fld_vals in queryable: dd[all_fld_vals[0]].append(all_fld_vals[1:])
+    elif v_len == 1:
+        for all_fld_vals in queryable: dd[all_fld_vals[:k_len]].append(all_fld_vals[-1])
+    else:
+        for all_fld_vals in queryable: dd[all_fld_vals[:k_len]].append(all_fld_vals[k_len:])
+    return dict(dd)
+
+
+def lookup_dict_setup(queryable, keys: Sequence[str], values: Sequence[str], **filters):
+    # common parsing of the parameters passed to either of the lookup_dict functions
+    # make single strings more convenient
+    keys = [keys] if isinstance(keys, str) else keys
+    values = [values] if isinstance(values, str) else values
+    #TODO: validate that all keywords are .... strings maybe?
+    ret_query = queryable.filter(**filters).values_list(*keys, *values)
+    keys_count = len(keys)
+    values_count = len(values)
+    dd = defaultdict(list)
+    return keys, values, ret_query, keys_count, values_count, dd

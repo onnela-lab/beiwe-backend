@@ -64,34 +64,34 @@
       </tr>
       <tr>
         <td><b>Registration</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_register_user, study_timezone) }}</td>
+        <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_register_user, study_timezone) }}</td>
       </tr>
       <tr>
         <td><b>Last Heartbeat</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_heartbeat_checkin, study_timezone) }}</td>
+        <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_heartbeat_checkin, study_timezone) }}</td>
       </tr>
       <tr>
         <td><b>Last check-in for updated surveys</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_get_latest_surveys, study_timezone) }}</td>
+        <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_get_latest_surveys, study_timezone) }}</td>
       </tr>
       <tr>
         <td><b>Last file upload event</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_upload, study_timezone) }}</td>
+        <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_upload, study_timezone) }}</td>
       </tr>
   {% comment %}
   {# This is just going to confuse people until we change the way passwords work. #}
       <tr>
         <td><b>Last participant password reset</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_set_password, study_timezone) }}</td>
+        <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_set_password, study_timezone) }}</td>
       </tr>
   {% endcomment %}
       <tr>
         <td><b>Last notification credential update</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_set_fcm_token, study_timezone) }}</td>
+        <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_set_fcm_token, study_timezone) }}</td>
       </tr>
       <tr>
         <td><b>Last device settings update</b></td>
-        <td>{{ really_nice_time_format_with_tz(participant.last_get_latest_device_settings, study_timezone) }}</td>
+        <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_get_latest_device_settings, study_timezone) }}</td>
       </tr>
     </table>
   </div>
@@ -99,7 +99,7 @@
   <div class="col-md-6 col-sm-12 well">
     <h3 class="text-center"> <b>Survey Notifications </b></h3>
     <p class="text-center">
-      Total notifications or attempts: <b>{{ notification_attempts_count }}</b>
+      Total notification attempts: <b>{{ notification_attempts_count }}</b>
       &nbsp;&nbsp;
       <a href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}/notification_history">Notification History</a>
     </p>
@@ -108,12 +108,18 @@
       <table class="table table-hover" >
         <tr>
           <td>Scheduled for:</td>
-          <td>{{ latest_notification_attempt.scheduled_time }}</td>
+          <td class="text-mono text-small">{{ latest_notification_attempt.scheduled_time }}</td>
         </tr>
         <tr>
-          <td>Sent or attempted on:</td>
-          <td>{{ latest_notification_attempt.attempted_time }}</td>
+          <td>Sent:</td>
+          <td class="text-mono text-small">{{ latest_notification_attempt.attempted_time }}</td>
         </tr>
+        {% if latest_notification_attempt.confirmed_time != "" %}
+          <tr>
+            <td>Confirmed Received:</td>
+            <td class="text-mono text-small">{{ latest_notification_attempt.confirmed_time }}</td>
+          </tr>
+        {% endif %}
         <tr>
           <td>Survey:</td>
           <td>
@@ -123,14 +129,10 @@
           </td>
         </tr>
         <tr>
-          <td>Survey version:</td>
-          <td>{{ latest_notification_attempt.survey_version }}</td>
-        </tr>
-        <tr>
           <td>Schedule type:</td>
           <td>{{ latest_notification_attempt.schedule_type }}</td>
         </tr>
-        <tr {% if latest_notification_attempt.status == 'success' %} class="tableRowSuccess" {% else %} class="tableRowError" {% endif %}>
+        <tr class="{{latest_notification_attempt.css_class}}" title="{{latest_notification_attempt.hover_text}}" >
           <td>Status:</td>
           <td>{{ latest_notification_attempt.status }}</td>
         </tr>
@@ -140,8 +142,10 @@
       {% if participant.participant_push_enabled %} 
         <input type="hidden" name="survey_id" value="{{ latest_notification_attempt.survey_id }}">
         <button class="btn btn-danger center-block" type="submit" {% if locked %} disabled {% endif %}>
-          Resend Push Notification
+          Resend as Manual Push Notification
         </button>
+
+        <div class="text-small-italic center-text margin-top-1"> (This action is not yet integrated with survey notification resend logic.) </div>
         {% endif %}
       </form>
     {% endif %}

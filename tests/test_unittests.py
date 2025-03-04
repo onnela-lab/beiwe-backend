@@ -16,6 +16,7 @@ from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS
     ERR_TARGET_VERSION_CANNOT_BE_MISSING, ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
+from database.models import ArchivedEvent, ScheduledEvent
 from database.profiling_models import EncryptionErrorMetadata, LineEncryptionError, UploadTracking
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
@@ -82,6 +83,33 @@ class TestBinifyFromTimecode(unittest.TestCase):
     def test_binify_from_timecode_91_days(self):
         timestamp = str(int(time.mktime((datetime.utcnow() + timedelta(days=91)).timetuple())))
         self.assertRaises(BadTimecodeError, binify_from_timecode, timestamp.encode())
+
+
+class TestDatabaseCriticalDetails(CommonTestCase):
+    
+    def test_scheduled_event_deletion_does_not_delete_archived_event(self):
+        self.set_working_heartbeat_notification_fully_valid
+        self.set_default_participant_all_push_notification_features
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        archive = self.generate_archived_event_from_scheduled_event(event)
+        self.assertEqual(archive.uuid, event.uuid)
+        self.assertEqual(ScheduledEvent.objects.count(), 1)
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        event.delete()
+        self.assertEqual(ScheduledEvent.objects.count(), 0)
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+    
+    def test_scheduled_event_deletion_does_not_delete_archived_event_2(self):
+        self.set_working_heartbeat_notification_fully_valid
+        self.set_default_participant_all_push_notification_features
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        archive = self.generate_archived_event_from_scheduled_event(event)
+        self.assertEqual(archive.uuid, event.uuid)
+        self.assertEqual(ScheduledEvent.objects.count(), 1)
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        ScheduledEvent.objects.all().delete()
+        self.assertEqual(ScheduledEvent.objects.count(), 0)
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
 
 
 class TestParticipantDataDeletion(CommonTestCase):
@@ -269,7 +297,7 @@ class TestParticipantDataDeletion(CommonTestCase):
     
     @data_purge_mock_s3_calls
     def test_confirm_ParticipantFCMHistory(self):
-        self.populate_default_fcm_token
+        self.default_fcm_token
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
@@ -291,16 +319,15 @@ class TestParticipantDataDeletion(CommonTestCase):
     
     @data_purge_mock_s3_calls
     def test_confirm_ScheduledEvent(self):
-        self.generate_a_real_weekly_schedule_event_with_schedule()
+        self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_ArchivedEvent(self):
-        # its easiest to use a scheduled event to create an archived event...
-        sched_event = self.generate_a_real_weekly_schedule_event_with_schedule()[0]
-        sched_event.archive(True, self.default_participant, status="deleted")
+        sched_event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        sched_event.archive(self.default_participant, status="deleted")
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
@@ -395,11 +422,11 @@ class TestParticipantTimeZone(CommonTestCase):
             pass  # it should raise a TypeError
     
     def test_try_bad_string(self):
-        # the unknown_timezone flag should be true at the start and the end.
+        # the unknown_timezone flag should be false at the start and true at the end.
         p = self.default_participant
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
-        self.assertEqual(p.unknown_timezone, True)  # A
+        self.assertEqual(p.unknown_timezone, False)  # A
         self.default_study.update(timezone_name="UTC")
         p.try_set_timezone("a bad string")
         # behavior should be to grab the study's timezone name, which for tests was unexpectedly UTC...
@@ -424,7 +451,7 @@ class TestParticipantTimeZone(CommonTestCase):
         last_update = p.last_updated
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
-        self.assertEqual(p.unknown_timezone, True)  # A
+        self.assertEqual(p.unknown_timezone, False)  # A
         p.try_set_timezone("America/New_York")
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
@@ -437,7 +464,7 @@ class TestParticipantTimeZone(CommonTestCase):
         last_update = p.last_updated
         self.assertEqual(p.timezone_name, "America/New_York")
         self.assertIs(p.timezone, THE_ONE_TRUE_TIMEZONE)
-        self.assertEqual(p.unknown_timezone, True)
+        self.assertEqual(p.unknown_timezone, False)
         p.try_set_timezone("America/Los_Angeles")
         self.assertEqual(p.timezone_name, "America/Los_Angeles")
         self.assertIs(p.timezone, gettz("America/Los_Angeles"))
@@ -466,8 +493,9 @@ class TestParticipantActive(CommonTestCase):
             'last_get_latest_device_settings': Optional[datetime],
             'last_register_user': Optional[datetime],
             'last_heartbeat_checkin': Optional[datetime],
+            'return': str,
         }
-        self.assertDictEqual(annotes, correct_annotations)
+        self.assertEqual(annotes, correct_annotations)
     
     def test_participant_is_active_one_week_false(self):
         # this test is self referential...

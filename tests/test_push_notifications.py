@@ -5,13 +5,14 @@ from django.utils import timezone
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     FAILED_TO_ESTABLISH_CONNECTION, UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
 from database.schedule_models import AbsoluteSchedule, ArchivedEvent
-from services.celery_push_notifications import create_archived_events, failed_send_survey_handler
+from services.survey_push_notifications import (create_archived_events, failed_send_survey_handler,
+    success_send_survey_handler)
 from tests.common import CommonTestCase
 
 
 class TestPushComponents(CommonTestCase):
     
-    # we don't need to test the different SchodeledEvent types for archive, they're all the same.
+    # we don't need to test the different ScheduledEvent types for archive, they're all the same.
     def test_create_archived_event_one_absolute_schedule_full_features(self):
         self.set_default_participant_all_push_notification_features
         event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
@@ -109,14 +110,14 @@ PUSH_NOTIFICATION_ERROR_ABORTED = "('Connection aborted.', RemoteDisconnected('R
 PUSH_NOTIFICATION_INVALID_GRANT = "('invalid_grant: Invalid grant: account not found', {'error': 'invalid_grant', 'error_description': 'Invalid grant: account not found'})"
 
 
-class TestFailedSendHandler(CommonTestCase):
+class TestSendHandlers(CommonTestCase):
     
     def test_weird_html_502_error(self):
         failed_send_survey_handler(
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_OBSCURE_HTML_ERROR_CONTENT,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
@@ -127,7 +128,7 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_ERROR_INVALID_LENGTH,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
@@ -138,7 +139,7 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_ERROR_CONNECTION_POOL,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
@@ -149,7 +150,7 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_ERROR_ABORTED,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
@@ -160,8 +161,55 @@ class TestFailedSendHandler(CommonTestCase):
             participant=self.default_participant,
             fcm_token="a",
             error_message=PUSH_NOTIFICATION_INVALID_GRANT,
-            schedules=[self.generate_a_real_weekly_schedule_event_with_schedule(0,0,0)[0]],
+            schedules=[self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())],
             debug=False,
         )
         archive = ArchivedEvent.objects.get()
         self.assertEqual(archive.status, ACCOUNT_NOT_FOUND)
+    
+    #
+    ## success handler
+    # 
+    
+    def test_success_handler_no_uuids(self):
+        # participant does not meet resend, so no uuids on archives
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        success_send_survey_handler(
+            participant=self.default_participant,
+            fcm_token=self.default_fcm_token.token,
+            events=[event],
+        )
+        
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        archive = ArchivedEvent.objects.get()
+        self.assertEqual(archive.uuid, None)
+        
+        self.assertEqual(archive.status, "success")
+        self.assertEqual(archive.participant.pk, self.default_participant.pk)
+        self.assertEqual(archive.schedule_type, "absolute")
+        self.assertEqual(archive.scheduled_time, event.scheduled_time)
+        
+        event.refresh_from_db()
+        self.assertEqual(event.deleted, True)
+    
+    def test_success_handler_with_uuids(self):
+        self.set_default_participant_all_push_notification_features
+        event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
+        success_send_survey_handler(
+            participant=self.default_participant,
+            fcm_token=self.default_fcm_token.token,
+            events=[event],
+        )
+        
+        self.assertEqual(ArchivedEvent.objects.count(), 1)
+        archive = ArchivedEvent.objects.get()
+        self.assertEqual(archive.status, "success")
+        self.assertEqual(archive.uuid, event.uuid)
+        
+        self.assertEqual(archive.status, "success")
+        self.assertEqual(archive.participant.pk, self.default_participant.pk)
+        self.assertEqual(archive.schedule_type, "absolute")
+        self.assertEqual(archive.scheduled_time, event.scheduled_time)
+        
+        event.refresh_from_db()
+        self.assertEqual(event.deleted, True)

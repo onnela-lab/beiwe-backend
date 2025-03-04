@@ -388,7 +388,10 @@
   {% endif %}
   <div class="col-xs-12 col-md-12 row text-center">
     <h3>Technical Settings</h3>
+    <i>Timer values here cannot always be respected by the Apps, particularly when Low Power Mode is enabled.</i>
+    <hr>
   </div>
+  
 
   <div class="form-horizontal app-settings">
 
@@ -502,16 +505,53 @@
           <input name="use_gps_fuzzing" id="use_gps_fuzzing" type="checkbox" {{ "checked" if settings["use_gps_fuzzing"] }} {{ "disabled" if readonly }}/>
         </div>
       </div>
-
+      
+      <hr>
+      <h3 style="text-align: center;">Participant Reminders (Times are in Minutes)</h3>
+      <hr>
       {# Heartbeat Timer #}
       <div class="col-xs-12">
         <div class="form-group">
-          <label for="heartbeat_timer_minutes" class="control-label">Heartbeat Timer (time, in minutes, to wait before and between sending the heartbeat reminder notification message to the device):</label>
+          <label for="heartbeat_timer_minutes" class="control-label"><b>Heartbeat Timer</b>&nbsp; <i> (time to wait before and between sending the Heartbeat reminder notification)</i>:</label>
           <input id="heartbeat_timer_minutes" name="heartbeat_timer_minutes" class="form-control" type="number"
           value="{{ settings['heartbeat_timer_minutes'] }}" {{ "disabled" if readonly }}>
         </div>
+      
+      <span style="font-style: italic;">
+        <p>
+        The Beiwe Apps check in with the server periodically, this is called the App Heartbeat.
+        The server sends a push notification when there has been no recent Heartbeat.
+        </p>
+        <p>
+        Note that the app may miss a Heartbeat for valid reasons, like when Low Power Mode is enabled, or if reception is poor. Be careful about setting it too aggressively.
+        </p>
+        <p>
+        You can customize the notification message in the "Text Customizations" section below.
+        </p>
+      </span>
       </div>
       
+      <hr>
+      
+      {# Resend Timeer #}
+      <div class="col-xs-12">
+        <div class="form-group">
+          <label for="resend_period_minutes" class="control-label"><b>iOS Survey Resend Timer</b> &nbsp;<i>(time to wait before and between sending a survey reminder notification to iOS devices. Set to 0 to disable.)</i>:</label>
+          <input id="resend_period_minutes" name="resend_period_minutes" class="form-control" type="number"
+          value="{{ settings['resend_period_minutes'] }}" {{ "disabled" if readonly }}>
+        </div>
+        <span style="font-style: italic;">
+          <p>
+          On iOS it is possible for the Beiwe App to "miss" a survey notification, for example if the participant deletes the notification. Confirming receipt of a notification requires opening the app, but not entering the password.
+          </p>
+          <p>
+          Set this value only as aggressively as is reasonable for your survey schedules and compliance requirements. The push notification will continue to be resent until the app reports that it has received the notification and updated the Beiwe app icon's badge count.
+          </p>
+          <p>
+          This feature requires an iOS app version of at least than 2.5.1.
+          </p>
+        </span>
+      </div>
     </div>
 
     {% if not readonly %}

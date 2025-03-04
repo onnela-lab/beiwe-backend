@@ -3,6 +3,7 @@ import csv
 import json
 from io import StringIO
 
+import bleach
 from django.contrib import messages
 from django.db.models import ProtectedError
 from django.http import FileResponse, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -103,10 +104,11 @@ def study_participants_api(request: ResearcherRequest, study_id: int):
     sort_by_column_index = int(request.POST.get('order[0][column]'))
     sort_in_descending_order = request.POST.get('order[0][dir]') == 'desc'
     contains_string = request.POST.get('search[value]')
+    contains_string = bleach.clean(contains_string).strip()
     total_participants_count = Participant.objects.filter(study_id=study_id).count()
     filtered_participants_count = filtered_participants(study, contains_string).count()
     data = get_values_for_participants_table(
-        study, start, length, sort_by_column_index, sort_in_descending_order, contains_string
+        study, start, length, sort_by_column_index, sort_in_descending_order, contains_string, True
     )
     
     table_data = {
@@ -181,7 +183,7 @@ def download_participants_csv(request: ResearcherRequest, study_id: int = None):
     # we need to write the data to a buffer, and then return the buffer as a response
     buffer = StringIO()
     writer = csv.writer(buffer, dialect="excel")
-    writer.writerow(get_table_columns(study))  # write the header row
+    writer.writerow(get_table_columns(study, frontend=False))  # write the header row
     writer.writerows(table_data)
     buffer.seek(0)
     return HttpResponse(buffer.read(), content_type='text/csv')

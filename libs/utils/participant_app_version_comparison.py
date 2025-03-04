@@ -1,11 +1,10 @@
 from operator import ge as gte, gt, le as lte, lt
-from typing import Optional
 
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_REFERENCE_VERSION_NULL, ERR_IOS_TARGET_VERSION_FORMAT,
     ERR_IOS_VERSION_COMPONENTS_DIGITS, ERR_TARGET_VERSION_CANNOT_BE_MISSING,
-    ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
+    ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE, ERR_UNKNOWN_TARGET_VERSION)
 from constants.user_constants import ANDROID_API, IOS_API
 
 
@@ -15,8 +14,14 @@ This code needs to be perfect because it is used in survey resend logic.
 These all work, but their language was backwards from what we ended up needing in the app version
 check in the resend logic.  We are going to keep them because there might be a use for them, and
 tests already exist and was SUPER hard to get right.
+
+These functions can all throw VersionError and you just have to catch that sorry.
+
+TODO: get rid of this entirely and swap to the app reports its ability and we set a flag based on it
+    on the participant.
 """
 
+class VersionError(ValueError): pass
 
 #
 ## is target version X than reference version
@@ -140,19 +145,22 @@ def _ios_is_this_version_op_than(
     # version_name CANNOT be 2024.21.1 (it is not a semantic version)
     
     if participant_version_name is None:
-        raise ValueError(ERR_IOS_REFERENCE_VERSION_NULL)
+        raise VersionError(ERR_IOS_REFERENCE_VERSION_NULL)
+    
+    if not isinstance(target_version, str):
+        raise VersionError(ERR_UNKNOWN_TARGET_VERSION(target_version))
     
     if target_version.count(".") != 1:
-        raise ValueError(ERR_IOS_TARGET_VERSION_FORMAT(target_version))
+        raise VersionError(ERR_IOS_TARGET_VERSION_FORMAT(target_version))
     if participant_version_name.count(".") != 1:
-        raise ValueError(ERR_IOS_REFERENCE_VERSION_NAME_FORMAT(participant_version_name))
+        raise VersionError(ERR_IOS_REFERENCE_VERSION_NAME_FORMAT(participant_version_name))
     
     target_year, target_build = target_version.split(".")
     reference_year, reference_build = participant_version_name.split(".")
     
     if (not target_year.isdigit() or not reference_year.isdigit()
         or not target_build.isdigit() or not reference_build.isdigit()):
-        raise ValueError(ERR_IOS_VERSION_COMPONENTS_DIGITS(target_version, participant_version_name))
+        raise VersionError(ERR_IOS_VERSION_COMPONENTS_DIGITS(target_version, participant_version_name))
     
     # to intify and beyond
     target_year, target_build = int(target_year), int(target_build)
@@ -163,17 +171,16 @@ def _ios_is_this_version_op_than(
         return op(target_build, reference_build)
     return op(target_year, reference_year)
 
-
 def _android_is_version_op_than(
     op: callable, target_version: str, participant_version_code: str
 ) -> bool:
     # android is easy, we just compare the version code, which must be digits-only.
     if participant_version_code is None:
-        raise ValueError(ERR_ANDROID_participant_VERSION_CODE_NULL)
+        raise VersionError(ERR_ANDROID_participant_VERSION_CODE_NULL)
     
     if not target_version.isdigit():
-        raise ValueError(ERR_ANDROID_TARGET_VERSION_DIGITS(target_version))
+        raise VersionError(ERR_ANDROID_TARGET_VERSION_DIGITS(target_version))
     if not participant_version_code.isdigit():
-        raise ValueError(ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS(participant_version_code))
+        raise VersionError(ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS(participant_version_code))
     
     return op(int(target_version), int(participant_version_code))

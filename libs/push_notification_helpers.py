@@ -1,8 +1,7 @@
 import logging
 import operator
 import random
-import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import reduce
 from typing import List
 
@@ -17,15 +16,11 @@ from firebase_admin.messaging import (AndroidConfig, Message, Notification, Quot
 from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
-from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
-    IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION)
+from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.survey_models import Survey
-from database.system_models import GlobalSettings
-from database.user_models_participant import (Participant, ParticipantFCMHistory,
-    SurveyNotificationReport)
-from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
+from database.user_models_participant import Participant, ParticipantFCMHistory
 
 
 # same logger as in celery_push_notifications
@@ -153,79 +148,6 @@ def fcm_for_pushable_participants(last_activity_cutoff: datetime) -> QuerySet[Pa
     ).exclude(
         participant__study_id__in=slowly_get_stopped_study_ids()  # no stopped studies
     )
-
-
-#
-## Components of the Resend Push Notification logic
-#
-
-
-def base_resend_logic_participant_query(now: datetime) -> List[int]:
-    """ Current filter: iOS-only, minimum build version 2024.22. """
-    one_week_ago = now - timedelta(days=7)
-    
-    # base - split off of the heartbeat valid participants query
-    pushable_participant_info = list(
-        fcm_for_pushable_participants(one_week_ago)
-        .filter(participant__os_type=IOS_API)  # only ios
-        .values_list(
-            "participant_id",
-            "participant__os_type",
-            "participant__last_version_code",
-            "participant__last_version_name",
-        )
-    )
-    
-    # complex filters, participant app version and os type
-    pushable_participant_pks = []
-    for participant_id, os_type, version_code, version_name in pushable_participant_info:
-        # I'm injecting an exta check here as a reminder no .... do the thing the message says.
-        if os_type != IOS_API:
-            raise AssertionError("this code is currently only supposed to be for ios, you to update can_handle_push_notification_resends if you change it.")
-        # build must be greater than or equal to 2024.22
-        if is_participants_version_gte_target(
-            os_type, version_code, version_name, IOS_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
-        ):
-            pushable_participant_pks.append(participant_id)
-    
-    return pushable_participant_pks
-
-
-def update_ArchivedEvents_from_SurveyNotificationReports(
-    participant_pks: List[int], update_timestamp: datetime, log: logging.Logger
-)-> List[uuid.UUID]:
-    """ Populates confirmed_received and applied on ArchivedEvents and SurveyNotificationReports
-    based on the SurveyNotificationReports, sets last_updated. """
-    
-    # TOO_EARLY in populated as time of deploy that introduced this feature.
-    TOO_EARLY = GlobalSettings.get_singleton_instance()\
-        .earliest_possible_time_of_push_notification_resend
-    
-    # get all notification_report_pk__uuid pairs that are not applied
-    notification_report_pk__uuid = SurveyNotificationReport.objects.filter(
-        participant_id__in=participant_pks, applied=False
-    ).values_list(
-        "pk", "notification_uuid"
-    )
-    log(f"notification_report_pk__uuid: {notification_report_pk__uuid}")
-    
-    # ArchivedEvents matching those uuids to `confirmed_received=True` and `last_updated` to now.
-    query_update_archive_confirm_received = ArchivedEvent.objects.filter(
-        uuid__in=[uuid for _, uuid in notification_report_pk__uuid],
-        created_on__gte=TOO_EARLY,
-    ).update(
-        confirmed_received=True, last_updated=update_timestamp,
-    )
-    log(f"query_archive_confirm_received: {query_update_archive_confirm_received}")
-    
-    # then update NotificationReports `applied` to True so we only do it once.
-    query_update_notification_report = SurveyNotificationReport.objects.filter(
-        pk__in=[pk for pk, _ in notification_report_pk__uuid]
-    ).update(
-        applied=True, last_updated=update_timestamp
-    )
-    log(f"query_notification_report: {query_update_notification_report}")
-
 
 #
 ## Some Debugging code for use in a terminal

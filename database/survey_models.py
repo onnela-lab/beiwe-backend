@@ -105,7 +105,7 @@ class Survey(SurveyBase):
         schedules = []
         for rel_sched in self.relative_schedules.all():
             num_seconds = rel_sched.minute * 60 + rel_sched.hour * 3600
-            schedules.append([rel_sched.intervention.id, rel_sched.days_after, num_seconds])
+            schedules.append((rel_sched.intervention.id, rel_sched.days_after, num_seconds))
         return schedules
     
     def relative_timings_by_name(self) -> List[Tuple[str, int, int]]:
@@ -114,7 +114,7 @@ class Survey(SurveyBase):
         schedules = []
         for rel_sched in self.relative_schedules.all():
             num_seconds = rel_sched.minute * 60 + rel_sched.hour * 3600
-            schedules.append([rel_sched.intervention.name, rel_sched.days_after, num_seconds])
+            schedules.append((rel_sched.intervention.name, rel_sched.days_after, num_seconds))
         return schedules
     
     def absolute_timings(self) -> List[Tuple[int, int, int, int]]:
@@ -125,7 +125,7 @@ class Survey(SurveyBase):
         for abs_sched in self.absolute_schedules.all():
             event_time = abs_sched.event_time(tz)
             num_seconds = event_time.minute * 60 + event_time.hour * 3600
-            schedules.append([event_time.year, event_time.month, event_time.day, num_seconds])
+            schedules.append((event_time.year, event_time.month, event_time.day, num_seconds))
         return schedules
     
     def notification_events(self, **archived_event_filter_kwargs) -> QuerySet[ArchivedEvent]:
@@ -138,10 +138,21 @@ class Survey(SurveyBase):
         super().save(*args, **kwargs)
         self.archive()
     
-    def most_recent_archive(self) -> SurveyArchive:
-        return self.archives.latest('archive_start')
+    def most_recent_archive_pk(self) -> int:
+        # This is in a hot path, this saves milliseconds, whatever.
+        pk = self.archives.order_by("-archive_start").values_list("pk", flat=True).first()
+        if pk is None:
+            return self.archive().pk
+        return pk
     
-    def archive(self):
+    def most_recent_archive(self) -> SurveyArchive:
+        # handle case where no archives exist
+        try:
+            return self.archives.latest('archive_start')
+        except SurveyArchive.DoesNotExist:
+            return self.archive()
+    
+    def archive(self) -> SurveyArchive:
         """ Create an archive if there were any changes to the data since the last archive was
         created, or if no archive exists. """
         # get self as dictionary representation, remove fields that don't exist, extract last
@@ -156,7 +167,7 @@ class Survey(SurveyBase):
         
         # Get the most recent archive for this Survey, to check whether the Survey has been edited
         try:
-            prior_archive = self.most_recent_archive().as_dict()
+            prior_archive = self.archives.latest('archive_start').as_dict()
         except SurveyArchive.DoesNotExist:
             prior_archive = None
         
@@ -167,11 +178,12 @@ class Survey(SurveyBase):
                        for shared_field_name, shared_field_value in new_data.items()):
                 return
         
-        SurveyArchive(
+        ret = SurveyArchive(
             **new_data,
             survey_id=survey_id,
             archive_start=archive_start,
         ).save()
+        return ret
 
 
 class SurveyArchive(SurveyBase):

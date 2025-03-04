@@ -9,6 +9,7 @@ from django.db import models
 from django.db.models import Manager
 from django.utils.timezone import make_aware
 
+from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.schedule_constants import ScheduleTypes
 from database.common_models import TimestampedModel
 from database.survey_models import Survey, SurveyArchive
@@ -22,7 +23,12 @@ except ImportError:
 
 
 class BadWeeklyCount(Exception): pass
-
+InterventionPK = int
+DaysAfter = int
+Year = int
+Month = int
+Day = int
+SecondsIntoDay = int
 
 class AbsoluteSchedule(TimestampedModel):
     survey: Survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='absolute_schedules')
@@ -45,25 +51,24 @@ class AbsoluteSchedule(TimestampedModel):
         )
     
     @staticmethod
-    def create_absolute_schedules(timings: List[List[int]], survey: Survey) -> bool:
-        """ Creates new AbsoluteSchedule objects from a frontend-style list of dates and times"""
-        survey.absolute_schedules.all().delete()
+    def configure_absolute_schedules(timings: List[Tuple[Year, Month, Day, SecondsIntoDay]], survey: Survey):
+        """ Creates and deletes AbsoluteSchedules for a survey to match the frontend's absolute
+        schedule timings, a list of year, month, day, seconds-into-the-day defining a time. """
         
         if survey.deleted or not timings:
+            survey.absolute_schedules.all().delete()
             return False
         
-        duplicated = False
+        valid_pks = []
         for year, month, day, num_seconds in timings:
-            _, created = AbsoluteSchedule.objects.get_or_create(
+            instance, _ = AbsoluteSchedule.objects.get_or_create(
                 survey=survey,
                 date=date(year=year, month=month, day=day),
                 hour=num_seconds // 3600,
                 minute=num_seconds % 3600 // 60
             )
-            if not created:
-                duplicated = True
-        
-        return duplicated
+            valid_pks.append(instance.pk)
+        survey.absolute_schedules.exclude(id__in=valid_pks).delete()
 
 
 class RelativeSchedule(TimestampedModel):
@@ -82,30 +87,31 @@ class RelativeSchedule(TimestampedModel):
         time" of the ScheduledEvent, which is shifted to the participant timezone. """
         # The time of day (hour, minute) are not offsets, they are absolute times of day.
         # doing self.study.timezone here is a database query so don't do that
+        # make_aware handles shifting ambiguous times so the code doesn't crash.
         return make_aware(datetime.combine(a_date, time(self.hour, self.minute)), tz)
     
     @staticmethod
-    def create_relative_schedules(timings: List[List[int]], survey: Survey) -> bool:
-        """ Creates new RelativeSchedule objects from a frontend-style list of interventions and times
-        If you modify this you must check create_relative_schedules_by_name in libs.schedules too. """
-        survey.relative_schedules.all().delete()
-        if survey.deleted or not timings:
-            return False
+    def configure_relative_schedules(timings: List[Tuple[InterventionPK, DaysAfter, SecondsIntoDay]], survey: Survey):
+        """ Creates and deletes RelativeSchedules for a survey to match the frontend's relative
+        schedule input timings, the pk of the relevant intervention to target, the number of days
+        after, and the number of seconds into that day. """
         
-        duplicated = False
-        for intervention_id, days_after, num_seconds in timings:
+        if survey.deleted or not timings:
+            survey.relative_schedules.all().delete()
+            return False
+            
+        valid_pks: List[int] = []
+        for intervention_pk, days_after, num_seconds in timings:
             # using get_or_create to catch duplicate schedules
-            _, created = RelativeSchedule.objects.get_or_create(
+            instance, _ = RelativeSchedule.objects.get_or_create(
                 survey=survey,
-                intervention=Intervention.objects.get(id=intervention_id),
+                intervention_id=intervention_pk,
                 days_after=days_after,
                 hour=num_seconds // 3600,
                 minute=num_seconds % 3600 // 60,
             )
-            if not created:
-                duplicated = True
-        
-        return duplicated
+            valid_pks.append(instance.pk)
+        survey.relative_schedules.exclude(id__in=valid_pks).delete()
 
 
 class WeeklySchedule(TimestampedModel):
@@ -113,7 +119,7 @@ class WeeklySchedule(TimestampedModel):
         day_of_week is an integer, day 0 is Sunday.
         
         The timings schema mimics the Java.util.Calendar.DayOfWeek specification: it is zero-indexed
-         with day 0 as Sunday."""
+        with day 0 as Sunday. """
     
     survey: Survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='weekly_schedules')
     day_of_week = models.PositiveIntegerField(validators=[MaxValueValidator(6)])
@@ -124,9 +130,8 @@ class WeeklySchedule(TimestampedModel):
     scheduled_events: Manager[ScheduledEvent]
     
     @staticmethod
-    def create_weekly_schedules(timings: List[List[int]], survey: Survey) -> bool:
-        """ Creates new WeeklySchedule objects from a frontend-style list of seconds into the day. """
-        
+    def configure_weekly_schedules(timings: List[List[int]], survey: Survey):
+        """ Creates and deletes WeeklySchedule for a survey to match the input timings. """
         if survey.deleted or not timings:
             survey.weekly_schedules.all().delete()
             return False
@@ -136,22 +141,18 @@ class WeeklySchedule(TimestampedModel):
             raise BadWeeklyCount(
                 f"Must have schedule for every day of the week, found {len(timings)} instead."
             )
-        survey.weekly_schedules.all().delete()
         
-        duplicated = False
+        valid_pks: List[int] = []
         for day in range(7):
             for seconds in timings[day]:
                 # should be all ints, use integer division.
                 hour = seconds // 3600
                 minute = seconds % 3600 // 60
-                # using get_or_create to catch duplicate schedules
-                _, created = WeeklySchedule.objects.get_or_create(
+                instance, created = WeeklySchedule.objects.get_or_create(
                     survey=survey, day_of_week=day, hour=hour, minute=minute
                 )
-                if not created:
-                    duplicated = True
-        
-        return duplicated
+                valid_pks.append(instance.pk)
+        survey.weekly_schedules.exclude(id__in=valid_pks).delete()
     
     @classmethod
     def export_survey_timings(cls, survey: Survey) -> List[List[int]]:
@@ -162,7 +163,7 @@ class WeeklySchedule(TimestampedModel):
         schedule_components = WeeklySchedule.objects. \
             filter(survey=survey).order_by(*fields_ordered).values_list(*fields_ordered)
         
-        # get, calculate, append, dump.
+        # get, calculate, append, dump. -- day 0 is monday, day 6 is sunday
         for hour, minute, day in schedule_components:
             timings[day].append((hour * 60 * 60) + (minute * 60))
         return timings
@@ -195,6 +196,7 @@ class ScheduledEvent(TimestampedModel):
     deleted = models.BooleanField(null=False, default=False, db_index=True)
     uuid = models.UUIDField(null=True, blank=True, db_index=True, unique=True, default=uuid.uuid4)  # see ArchivedEvent
     most_recent_event: ArchivedEvent = models.ForeignKey("ArchivedEvent", on_delete=models.DO_NOTHING, null=True, blank=True)
+    no_resend = models.BooleanField(default=False, null=False)
     
     # due to import complexity (needs those classes) this is the best place to stick the lookup dict.
     SCHEDULE_CLASS_LOOKUP = {
@@ -231,40 +233,54 @@ class ScheduledEvent(TimestampedModel):
         elif self.absolute_schedule:
             return self.absolute_schedule
         else:
-            raise Exception("ScheduledEvent had no associated schedule")
+            raise TypeError("ScheduledEvent had no associated schedule")
     
+    def get_schedule_pk(self):
+        if self.weekly_schedule_id:
+            return self.weekly_schedule_id
+        elif self.relative_schedule_id:
+            return self.relative_schedule_id
+        elif self.absolute_schedule_id:
+            return self.absolute_schedule_id
+        else:
+            # TypeError because we hav lost the tye of schedule this is....? sure
+            raise TypeError("ScheduledEvent had no associated schedule")
+        
     def archive(
         self,
-        self_delete: bool,
         participant: Participant,
         status: str,
     ):
         """ Create an ArchivedEvent from a ScheduledEvent. """
-        ## Participant is passed in here to avoid a database call.
-        # We need to handle the case of no-existing-survey-archive on the referenced survey,  Could
-        # be cleaner, but there is an interaction with a migration that will break; not worth it.
-        try:
-            survey_archive = self.survey.most_recent_archive()
-        except SurveyArchive.DoesNotExist:
-            self.survey.archive()
-            survey_archive = self.survey.most_recent_archive()
-        
-        if participant.can_handle_push_notification_resends:
-            the_uuid = self.uuid
-        else:
-            the_uuid = None
+        ## Hot code path, Participant is passed in here to avoid a database call.
+        survey_archive_pk = self.survey.most_recent_archive_pk()  
+        the_uuid = self.uuid if participant.can_handle_push_notification_resends else None
         
         # create ArchivedEvent, link to most_recent_event, conditionally mark self as deleted.
         archive = ArchivedEvent(
-            survey_archive=survey_archive,
+            survey_archive_id=survey_archive_pk,
             participant=self.participant,
             schedule_type=self.get_schedule_type(),
             scheduled_time=self.scheduled_time,
             status=status,
             uuid=the_uuid,
+            was_resend=self.most_recent_event is not None,
         )
         archive.save()
-        self.update(most_recent_event=archive, deleted=self_delete)
+        
+        # mark self as deleted on success.
+        self.update(most_recent_event=archive, deleted=status == MESSAGE_SEND_SUCCESS)
+    
+    def __str__(self):
+        t = "Manual"
+        if self.weekly_schedule_id:
+            t = "Weekly"
+        if self.relative_schedule_id:
+            t = "Relative"
+        if self.absolute_schedule_id:
+            t = "Absolute"
+        # comes out as <ScheduledEvent: Relative>
+        return t
 
 
 class ArchivedEvent(TimestampedModel):
@@ -277,6 +293,7 @@ class ArchivedEvent(TimestampedModel):
     status = models.TextField(null=False, blank=False, db_index=True)
     uuid = models.UUIDField(null=True, blank=True, db_index=True)  # see comment below field listing
     confirmed_received = models.BooleanField(default=False, db_index=True, null=True)
+    was_resend = models.BooleanField(default=False, null=False)
     
     # The uuid field cannot have not-null or unique constraints because there is behavior that
     # depends on those value. We are using uuids to connect ArchivedEvents to ScheduledEvents, and

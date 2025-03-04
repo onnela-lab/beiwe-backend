@@ -188,6 +188,7 @@ FILE_DECRYPTION_KEY_ERROR = lambda s: f"file had decryption key error '{str(s)}'
 ERR_TARGET_VERSION_MUST_BE_STRING = lambda target_version_type: f"target_version must be a string, received {target_version_type}."
 ERR_TARGET_VERSION_CANNOT_BE_MISSING = "target_version cannot be 'missing'."
 ERR_UNKNOWN_OS_TYPE = lambda os_type: f"Unknown OS type: {os_type}."
+ERR_UNKNOWN_TARGET_VERSION = lambda target_version: f"Unknown target_version type: {target_version}."
 ERR_IOS_TARGET_VERSION_FORMAT = lambda target_version: f"IOS target_version must be of the form justdigits.justdigits, received '{target_version}'."
 ERR_IOS_REFERENCE_VERSION_NAME_FORMAT = lambda reference_version_name: f"IOS reference_version_name must be of the form justdigits.justdigits, received '{reference_version_name}'."
 ERR_IOS_VERSION_COMPONENTS_DIGITS = lambda target_version, reference_version: f"IOS version components must be only digits, received target '{target_version}', and reference '{reference_version}'."
