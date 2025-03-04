@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError

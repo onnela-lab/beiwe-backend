@@ -29,7 +29,8 @@ from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
 from libs.s3 import s3_retrieve
-from libs.utils.participant_app_version_comparison import is_participants_version_gte_target
+from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
+    VersionError)
 from libs.utils.security_utils import (compare_password, device_hash, django_password_components,
     generate_easy_alphanumeric_string)
 
@@ -306,7 +307,6 @@ class Participant(AbstractPasswordUser):
         values = [getattr(self, key) for key in ACTIVE_PARTICIPANT_FIELDS]
         return max([v for v in values if v is not None], default=None)
     
-    
     @property
     def is_dead(self) -> bool:
         return self.deleted or self.has_deletion_event
@@ -328,14 +328,17 @@ class Participant(AbstractPasswordUser):
     def can_handle_push_notification_resends(self) -> bool:
         if self.os_type != IOS_API or self.last_version_code is None or self.last_version_name is None:
             return False
+        try:
+            # does all the tests for None-ness etc.
+            return is_participants_version_gte_target(
+                self.os_type,
+                self.last_version_code,
+                self.last_version_name,
+                IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+            )
         
-        # does all the tests for None-ness etc.
-        return is_participants_version_gte_target(
-            self.os_type,
-            self.last_version_code,
-            self.last_version_name,
-            IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
-        )
+        except VersionError:
+            return False
     
     ################################################################################################
     ######################################### S3 DATA ##############################################

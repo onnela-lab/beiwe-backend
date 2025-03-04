@@ -73,6 +73,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
     relation = request.session_researcher.get_study_relation(study.id)
     can_delete = request.session_researcher.site_admin or relation in DATA_DELETION_ALLOWED_RELATIONS
     
+    enable_interventions = check_firebase_instance(require_ios=True) or check_firebase_instance(require_android=True)
     return render(
         request,
         "participant.html",
@@ -83,8 +84,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
             field_values=field_data,
             notification_attempts_count=participant.archived_events.count(),
             latest_notification_attempt=latest_notification_attempt,
-            push_notifications_enabled_for_ios=check_firebase_instance(require_ios=True),
-            push_notifications_enabled_for_android=check_firebase_instance(require_android=True),
+            enable_interventions=enable_interventions,
             study_easy_enrollment=study.easy_enrollment,
             participant_easy_enrollment=participant.easy_enrollment,
             locked=participant.is_dead,
@@ -283,6 +283,7 @@ def frontend_details_for_history_run_from_archived_events(
     - Iteration is in reverse chronological order by _schedule_ time.
     - Need to sort by survey_id - in place.
     - Only the most recent notification attempt should say "Received", priors should say "Sent"
+    - Confirmed time is - if not received, or the time it was received if it was received.
     """
     ret = []
     scheduled_time = archived_events[0]["scheduled_time"]
@@ -311,6 +312,7 @@ def frontend_details_for_history_run_from_archived_events(
             # if survey did not change ...
             if notification_details["status"] == "Received":
                 notification_details["status"] = "Sent"
+                notification_details["confirmed_time"] = "-"
         else:
             title += f' - <i>{bleach.clean(notification_details["survey_name"])}</i><br>'
             ret.append( (title, ) ) # a container of length 1 is the signal that it is a ~header-like row

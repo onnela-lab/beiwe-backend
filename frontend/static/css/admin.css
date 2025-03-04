@@ -216,6 +216,10 @@ td.custom-field-value:hover span.custom-field-edit-link {
     text-align: center;
 }
 
+.vertical-padding-3 {
+    padding-top: 3em;
+    padding-bottom: 3em;
+}
 
 .h3-margins {
     margin-block-start: 1em;

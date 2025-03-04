@@ -9,8 +9,10 @@ from django.utils import timezone
 from django.utils.timezone import localtime
 
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
-from constants.common_constants import DEV_TIME_FORMAT, DEV_TIME_FORMAT3
+from constants.common_constants import (DEV_TIME_FORMAT, DEV_TIME_FORMAT3, DEV_TIME_FORMAT4,
+    DT_24HR_N_TZ_N_SEC_N_PAREN, EASTERN, EDT, EST, UTC)
 from constants.message_strings import MESSAGE_SEND_SUCCESS
+from database.common_models import rprint
 from database.data_access_models import FileToProcess
 from database.profiling_models import UploadTracking
 from database.schedule_models import ArchivedEvent, ScheduledEvent
@@ -26,23 +28,35 @@ from libs.utils.dev_utils import disambiguate_participant_survey, TxtClr
 ## This file is referenced directly inside of developer documentation, keep it organized
 ## and well commented.
 #
+UTC = UTC
+EST = EST
+EDT = EDT
+EASTERN = EASTERN
+THE_ONE_TRUE_TIMEZONE = EASTERN
 
-# a timezone that is used in as_local and for general usage in the shell.
-# We should probably make this shell util configurable...
-THE_ONE_TRUE_TIMEZONE = gettz("America/New_York")
-EASTERN = THE_ONE_TRUE_TIMEZONE
-EST = THE_ONE_TRUE_TIMEZONE
-EDT = THE_ONE_TRUE_TIMEZONE
+# imported!
+rprint = rprint
 
-
-def as_local(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE):
-    """ Takes a datetime object and returns it in a useful timezone, defaults to THE_ONE_TRUE_TIMEZONE. """
+def as_local(dt: datetime, tz=EASTERN):
+    """ Takes a datetime object and returns it in a useful timezone, defaults to EASTERN. """
     return localtime(dt, tz)
 
 
-def tformat(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE):
-    """ Takes a datateme, returns a legible string representation using as_local. """
-    return datetime.strftime(as_local(dt, tz), DEV_TIME_FORMAT3)
+def _tformat(dt: datetime, tz=EASTERN, fmt=DEV_TIME_FORMAT3):
+    """ Takes a datatime, returns a legible string representation using as_local. """
+    if dt.tzinfo is None:
+        return dt.strftime(DT_24HR_N_TZ_N_SEC_N_PAREN) + " (None)"
+    return as_local(dt, tz).strftime(fmt)
+
+
+def tformat(dt: datetime, tz=EASTERN):
+    return _tformat(dt, tz, DEV_TIME_FORMAT)
+
+def tformat3(dt: datetime, tz=EASTERN):
+    return _tformat(dt, tz, DEV_TIME_FORMAT3)
+
+def tformat4(dt: datetime, tz=EASTERN):
+    return _tformat(dt, tz, DEV_TIME_FORMAT4)
 
 
 def PARTICIPANT(patient_id: Union[str, int]):
@@ -83,32 +97,44 @@ R = RESEARCHER  # Shorthand for RESEARCHER, just type r = R("someone") and you a
 def SURVEY(id_or_name: Union[str, int]):
     """ Get a Survey, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
-        return Survey.objects.get(pk=id_or_name)
-    try:
-        return Survey.objects.get(object_id=id_or_name)
-    except Survey.DoesNotExist:
-        surveys = Survey.fltr(name__icontains=id_or_name)
-        if surveys.count() == 0:
-            raise Survey.DoesNotExist() from None
-        if surveys.count() == 1:
-            return surveys.get()
-        pprint(list(surveys.values_list("name", "id")))
+        ret = Survey.objects.get(pk=id_or_name)
+    else:
+        try:
+            ret = Survey.objects.get(object_id=id_or_name)
+        except Survey.DoesNotExist:
+            surveys = Survey.fltr(name__icontains=id_or_name)
+            if surveys.count() == 0:
+                raise Survey.DoesNotExist() from None
+            if surveys.count() == 1:
+                return surveys.get()
+            pprint(list(surveys.values_list("name", "id")))
+    
+    if ret.name:
+        print(ret.name)
+    else:
+        print(ret.object_id)
+    return ret
 
 
 def STUDY(id_or_name: Union[str, int]):
     """ Get a Study, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
-        return Study.objects.get(pk=id_or_name)
-    try:
-        return Study.objects.get(object_id=id_or_name)
-    except Study.DoesNotExist:
-        studies = Study.fltr(name__icontains=id_or_name)
-        count = studies.count()
-        if count == 1:
-            return studies.get()
-        if count < 1:
-            raise Study.DoesNotExist() from None
-        pprint(list(studies.values_list("name", "id")))
+        ret = Study.objects.get(pk=id_or_name)
+    else:
+        try:
+            ret = Study.objects.get(object_id=id_or_name)
+        except Study.DoesNotExist:
+            studies = Study.fltr(name__icontains=id_or_name)
+            count = studies.count()
+            if count == 1:
+                return studies.get()
+            if count < 1:
+                raise Study.DoesNotExist() from None
+            pprint(list(studies.values_list("name", "id")))
+            return None
+    
+    print(ret.name)
+    return ret
 
 
 def file_process_count():
@@ -523,7 +549,7 @@ def describe_problem_uploads():
     pprint(dict(sorted(list(study_counts.items()), key=lambda x: x[1], reverse=True)), sort_dicts=False)
 
 
-def diff_strings(s1: str, s2: str):
+def diff_strings(s1: str|bytes, s2: str|bytes):
     """ A function for comparing two strings, it will print out the text to be compared up to the
     first non-matching and then some characters on either side of it. Mostly useful in developing
     tests. """

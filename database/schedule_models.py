@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, time, timedelta, tzinfo
-from typing import List, Tuple
+from typing import List, Sequence, Tuple
 
 from django.core.validators import MaxValueValidator
 from django.db import models
@@ -51,7 +51,7 @@ class AbsoluteSchedule(TimestampedModel):
         )
     
     @staticmethod
-    def configure_absolute_schedules(timings: List[Tuple[Year, Month, Day, SecondsIntoDay]], survey: Survey):
+    def configure_absolute_schedules(timings: Sequence[Tuple[Year, Month, Day, SecondsIntoDay]], survey: Survey):
         """ Creates and deletes AbsoluteSchedules for a survey to match the frontend's absolute
         schedule timings, a list of year, month, day, seconds-into-the-day defining a time. """
         

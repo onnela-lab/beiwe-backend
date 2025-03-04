@@ -730,13 +730,15 @@ class DatabaseHelperMixin:
         ]
         return ArchivedEvent.objects.bulk_create(events)
     
-    def generate_archived_event_matching_absolute_schedule(self, absolute: AbsoluteSchedule, a_uuid: uuid.UUID = None):
+    def generate_archived_event_matching_absolute_schedule(
+        self, absolute: AbsoluteSchedule, a_uuid: uuid.UUID = None, participant: Participant = None
+    ):
         # absolute is super easy
         the_event_time = absolute.event_time(self.default_study.timezone)
         # print("the event time:", the_event_time)
         return self.generate_archived_event(
             absolute.survey,
-            self.default_participant,
+            participant or self.default_participant,
             ScheduleTypes.absolute,
             the_event_time,
             a_uuid=a_uuid
@@ -935,15 +937,25 @@ class DatabaseHelperMixin:
     
     @property
     def set_default_participant_all_push_notification_features(self):
-        self.default_participant.update(
+        self.set_participant_all_push_notification_features(self.default_participant)
+    
+    def set_participant_all_push_notification_features(self, participant: Participant):
+        participant.update(
             deleted=False,
             permanently_retired=False,
             last_version_name=IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
             last_version_code="aaah!!! does not matter",
             os_type=IOS_API,
+            last_upload=timezone.now(),
         )
-        self.default_fcm_token
-
+        if hasattr(self, "_default_participant") and participant is self._default_participant:
+            self.default_fcm_token
+        else:
+            self.generate_fcm_token(participant)
+    
+    def reload_models(self, *models):
+        for m in models:
+            m.refresh_from_db()
 
 def compare_dictionaries(first, second, ignore=None):
     """ Compares two dictionary objects and displays the differences in a useful fashion. """

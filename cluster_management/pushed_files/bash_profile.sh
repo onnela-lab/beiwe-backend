@@ -36,6 +36,7 @@ alias deleteswap="sudo swapoff /swapfile; sudo rm /swapfile"
 
 #Bash Utility
 alias sudo="sudo " # allows the use of all our aliases with the sudo command
+alias watch="watch "
 alias n='nano -c' # nano with syntax highlighting
 alias no="nano -Iwn" # nano in overwrite mode to allow for quick pasted overwrites
 alias sn='sudo nano -c'
@@ -64,6 +65,9 @@ alias gd='git diff'
 alias dw='git diff -w'
 alias gs='git diff --stat'
 alias pull="git pull --ff-only"
+alias purr="git pull --rebase"
+alias checkout="git checkout"
+alias gct="git checkout"
 
 
 #File locations
@@ -76,8 +80,8 @@ alias processing-stop="killall supervisord > /dev/null 2>&1"
 alias processing-restart="pkill -HUP supervisord 2> /dev/null"
 
 #Watch Logs Live
-alias log='tail -f /home/ubuntu/celery*.log'
-alias logs='tail -f /home/ubuntu/celery*.log'
+alias log='tail -f /home/ubuntu/celery*.log /home/ubuntu/supervisor.log'
+alias logs='logs'
 alias logd='tail -f /home/ubuntu/supervisor.log'
 
 #Configuration files

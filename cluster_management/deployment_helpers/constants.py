@@ -65,6 +65,10 @@ BASE_INSTALLS = [
     # libraries
     'libpq-dev',
     "zstd",
+    # don't need to compile python anymore!
+    "python3.12",
+    "python3.12-dev",
+    "python3.12-venv",
 ]
 
 APT_WORKER_INSTALLS = copy(BASE_INSTALLS) + copy(PYTHON_COMPILE_REQUIREMENTS)

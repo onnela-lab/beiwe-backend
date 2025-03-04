@@ -1,0 +1,90 @@
+[project]
+
+name = "Beiwe-Backend"
+version = "0"  # This is a rolling release, if the need arises we will add a version number.
+
+# This pyproject.toml file is not complete. All tooling and information that can be moved into this
+# file should be incorporated, especially if it removes a configuration file from the repository.
+
+description = "The Beiwe Backend repository contains the server and host deployment and management tools for The Beiwe Platform.  This repository is a rolling release, users of the platform seeking active support are encouraged watch the main branch of the repository, to post in repo issues, and/or to get in contact via email with the maintainer so that development is aware of their use-case."
+
+maintainers = [
+  { name = "Eli Jones", email = "biblicabeiwe@gmail.com" }  
+]
+
+authors = [
+  # Eli Jones is the primary architect and maintainer of The Beiwe Platform.  He is a major contributor to the backend and the apps, and occasionally dabbles in the Forest repository.  He has been involved since the platform's inception.
+  { name = "Eli Jones" },
+  
+  # Reyva Babtista has contributed a major feature to the platform: container support! Let's hope we can eventually get everyone there, retire Elastic Beanstalk, and support other IaaS providers than AWS.
+  { name = "Reyva Babtista" },
+  
+  # Professor Onnela is the PI of Onnela Lab at the Harvard T.H. Chan School of Public Health, which develops The Beiwe Platform. This development is supported by funding from the U.S. National Institutes of Health.
+  { name = "JP Onnela" },
+  
+  # Josh Zagorsky is a founder at Zagaran Inc., which developed The Beiwe Platform under the direction of JP Onnela.  He is a major historical architect of and contributer to both apps and the backend.
+  { name = "Josh Zagorsky" },
+  
+  # Historical contributers
+  { name = "Aaron Klein" },
+  { name = "Ali Abdullah" },
+  { name = "Alvin Siu" },
+  { name = "Caleb Dixon" },
+  { name = "Chris McCarthy" },
+  { name = "Daniel Norton" },
+  { name = "Dor Samet" },
+  { name = "Erinn Looney-Triggs" },
+  { name = "Jake Klingensmith" },
+  { name = "Leila Minowada" },
+  { name = "Noah Houghton" },
+  { name = "Sean Esterkin" },
+]
+
+readme = "README.md"
+license = { file = "LICENSE.md" }
+
+classifiers = [
+  "Programming Language :: Python :: 3.12",
+  "Requires-Python: >=3.12",
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: POSIX :: Linux",
+  "Natural Language :: English",
+  
+  # "Project-URL: Homepage - https://beiwe.org"  # at time of writing there were problems with the site hosting?
+  "Project-URL: Homepage - https://github.com/onnela-lab/beiwe-backend",
+  "Project-URL: Documentation - https://github.com/onnela-lab/beiwe-backend/wiki",
+  "Project-URL: Repository - https://github.com/onnela-lab/beiwe-backend.git",
+  "Project-URL: Issues - https://github.com/onnela-lab/beiwe-backend/issues",
+]
+
+keywords = [
+  "Beiwe Platform",
+  "Beiwe",
+  "Clinical Research",
+  "Data Science",
+  "Digital Phenotyping",
+  "Phenotyping",
+  "Public Health",
+  "Research Platform",
+  "Research",
+  "Studies",
+  "Study",
+]
+
+#
+## Dependencies are not currently handled in this file
+#
+# dependencies = []
+
+#
+## We are still introducing formatters to this project, but opinionated formatters like Black
+## will not be enforced or accepted as additions.  Currently isort and yaml are actively used
+## but not enforced.  MyPy is used for type checking but not enforced or officially configured.
+## There is no Javascript code formatting tool in use (yet).
+#
+
+[tool.isort]
+py_version = 312

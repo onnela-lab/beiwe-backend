@@ -16,33 +16,38 @@ class DummyError(Exception): pass
 def determine_file_name(chunk):
     """ Generates the correct file name to provide the file with in the zip file.
         (This also includes the folder location files in the zip.) """
-    extension = chunk["chunk_path"][-3:]  # get 3 letter file extension from the source.
-    if chunk["data_type"] == SURVEY_ANSWERS:
-        # add the survey_id from the file path.
-        # output: patient_id/data_type/survey_id/time.csv
-        return "%s/%s/%s/%s.%s" % (chunk["participant__patient_id"], chunk["data_type"],
-                                   chunk["chunk_path"].rsplit("/", 2)[1], # this is the survey id
-                                   str(chunk["time_bin"]).replace(":", "_"), extension)
+    extension = chunk["chunk_path"][-3:]  # get 3 letter file extension from the source...
+    chunk_path = chunk["chunk_path"]
+    patient_id = chunk["participant__patient_id"]
+    time_bin = str(chunk["time_bin"]).replace(":", "_")  # why wouldn't it be a string...?
+    data_stream = chunk["data_type"]
     
-    elif chunk["data_type"] == SURVEY_TIMINGS:
+    if data_stream == SURVEY_ANSWERS:
+        # survey answers are not chunkable and we were getting some corrupted file names on
+        #corrupted multi-uploads from ios.
+        survey_id = chunk_path.rsplit("/", 2)[1]
+        return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
+    
+    elif data_stream == SURVEY_TIMINGS:
         # add the survey_id from the database entry.
-        return "%s/%s/%s/%s.%s" % (chunk["participant__patient_id"], chunk["data_type"],
-                                   chunk["survey__object_id"],  # this is the survey id
-                                   str(chunk["time_bin"]).replace(":", "_"), extension)
+        survey_id = chunk["survey__object_id"]
+        return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
     
-    elif chunk["data_type"] == VOICE_RECORDING:
-        # Due to a bug that was not noticed until July 2016 audio surveys did not have the survey id
-        # that they were associated with.  Later versions of the app (legacy update 1 and Android 6)
-        # correct this.  We can identify those files by checking for the existence of the extra /.
-        # When we don't find it, we revert to original behavior.
-        if chunk["chunk_path"].count("/") == 4:  #
-            return "%s/%s/%s/%s.%s" % (chunk["participant__patient_id"], chunk["data_type"],
-                                       chunk["chunk_path"].rsplit("/", 2)[1],  # this is the survey id
-                                       str(chunk["time_bin"]).replace(":", "_"), extension)
+    elif data_stream == VOICE_RECORDING:
+        # Audio surveys are also not chunkable and have to work out some extra logic
+        # survey_id = chunk_path.rsplit("/", 2)[1]
+        survey_id = chunk["survey__object_id"]
+        # if for some reason there is no match  just use the original extension.
+        if ".mp4" in chunk_path:
+            extension = "mp4"
+        elif ".wav" in chunk_path:
+            extension = "wav"
+        
+        if chunk_path.count("/") == 4:
+            return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
     
     # all other files have this form:
-    return "%s/%s/%s.%s" % (chunk['participant__patient_id'], chunk["data_type"],
-                            str(chunk["time_bin"]).replace(":", "_"), extension)
+    return f"{patient_id}/{data_stream}/{time_bin}.{extension}"
 
 
 def batch_retrieve_s3(chunk: dict) -> Tuple[dict, bytes]:
@@ -63,11 +68,21 @@ class ZipGenerator:
     def __init__(self, files_list: Iterable[str], construct_registry: bool, threads: int = 3):
         self.construct_registry = construct_registry
         self.files_list = files_list
-        self.processed_files = set()
-        self.duplicate_files = set()  # mostly for debugging
-        self.file_registry = {}
+        self.processed_files: set[str] = set()
+        self.duplicate_files: set[str] = set()  # mostly for debugging
+        self.file_registry: dict[str, str] = {}
         self.total_bytes = 0
         self.threads = threads
+    
+    def deduplicate_names(self, file_name: str) -> str:
+        """ adds '(1)', '(2)', etc to duplicate file names, checking and updateding self.duplicate_files. """
+        i = 1
+        while True:
+            i += 1
+            new_filename = f"{file_name}({i})"
+            if new_filename not in self.duplicate_files:
+                self.duplicate_files.add(new_filename)
+                return new_filename
     
     def __iter__(self) -> Generator[bytes, None, None]:
         pool = ThreadPool(self.threads)
@@ -88,6 +103,7 @@ class ZipGenerator:
                 file_name = determine_file_name(chunk)
                 if file_name in self.processed_files:
                     self.duplicate_files.add((file_name, chunk['chunk_path'], ))
+                    
                     continue
                 self.processed_files.add(file_name)
                 

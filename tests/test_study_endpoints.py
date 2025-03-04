@@ -7,9 +7,12 @@ from unittest.mock import MagicMock, patch
 import orjson
 from django.db import models
 from django.http.response import FileResponse, HttpResponse, HttpResponseRedirect
+from django.utils import timezone
 
+from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.testing_constants import ADMIN_ROLES, ALL_TESTING_ROLES
 from constants.user_constants import ResearcherRole
+from database.models import ScheduledEvent
 from database.study_models import DeviceSettings, Study
 from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.utils.http_utils import easy_url
@@ -636,6 +639,75 @@ class TestDeviceSettings(ResearcherSessionTest):
             # compare the inner values of every key, make sure they differ
             for inner_key, v2 in a_dict_of_two_values.items():
                 self.assertNotEqual(old_consent_sections[outer_key][inner_key], v2)
+    
+    def test_resend_logic_side_effect_0_1(self):
+        self.base_test_resend_logic_side_effect(0, 1, True)
+    
+    def test_resend_logic_side_effect_0_2000(self):
+        self.base_test_resend_logic_side_effect(0, 2000, True)
+    
+    def test_resend_logic_side_effect_0_0(self):
+        self.base_test_resend_logic_side_effect(0, 0, False)
+    
+    def test_resend_logic_side_effect_1_1(self):
+        self.base_test_resend_logic_side_effect(1, 1, False)
+    
+    def test_resend_logic_side_effect_1_0(self):
+        self.base_test_resend_logic_side_effect(1, 0, False)
+    
+    def test_resend_logic_side_effect_2000_9(self):
+        self.base_test_resend_logic_side_effect(2000, 9, False)
+    
+    def test_resend_logic_side_effect_2000_2000(self):
+        self.base_test_resend_logic_side_effect(2000, 2000, False)
+    
+    def base_test_resend_logic_side_effect(self, initial_resnd: int, updated_resend: int, applied: bool):
+        """ tests the resend logic safety net feature.  Resends need to be selectively disabled when
+        transitionaing from 0 to any value. """
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        self.session_device_settings.update(resend_period_minutes=initial_resnd)
+        
+        now = timezone.now()
+        the_past = now - timedelta(days=10)
+        yesterday = now - timedelta(days=1)
+        tomorrow = now + timedelta(days=1)
+        event1 = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(yesterday)
+        event2 = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(tomorrow)
+        ScheduledEvent.objects.update(last_updated=the_past)
+        event1.refresh_from_db()
+        event2.refresh_from_db()
+        
+        post_params = self.session_device_settings.export()
+        post_params.pop("id")
+        post_params.pop("consent_sections")  # this is not present in the form
+        post_params.update(**self.CONSENT_SECTIONS)
+        post_params["resend_period_minutes"] = updated_resend
+        
+        # true at start always
+        self.assertEqual(event1.last_updated, the_past)
+        self.assertFalse(event1.no_resend)
+        self.assertEqual(event2.last_updated, the_past)
+        self.assertFalse(event2.no_resend)
+        
+        # hit the endpoint
+        self.smart_post_status_code(302, self.session_study.id, **post_params)
+        event1.refresh_from_db()
+        event2.refresh_from_db()
+        
+        if applied:
+            # schedule 1 should be affected, schedule 2 should not
+            self.assertGreater(event1.last_updated, the_past)
+            self.assertTrue(event1.no_resend)
+            self.assertEqual(event2.last_updated, the_past)
+            self.assertFalse(event2.no_resend)
+            self.assertIn(DEVICE_SETTINGS_RESEND_FROM_0.format(updated_resend), self.messages)
+        else:
+            # same as true at start
+            self.assertEqual(event1.last_updated, the_past)
+            self.assertFalse(event1.no_resend)
+            self.assertEqual(event2.last_updated, the_past)
+            self.assertFalse(event2.no_resend)
+            self.assertNotIn(DEVICE_SETTINGS_RESEND_FROM_0.format(updated_resend), self.messages)  # detected
 
 
 class TestToggleForest(ResearcherSessionTest):

@@ -41,7 +41,7 @@ UTC = gettz("UTC")
 ## Somewhat common code (regular SURVEY notifications have extra logic)
 #
 
-def send_custom_notification_safely(fcm_token:str, os_type: str, logging_tag: str, message: str) -> bool:
+def send_custom_notification_safely(fcm_token: str, os_type: str, logging_tag: str, message: str) -> bool:
     """ Our wrapper around the firebase send_notification function. Returns True if successful,
     False if unsuccessful, and may raise errors that have been seen over time.  Any errors raised
     SHOULD be raised and reported because they are unknown failure modes. This code is taken and

@@ -142,25 +142,28 @@ def setup_python():
     python = "/home/ubuntu/.pyenv/versions/beiwe/bin/python"
     
     log.info("downloading and setting up pyenv. This has a bunch of suppressed spam.")
+    log.info("configuring a pyenv virtualenvironment to using the Ubuntu's 3.12 Python base")
     run(f"curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash >> {LOG_FILE}",
         quiet=True)
     run(f"{pyenv} update >> {LOG_FILE}", quiet=True)
-    log.warning("For technical reasons we need to compile python. This will take some time.")
+    
+    # We no longer need to compile python!  But if that happens again this is the code for compiling 3.8.
+    # log.warning("For technical reasons we need to compile python. This will take some time.")
     # /home/ubuntu/.pyenv/bin/pyenv install --list
     # this list is in order of release, so we can just grab the last one
-    log.info("Determining the most up-to-date version of python 3.8...")
-    versions: str = run(f"{pyenv} install --list", quiet=True)  # its a weird string-like object
-    versions = [v.strip() for v in versions.splitlines() if v.strip().startswith("3.8")]
-    most_recent_three_point_eight = versions[-1]
-    log.info(
-        f"It is {most_recent_three_point_eight}!, installing... (Suppressing a lot of spam, this will take a while.)")
-    run(f"{pyenv} install -v {most_recent_three_point_eight} >> {LOG_FILE}", quiet=True)
-    run(f"{pyenv} virtualenv {most_recent_three_point_eight} beiwe >> {LOG_FILE}", quiet=True)
-    log.info(
-        "It installed successfully! Now installing python requirements... (again with the spam and the suppressing.)")
+    # log.info("Determining the most up-to-date version of python 3.8...")
+    # versions: str = run(f"{pyenv} install --list", quiet=True)  # its a weird string-like object
+    # versions = [v.strip() for v in versions.splitlines() if v.strip().startswith("3.8")]
+    # most_recent_three_point_eight = versions[-1]
+    # log.info(f"It is {most_recent_three_point_eight}!, installing... (Suppressing a lot of spam, this will take a while.)")
+    # run(f"{pyenv} install -v {most_recent_three_point_eight} >> {LOG_FILE}", quiet=True)
+    # log.info("It installed successfully! Now installing python requirements... (again with the spam and the suppressing.)")
+    
+    run(f"{pyenv} virtualenv system beiwe >> {LOG_FILE}")
+    log.info("pyenv virtual environment created, installing Beiwe dependencies.")
     run(f"{python} -m pip install --upgrade pip setuptools wheel >> {LOG_FILE}", quiet=True)
     run(f'{python} -m pip install -r {REMOTE_HOME_DIR}/beiwe-backend/requirements.txt >> {LOG_FILE}', quiet=True)
-    log.info("Done installing python!")
+    log.info("Done configuring python.")
 
 
 def run_custom_ondeploy_script():
@@ -304,15 +307,13 @@ def create_swap():
 
 
 def do_fail_if_environment_does_not_exist(name):
-    environment_exists = check_if_eb_environment_exists(name)
-    if not environment_exists:
+    if not check_if_eb_environment_exists(name):
         log.error("There is already an environment named '%s'" % name.lower())
         EXIT(1)
 
 
 def do_fail_if_environment_exists(name):
-    environment_exists = check_if_eb_environment_exists(name)
-    if environment_exists:
+    if check_if_eb_environment_exists(name):
         log.error("There is already an environment named '%s'" % name.lower())
         EXIT(1)
 
@@ -338,8 +339,7 @@ def prompt_for_new_eb_environment_name(with_prompt=True):
 def prompt_for_extant_eb_environment_name():
     print(EXTANT_ENVIRONMENT_PROMPT)
     name = input()
-    environment_exists = check_if_eb_environment_exists(name)
-    if not environment_exists:
+    if not check_if_eb_environment_exists(name):
         log.error("There is no environment with the name %s" % name)
         EXIT(1)
     validate_beiwe_environment_config(name)
@@ -517,8 +517,7 @@ def do_create_manager():
 def do_create_worker():
     name = prompt_for_extant_eb_environment_name()
     do_fail_if_environment_does_not_exist(name)
-    manager_instance = get_manager_instance_by_eb_environment_name(name)
-    if manager_instance is None:
+    if get_manager_instance_by_eb_environment_name(name) is None:
         log.error(
             "There is no manager server for the %s cluster, cannot deploy a worker until there is." % name)
         EXIT(1)

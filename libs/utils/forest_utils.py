@@ -63,7 +63,7 @@ def download_output_file(task: ForestTask) -> bytes:
 
 # our extremely fragile mechanism to get the git commit of the "current" forest version
 def get_forest_git_hash() -> str:
-    that_git_prefix = "forest @ git+https://git@github.com/onnela-lab/forest@"
+    that_git_prefix = "beiwe-forest @ git+https://git@github.com/onnela-lab/forest@"
     
     with open(path_join(BEIWE_PROJECT_ROOT, "requirements.txt"), "rt") as f:
         requirements_file_lines = f.read().splitlines()

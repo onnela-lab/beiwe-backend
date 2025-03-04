@@ -63,8 +63,8 @@ def construct_eb_environment_variables(eb_environment_name):
 ## AWS Accessors
 ##
 
-def get_python38_platform_arn():
-    """ Gets the most recent platform arn for a python 3.8 elastic beanstalk cluster, is region specific.."""
+def get_python312_platform_arn():
+    """ Gets the most recent platform arn for a python 3.12 elastic beanstalk cluster, is region specific.."""
     eb_client = create_eb_client()
     platforms = []
     boto_filters = [{'Operator': 'contains', 'Type': 'PlatformName', 'Values': ['Python']}]
@@ -72,22 +72,23 @@ def get_python38_platform_arn():
     for platform in eb_client.list_platform_versions(MaxRecords=1000, Filters=boto_filters)['PlatformSummaryList']:
         if (platform.get(
                 'PlatformCategory', None) == 'Python' and
-                "Python 3.8" in platform.get('PlatformArn', []) and
+                "Python 3.12" in platform.get('PlatformArn', []) and
                 "64bit Amazon Linux 2" in platform.get('PlatformArn', [])
         ):
             platforms.append(platform['PlatformArn'])
     
     # platform arns are not necessarily human-alphanumerically, but a best effort here is fine.
     # looks like this:
-    # ['arn:aws:elasticbeanstalk:us-east-1::platform/Python 3.6 running on 64bit'Amazon Linux/2.9.2',
-    #  'arn:aws:elasticbeanstalk:us-east-1::platform/Python 3.6 running on 64bit Amazon Linux/2.9.3']
-    platforms.sort()
+    #  arn:aws:elasticbeanstalk:us-east-1::platform/Python 3.12 running on 64bit Amazon Linux 2023/4.3.2
+    #  arn:aws:elasticbeanstalk:us-east-1::platform/Python 3.12 running on 64bit Amazon Linux 2023/4.4.0
+    
+    platforms.sort()  # sort, we pick the last one.  I guess if this is wrong report a bug.
     
     if len(platforms) == 0:
-        raise PythonPlatformDiscoveryError("could not find python 3.8 platform")
+        raise PythonPlatformDiscoveryError("could not find python 3.12 platform")
     if len(platforms) > 1:
         log.error("\n***********************************************************\n"
-                  "Warning: encountered multiple Python 3.8 Elastic Beanstalk environment platforms.\n"
+                  "Warning: encountered multiple Python 3.12 Elastic Beanstalk environment platforms.\n"
                   "Beiwe did its best to automatically determine which environment to use.\n"
                   "After deployment finishes, determine whether there is a platform upgrade you can\n"
                   "apply for this cluster.\n"
@@ -278,7 +279,7 @@ def create_eb_environment(eb_environment_name, without_db=False):
             ApplicationName=BEIWE_APPLICATION_NAME,
             EnvironmentName=eb_environment_name,
             Description='elastic beanstalk beiwe cluster',
-            PlatformArn=get_python38_platform_arn(),
+            PlatformArn=get_python312_platform_arn(),
             OptionSettings=option_settings,
             # VersionLabel='string',  # TODO: this will probably be required later?
             

@@ -1,26 +1,28 @@
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Callable, List
+from typing import Callable
 
 from django.utils import timezone
 
-# do not import from libs.schedules
+# do not import from libs.schedules or services.survey_push_natifications !!!
 from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.user_constants import IOS_API, IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
+from database.common_models import QuerySet
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.study_models import Study
 from database.system_models import GlobalSettings
-from database.user_models_participant import SurveyNotificationReport
+from database.user_models_participant import Participant, SurveyNotificationReport
 from libs.push_notification_helpers import fcm_for_pushable_participants
 from libs.sentry import time_warning_data_processing
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
     VersionError)
 
 
-ParticipantPKs = int
-
+ParticipantPK = int
+ScheduledEventPK = int
+StudyPK = int
 
 logger = logging.getLogger("push_notifications")
 if RUNNING_TESTS:
@@ -28,10 +30,12 @@ if RUNNING_TESTS:
 else:
     logger.setLevel(logging.INFO)
 
+
 log = logger.info
 logw = logger.warning
 loge = logger.error
 logd = logger.debug
+from constants.common_constants import DEV_TIME_FORMAT3  # used in log statements
 
 
 @time_warning_data_processing("Warning: resend logic took over 30 seconds", 30)
@@ -93,15 +97,11 @@ def restore_scheduledevents_logic():
     
     # Of the uuids we identified we need to mark any that lack existing ScheduledEvents as
     # unresendable; we do this by clearing their uuid field.
-    extant_schedule_uuids = list(
-        ScheduledEvent.objects.filter(
-            uuid__in=unconfirmed_notification_uuids,
-            # created_on__gte=the_beginning_of_time,  # already filtered out
-        ).values_list("uuid", flat=True)
-    )
+    # cannot filter query by uuid because it may be too big
+    extant_schedule_uuids = set(ScheduledEvent.flat("uuid"))
     log("extant_schedule_uuids:", extant_schedule_uuids)
     
-    unresendable_archive_uuids = list(set(unconfirmed_notification_uuids) - set(extant_schedule_uuids))
+    unresendable_archive_uuids = list(set(unconfirmed_notification_uuids) - extant_schedule_uuids)
     log("unresendable_archive_uuids:", unresendable_archive_uuids)
     
     query_archive_unresendable = ArchivedEvent.objects.filter(
@@ -133,7 +133,7 @@ def disable_resend_on_problem_scheduled_events(now: datetime):
         ScheduledEvent.objects.filter(uuid__in=bugged_uuids).update(last_updated=now, no_resend=True, deleted=True)
 
 
-def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
+def base_resend_logic_participant_query(now: datetime) -> list[ParticipantPK]:
     """ Current filter: iOS-only, with the minimum build version. """
     one_week_ago = now - timedelta(days=7)
     
@@ -148,6 +148,7 @@ def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
             "participant__last_version_name",
         )
     )
+    # log("pushable_participant_info:", pushable_participant_info)
     
     # complex filters, participant app version and os type
     pushable_participant_pks = []
@@ -167,8 +168,40 @@ def base_resend_logic_participant_query(now: datetime) -> List[ParticipantPKs]:
     return pushable_participant_pks
 
 
+def get_all_unconfirmed_notification_schedules_for_bundling(
+    participant: Participant, excluded_pks: list[ScheduledEventPK] = None,
+) -> list[ScheduledEvent]:
+    """ We need to send all unconfirmed surveys to along with all other surveys whenever we send a
+    notification. We call this "bundling", also "bundled notifications". """
+    excluded_pks = excluded_pks or []
+    
+    if participant.os_type != IOS_API:
+        return []
+    
+    # cribbed from base_resend_logic_participant_query, adapted to participant object,
+    try:
+        proceed = is_participants_version_gte_target(
+            participant.os_type,
+            participant.last_version_code,
+            participant.last_version_name,
+            IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
+        )
+        if not proceed:
+            return []
+    except VersionError:
+        return []
+    
+    
+    # Exclude should be faster than a python deduplication, because this pulls full model objects,
+    # and there will be some participnts with a lot of schedules until they age out.
+    unconfirmed_uuids = get_all_unconfirmed_uuids([participant.pk])
+    return list(
+        participant.scheduled_events.filter(uuid__in=unconfirmed_uuids).exclude(pk__in=excluded_pks)
+    )
+
+
 def update_ArchivedEvents_from_SurveyNotificationReports(
-    participant_pks: List[ParticipantPKs], update_timestamp: datetime, log: Callable
+    participant_pks: list[ParticipantPK], update_timestamp: datetime, log: Callable
 ):
     """ Populates confirmed_received and applied on ArchivedEvents and SurveyNotificationReports
     based on the SurveyNotificationReports, sets last_updated. """
@@ -190,7 +223,7 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     if not notification_report_pk__uuid:
         # this is log and return exist to assist debugging, virtually unreachable on a live server
         log("no notification reports found to update.\n--")
-        return 
+        return
     
     log(f"notification_report_pk__uuid: {notification_report_pk__uuid}")
     
@@ -214,65 +247,97 @@ def update_ArchivedEvents_from_SurveyNotificationReports(
     log(f"query_notification_report: {query_update_notification_report}")
 
 
-def get_resendable_uuids(now: datetime, pushable_participant_pks: List[ParticipantPKs]) -> List[uuid.UUID]:
+### Searches for valid uuids of notifications to resend
+
+
+def get_resendable_uuids(now: datetime, pushable_participant_pks: list[ParticipantPK]) -> list[uuid.UUID]:
     """ Get the uuids of relevant archives. This includes a per-study timeout value for how frequently
-    to resend, and a filter by last updated time. aoeuaoeu eua eou.a aoeui .,..uaoeuaoeuaouiaoeu aoeu oaeu a """
+    to resend, and a filter by last updated time. """
+    uuid_info = get_resendable_uuid_info(pushable_participant_pks)
     
+    # if Send A ran at 1:00:02, and Resend (one hour) B, runs at 2:00:01 then the logic will
+    # calculate a period of under 1 hour and not trigger a resend until 2:06:00. Handle by clearing
+    # seconds and microseconds, and modulo-6 on minutes to "snap" now-ish to a common baseline.
+    now_ish = now.replace(minute=(now.minute - now.minute % 6), second=0, microsecond=0)
+    log("now:", now.strftime(DEV_TIME_FORMAT3), "\nnow_ish:", now_ish.strftime(DEV_TIME_FORMAT3))
+    
+    study_timeouts = list(
+        Study.fltr(device_settings__resend_period_minutes__gt=0) \
+            .values_list("pk", "device_settings__resend_period_minutes")
+    )
+    
+    # Every study has a different timeout values, 0 gets ignored
+    # If the last updated timestamp on the archive is before this value, we resend.
+    adjusted_timeouts = {pk: now_ish - timedelta(minutes=minutes) for pk, minutes in study_timeouts}
+    
+    # filter by last updated time lte the studies timeout value, uniqueify, listify, return.
+    uuids = []
+    # Debugging:
+    # raw_timeouts = {pk: now - timedelta(minutes=minutes) for pk, minutes in study_timeouts}
+    for a_uuid, sent_time_raw, study_id in uuid_info:
+        if (resend_timeout_adj:= adjusted_timeouts.get(study_id)) is None:
+            continue
+        
+        # Apply the same clearing and %-6 as to now_ish, 
+        minute_adj = (sent_time_raw.minute - sent_time_raw.minute % 6)
+        sent_time_adj = sent_time_raw.replace(minute=minute_adj, second=0, microsecond=0)
+        
+        # resend_timeout_raw = raw_timeouts[study_id]
+        # resend_timeout_raw_str = resend_timeout_raw.strftime(DEV_TIME_FORMAT3)
+        # resend_timeout_adj_str = resend_timeout_adj.strftime(DEV_TIME_FORMAT3)
+        # sent_time_raw_str = sent_time_raw.strftime(DEV_TIME_FORMAT3)
+        # sent_time_adj_str = sent_time_adj.strftime(DEV_TIME_FORMAT3)
+        # log("now time (raw): ", now.strftime(DEV_TIME_FORMAT3))
+        # log("sent_time:      ", sent_time_raw_str, "~>", sent_time_adj_str)
+        # log("resend timeout: ", resend_timeout_raw_str, "~>", resend_timeout_adj_str)
+        # log("sent time (raw) <= resend timout (raw):", sent_time_raw <= resend_timeout_raw, f"{'(equals)' if sent_time_raw == resend_timeout_raw else ''}")
+        # log("sent time (adj) <= resend timout (adj):", sent_time_adj <= resend_timeout_adj, f"{'(equals)' if sent_time_adj == resend_timeout_adj else ''}")
+        # log("sent time (adj) <= resend timout (raw):", sent_time_adj <= resend_timeout_raw, f"{'(equals)' if sent_time_adj == resend_timeout_raw else ''}")
+        # log("sent time (raw) <= resend timout (adj):", sent_time_raw <= resend_timeout_adj, f"{'(equals)' if sent_time_raw == resend_timeout_adj else ''}")
+        if sent_time_adj <= resend_timeout_adj:
+            uuids.append(a_uuid)
+    
+    # deduplicate uuids
+    uuids = list(set(uuids))  # this is probably faster....
+    log(f"found {len(uuids)} ArchivedEvents to resend.")
+    return uuids
+
+
+def all_resendable_uuids_query(pushable_participant_pks: list[ParticipantPK]) -> tuple[QuerySet[ArchivedEvent], set[uuid.UUID]]:
     # TOO_EARLY is populated AFTER the first run that regenerates all schedules in a periodic task
     # - only archived events created after this time are considered for resends.
     TOO_EARLY = GlobalSettings.singleton().push_notification_resend_enabled
     
-    # retired just means this flag has been set to True for some reason
-    retired_uuids = ScheduledEvent.objects.filter(no_resend=True).values_list("uuid", flat=True)
+    # Adding these as a .exclude(retired_uuids) lots of uuids in the query causes it to fail, but
+    # you always need it.  (this flag can be set to True for various reason.)
+    retired_uuids = set(ScheduledEvent.objects.filter(no_resend=True).values_list("uuid", flat=True))
     
     # Now we can filter ArchivedEvents to get all that remain unconfirmed.
-    uuid_info = list(
-        ArchivedEvent.objects.filter(
-            created_on__gt=TOO_EARLY,                     # created after the earliest possible time,
-            # last_updated__lte=thirty_minutes_ago,       # originally hardcoded.
-            status=MESSAGE_SEND_SUCCESS,                  # that should have been received,
-            participant_id__in=pushable_participant_pks,  # from relevant participants,
-            confirmed_received=False,                     # that are not confirmed received,
-            uuid__isnull=False,                           # and have uuids.
-        ).exclude(
-            uuid__in=retired_uuids,                        # exclude schedules that have been retired.
-        ).values_list(
-            "uuid",
-            "last_updated",
-            "participant__study_id",
-        )
+    query =  ArchivedEvent.objects.filter(
+        created_on__gt=TOO_EARLY,                     # created after the earliest possible time,
+        status=MESSAGE_SEND_SUCCESS,                  # that should have been received,
+        participant_id__in=pushable_participant_pks,  # from relevant participants,
+        confirmed_received=False,                     # that are not confirmed received,
+        uuid__isnull=False,                           # and have uuids.
     )
-    
+    return query, retired_uuids
+
+
+def get_resendable_uuid_info(pushable_participant_pks: list[ParticipantPK]) -> list[tuple[uuid.UUID, datetime, str]]:
+    # get data needed to do study timeout logic
+    query, retired_uuids = all_resendable_uuids_query(pushable_participant_pks)
+    uuid_info = query.order_by("created_on").values_list("uuid", "last_updated", "participant__study_id")
+    # sorted by created_on, deduplicate by uuid - causes the last uuid created in that uuid group to
+    # remain in the dict when iteration finishes. This matters because bundled resends will would
+    # cause an old uuid to be resent after a bundled resend created a new one at an unrelated time.
+    uuid_info = list({info[0]: info for info in uuid_info if info[0] not in retired_uuids}.values())
     log(f"found {len(uuid_info)} ArchivedEvents to check.")
-    
-    # handle _some_ off-by-X-minutes issues:
-    # - Clear seconds and microseconds on now to cause all values in the current minute as resendable.
-    # - true off-by-6-minutes requires a `seconds - (seconds % 6)`` operation....
-    # Not fully handling that is ok because it only occurs when push notification went out slow?
-    now_ish = now.replace(second=0, microsecond=0)
-    # print("periodicity:", list(Study.objects.values_list("device_settings__resend_period_minutes", flat=True)))
-    
-    # Every study has a different timeout value, but we exclude 0.
-    # If the last updated timestamp on the archive is before this value, we resend.
-    study_resend_timeouts = {
-        pk: now_ish - timedelta(minutes=minutes)
-        for pk, minutes in Study.objects.values_list("pk", "device_settings__resend_period_minutes")
-        if minutes > 0
-    }
-    
-    # filter by last updated time lte the studies timeout value, uniqueify, listify, return.
-    uuids = []
-    for a_uuid, last_updated, study_id in uuid_info:
-        timeout = study_resend_timeouts.get(study_id, None)
-        # from constants.common_constants import DEV_TIME_FORMAT3
-        # print("study's timeout:", timeout.strftime(DEV_TIME_FORMAT3) if timeout else timeout)
-        # print("last_updated:   ", last_updated.strftime(DEV_TIME_FORMAT3))
-        # print("timeout and last_updated <= timeout:", timeout and last_updated <= timeout)
-        # print()
-        if timeout and last_updated <= timeout:
-            uuids.append(a_uuid)
-    
-    # deduplicate uuids
-    uuids = list(set(uuids))
-    log(f"found {len(uuids)} ArchivedEvents to resend.")
-    return uuids
+    return uuid_info
+
+
+def get_all_unconfirmed_uuids(pushable_participant_pks: list[ParticipantPK]) -> list[uuid.UUID]:
+    # needed without timeout filters in bundling
+    query, retired_uuids = all_resendable_uuids_query(pushable_participant_pks)
+    valid_uuids = set(query.values_list("uuid", flat=True).distinct()) - retired_uuids
+    log(f"found {len(valid_uuids)} unconfirmed ArchivedEvents .")
+    return list(valid_uuids)

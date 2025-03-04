@@ -1,10 +1,12 @@
+from collections.abc import Callable
 from operator import ge as gte, gt, le as lte, lt
 
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
-    ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
-    ERR_IOS_REFERENCE_VERSION_NULL, ERR_IOS_TARGET_VERSION_FORMAT,
-    ERR_IOS_VERSION_COMPONENTS_DIGITS, ERR_TARGET_VERSION_CANNOT_BE_MISSING,
-    ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE, ERR_UNKNOWN_TARGET_VERSION)
+    ERR_ANDROID_REFERENCE_VERSION_CODE_NULL, ERR_ANDROID_TARGET_VERSION_DIGITS,
+    ERR_IOS_REFERENCE_VERSION_NAME_FORMAT, ERR_IOS_REFERENCE_VERSION_NULL,
+    ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
+    ERR_TARGET_VERSION_CANNOT_BE_MISSING, ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE,
+    ERR_UNKNOWN_TARGET_VERSION)
 from constants.user_constants import ANDROID_API, IOS_API
 
 
@@ -22,13 +24,14 @@ TODO: get rid of this entirely and swap to the app reports its ability and we se
 """
 
 class VersionError(ValueError): pass
+StrN = str|None
 
 #
 ## is target version X than reference version
 #
 
 def is_this_version_gt_participants(
-    os_type: str, target_version: str, participant_version_code: str, participant_version_name: str
+    os_type: StrN, target_version: StrN, participant_version_code: StrN, participant_version_name: StrN
 ) -> bool:
     return _is_this_version_op_than_participants(
         gt, os_type, target_version, participant_version_code, participant_version_name
@@ -36,7 +39,7 @@ def is_this_version_gt_participants(
 
 
 def is_this_version_lt_participants(
-    os_type: str, target_version: str, participant_version_code: str, participant_version_name: str
+    os_type: StrN, target_version: StrN, participant_version_code: StrN, participant_version_name: StrN
 ) -> bool:
     return _is_this_version_op_than_participants(
         lt, os_type, target_version, participant_version_code, participant_version_name
@@ -44,7 +47,7 @@ def is_this_version_lt_participants(
 
 
 def is_this_version_gte_participants(
-    os_type: str, target_version: str, participant_version_code: str, participant_version_name: str
+    os_type: StrN, target_version: StrN, participant_version_code: StrN, participant_version_name: StrN
 ) -> bool:
     return _is_this_version_op_than_participants(
         gte, os_type, target_version, participant_version_code, participant_version_name
@@ -52,7 +55,7 @@ def is_this_version_gte_participants(
 
 
 def is_this_version_lte_participants(
-    os_type: str, target_version: str, participant_version_code: str, participant_version_name: str
+    os_type: StrN, target_version: StrN, participant_version_code: StrN, participant_version_name: StrN
 ) -> bool:
     return _is_this_version_op_than_participants(
         lte, os_type, target_version, participant_version_code, participant_version_name
@@ -62,8 +65,9 @@ def is_this_version_lte_participants(
 ## is participant's version OPERATOR than target version
 #
 
+
 def is_participants_version_gt_target(
-    os_type: str, participant_version_code: str, participant_version_name: str, target_version: str
+    os_type: StrN, participant_version_code: StrN, participant_version_name: StrN, target_version: StrN
 ) -> bool:
     return _is_participants_version_op_than_target(
         gt, os_type, participant_version_code, participant_version_name, target_version
@@ -71,7 +75,7 @@ def is_participants_version_gt_target(
 
 
 def is_participants_version_lt_target(
-    os_type: str, participant_version_code: str, participant_version_name: str, target_version: str
+    os_type: StrN, participant_version_code: StrN, participant_version_name: StrN, target_version: StrN
 ) -> bool:
     return _is_participants_version_op_than_target(
         lt, os_type, participant_version_code, participant_version_name, target_version
@@ -79,7 +83,7 @@ def is_participants_version_lt_target(
 
 
 def is_participants_version_gte_target(
-    os_type: str, participant_version_code: str, participant_version_name: str, target_version: str
+    os_type: StrN, participant_version_code: StrN, participant_version_name: StrN, target_version: StrN
 ) -> bool:
     return _is_participants_version_op_than_target(
         gte, os_type, participant_version_code, participant_version_name, target_version
@@ -87,7 +91,7 @@ def is_participants_version_gte_target(
 
 
 def is_participants_version_lte_target(
-    os_type: str, participant_version_code: str, participant_version_name: str, target_version: str
+    os_type: StrN, participant_version_code: StrN, participant_version_name: StrN, target_version: StrN
 ) -> bool:
     return _is_participants_version_op_than_target(
         lte, os_type, participant_version_code, participant_version_name, target_version
@@ -99,8 +103,8 @@ def is_participants_version_lte_target(
 
 
 def _is_participants_version_op_than_target(
-    op: callable, os_type: str, participant_version_code: str, participant_version_name: str,
-    target_version: str
+    op: Callable, os_type: StrN, participant_version_code: StrN, participant_version_name: StrN,
+    target_version: StrN
 ) -> bool:
     _validate_target_and_os(os_type, target_version)
     if os_type == IOS_API:
@@ -109,12 +113,12 @@ def _is_participants_version_op_than_target(
     if os_type == ANDROID_API:
         return _android_is_version_op_than(op, participant_version_code, target_version)
     
-    raise AssertionError("unreachable")
+    raise VersionError(ERR_UNKNOWN_OS_TYPE(os_type))
 
 
 def _is_this_version_op_than_participants(
-    op: callable, os_type: str, target_version: str, participant_version_code: str,
-    participant_version_name: str
+    op: Callable, os_type: StrN, target_version: StrN, participant_version_code: StrN,
+    participant_version_name: StrN
 ) -> bool:
     _validate_target_and_os(os_type, target_version)
     if os_type == IOS_API:
@@ -123,22 +127,22 @@ def _is_this_version_op_than_participants(
     if os_type == ANDROID_API:
         return _android_is_version_op_than(op, target_version, participant_version_code)
     
-    raise ValueError(ERR_UNKNOWN_OS_TYPE(os_type))
+    raise VersionError(ERR_UNKNOWN_OS_TYPE(os_type))
 
 
-def _validate_target_and_os(os_type: str, target_version: str) -> None:
+def _validate_target_and_os(os_type: StrN, target_version: StrN) -> None:
     if not isinstance(target_version, str):
-        raise ValueError(ERR_TARGET_VERSION_MUST_BE_STRING(type(target_version)))
+        raise VersionError(ERR_TARGET_VERSION_MUST_BE_STRING(type(target_version)))
     
     if target_version == "missing":
-        raise ValueError(ERR_TARGET_VERSION_CANNOT_BE_MISSING)
+        raise VersionError(ERR_TARGET_VERSION_CANNOT_BE_MISSING)
     
     if os_type not in (IOS_API, ANDROID_API):
-        raise ValueError(ERR_UNKNOWN_OS_TYPE(os_type))
+        raise VersionError(ERR_UNKNOWN_OS_TYPE(os_type))
 
 
 def _ios_is_this_version_op_than(
-    op: callable, target_version: str, participant_version_name: str
+    op: Callable, target_version: StrN, participant_version_name: StrN
 ) -> bool:
     # version_code for ios looks like 2.x, 2.x.y, or 2.x.yz, or is None
     # version_name for ios looks like 2024.21, or is None, or a commit-hash-like string.
@@ -171,12 +175,13 @@ def _ios_is_this_version_op_than(
         return op(target_build, reference_build)
     return op(target_year, reference_year)
 
+
 def _android_is_version_op_than(
-    op: callable, target_version: str, participant_version_code: str
+    op: Callable, target_version: StrN, participant_version_code: StrN
 ) -> bool:
     # android is easy, we just compare the version code, which must be digits-only.
     if participant_version_code is None:
-        raise VersionError(ERR_ANDROID_participant_VERSION_CODE_NULL)
+        raise VersionError(ERR_ANDROID_REFERENCE_VERSION_CODE_NULL)
     
     if not target_version.isdigit():
         raise VersionError(ERR_ANDROID_TARGET_VERSION_DIGITS(target_version))

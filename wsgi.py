@@ -8,4 +8,4 @@ from django.core.wsgi import get_wsgi_application
 sys.stderr = sys.stdout
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.django_settings")
-application = get_wsgi_application()
+application = get_wsgi_application()  # variable must be named application

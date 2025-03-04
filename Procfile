@@ -1,1 +1,1 @@
-web: uwsgi --yaml uwsgi-config.yml
+web: gunicorn --config=gunicorn_conf.py

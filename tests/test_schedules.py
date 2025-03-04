@@ -10,6 +10,7 @@ from dateutil import tz
 from dateutil.tz import gettz
 from django.utils import timezone
 
+from constants.common_constants import EASTERN
 from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
 from constants.testing_constants import (EDT_WEEK, EST_WEEK, MIDNIGHT_EVERY_DAY_OF_WEEK,
     MONDAY_JUNE_NOON_6_2022_EDT, NOON_EVERY_DAY_OF_WEEK, THURS_OCT_6_NOON_2022_NY,
@@ -27,8 +28,7 @@ from tests.common import CommonTestCase
 
 
 # timezones should be compared using the 'is' operator
-THE_ONE_TRUE_TIMEZONE = gettz("America/New_York")
-THE_OTHER_ACCEPTABLE_TIMEZONE = gettz("UTC")
+UTC = gettz("UTC")
 
 SCHEDULEDEVENT_IDENTITY_FIELDS = [
     "participant_id",
@@ -195,7 +195,7 @@ class TestGetSurveysAndSchedulesQuery(CommonTestCase):
         # Testing this with an absolute schedule.
         self.default_study.update_only(timezone_name='America/New_York')
         scheduled_event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(WEDNESDAY_JUNE_NOON_8_2022_EDT)
-        absolute_schedule = AbsoluteSchedule.objects.get()  # will fail if there is more than one, which would be a bug
+        absolute_schedule = AbsoluteSchedule.obj_get()  # will fail if there is more than one, which would be a bug
         
         self.default_participant.try_set_timezone('GMT')
         self.default_participant.refresh_from_db()
@@ -502,7 +502,7 @@ class TestRelativeSchedulesCreation(CommonTestCase):
     def test_create_one_relative_schedules(self):
         RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
         self.assertEqual(RelativeSchedule.objects.count(), 1)
-        self.assert_one_day_one_hour(RelativeSchedule.objects.get())
+        self.assert_one_day_one_hour(RelativeSchedule.obj_get())
     
     def test_create_two_relative_schedules(self):
         RelativeSchedule.configure_relative_schedules([self.one_day_one_hour, self.two_days_two_hours], self.default_survey)
@@ -534,7 +534,7 @@ class TestRelativeSchedulesCreation(CommonTestCase):
     
     def test_create_relative_schedules_does_not_delete_existing(self):
         RelativeSchedule.configure_relative_schedules([self.one_day_one_hour], self.default_survey)
-        one = RelativeSchedule.objects.get()
+        one = RelativeSchedule.obj_get()
         RelativeSchedule.configure_relative_schedules(
             [self.one_day_one_hour, self.two_days_two_hours], self.default_survey)
         self.assertEqual(RelativeSchedule.objects.count(), 2)
@@ -550,7 +550,7 @@ class TestRelativeSchedulesCreation(CommonTestCase):
         # test it deletes the correct one
         RelativeSchedule.configure_relative_schedules([self.two_days_two_hours], self.default_survey)
         self.assertEqual(RelativeSchedule.objects.count(), 1)
-        two_again = RelativeSchedule.objects.get()
+        two_again = RelativeSchedule.obj_get()
         self.assert_two_days_two_hours(two_again)
         self.assertEqual(two.pk, two_again.pk)
         self.assertEqual(two.hour, two_again.hour)
@@ -574,9 +574,9 @@ class TestAbsoluteSchedulesCreation(CommonTestCase):
     def test_create_absolute_schedule(self):
         AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
         self.assertEqual(AbsoluteSchedule.objects.count(), 1)
-        AbsoluteSchedule.objects.get()
-        self.assertEqual(AbsoluteSchedule.objects.get().date, self.TODAY)
-        self.assertEqual(AbsoluteSchedule.objects.get().hour, 1)
+        AbsoluteSchedule.obj_get()
+        self.assertEqual(AbsoluteSchedule.obj_get().date, self.TODAY)
+        self.assertEqual(AbsoluteSchedule.obj_get().hour, 1)
     
     def test_create_two_absolute_schedules(self):
         AbsoluteSchedule.configure_absolute_schedules([self.today_at_one, self.tomorrow_at_two], self.default_survey)
@@ -614,7 +614,7 @@ class TestAbsoluteSchedulesCreation(CommonTestCase):
     
     def test_create_absolute_schedule_does_not_delete_existing(self):
         AbsoluteSchedule.configure_absolute_schedules([self.today_at_one], self.default_survey)
-        one = AbsoluteSchedule.objects.get()
+        one = AbsoluteSchedule.obj_get()
         AbsoluteSchedule.configure_absolute_schedules([self.today_at_one, self.tomorrow_at_two], self.default_survey)
         self.assertEqual(AbsoluteSchedule.objects.count(), 2)
         one_again, two = AbsoluteSchedule.objects.order_by("date")
@@ -625,7 +625,7 @@ class TestAbsoluteSchedulesCreation(CommonTestCase):
         # and then test that it deletes the correct one
         AbsoluteSchedule.configure_absolute_schedules([self.tomorrow_at_two], self.default_survey)
         self.assertEqual(AbsoluteSchedule.objects.count(), 1)
-        two_again = AbsoluteSchedule.objects.get()
+        two_again = AbsoluteSchedule.obj_get()
         self.assertEqual(two.pk, two_again.pk)
         self.assertEqual(two.date, self.TOMORROW)
         self.assertEqual(two_again.date, self.TOMORROW)
@@ -951,7 +951,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.default_populated_intervention_date
         self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
         repopulate_relative_survey_schedule_events(self.default_survey, self.default_participant)
-        event = ScheduledEvent.objects.get()
+        event = ScheduledEvent.obj_get()
         event.update(relative_schedule=None)
         repopulate_relative_survey_schedule_events(self.default_survey)
     
@@ -965,7 +965,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
     def test_survey_has_no_schedules_absolute(self):
         self.generate_absolute_schedule(timezone.now().date())
         repopulate_absolute_survey_schedule_events(self.default_survey, self.default_participant)
-        event = ScheduledEvent.objects.get()
+        event = ScheduledEvent.obj_get()
         event.update(absolute_schedule=None)
         repopulate_absolute_survey_schedule_events(self.default_survey)
     
@@ -984,6 +984,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.assertIsNotNone(abs_archive.uuid)
     
     def test_good_archive_event_with_relative_schedule_helper_is_reasonable(self):
+        
         rel_sched = self.generate_relative_schedule(
             self.default_survey, self.default_intervention, days_after=1, hours_after=1, minutes_after=1
         )
@@ -994,11 +995,11 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         reference_time = datetime(
             year=d.year,
             month=d.month,
-            day=d.day + 1,
+            day=d.day,
             hour=1,
             minute=1,
-            tzinfo=THE_ONE_TRUE_TIMEZONE
-        )
+            tzinfo=EASTERN,
+        ) + timedelta(days=1)  # lol this test failed on the end of the month once...
         
         rel_archive = self.generate_archived_event_for_relative_schedule(
             rel_sched, self.default_participant

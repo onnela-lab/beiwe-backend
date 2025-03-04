@@ -196,3 +196,6 @@ ERR_IOS_REFERENCE_VERSION_NULL = "IOS reference_version_name cannot be None."
 ERR_ANDROID_TARGET_VERSION_DIGITS = lambda target_version: f"Android target_version must be only digits, received '{target_version}'."
 ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS = lambda reference_version_code: f"Android reference_version_code must be only digits, received '{reference_version_code}'."
 ERR_ANDROID_REFERENCE_VERSION_CODE_NULL = "Android reference_version_code cannot be None."
+
+# obscure side effect warning
+DEVICE_SETTINGS_RESEND_FROM_0 = "Warning: the survey notification resend period was updated from a value of 0 to {} minutes. This scenario could cause all historically tracked and missed survey notifications to be immediately resent. In order to avoid this, automatic resends have been disabled for all survey schedules on this study that occurred in the past. Automatic resend logic will only be enabled for schedules that have not yet been sent. "

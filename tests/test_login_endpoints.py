@@ -330,7 +330,7 @@ class TestLoginPages(BasicSessionTestCase):
     
     def test_password_too_short_site_admin(self):
         # test that the password too short redirect applies to admin endpoints
-        self.assertEquals(
+        self.assertEqual(
             self.session_researcher.password_min_length, len(self.DEFAULT_RESEARCHER_PASSWORD)
         )
         self.session_researcher.update_only(password_min_length=8)
@@ -347,7 +347,7 @@ class TestLoginPages(BasicSessionTestCase):
     
     def test_password_too_short_researcher(self):
         # test that the password too short redirect applies to admin endpoints
-        self.assertEquals(
+        self.assertEqual(
             self.session_researcher.password_min_length, len(self.DEFAULT_RESEARCHER_PASSWORD)
         )
         self.session_study.update_only(password_minimum_length=20)
