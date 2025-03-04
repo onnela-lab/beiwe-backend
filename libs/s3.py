@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Generator, List, Optional, Tuple
 
 import boto3
+import zstd
 from botocore.client import BaseClient, Paginator
 from cronutils import ErrorHandler
 from Cryptodome.PublicKey import RSA
@@ -11,6 +12,7 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
     S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import CHUNKS_FOLDER
 from libs.aes import decrypt_server, encrypt_for_server
+from libs.file_processing.data_fixes import normalize_s3_file_path
 from libs.rsa import generate_key_pairing, get_RSA_cipher, prepare_X509_key_for_java
 
 
@@ -39,8 +41,8 @@ conn: BaseClient = boto3.client(
 
 
 def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
-    from database.study_models import Study
-    from database.user_models_participant import Participant
+    from database.models import Participant, Study  # circular imports
+    
     if isinstance(obj, Participant):
         return obj.study.encryption_key.encode()
     elif isinstance(obj, Study):
@@ -63,6 +65,70 @@ def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy):
     else:
         raise TypeError(f"expected Study, Participant, or 24 char str, received '{type(obj)}'")
     return study_object_id + "/" + key_path
+
+
+
+class S3Compressed:
+    bypass_study_folder: bool
+    file_content: bytes|None
+    s3_path_raw: str 
+    s3_path_zstd: str
+    smart_key_obj: StrOrParticipantOrStudy
+    
+    def __init__(self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool) -> None:
+        if s3_path.endswith(".zstd"):
+            raise ValueError("path should never end with .zstd")
+        
+        self.s3_path_raw = s3_path
+        # self.s3_path_normalized = normalize_s3_file_path(s3_path)
+        self.s3_path_zstd = s3_path + ".zstd"
+        
+        self.bypass_study_folder = bypass_study_folder
+        self.smart_key_obj = obj
+        
+        self.file_content = None
+    
+    def download(self):
+        try:
+            self._download_as_compressed()
+        except NoSuchKeyException:
+            self._download_as_uncompressed_full_loop()
+    
+    def _download_as_uncompressed_full_loop(self):
+        """ Forces a file to be compressed, manages instance state so it works """
+        raw_data = s3_retrieve(self.s3_path_raw, self.smart_key_obj, self.bypass_study_folder)
+        self.file_content = raw_data
+        self.push_data()  # compresses
+        assert not hasattr(self, "file_content"), "S3Compressed: full loop didn't remove file_content"
+        assert hasattr(self, "compressed_data"), "S3Compressed: full loop didn't create compressed_data"
+        s3_delete(self.s3_path_raw)
+        del self.compressed_data  # remove the compressed data from memory
+        self.file_content = raw_data
+        # scope exit, one reference to file_content, 
+    
+    def _download_as_compressed(self):
+        raw_data = s3_retrieve(self.s3_path_zstd, self.smart_key_obj, self.bypass_study_folder)
+        self.file_content = zstd.decompress(raw_data)
+    
+    def compress_data(self):
+        self._do_compress()
+        del self.file_content  # removes the uncompressed data from memory
+    
+    def _do_compress(self):
+        assert not hasattr(self, "compressed_data"), "S3Compressed: compressed_data already exists"
+        assert hasattr(self, "file_content"), "S3Compressed: file_content was not set before compression"
+        assert self.file_content is not None, "S3Compressed: file_content was None at compression time"
+        
+        self.compressed_data = zstd.compress(
+            self.file_content,
+            1,  # compression level (1 yields better compression on average across our data streams
+            0,  # auto-tune the number of threads based on cpu cores (no apparent drawbacks)
+        )
+    
+    def push_data(self):
+        if not hasattr(self, "compressed_data"):
+            self.compress_data()
+        s3_upload(self.s3_path_zstd, self.compressed_data, self.smart_key_obj, raw_path=self.bypass_study_folder)
 
 
 def s3_upload(
@@ -97,7 +163,7 @@ def s3_get_size(key_path: str):
     return conn.head_object(Bucket=S3_BUCKET, Key=key_path)["ContentLength"]
 
 
-def s3_retrieve(key_path: str, obj: str, raw_path: bool = False, number_retries=3) -> bytes:
+def s3_retrieve(key_path: str, obj: StrOrParticipantOrStudy, raw_path: bool = False, number_retries=3) -> bytes:
     """ Takes an S3 file path (key_path), and a study ID.  Takes an optional argument, raw_path,
     which defaults to false.  When set to false the path is prepended to place the file in the
     appropriate study_id folder. """
