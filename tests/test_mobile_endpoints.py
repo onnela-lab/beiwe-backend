@@ -133,8 +133,7 @@ class TestAppVersionHistory(ParticipantSessionTest):
         self.INJECT_DEVICE_TRACKER_PARAMS = False
         self.smart_post_status_code(200, os_version="1.0.1", version_name="1.0.1", version_code="1.0.1")
         self.assertEqual(AppVersionHistory.objects.count(), 1)
-    
-    
+
 
 #
 ## mobile endpoints
@@ -369,12 +368,8 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.s3_upload")
     @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_first_register_only_triggers_once(
-        self, get_client_public_key_string: MagicMock, s3_upload: MagicMock
-    ):
-        s3_upload.return_value = None
+    def test_first_register_only_triggers_once(self, get_client_public_key_string: MagicMock):
         get_client_public_key_string.return_value = "a_private_key"
         resp = self.smart_post_status_code(200, **self.BASIC_PARAMS)
         # include the basic validity of the request doing its thing test
@@ -398,16 +393,12 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertGreaterEqual(self.default_participant.last_register_user,
                                 self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.s3_upload")
     @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_success_unregistered_ever(
-        self, get_client_public_key_string: MagicMock, s3_upload: MagicMock
-    ):
+    def test_success_unregistered_ever(self, get_client_public_key_string: MagicMock):
         # This test has no intervention dates - which is a case that doesn't ~really exist anymore,
         # because loading the participant page will populate those values on all participants where
         # it is missing, with a date value of None. The followup test includes a participant with a
         # None intervention so its probably fine.
-        s3_upload.return_value = None
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)  # one off test detail
         get_client_public_key_string.return_value = "a_private_key"
@@ -423,15 +414,11 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.s3_upload")
     @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_success_unregistered_complex_study(
-        self, get_client_public_key_string: MagicMock, s3_upload: MagicMock
-    ):
+    def test_success_unregistered_complex_study(self, get_client_public_key_string: MagicMock):
         # there was a bug where participants with intervention dates set equal to None would crash
         # inside repopulate_relative_survey_schedule_events because they were not being filtered out,
         # but the bug seems to be a django bug where you can't exclude null values from a queryset.
-        s3_upload.return_value = None
         get_client_public_key_string.return_value = "a_private_key"
         self.default_populated_intervention_date.update(date=None)
         self.default_study_field  # may as well throw this in, shouldn't do anything
@@ -454,13 +441,9 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.s3_upload")
     @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_success_bad_device_id_still_works(
-        self, get_client_public_key_string: MagicMock, s3_upload: MagicMock
-    ):
+    def test_success_bad_device_id_still_works(self, get_client_public_key_string: MagicMock):
         # we blanket disabled device id validation
-        s3_upload.return_value = None
         get_client_public_key_string.return_value = "a_private_key"
         # unenrolled participants have no device id
         params = self.BASIC_PARAMS
@@ -476,10 +459,8 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.s3_upload")
     @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_bad_password(self, get_client_public_key_string: MagicMock, s3_upload: MagicMock):
-        s3_upload.return_value = None
+    def test_bad_password(self, get_client_public_key_string: MagicMock):
         get_client_public_key_string.return_value = "a_private_key"
         params = self.BASIC_PARAMS
         params['password'] = "nope!"
@@ -492,12 +473,8 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.s3_upload")
     @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_study_easy_enrollment(
-        self, get_client_public_key_string: MagicMock, s3_upload: MagicMock
-    ):
-        s3_upload.return_value = None
+    def test_study_easy_enrollment(self, get_client_public_key_string: MagicMock):
         get_client_public_key_string.return_value = "a_private_key"
         params = self.BASIC_PARAMS
         self.default_study.update(easy_enrollment=True)
@@ -512,12 +489,8 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.s3_upload")
     @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_participant_easy_enrollment(
-        self, get_client_public_key_string: MagicMock, s3_upload: MagicMock
-    ):
-        s3_upload.return_value = None
+    def test_participant_easy_enrollment(self, get_client_public_key_string: MagicMock):
         get_client_public_key_string.return_value = "a_private_key"
         params = self.BASIC_PARAMS
         self.default_participant.update(easy_enrollment=True)
@@ -904,7 +877,7 @@ class TestHeartbeatEndpoint(ParticipantSessionTest):
         self.assertEqual(AppHeartbeats.objects.count(), 2)
         t_foreign = AppHeartbeats.objects.last().timestamp
         self.assertIsInstance(t_foreign, datetime)
-        
+    
     def test_device_active_surveys(self):
         # test that the endpoint creates a device active survey object
         self.assertIsNone(self.default_participant.last_active_survey_ids)
@@ -914,7 +887,7 @@ class TestHeartbeatEndpoint(ParticipantSessionTest):
         self.smart_post_status_code(200, active_survey_ids=fake_object_id)
         self.default_participant.refresh_from_db()
         self.assertEqual(self.default_participant.last_active_survey_ids, fake_object_id)
-        
+
 
 class TestPushNotificationSetFCMToken(ParticipantSessionTest):
     ENDPOINT_NAME = "mobile_endpoints.set_fcm_token"
