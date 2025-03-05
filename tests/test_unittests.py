@@ -3,10 +3,12 @@ import time
 import unittest
 import uuid
 from datetime import datetime, timedelta
+from io import BytesIO
 from typing import Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import _Call, MagicMock, Mock, patch
 
 import dateutil
+import zstd
 from dateutil.tz import gettz
 from django.utils import timezone
 
@@ -22,10 +24,12 @@ from database.profiling_models import EncryptionErrorMetadata, LineEncryptionErr
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
     PushNotificationDisabledEvent, SurveyNotificationReport)
+from libs.aes import encrypt_for_server
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
 from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
+from libs.s3 import decrypt_server, S3Storage
 from libs.utils.forest_utils import get_forest_git_hash
 from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
     is_this_version_gte_participants, is_this_version_lt_participants,
@@ -743,7 +747,7 @@ class TestAppVersionComparison(CommonTestCase):
         with self.assertRaises(ValueError) as e_wrapper:
             is_this_version_gt_participants(IOS, "2024.", "junk", IOS_VALID)
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_VERSION_COMPONENTS_DIGITS("2024.", IOS_VALID))
-        
+    
     def test_ios_trailing_period_reference(self):
         with self.assertRaises(ValueError) as e_wrapper:
             is_this_version_gt_participants(IOS, IOS_VALID, "junk", "2024.")
@@ -753,3 +757,308 @@ class TestAppVersionComparison(CommonTestCase):
         with self.assertRaises(ValueError) as e_wrapper:
             is_this_version_gt_participants(IOS, IOS_VALID, "junk", ".2024")
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_VERSION_COMPONENTS_DIGITS(IOS_VALID, ".2024"))
+
+
+
+class TestS3Storage(CommonTestCase):
+    """ Tests for the S3Storage class is libs.s3 """
+    
+    # due to REALLY STUPID DYNAMIC ERROR CLASS GENERATION IN BOTO3.... we have some code that checks
+    # the name of class type because it cannot be imported.  to test this code we need an error class
+    # that has that same name
+    class NoSuchKey(Exception): pass
+    
+    def hack_s3_error(self, s: str):
+        return self.NoSuchKey(s)
+    
+    COMPRESSED_SLUG = zstd.compress(b"content", 1, 0)
+    ENCRYPTED_SLUG = encrypt_for_server(b"content", CommonTestCase.DEFAULT_ENCRYPTION_KEY_BYTES)
+    COMPRESSED_ENCRYPTED_SLUG = encrypt_for_server(COMPRESSED_SLUG, CommonTestCase.DEFAULT_ENCRYPTION_KEY_BYTES)
+    
+    def test_participant_instantiation(self):
+        s = S3Storage("a_path", self.default_participant, bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zstd, "a_path.zstd")
+        self.assertEqual(s.s3_path_uncompressed, "a_path")
+        self.assertEqual(s.bypass_study_folder, False)
+        self.assertIs(s.smart_key_obj, self.default_participant)
+        self.assertIsNone(s.uncompressed_data)
+    
+    def test_objectid_instantiation(self):
+        s = S3Storage("a_path", "literally just a string", bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zstd, "a_path.zstd")
+        self.assertEqual(s.s3_path_uncompressed, "a_path")
+        self.assertEqual(s.bypass_study_folder, False)
+        self.assertIs(s.smart_key_obj, "literally just a string")
+        self.assertIsNone(s.uncompressed_data)
+    
+    def test_study_instantiation(self):
+        s = S3Storage("a_path", self.default_study, bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zstd, "a_path.zstd")
+        self.assertEqual(s.s3_path_uncompressed, "a_path")
+        self.assertEqual(s.bypass_study_folder, False)
+        self.assertIs(s.smart_key_obj, self.default_study)
+        self.assertIsNone(s.uncompressed_data)
+    
+    
+    @property
+    def default_s3storage_with_prefix(self):
+        # participant is probably the best test....
+        return S3Storage("a_path", self.default_participant, bypass_study_folder=False)
+    
+    @property
+    def default_s3storage_without_prefix(self):
+        return S3Storage("a_path", self.default_participant, bypass_study_folder=True)
+    
+    ### WITH PREFIX
+    
+    def params_for_upload_compressed_with_prefix(self):
+        return dict(
+            Body=self.COMPRESSED_SLUG,
+            Bucket='test_bucket',
+            Key=f'{self.default_study.object_id}/a_path.zstd',  # with zstd, with prefix
+        )
+    
+    def params_for_download_compressed_with_prefix(self):
+        return dict(
+            Bucket='test_bucket',
+            Key=f'{self.default_study.object_id}/a_path.zstd',  # with zstd, with prefix
+            ResponseContentType='string'
+        )
+    
+    def params_for_download_UNCOMPRESSED_with_prefix(self):
+        return dict(
+            Bucket='test_bucket',
+            Key=f'{self.default_study.object_id}/a_path',  # without zstd, with prefix
+            ResponseContentType='string'
+        )
+    
+    def params_for_delete_UNCOMPRESSED_with_prefix(self):
+        return dict(
+            Bucket='test_bucket',
+            Key=f'{self.default_study.object_id}/a_path',  # without zstd, with prefix
+        )
+    
+    ### WITHOUT PREFIX
+    
+    def params_for_upload_compressed_without_prefix(self):
+        return dict(
+            Body=self.COMPRESSED_SLUG,
+            Bucket='test_bucket',
+            Key='a_path.zstd',  # with zstd, without prefix
+        )
+    
+    def params_for_download_compressed_without_prefix(self):
+        return dict(
+            Bucket='test_bucket',
+            Key='a_path.zstd',  # with zstd, without prefix
+            ResponseContentType='string'
+        )
+    
+    def params_for_download_UNCOMPRESSED_without_prefix(self):
+        return dict(
+            Bucket='test_bucket',
+            Key='a_path',  # without zstd, without prefix
+            ResponseContentType='string'
+        )
+    
+    def params_for_delete_UNCOMPRESSED_without_prefix(self):
+        return dict(
+            Bucket='test_bucket',
+            Key='a_path',  # without zstd, without prefix
+        )
+    
+    ################################################################################################
+    def assert_hasattr(self, obj, attr):
+        self.assertTrue(hasattr(obj, attr))
+    
+    def assert_not_hasattr(self, obj, attr):
+        self.assertFalse(hasattr(obj, attr))
+    
+    def extract_mock_call_params(self, m: MagicMock) -> list[_Call]:
+        # typing this is stupid
+        return [c for c in m.method_calls]
+    
+    def decrypt_kwarg_Body(self, kwargs):
+        kwargs["Body"] = decrypt_server(kwargs["Body"], self.DEFAULT_ENCRYPTION_KEY_BYTES)
+    
+    ################################################################################################
+    
+    def test_zstd_path_rejected(self):
+        with self.assertRaises(ValueError) as e_wrapper:
+            S3Storage("a_path.zstd", self.default_participant, bypass_study_folder=False)
+    
+    def test_get_cache_encryption_key(self):
+        s = self.default_s3storage_with_prefix
+        self.assert_not_hasattr(s, "_encryption_key")
+        self.assertEqual(s.encryption_key, self.DEFAULT_ENCRYPTION_KEY_BYTES)
+        self.assert_hasattr(s, "_encryption_key")
+    
+    def test_set_pop_file_contents(self):
+        s = self.default_s3storage_with_prefix
+        self.assert_hasattr(s, "uncompressed_data")
+        self.assert_not_hasattr(s, "compressed_data")
+        self.assertIsNone(s.uncompressed_data)
+        self.assertRaises(TypeError, s.set_file_content, "content")
+        s.set_file_content(b"content")
+        self.assertEqual(s.pop_file_content(), b"content")
+        self.assert_not_hasattr(s, "uncompressed_data")
+        self.assert_not_hasattr(s, "compressed_data")
+    
+    def test_compress_data_and_clear_uncompressed(self):
+        s = self.default_s3storage_with_prefix
+        s.set_file_content(b"content")
+        s.compress_data_and_clear_uncompressed()
+        self.assert_not_hasattr(s, "uncompressed_data")
+        self.assert_hasattr(s, "compressed_data")
+        self.assertEqual(s.compressed_data, self.COMPRESSED_SLUG)
+    
+    # S3 tests, requires a with prefix and without prefix version of each test.
+    
+    ## push_to_storage_and_clear_everything
+    
+    @patch("libs.s3.conn")
+    def test_compress_and_push_to_storage_and_clear_everything_with_prefix(self, conn=MagicMock()):
+        s = self.default_s3storage_with_prefix
+        s.set_file_content(b"content")
+        s.compress_and_push_to_storage_and_clear_everything()
+        self.assert_not_hasattr(s, "uncompressed_data")
+        self.assert_not_hasattr(s, "compressed_data")
+        self.assertEqual(len(conn.method_calls), 1)
+        call = self.extract_mock_call_params(conn)[0]
+        self.assertIn("call.put_object(", str(call))
+        self.decrypt_kwarg_Body(call.kwargs)
+        self.assertEqual(call.kwargs, self.params_for_upload_compressed_with_prefix())
+    
+    @patch("libs.s3.conn")
+    def test_compress_and_push_to_storage_and_clear_everything_without_prefix(self, conn=MagicMock()):
+        s = self.default_s3storage_without_prefix
+        s.set_file_content(b"content")
+        s.compress_and_push_to_storage_and_clear_everything()
+        self.assert_not_hasattr(s, "uncompressed_data")
+        self.assert_not_hasattr(s, "compressed_data")
+        self.assertEqual(len(conn.method_calls), 1)
+        call = self.extract_mock_call_params(conn)[0]
+        self.assertIn("call.put_object(", str(call)) 
+        self.decrypt_kwarg_Body(call.kwargs)
+        self.assertEqual(call.kwargs, self.params_for_upload_compressed_without_prefix())
+    
+    ## push_to_storage
+    
+    @patch("libs.s3.conn")
+    def test_compress_and_push_to_storage_with_prefix(self, conn=MagicMock()):
+        # as test_compress_and_push_to_storage_and_clear_everything but one different side effect
+        s = self.default_s3storage_with_prefix
+        s.set_file_content(b"content")
+        s.compress_and_push_to_storage()
+        self.assert_not_hasattr(s, "uncompressed_data")
+        self.assert_hasattr(s, "compressed_data")
+        self.assertEqual(len(conn.method_calls), 1)
+        call = self.extract_mock_call_params(conn)[0]
+        self.assertIn("call.put_object(", str(call)) 
+        self.decrypt_kwarg_Body(call.kwargs)
+        self.assertEqual(call.kwargs, self.params_for_upload_compressed_with_prefix())
+    
+    @patch("libs.s3.conn")
+    def test_compress_and_push_to_storage_without_prefix(self, conn=MagicMock()):
+        # as test_compress_and_push_to_storage_and_clear_everything but one different side effect
+        s = self.default_s3storage_without_prefix
+        s.set_file_content(b"content")
+        s.compress_and_push_to_storage()
+        self.assert_not_hasattr(s, "uncompressed_data")
+        self.assert_hasattr(s, "compressed_data")
+        self.assertEqual(len(conn.method_calls), 1)
+        call = self.extract_mock_call_params(conn)[0]
+        self.assertIn("call.put_object(", str(call)) 
+        self.decrypt_kwarg_Body(call.kwargs)
+        self.assertEqual(call.kwargs, self.params_for_upload_compressed_without_prefix())
+    
+    ## download
+    
+    @patch("libs.s3.conn")
+    def test_download_with_prefix(self, conn=MagicMock()):
+        # I thought I would need to use this extra mock object but.... no it just works and inserts
+        # that value as the return to conn.get_object.  (cool)
+        conn.get_object = MagicMock(return_value={"Body": BytesIO(self.COMPRESSED_ENCRYPTED_SLUG)})
+        s = self.default_s3storage_with_prefix
+        s.download()
+        
+        self.assertEqual(len(conn.method_calls), 1)
+        call = self.extract_mock_call_params(conn)[0]
+        self.assertIn("call.get_object(", str(call))
+        self.assertEqual(call.kwargs, self.params_for_download_compressed_with_prefix())
+        self.assertEqual(s.uncompressed_data, b"content")
+        self.assert_not_hasattr(s, "compressed_data")
+    
+    @patch("libs.s3.conn")
+    def test_download_without_prefix(self, conn=MagicMock()):
+        conn.get_object = MagicMock(return_value={"Body": BytesIO(self.COMPRESSED_ENCRYPTED_SLUG)})
+        s = self.default_s3storage_without_prefix
+        s.download()
+        
+        self.assertEqual(len(conn.method_calls), 1)
+        call = self.extract_mock_call_params(conn)[0]
+        self.assertIn("call.get_object(", str(call))
+        self.assertEqual(call.kwargs, self.params_for_download_compressed_without_prefix())
+        self.assertEqual(s.uncompressed_data, b"content")
+        self.assert_not_hasattr(s, "compressed_data")
+    
+    ## download compressed does not exist
+    
+    @patch("libs.s3.conn")
+    def test_download_compressed_does_not_exist_with_prefix(self, conn: Mock):
+        conn.get_object = do_retrieve = Mock()
+        # conn.put_object = _do_upload = MagicMock()  # ok interesting, don't need
+        
+        # hits retrieve [compressed, fail]
+        # retrieve [uncompressed, success]
+        # upload [compressed, success]   (no side effects) 
+        # delete [uncompressed, success]   (no side effects) 
+        do_retrieve.side_effect = [
+            self.hack_s3_error("waka waka 1"),
+            {"Body": BytesIO(self.ENCRYPTED_SLUG)},
+        ]
+        
+        s = self.default_s3storage_with_prefix
+        s.download()
+        self.assertEqual(len(conn.method_calls), 4)
+        call_1 = self.extract_mock_call_params(conn)[0]
+        call_2 = self.extract_mock_call_params(conn)[1]
+        call_3 = self.extract_mock_call_params(conn)[2]
+        call_4 = self.extract_mock_call_params(conn)[3]
+        # absolutely cannot work out how to access the name of method called in any other way.
+        self.assertIn("call.get_object(", str(call_1)) 
+        self.assertEqual(call_1.kwargs, self.params_for_download_compressed_with_prefix())
+        self.assertIn("call.get_object(", str(call_2)) 
+        self.assertEqual(call_2.kwargs, self.params_for_download_UNCOMPRESSED_with_prefix())
+        self.assertIn("call.put_object(", str(call_3)) 
+        self.decrypt_kwarg_Body(call_3.kwargs)
+        self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_with_prefix())
+        self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_with_prefix())
+        self.assertIn("call.delete_object(", str(call_4))
+    
+    @patch("libs.s3.conn")
+    def test_download_compressed_does_not_exist_without_prefix(self, conn: Mock):
+        conn.get_object = do_retrieve = Mock()
+        
+        do_retrieve.side_effect = [
+            self.hack_s3_error("waka waka 1"),
+            {"Body": BytesIO(self.ENCRYPTED_SLUG)},
+        ]
+        
+        s = self.default_s3storage_without_prefix
+        s.download()
+        self.assertEqual(len(conn.method_calls), 4)
+        call_1 = self.extract_mock_call_params(conn)[0]
+        call_2 = self.extract_mock_call_params(conn)[1]
+        call_3 = self.extract_mock_call_params(conn)[2]
+        call_4 = self.extract_mock_call_params(conn)[3]
+        # absolutely cannot work out how to access the name of method called in any other way.
+        self.assertIn("call.get_object(", str(call_1)) 
+        self.assertEqual(call_1.kwargs, self.params_for_download_compressed_without_prefix())
+        self.assertIn("call.get_object(", str(call_2)) 
+        self.assertEqual(call_2.kwargs, self.params_for_download_UNCOMPRESSED_without_prefix())
+        self.assertIn("call.put_object(", str(call_3)) 
+        self.decrypt_kwarg_Body(call_3.kwargs)
+        self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_without_prefix())
+        self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_without_prefix())
+        self.assertIn("call.delete_object(", str(call_4))
