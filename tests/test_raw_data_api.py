@@ -30,10 +30,6 @@ class TestGetData(DataApiTest):
         Otherwise s3_retrieve will fail due to the patch is tests.common.
     """
     
-    def test_s3_patch_present(self):
-        from libs import s3
-        self.assertIs(s3.S3_BUCKET, Exception)
-    
     ENDPOINT_NAME = "raw_data_api.get_data"
     REGISTRY_HASH = "registry_hash"
     

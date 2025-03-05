@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generator, Sequence
+from typing import Generator, Protocol, Sequence
 from unittest.mock import MagicMock
 
 import boto3
@@ -22,14 +22,25 @@ except ImportError:
     pass
 
 
+## Types
 class NoSuchKeyException(Exception): pass
 class S3DeletionException(Exception): pass
-FULL_LOOP_DIDNT_REMOVE = "S3Compressed: full loop didn't remove file_content"
-FULL_LOOP_DIDNT_CREATE = "S3Compressed: full loop didn't create compressed_data"
-COMPRESSION_ALREADY_EXISTS = "S3Compressed: compressed_data already exists"
-COMPRESSION_FILE_CONTENT_NOT_SET = "S3Compressed: file_content was not set before compression"
-COMPRESSION_FILE_CONTENT_NONE = "S3Compressed: file_content was None at compression time"
 
+# Boto3 doesn't have accessible type hints
+class Readable(Protocol):
+    def read(self) -> bytes: ...
+
+Boto3Response = dict[str, Readable]
+
+# Debugging messages
+# TODO: stick these somewhere....
+COMPRESSION__COMPRESSED_DATA_NOT_SET = "S3Compressed: file_content was not set before compression"
+COMPRESSION__COMPRESSED_DATA_NONE = "S3Compressed: file_content was None at compression time"
+UNCOMPRESSED_DATA_NONE_ON_POP = "S3Compressed: file_content was not set before pop"
+UNCOMPRESSED_DATA_MISSING = "S3Compressed: file_content was purged before pop"
+
+
+## Global S3 Connection
 
 conn: BaseClient = boto3.client(
     's3',
@@ -39,11 +50,13 @@ conn: BaseClient = boto3.client(
     endpoint_url=S3_ENDPOINT
 )
 
-if RUNNING_TESTS:                       # Nhis lets us cut out some boilerplate in tests
-    S3_REGION_NAME = "us-east-1"        # Tests that need to mock S3 can mock the conn object
+if RUNNING_TESTS:                       # This lets us cut out some boilerplate in tests
+    S3_REGION_NAME = "us-east-1"        # Tests that need to mock S3 can still mock the conn object
     S3_BUCKET = "test_bucket"
     conn = MagicMock()
 
+
+## Smart Key and Path Getters
 
 def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
     from database.models import Participant, Study  # circular imports
@@ -59,8 +72,8 @@ def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
 
 
 def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy):
-    from database.study_models import Study
-    from database.user_models_participant import Participant
+    from database.models import Participant, Study  # circular imports
+    
     if isinstance(obj, Participant):
         study_object_id = obj.study.object_id
     elif isinstance(obj, Study):
@@ -72,68 +85,85 @@ def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy):
     return study_object_id + "/" + key_path
 
 
-class StorageManager:
-    """ Class that handles encrypting, compressing, finding files on S3.  """
+## S3 Storage Class
+
+
+class S3Storage:
     
     bypass_study_folder: bool
     compressed_data: bytes
-    file_content: bytes|None
-    s3_path_raw: str 
+    uncompressed_data: bytes|None
+    s3_path_uncompressed: str
     s3_path_zstd: str
     smart_key_obj: StrOrParticipantOrStudy
     
     def __init__(
-        self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool = False
+        self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool
     ) -> None:
         if s3_path.endswith(".zstd"):
             raise ValueError("path should never end with .zstd")
         
-        self.s3_path_raw = s3_path
+        self.s3_path_uncompressed = s3_path
         self.s3_path_zstd = s3_path + ".zstd"
         
         self.bypass_study_folder = bypass_study_folder
         self.smart_key_obj = obj
         
-        self.file_content = None
-        
-        # only need for domain-specific compression.
-        # self.s3_path_normalized = normalize_s3_file_path(s3_path)
+        self.uncompressed_data = None  # DON'T ADD TO CONSTRUCTOR; FORCE MEMORY MANAGEMENT.
+    
+    # State
+    
+    def set_file_content(self, file_content: bytes):
+        if not isinstance(file_content, bytes):
+            raise TypeError(f"file_content must be bytes, receivef {type(file_content)}")
+        self.uncompressed_data = file_content
+        return self
+    
+    def pop_file_content(self):
+        assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING
+        assert self.uncompressed_data is not None, UNCOMPRESSED_DATA_NONE_ON_POP
+        uncompressed_data = self.uncompressed_data
+        del self.uncompressed_data
+        return uncompressed_data
+    
+    @property
+    def encryption_key(self):
+        if hasattr(self, "_encryption_key"):
+            return self._encryption_key
+        self._encryption_key = smart_get_study_encryption_key(self.smart_key_obj)
+        return self._encryption_key
+    
+    @property
+    def prefix(self):
+        if hasattr(self, "_path_prefix"):
+            return self._path_prefix
+        self._path_prefix = \
+            "" if self.bypass_study_folder else s3_construct_study_key_path("", self.smart_key_obj)
+        return self._path_prefix
     
     # Upload
     
-    def push_to_storage(self):
-        """ Compress local data, clear internal uncompressed state, send to S3 compressed. """
-        if not hasattr(self, "compressed_data"):
-            self.compress_data_and_clear()
-        s3_upload(self.s3_path_zstd, self.compressed_data, self.smart_key_obj, raw_path=self.bypass_study_folder)
-    
-    def push_to_storage_and_clear(self):
-        """ Compress local data, clear internal uncompressed state, send to S3 compressed, clear compressed state. """
-        self.push_to_storage()
+    def compress_and_push_to_storage_and_clear_everything(self):
+        self.compress_and_push_to_storage()
         del self.compressed_data
+    
+    def compress_and_push_to_storage(self):
+        self.compress_data_and_clear_uncompressed()
+        self._s3_upload_zstd()
     
     ## Compression
     
-    def compress_data_and_clear(self):
-        self._do_compress()
-        del self.file_content  # removes the uncompressed data from memory
-    
-    def _do_compress(self):
-        assert not hasattr(self, "compressed_data"), COMPRESSION_ALREADY_EXISTS
-        assert hasattr(self, "file_content"), COMPRESSION_FILE_CONTENT_NOT_SET
-        assert self.file_content is not None, COMPRESSION_FILE_CONTENT_NONE
+    def compress_data_and_clear_uncompressed(self):
+        # it is important that this only occur once
+        assert hasattr(self, "uncompressed_data"), COMPRESSION__COMPRESSED_DATA_NOT_SET
+        assert self.uncompressed_data is not None, COMPRESSION__COMPRESSED_DATA_NONE
         
         self.compressed_data = zstd.compress(
-            self.file_content,
+            self.uncompressed_data,
             1,  # compression level (1 yields better compression on average across our data streams
             0,  # auto-tune the number of threads based on cpu cores (no apparent drawbacks)
         )
-    
-    ## Memory Management
-    
-    def clear(self):
-        del self.file_content
-        del self.compressed_data
+        del self.uncompressed_data  # removes the uncompressed data from memory
     
     ## Download
     
@@ -141,25 +171,64 @@ class StorageManager:
         try:
             self._download_as_compressed()
         except NoSuchKeyException:
-            self._download_as_uncompressed_full_loop()
+            self._download_and_rewrite_s3_as_compressed()
+        return self
     
     def _download_as_compressed(self):
-        raw_data = s3_retrieve(self.s3_path_zstd, self.smart_key_obj, self.bypass_study_folder)
-        self.file_content = zstd.decompress(raw_data)
+        # This line should be the error on when there is no compressed copy
+        self.uncompressed_data = zstd.decompress(self._s3_retrieve_zstd())
     
-    def _download_as_uncompressed_full_loop(self):
-        """ Force file to be stored compressed, handle internal and externalstate so it just works. """
+    def _download_and_rewrite_s3_as_compressed(self):
+        raw_data = self._s3_retrieve_uncompressed()
+        self.uncompressed_data = raw_data
         
-        raw_data = s3_retrieve(self.s3_path_raw, self.smart_key_obj, self.bypass_study_folder)
-        self.file_content = raw_data
-        self.push_to_storage()  # compresses
-        
-        assert not hasattr(self, "file_content"), FULL_LOOP_DIDNT_REMOVE
-        assert hasattr(self, "compressed_data"), FULL_LOOP_DIDNT_CREATE
-        
-        s3_delete(self.s3_path_raw)
-        del self.compressed_data  # remove the compressed data from memory
-        self.file_content = raw_data
+        self.compress_and_push_to_storage_and_clear_everything()
+        self._s3_delete_uncompressed()
+        self.uncompressed_data = raw_data  # reattach the uncompressed data
+    
+    #
+    ## S3 OPS
+    #
+    
+    ## Delete
+    
+    def _s3_delete_zstd(self):
+        return s3_delete(self.prefix + self.s3_path_zstd)
+    
+    def _s3_delete_uncompressed(self):
+        return s3_delete(self.prefix + self.s3_path_uncompressed)
+    
+    ## Upload
+    
+    def _s3_upload_zstd(self):
+        self._s3_upload(self.s3_path_zstd, self.compressed_data, self.smart_key_obj)
+    
+    def _s3_upload(self, path: str, data: bytes, obj: StrOrParticipantOrStudy):
+        _do_upload(self.prefix + path, encrypt_for_server(data, self.encryption_key))
+    
+    ## Retrieve
+    
+    def _s3_retrieve_uncompressed(self):
+        return decrypt_server(self._s3_retrieve(self.s3_path_uncompressed), self.encryption_key)
+    
+    def _s3_retrieve_zstd(self):
+        return decrypt_server(self._s3_retrieve(self.s3_path_zstd),self.encryption_key)
+    
+    def _s3_retrieve(self, path: str) -> bytes:
+        return _do_retrieve(S3_BUCKET, self.prefix + path)['Body'].read()
+    
+    ## Get Size
+    
+    # def _s3_get_size_zstd(self):
+    #     return s3_get_size(self.get_cache_prefix() + self.s3_path_zstd)
+    
+    # def _s3_get_size_uncompressed(self):
+    #     return s3_get_size(self.get_cache_prefix() + self.s3_path_uncompressed)
+
+
+#
+## S3 Operations
+#
 
 
 ## MetaData
@@ -177,22 +246,18 @@ def s3_upload(
 ) -> None:
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
-    
-    if not raw_path:
-        key_path = s3_construct_study_key_path(key_path, obj)
-    
-    data = encrypt_for_server(data_string, smart_get_study_encryption_key(obj))
-    _do_upload(key_path, data)
+    storage = S3Storage(key_path, obj, raw_path).set_file_content(data_string)
+    storage.compress_and_push_to_storage_and_clear_everything()
 
 
 def s3_upload_plaintext(upload_path: str, data_string: bytes) -> None:
-    """ Extremely simple, uploads a file (bytes object) to s3 without any encryption. """
+    """ Extremely simple, uploads a file (bytes object) to s3 without any encryption.
+    Intended for use with custom deploy scripts, etc. """
     conn.put_object(Body=data_string, Bucket=S3_BUCKET, Key=upload_path)
 
 
 def _do_upload(key_path: str, data_string: bytes, number_retries=3):
     """ In ~April 2022 this api call started occasionally failing, so wrapping it in a retry. """
-    
     try:
         conn.put_object(Body=data_string, Bucket=S3_BUCKET, Key=key_path)
     except Exception as e:
@@ -208,10 +273,8 @@ def s3_retrieve(key_path: str, obj: StrOrParticipantOrStudy, raw_path: bool = Fa
     """ Takes an S3 file path (key_path), and a study ID.  Takes an optional argument, raw_path,
     which defaults to false.  When set to false the path is prepended to place the file in the
     appropriate study_id folder. """
-    if not raw_path:
-        key_path = s3_construct_study_key_path(key_path, obj)
-    encrypted_data = _do_retrieve(S3_BUCKET, key_path, number_retries=number_retries)['Body'].read()
-    return decrypt_server(encrypted_data, smart_get_study_encryption_key(obj))
+    # This reference pattern clears internal references before the return statement.
+    return S3Storage(key_path, obj, raw_path).download().pop_file_content()
 
 
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
@@ -219,7 +282,7 @@ def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
     return _do_retrieve(S3_BUCKET, key_path, number_retries=number_retries)['Body'].read()
 
 
-def _do_retrieve(bucket_name: str, key_path: str, number_retries=3):
+def _do_retrieve(bucket_name: str, key_path: str, number_retries=3) -> Boto3Response:
     """ Run-logic to do a data retrieval for a file in an S3 bucket."""
     try:
         return conn.get_object(Bucket=bucket_name, Key=key_path, ResponseContentType='string')
@@ -312,9 +375,9 @@ def s3_delete_versioned(key_path: str, version_id: str) -> bool:
 
 
 def s3_delete_many_versioned(paths_version_ids: list[tuple[str, str]]):
-    """ Takes a list of (key_path, version_id) tuples and deletes them all using the boto3
-    delete_objects API.  Returns the number of files deleted, raises errors with reasonable
-    clarity inside an errorhandler bundled error. """
+    """ Takes a list of (key_path, version_id) and deletes them all using the boto3 delete_objects
+    API.  Returns the number of files deleted, raises errors with reasonable clarity inside an
+    errorhandler bundled error. """
     error_handler = ErrorHandler()  # use an ErrorHandler to bundle up all errors and raise them at the end.
     
     # construct the usual insane boto3 dict - if version id is falsey, it must be a string, not None.
