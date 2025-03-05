@@ -130,6 +130,8 @@ class DatabaseHelperMixin:
     SOME_SHA1_PASSWORD_COMPONENTS = 'sha1$1000$zsk387ts02hDMRAALwL2SL3nVHFgMs84UcZRYIQWYNQ=$hllJauvRYDJMQpXQKzTdwQ=='
     DEFAULT_STUDY_FIELD_NAME = "default_study_field_name"
     DEFAULT_PARTICIPANT_FIELD_VALUE = "default_study_field_value"
+    DEFAULT_ENCRYPTION_KEY = "thequickbrownfoxjumpsoverthelazy"
+    DEFAULT_ENCRYPTION_KEY_BYTES = DEFAULT_ENCRYPTION_KEY.encode()
     
     REFERENCE_SURVEY_CONTENT = orjson.dumps(
         [{'display_if': None,
@@ -203,7 +205,7 @@ class DatabaseHelperMixin:
     ):
         study = Study(
             name=name,
-            encryption_key=encryption_key or "thequickbrownfoxjumpsoverthelazy",
+            encryption_key=encryption_key or self.DEFAULT_ENCRYPTION_KEY,
             object_id=object_id or generate_objectid_string(),
             forest_enabled=forest_enabled or True,
             # timezone_name="UTC",
@@ -214,7 +216,7 @@ class DatabaseHelperMixin:
         return study
     
     def set_session_study_relation(
-        self, relation: ResearcherRole = ResearcherRole.researcher
+        self, relation: str = ResearcherRole.researcher  # must be a real role
     ) -> StudyRelation:
         """ Applies the study relation to the session researcher to the session study. """
         if hasattr(self, "_default_study_relation"):
