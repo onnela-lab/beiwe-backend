@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Dict, Union
 
 from django.db.models import Manager, QuerySet

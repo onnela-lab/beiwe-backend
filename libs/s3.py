@@ -7,13 +7,11 @@ import boto3
 import zstd
 from botocore.client import BaseClient
 from cronutils import ErrorHandler
-from Cryptodome.PublicKey import RSA
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import RUNNING_TESTS
 from libs.aes import decrypt_server, encrypt_for_server
-from libs.rsa import generate_key_pairing, get_RSA_cipher, prepare_X509_key_for_java
 
 
 try:
@@ -409,39 +407,9 @@ def s3_delete_many_versioned(paths_version_ids: list[tuple[str, str]]):
     return len(deleted)  # will always error above if empty, cannot return 0.
 
 
-#TODO: move to security_utils.py, fix circular imports
-
-################################################################################
-######################### Client Key Management ################################
-################################################################################
+####################################################################################################
 
 
-def create_client_key_pair(patient_id: str, study_id: str):
-    """Generate key pairing, push to database, return sanitized key for client."""
-    public, private = generate_key_pairing()
-    s3_upload("keys/" + patient_id + "_private", private, study_id)
-    s3_upload("keys/" + patient_id + "_public", public, study_id)
-
-
-def get_client_public_key_string(patient_id: str, study_id: str) -> str:
-    """Grabs a user's public key string from s3."""
-    key_string = s3_retrieve("keys/" + patient_id + "_public", study_id)
-    return prepare_X509_key_for_java(key_string).decode()
-
-
-def get_client_public_key(patient_id: str, study_id: str) -> RSA.RsaKey:
-    """Grabs a user's public key file from s3."""
-    key = s3_retrieve("keys/" + patient_id + "_public", study_id)
-    return get_RSA_cipher(key)
-
-
-def get_client_private_key(patient_id: str, study_id: str) -> RSA.RsaKey:
-    """Grabs a user's private key file from s3."""
-    key = s3_retrieve("keys/" + patient_id + "_private", study_id)
-    return get_RSA_cipher(key)
-
-
-###############################################################################
 """ Research on getting a stream into the decryption code of pycryptodome
 
 The StreamingBody StreamingBody object does not define the __len__ function, which is

@@ -34,7 +34,8 @@ from libs.endpoint_helpers.participant_file_upload_helpers import (
     upload_and_create_file_to_process_and_log, upload_problem_file)
 from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ParticipantRequest, ScheduledEventQuerySet
-from libs.s3 import get_client_public_key_string, s3_upload
+from libs.rsa import get_participant_public_key_string
+from libs.s3 import s3_upload
 from libs.schedules import (decompose_datetime_to_device_weekly_timings,
     export_weekly_survey_timings, repopulate_all_survey_scheduled_events)
 from libs.sentry import get_sentry_client, SentryTypes
@@ -270,7 +271,7 @@ def register_user(request: ParticipantRequest, OS_API=""):
     repopulate_all_survey_scheduled_events(participant.study, participant)
     
     return_obj = {
-        'client_public_key': get_client_public_key_string(patient_id, participant.study.object_id),
+        'client_public_key': get_participant_public_key_string(patient_id, participant.study.object_id),
         'device_settings': participant.study.device_settings.export(),
         'ios_plist': firebase_plist_data,
         'android_firebase_json': firebase_json_data,

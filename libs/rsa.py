@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from Cryptodome.PublicKey import RSA
 
 from constants.security_constants import ASYMMETRIC_KEY_LENGTH
@@ -8,7 +6,7 @@ from constants.security_constants import ASYMMETRIC_KEY_LENGTH
 # The private keys are stored server-side (S3), and the public key is sent to the device.
 
 
-def generate_key_pairing() -> Tuple[bytes, bytes]:
+def generate_key_pairing() -> tuple[bytes, bytes]:
     """Generates a public-private key pairing, returns tuple (public, private)"""
     private_key = RSA.generate(ASYMMETRIC_KEY_LENGTH)
     public_key = private_key.publickey()
@@ -25,6 +23,40 @@ def prepare_X509_key_for_java(exported_key) -> bytes:
 
 def get_RSA_cipher(key: bytes) -> RSA.RsaKey:
     return RSA.importKey(key)
+
+
+################################################################################
+######################### Client Key Management ################################
+################################################################################
+
+
+def create_participant_key_pair(patient_id: str, study_id: str):
+    """Generate key pairing, push to database, return sanitized key for client."""
+    from libs.s3 import s3_upload
+    public, private = generate_key_pairing()
+    s3_upload("keys/" + patient_id + "_private", private, study_id)
+    s3_upload("keys/" + patient_id + "_public", public, study_id)
+
+
+def get_participant_public_key_string(patient_id: str, study_id: str) -> str:
+    """Grabs a user's public key string from s3."""
+    from libs.s3 import s3_retrieve
+    key_string = s3_retrieve("keys/" + patient_id + "_public", study_id)
+    return prepare_X509_key_for_java(key_string).decode()
+
+
+def get_participant_public_key(patient_id: str, study_id: str) -> RSA.RsaKey:
+    """Grabs a user's public key file from s3."""
+    from libs.s3 import s3_retrieve
+    key = s3_retrieve("keys/" + patient_id + "_public", study_id)
+    return get_RSA_cipher(key)
+
+
+def get_participant_private_key(patient_id: str, study_id: str) -> RSA.RsaKey:
+    """Grabs a user's private key file from s3."""
+    from libs.s3 import s3_retrieve
+    key = s3_retrieve("keys/" + patient_id + "_private", study_id)
+    return get_RSA_cipher(key)
 
 
 # pycryptodome: the following is correct for PKCS1_OAEP.

@@ -38,7 +38,8 @@ from libs.firebase_config import check_firebase_instance
 from libs.internal_types import ResearcherRequest
 from libs.intervention_utils import add_fields_and_interventions
 from libs.participant_purge import add_participant_for_deletion
-from libs.s3 import create_client_key_pair, s3_upload
+from libs.rsa import create_participant_key_pair
+from libs.s3 import s3_upload
 from libs.schedules import repopulate_all_survey_scheduled_events
 from libs.sentry import make_error_sentry, SentryTypes
 from libs.streaming_io import StreamingStringsIO
@@ -215,7 +216,7 @@ def create_new_participant(request: ResearcherRequest):
     # Create an empty file on S3 indicating that this user exists
     study_object_id = Study.objects.filter(pk=study_id).values_list('object_id', flat=True).get()
     s3_upload(patient_id, b"", study_object_id)
-    create_client_key_pair(patient_id, study_object_id)
+    create_participant_key_pair(patient_id, study_object_id)
     repopulate_all_survey_scheduled_events(study, participant)
     
     messages.success(request, f'Created a new patient\npatient_id: {patient_id}\npassword: {password}')
@@ -259,7 +260,7 @@ def participant_csv_generator(study_id, number_of_new_patients):
         add_fields_and_interventions(participant, Study.objects.get(id=study_id))
         # Creates an empty file on s3 indicating that this user exists
         s3_upload(patient_id, b"", study)
-        create_client_key_pair(patient_id, study.object_id)
+        create_participant_key_pair(patient_id, study.object_id)
         
         filewriter.writerow([patient_id, password])
         yield si.getvalue()
