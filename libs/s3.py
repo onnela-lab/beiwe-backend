@@ -53,8 +53,11 @@ if RUNNING_TESTS:                       # This lets us cut out some boilerplate 
     S3_BUCKET = "test_bucket"
     conn = MagicMock()
 
+SMART_GET_ERROR = "expected Study, Participant, or 24 char str, received '{}'"
+
 
 ## Smart Key and Path Getters
+
 
 def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
     from database.models import Participant, Study  # circular imports
@@ -87,13 +90,6 @@ def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy):
 
 
 class S3Storage:
-    
-    bypass_study_folder: bool
-    compressed_data: bytes
-    uncompressed_data: bytes|None
-    s3_path_uncompressed: str
-    s3_path_zstd: str
-    smart_key_obj: StrOrParticipantOrStudy
     
     def __init__(
         self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool
@@ -422,3 +418,102 @@ it in like this:
 
 But that just results in this error from pycryptodome:
 TypeError: Object type <class 'botocore.response.StreamingBody'> cannot be passed to C code """
+
+
+####################################################################################################
+
+# This is a class that caches encryption keys and study object ids to reduce database calls for
+# those values, but it currently does not have tests.  And it is questionable if we should cache
+# encryption keys without purging them.  But I couldn't help myself from prototyping it.
+
+
+
+# try:
+#     from database.models import Participant
+# except ImportError:
+#     pass
+
+
+# class SmartKeyPath:
+    
+#     object_id_to_keys: dict[str, bytes] = {}
+#     study_pk_to_keys: dict[int, bytes] = {}
+#     study_pk_to_object_id: dict[int, str] = {}
+    
+#     both_fields = ("encryption_key", "object_id")
+    
+#     @classmethod
+#     def populate(cls, obj: StrOrParticipantOrStudy) -> None:
+#         from database.models import Participant, Study  # circular imports
+        
+#         if isinstance(obj, Participant):
+#             cls._populate_participant(obj)  # query
+#         elif isinstance(obj, Study):
+#             cls._populate(obj.pk, obj.encryption_key.encode(), obj.object_id)  # we have it
+#         elif isinstance(obj, str) and len(obj) == 24:
+#             cls._populate_object_id_str(obj)  # query
+#         else:
+#             raise TypeError(f"expected Study, Participant, or 24 char str, received '{type(obj)}'")
+    
+#     ## Populate
+    
+#     @classmethod
+#     def _populate(cls, study_id: int, key: bytes, study_object_id: str):
+#         cls.study_pk_to_keys[study_id] = key
+#         cls.object_id_to_keys[study_object_id] = key
+#         cls.study_pk_to_object_id[study_id] = study_object_id
+    
+#     @classmethod
+#     def _populate_participant(cls, p: Participant):
+#         from database.models import Study  # circular imports
+#         key, study_object_id = Study.fltr(pk=p.study_id).values_list(*cls.both_fields).get()
+#         cls._populate(p.study_id, key.encode(), study_object_id)
+    
+#     @classmethod
+#     def _populate_object_id_str(cls, s: str):
+#         from database.models import Study  # circular imports
+#         pk, key, study_object_id = Study.fltr(object_id=s).values_list("pk", *cls.both_fields).get()
+#         cls._populate(pk, key.encode(), study_object_id)
+    
+#     ## getters
+    
+#     @classmethod
+#     def smart_get_study_encryption_key(cls, obj: StrOrParticipantOrStudy) -> bytes:
+#         from database.models import Participant, Study  # circular imports
+        
+#         # The easy one
+#         if isinstance(obj, Study):
+#             return obj.encryption_key.encode()
+        
+#         # The annoying ones
+#         if isinstance(obj, Participant):
+#             if obj.study_id not in cls.study_pk_to_keys:
+#                 cls.populate(obj)
+#             return cls.study_pk_to_keys[obj.study_id]
+        
+#         elif isinstance(obj, str) and len(obj) == 24:
+#             if obj not in cls.object_id_to_keys:
+#                 cls.populate(obj)
+#             return cls.object_id_to_keys[obj]
+        
+#         else:
+#             raise TypeError(SMART_GET_ERROR.format(type(obj)))
+    
+#     @classmethod
+#     def s3_construct_study_key_path(cls, key_path: str, obj: StrOrParticipantOrStudy):
+#         from database.models import Participant, Study  # circular imports
+        
+#         # The easy ones
+#         if isinstance(obj, Study):
+#             return obj.object_id + "/" + key_path
+#         elif isinstance(obj, str) and len(obj) == 24:
+#             return obj + "/" + key_path
+        
+#         # The annoying one
+#         elif isinstance(obj, Participant):
+#             if obj.study_id not in cls.study_pk_to_object_id:
+#                 cls.populate(obj)
+#             return cls.study_pk_to_object_id[obj.study_id] + "/" + key_path
+        
+#         else:
+#             raise TypeError(SMART_GET_ERROR.format(type(obj)))
