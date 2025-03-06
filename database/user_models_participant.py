@@ -9,7 +9,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import orjson
 import zstd
-from Cryptodome.PublicKey import RSA
 from dateutil.tz import gettz
 from django.core.exceptions import ImproperlyConfigured
 from django.core.validators import MinLengthValidator
@@ -28,6 +27,7 @@ from database.models import TimestampedModel
 from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
+from libs.rsa import get_participant_private_key, RSA
 from libs.s3 import s3_retrieve
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
     VersionError)
@@ -219,8 +219,7 @@ class Participant(AbstractPasswordUser):
         return compare_password('sha1', 2, device_hash(compare_me.encode()), password, salt)
     
     def get_private_key(self) -> RSA.RsaKey:
-        from libs.s3 import get_client_private_key  # weird import triangle
-        return get_client_private_key(self.patient_id, self.study.object_id)
+        return get_participant_private_key(self.patient_id, self.study.object_id)
     
     ################################################################################################
     ########################## FCM TOKENS AND PUSH NOTIFICATIONS ###################################

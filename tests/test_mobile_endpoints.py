@@ -368,9 +368,9 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_first_register_only_triggers_once(self, get_client_public_key_string: MagicMock):
-        get_client_public_key_string.return_value = "a_private_key"
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_first_register_only_triggers_once(self, get_participant_public_key_string: MagicMock):
+        get_participant_public_key_string.return_value = "a_private_key"
         resp = self.smart_post_status_code(200, **self.BASIC_PARAMS)
         # include the basic validity of the request doing its thing test
         response_dict = orjson.loads(resp.content)
@@ -393,15 +393,15 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertGreaterEqual(self.default_participant.last_register_user,
                                 self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_success_unregistered_ever(self, get_client_public_key_string: MagicMock):
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_success_unregistered_ever(self, get_participant_public_key_string: MagicMock):
         # This test has no intervention dates - which is a case that doesn't ~really exist anymore,
         # because loading the participant page will populate those values on all participants where
         # it is missing, with a date value of None. The followup test includes a participant with a
         # None intervention so its probably fine.
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)  # one off test detail
-        get_client_public_key_string.return_value = "a_private_key"
+        get_participant_public_key_string.return_value = "a_private_key"
         # unenrolled participants have no device id
         self.session_participant.update(device_id="")
         resp = self.smart_post_status_code(200, **self.BASIC_PARAMS)
@@ -414,12 +414,12 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_success_unregistered_complex_study(self, get_client_public_key_string: MagicMock):
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_success_unregistered_complex_study(self, get_participant_public_key_string: MagicMock):
         # there was a bug where participants with intervention dates set equal to None would crash
         # inside repopulate_relative_survey_schedule_events because they were not being filtered out,
         # but the bug seems to be a django bug where you can't exclude null values from a queryset.
-        get_client_public_key_string.return_value = "a_private_key"
+        get_participant_public_key_string.return_value = "a_private_key"
         self.default_populated_intervention_date.update(date=None)
         self.default_study_field  # may as well throw this in, shouldn't do anything
         # set up a relative schedule that will need to be checked inside repopulate_relative_...
@@ -441,10 +441,10 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_success_bad_device_id_still_works(self, get_client_public_key_string: MagicMock):
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_success_bad_device_id_still_works(self, get_participant_public_key_string: MagicMock):
         # we blanket disabled device id validation
-        get_client_public_key_string.return_value = "a_private_key"
+        get_participant_public_key_string.return_value = "a_private_key"
         # unenrolled participants have no device id
         params = self.BASIC_PARAMS
         params['device_id'] = "hhhhhhhhhhhhhhhhhhh"
@@ -459,9 +459,9 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_bad_password(self, get_client_public_key_string: MagicMock):
-        get_client_public_key_string.return_value = "a_private_key"
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_bad_password(self, get_participant_public_key_string: MagicMock):
+        get_participant_public_key_string.return_value = "a_private_key"
         params = self.BASIC_PARAMS
         params['password'] = "nope!"
         self.INJECT_DEVICE_TRACKER_PARAMS = False
@@ -473,9 +473,9 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_study_easy_enrollment(self, get_client_public_key_string: MagicMock):
-        get_client_public_key_string.return_value = "a_private_key"
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_study_easy_enrollment(self, get_participant_public_key_string: MagicMock):
+        get_participant_public_key_string.return_value = "a_private_key"
         params = self.BASIC_PARAMS
         self.default_study.update(easy_enrollment=True)
         params['password'] = "nope!"
@@ -489,9 +489,9 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
     
-    @patch("endpoints.mobile_endpoints.get_client_public_key_string")
-    def test_participant_easy_enrollment(self, get_client_public_key_string: MagicMock):
-        get_client_public_key_string.return_value = "a_private_key"
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_participant_easy_enrollment(self, get_participant_public_key_string: MagicMock):
+        get_participant_public_key_string.return_value = "a_private_key"
         params = self.BASIC_PARAMS
         self.default_participant.update(easy_enrollment=True)
         params['password'] = "nope!"

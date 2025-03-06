@@ -486,7 +486,7 @@ class CreateNewParticipant(ResearcherSessionTest):
     REDIRECT_ENDPOINT_NAME = "study_endpoints.view_study_page"
     
     @patch("endpoints.participant_endpoints.s3_upload")
-    @patch("endpoints.participant_endpoints.create_client_key_pair")
+    @patch("endpoints.participant_endpoints.create_participant_key_pair")
     def test(self, create_client_keypair: MagicMock, s3_upload: MagicMock):
         # this test does not make calls to S3
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -504,7 +504,7 @@ class CreateManyParticipant(ResearcherSessionTest):
     ENDPOINT_NAME = "participant_endpoints.create_many_patients"
     
     @patch("endpoints.participant_endpoints.s3_upload")
-    @patch("endpoints.participant_endpoints.create_client_key_pair")
+    @patch("endpoints.participant_endpoints.create_participant_key_pair")
     def test(self, create_client_keypair: MagicMock, s3_upload: MagicMock):
         # this test does not make calls to S3
         self.set_session_study_relation(ResearcherRole.researcher)
