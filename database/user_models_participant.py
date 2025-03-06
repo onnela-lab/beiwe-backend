@@ -63,6 +63,8 @@ class Participant(AbstractPasswordUser):
     DESIRED_ALGORITHM = "sha1"   # Yes, Bad, but this password doesn't actually protect access to data.
     DESIRED_ITERATIONS = 1000  # We will be completely reworking participant authentication soon anyway.
     
+    study_id: int
+    
     patient_id = models.CharField(max_length=8, unique=True, validators=[ID_VALIDATOR])
     device_id = models.CharField(max_length=256, blank=True)
     os_type = models.CharField(max_length=16, choices=OS_TYPE_CHOICES, blank=True)
