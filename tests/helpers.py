@@ -214,7 +214,7 @@ class DatabaseHelperMixin:
         return study
     
     def set_session_study_relation(
-        self, relation: ResearcherRole = ResearcherRole.researcher
+        self, relation: str = ResearcherRole.researcher
     ) -> StudyRelation:
         """ Applies the study relation to the session researcher to the session study. """
         if hasattr(self, "_default_study_relation"):

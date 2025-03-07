@@ -227,6 +227,7 @@ path("get-participant-version-history/v1", data_api_endpoints.get_participant_ve
 path("get-participant-table-data/v1", data_api_endpoints.get_participant_table_data)
 path("get-summary-statistics/v1", data_api_endpoints.get_summary_statistics)
 path("get-participant-device-status-history/v1", data_api_endpoints.get_participant_device_status_report_history)
+path("get-participant-notification-history", data_api_endpoints.get_participant_notification_history)
 
 # tableau
 path(
