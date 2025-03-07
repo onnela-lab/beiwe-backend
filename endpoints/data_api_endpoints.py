@@ -3,6 +3,7 @@ from io import StringIO
 from typing import List
 
 import orjson
+from dateutil.tz import UTC
 from django.db.models.fields import Field
 from django.db.models.functions import Substr
 from django.http import FileResponse, StreamingHttpResponse
@@ -20,7 +21,8 @@ from database.study_models import Study
 from database.user_models_researcher import StudyRelation
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.endpoint_helpers.data_api_helpers import (check_request_for_omit_keys_param,
-    DeviceStatusHistoryPaginator, get_validate_participant_from_request)
+    DeviceStatusHistoryPaginator, get_validate_participant_from_request,
+    participant_archived_event_dict)
 from libs.endpoint_helpers.participant_table_helpers import (common_data_extraction_for_apis,
     get_table_columns)
 from libs.endpoint_helpers.study_summaries_helpers import get_participant_data_upload_summary
@@ -121,7 +123,7 @@ def get_participant_table_data(request: ApiStudyResearcherRequest):
         writer.writerow(column_names)  # write the header row
         writer.writerows(table_data)
         buffer.seek(0)
-        return HttpResponse(buffer.read(), content_type='text/csv')    
+        return HttpResponse(buffer.read(), content_type='text/csv')
     
     if data_format == "json":
         return HttpResponse(
@@ -211,7 +213,7 @@ def get_participant_upload_history(request: ApiStudyResearcherRequest):
     
     # we use our efficient paginator class to stream the bytes of the database query.
     paginator = EfficientQueryPaginator(
-        filtered_query=query, 
+        filtered_query=query,
         page_size=10000,
         values=FIELDS_TO_SERIALIZE if not omit_keys else None,
         values_list=FIELDS_TO_SERIALIZE if omit_keys else None,
@@ -239,7 +241,7 @@ def get_participant_heartbeat_history(request: ApiStudyResearcherRequest):
     
     query = participant.heartbeats.order_by("timestamp")
     paginator = EfficientQueryPaginator(
-        filtered_query=query, 
+        filtered_query=query,
         page_size=10000,
         values=FIELDS_TO_SERIALIZE if not omit_keys else None,
         values_list=FIELDS_TO_SERIALIZE if omit_keys else None,
@@ -262,7 +264,7 @@ def get_participant_version_history(request: ApiStudyResearcherRequest):
     
     query = participant.app_version_history.order_by("created_on")
     paginator = EfficientQueryPaginator(
-        filtered_query=query, 
+        filtered_query=query,
         page_size=10000,
         values=FIELDS_TO_SERIALIZE if not omit_keys else None,
         values_list=FIELDS_TO_SERIALIZE if omit_keys else None,
@@ -293,8 +295,8 @@ def get_participant_device_status_report_history(request: ApiStudyResearcherRequ
     
     query = participant.device_status_reports.order_by("created_on")
     paginator = DeviceStatusHistoryPaginator(
-        filtered_query=query, 
-        page_size=1000,
+        filtered_query=query,
+        page_size=1000, 
         values=FIELDS_TO_SERIALIZE,
     )
     
@@ -304,3 +306,20 @@ def get_participant_device_status_report_history(request: ApiStudyResearcherRequ
     return StreamingHttpResponse(
         paginator.stream_orjson_paginate(option=options), status=200, content_type="application/json"
     )
+
+
+@require_POST
+@api_credential_check
+def get_participant_notification_history(request: ApiStudyResearcherRequest):
+    """ Returns a JSON response of the notification history of a participant. """
+    participant = get_validate_participant_from_request(request)
+    
+    # determine study or utc for the display timezone
+    tz = UTC if "utc" in [k.lower() for k in request.POST] else participant.study.timezone
+    resp_dict = participant_archived_event_dict(participant, tz)
+    
+    # OPT_OMIT_MICROSECONDS - obvious
+    # OPT_UTC_Z - UTC timezone serialized to Z instead of +00:00
+    options = orjson.OPT_OMIT_MICROSECONDS | orjson.OPT_UTC_Z
+    resp_bytes = orjson.dumps(resp_dict, option=options)
+    return HttpResponse(resp_bytes, status=200, content_type="application/json")
