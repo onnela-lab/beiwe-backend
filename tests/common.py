@@ -27,6 +27,7 @@ from database.study_models import Study
 from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.internal_types import ResponseOrRedirect, StrOrBytes
+from libs.shell_support import tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
 from urls import urlpatterns
@@ -84,6 +85,10 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         return intercepted
     
     def setUp(self) -> None:
+        # why would I EVER not want the full long message? worst case you get a lot of crap in your
+        # terminal and have to go copy paste
+        self.maxDiff = 100000
+        
         # Patch messages to print to stash any message text for later inspection. (extremely fast)
         self.messages = []
         messages.debug = self.monkeypatch_messages(messages.debug)
@@ -165,6 +170,8 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         """ Overrides and inserts our diff_strings func to make the error easy to parse. """
         from libs.shell_support import diff_strings
         
+        assert type(first) == type(second), "those are not even the same type"
+        
         try:
             return super().assertEqual(first, second, msg)
         except AssertionError:
@@ -198,7 +205,11 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
                     print()
                 
                 elif isinstance(first, dict) and isinstance(second, dict):
-                    compare_dictionaries(first, second)
+                    # screw it do both when it fails
+                    try:
+                        compare_dictionaries(first, second)
+                    except Exception:
+                        self.assertDictEqual(first, second, msg)
             
             # and then raise
             raise
