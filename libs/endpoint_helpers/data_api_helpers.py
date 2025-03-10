@@ -69,9 +69,7 @@ def participant_archived_event_dict(p: Participant, tz: tzinfo) -> dict:
     
     # sort by the survey, the time sent, then alphabetical schedule type name as tiebreaker
     query = p.archived_events.order_by(
-        "survey_archive__survey__object_id",
-        "created_on",
-        "schedule_type",
+        "survey_archive__survey__object_id", "scheduled_time", "created_on"
     ).values_list(
         "survey_archive__survey__object_id",
         "created_on",
@@ -98,7 +96,7 @@ def participant_archived_event_dict(p: Participant, tz: tzinfo) -> dict:
                 "timestamp": created,
                 "type": sched_type,
                 "scheduled_time": sched_time,
-                "confirmed_received": uuid_to_confirmed_time.get(a_uuid, False),  
+                "confirmed_received": uuid_to_confirmed_time.get(a_uuid, False),
                 "uuid": a_uuid,
                 "resend": resend,
                 "push_rejected": not (status == MESSAGE_SEND_SUCCESS), # could push into db....

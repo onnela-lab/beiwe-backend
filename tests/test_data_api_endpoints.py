@@ -1164,6 +1164,19 @@ class TestGetParticipantNotificationHistory(DataApiTest):
             orjson.loads(resp.content),
             self.merge_em(self.comparator_params_EST, self.comparator_params_EST)
         )
+        
+    def test_one_participant_two_notifications_sort(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        a = self.build_archived_event()
+        a2 = self.build_archived_event()
+        resp = self.smart_post_status_code(200, participant_id=self.default_participant.patient_id)
+        a2.force_update_only(scheduled_time=a2.scheduled_time - timedelta(days=1))
+        d2 = self.comparator_params_EST
+        d2["scheduled_time"] = '2022-01-09T12:00:00-05:00'
+        self.assertDictEqual(
+            orjson.loads(resp.content),
+            self.merge_em(d2, self.comparator_params_EST)
+        )
     
     def test_two_participants_each_with_one_notification(self):
         a = self.build_archived_event()
