@@ -97,6 +97,36 @@ MY_BEIWE_SERVER = "https://example.com"
     
     # WARNING: this endpoint can return a very large amount of data.
 
+# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-notification-history/v1"
+    # Endpoint takes one required parameter, participant_id, which must match a participant id in a
+    # study the user has access to.
+    
+    # This endpoint takes exactly one optional parameter, `utc`.  If this parameter is present with
+    # any value the timestamps will be returned in the UTC timezone, in the usual shorthand
+    # indicator of a Z.  If this parameter is not present the timestamps will be returned in the
+    # timezone offset of the study that the participant is enrolled in.  (Note that the backend's
+    # push notification system is aware of the device's timezone and sends out its notifications
+    # accordingly; participants receive notificationss on individualized schedules.)
+    
+    # Returns a json dictionary.  The keys of the dictionary are strings of the IDs of the survey
+    # that the notification was sent for.  These map to a list of dictionaries of data for every
+    # notification sent to a participant.  The data has the following keys:
+    #   timestamp - The time the notification was sent.
+    #   type - The type of schedule that the notification event was based on.
+    #   scheduled_time - The scheduled time for this notification - note that sometimes this value
+    #         can be well in the past compared to the sent timestamp.
+    #   confirmed_received - The time at which the server received a confirmation from the
+    #         participant's device that the notification was received.  (This field is only
+    #         populated on devices running the iOS app with a version of greater than 2.5.0.)
+    #         If there is no value this field will contain a value of False.
+    #   uuid - The unicque identifier of the original schedule that this notification was based on.
+    #         Note that multiple notifications can be sent for the same schedule.
+    #   resend - A boolean value indicating whether this notification was a resend of a previous
+    #         notification, for which it should have a matching uuid.  This field has the same OS
+    #         and version constraint as confirmed_received.
+    #   push_rejected - Notificattions can fail on the server backend for a variety of reasons, tor
+    #         example if a particpiant uninstalls the app. This field contains a boolean value of
+    #         True if such a failure occurred, otherwise False.
 
 # make a post request to the get-participant-upload-history/v1 endpoint, including the api key,
 # secret key, and participant_id as post parameters.
