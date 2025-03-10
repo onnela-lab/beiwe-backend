@@ -20,6 +20,7 @@ from database.forest_models import SummaryStatisticDaily
 from database.study_models import Study
 from database.user_models_researcher import StudyRelation
 from libs.efficient_paginator import EfficientQueryPaginator
+from libs.endpoint_helpers.copy_study_helpers import study_settings_fileresponse
 from libs.endpoint_helpers.data_api_helpers import (check_request_for_omit_keys_param,
     DeviceStatusHistoryPaginator, get_validate_participant_from_request,
     participant_archived_event_dict)
@@ -92,6 +93,15 @@ def download_study_survey_history(request: ApiStudyResearcherRequest):
     )
     fr.set_headers(None)  # django is still stupid?
     return fr
+
+
+@require_POST
+@api_study_credential_check()
+def get_study_settings_file(request: ApiStudyResearcherRequest):
+    """ Returns a JSON response of the study settings for a study."""
+    # this endpoint already has tests via the study_settings_fileresponse function
+    # but the tests are very minimal.  This code is quite complex....
+    return study_settings_fileresponse(request.api_study.pk)
 
 
 @require_POST

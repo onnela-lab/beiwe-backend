@@ -1,9 +1,11 @@
 import json
+from io import BytesIO
 from os import path
 from typing import Dict, List, Union
 
 import orjson
 from django.contrib import messages
+from django.http.response import FileResponse
 
 from constants.copy_study_constants import (ABSOLUTE_SCHEDULE_KEY, DEVICE_SETTINGS_KEY,
     INTERVENTIONS_KEY, NEVER_EXPORT_THESE, RELATIVE_SCHEDULE_KEY, STUDY_KEY, SURVEY_CONTENT_KEY,
@@ -18,6 +20,28 @@ from libs.schedules import repopulate_all_survey_scheduled_events
 
 
 NoneType = type(None)
+
+
+def study_settings_fileresponse(study_id: int):
+    """ Endpoint that returns a json representation of a study.
+    JSON structure for exporting and importing study surveys and settings:
+        {
+         'device_settings': {},
+         'surveys': [{}, {}, ...],
+         'interventions: [{}, {}, ...],
+        }
+    """
+    
+    study = Study.objects.get(pk=study_id)
+    filename = study.name.replace(' ', '_') + "_surveys_and_settings.json"
+    f = FileResponse(
+        BytesIO(format_study(study)),
+        content_type="application/json",
+        as_attachment=True,
+        filename=filename,
+    )
+    f.set_headers(None)
+    return f
 
 
 def unpack_json_study(json_string: str) -> Union[dict, List[str], List[dict]]:
