@@ -36,6 +36,18 @@ MY_BEIWE_SERVER = "https://example.com"
     # Endpoint takes one parameter, study_id, returns complex json of the edit history all surveys
     # on the study, including dates and times, and the json representation of the surveys.
 
+# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-study-settings/v1"
+    # This endpoint returns the same json dictionary of the study settings download button on the 
+    # study settings page.  It takes exactly one parameter, a study_id.
+    # This endpoint contains a data set that can be consumed by the duplicate study json section
+    # when creating a new study.
+    # The study settings dictionary contains 3 keys:
+    #   "surveys" - a dictionary of the study's current survey content, settings, and schedules.
+    #   "device_settings" - The settings defined for the study - note that the values here may have
+    #       drifted in scope from this name, and may contain other non-device settings.
+    #   "interventions" - a list of the names of the interventions defined for the study, and used
+    #       in the survey schedules.
+
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-upload-history/v1"
     # Endpoint takes one required parameter, participant_id, which must match a participant id in a
     # study the user has access to.
