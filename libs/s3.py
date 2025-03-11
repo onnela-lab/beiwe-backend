@@ -1,16 +1,21 @@
 from __future__ import annotations
 
-from typing import Generator, Protocol, Sequence
+from os.path import join as path_join
+from time import perf_counter
+from typing import Any, Generator, Protocol, Sequence
 from unittest.mock import MagicMock
 
 import boto3
 import zstd
 from botocore.client import BaseClient
 from cronutils import ErrorHandler
+from django.utils import timezone
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
-from constants.common_constants import RUNNING_TESTS
+from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_SCRIPT_EB,
+    CUSTOM_ONDEPLOY_SCRIPT_PROCESSING, PROBLEM_UPLOADS, RUNNING_TESTS)
+from database.models import Participant, S3File, Study
 from libs.aes import decrypt_server, encrypt_for_server
 
 
@@ -60,8 +65,6 @@ SMART_GET_ERROR = "expected Study, Participant, or 24 char str, received '{}'"
 
 
 def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
-    from database.models import Participant, Study  # circular imports
-    
     if isinstance(obj, Participant):
         return obj.study.encryption_key.encode()
     elif isinstance(obj, Study):
@@ -69,24 +72,52 @@ def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
     elif isinstance(obj, str) and len(obj) == 24:
         return Study.objects.values_list("encryption_key", flat=True).get(object_id=obj).encode()
     else:
-        raise TypeError(f"expected Study, Participant, or str, received '{type(obj)}'")
+        raise TypeError(SMART_GET_ERROR.format(type(obj)))
 
 
-def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy):
-    from database.models import Participant, Study  # circular imports
-    
+def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy) -> str:
+    return get_just_prefix(obj) + "/" + key_path
+
+
+def get_just_prefix(obj: StrOrParticipantOrStudy) -> str:
     if isinstance(obj, Participant):
-        study_object_id = obj.study.object_id
+        return obj.study.object_id
     elif isinstance(obj, Study):
-        study_object_id = obj.object_id
-    elif isinstance(obj, str) and len(obj) == 24:
-        study_object_id = obj
+        return obj.object_id
+    elif isinstance(obj, str) and len(obj) == 24:  # extremely basic check
+        return obj
     else:
-        raise TypeError(f"expected Study, Participant, or 24 char str, received '{type(obj)}'")
-    return study_object_id + "/" + key_path
+        raise TypeError(SMART_GET_ERROR.format(type(obj)))
 
 
 ## S3 Storage Class
+
+METADATA_FIELDS = {
+    "size_compressed",
+    "size_uncompressed",
+    "compression_time_ms",
+    "decompression_time_ms",
+    "encryption_time_ms",
+    "download_time_ms",
+    "upload_time_ms",
+    "decrypt_time_ms",
+    "participant",
+    "study",
+    "last_updated",
+}
+
+
+class MetaDotDict(dict):
+    def __getattr__(self, item):
+        return self[item]
+    
+    def __setattr__(self, name: str, value: Any):
+        self[name] = value
+    
+    def __setitem__(self, key: Any, value: Any) -> None:
+        if key not in METADATA_FIELDS:
+            raise AttributeError(f"'{key}' is not a validated metadata field")
+        return super().__setitem__(key, value)
 
 
 class S3Storage:
@@ -97,15 +128,40 @@ class S3Storage:
         if s3_path.endswith(".zstd"):
             raise ValueError("path should never end with .zstd")
         
-        self.s3_path_uncompressed = s3_path
-        self.s3_path_zstd = s3_path + ".zstd"
+        self.smart_key_obj = obj  # Study, Participant, or 24 char str
+        self.validate_file_paths(s3_path, bypass_study_folder)
         
-        self.bypass_study_folder = bypass_study_folder
-        self.smart_key_obj = obj
+        self.uncompressed_data = None  # DON'T ADD AS CONSTRUCTOR PARAMETER; FORCE MEMORY MANAGEMENT.
+        self.metadata = MetaDotDict()
         
-        self.uncompressed_data = None  # DON'T ADD TO CONSTRUCTOR; FORCE MEMORY MANAGEMENT.
+        # DB fields
+        if isinstance(self.smart_key_obj, Study):
+            self.metadata.study = self.smart_key_obj
+        elif isinstance(self.smart_key_obj, Participant):
+            self.metadata.participant = self.smart_key_obj
     
-    # State
+    def validate_file_paths(self, path: str, bypass_study_folder: bool):
+        # for historical reasons we only sometimes have the full file path. Files only go in a few places:
+        #  - the study's folder, which is the object id volue on the Study (24 characters)
+        #  - the chunks folder - time-binned chunked data in the chunk registry - file structure
+        #    mimics the normal file structure.
+        
+        if not bypass_study_folder:
+            self.s3_path_uncompressed = path_join(self.get_path_prefix, path)
+            self.s3_path_zstd = self.s3_path_uncompressed + ".zstd"
+            return
+        
+        # validation of paths:
+        path_start = path.split("/", 1)[0]
+        if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_SCRIPT_EB, CUSTOM_ONDEPLOY_SCRIPT_PROCESSING):
+            raise ValueError(f"Files in the {path_start} folder should not use the S3Storage class. full path: {path}")
+        if path_start != CHUNKS_FOLDER:
+            raise ValueError(f"Unrecognized base folder: `{path_start}` in path: `{path}`")
+        
+        self.s3_path_uncompressed = path
+        self.s3_path_zstd = path + ".zstd"
+    
+    ## File State Tracking
     
     def set_file_content(self, file_content: bytes):
         if not isinstance(file_content, bytes):
@@ -120,44 +176,31 @@ class S3Storage:
         del self.uncompressed_data
         return uncompressed_data
     
-    @property
-    def encryption_key(self):
-        if hasattr(self, "_encryption_key"):
-            return self._encryption_key
-        self._encryption_key = smart_get_study_encryption_key(self.smart_key_obj)
-        return self._encryption_key
-    
-    @property
-    def prefix(self):
-        if hasattr(self, "_path_prefix"):
-            return self._path_prefix
-        self._path_prefix = \
-            "" if self.bypass_study_folder else s3_construct_study_key_path("", self.smart_key_obj)
-        return self._path_prefix
-    
     # Upload
     
     def compress_and_push_to_storage_and_clear_everything(self):
-        self.compress_and_push_to_storage()
-        del self.compressed_data
-    
-    def compress_and_push_to_storage(self):
         self.compress_data_and_clear_uncompressed()
         self._s3_upload_zstd()
+        self.update_s3_db_table()
     
     ## Compression
     
     def compress_data_and_clear_uncompressed(self):
-        # it is important that this only occur once
+        # it is important that this only occur once, and that all compression go through this function
         assert hasattr(self, "uncompressed_data"), COMPRESSION__COMPRESSED_DATA_NOT_SET
         assert self.uncompressed_data is not None, COMPRESSION__COMPRESSED_DATA_NONE
+        self.metadata.size_uncompressed = len(self.uncompressed_data)
         
+        t_compress = perf_counter()
         self.compressed_data = zstd.compress(
             self.uncompressed_data,
             1,  # compression level (1 yields better compression on average across our data streams
             0,  # auto-tune the number of threads based on cpu cores (no apparent drawbacks)
         )
+        self.metadata.compression_time_ms = int((perf_counter() - t_compress) * 1000)  # milliseconds
+        
         del self.uncompressed_data  # removes the uncompressed data from memory
+        self.metadata.size_compressed = len(self.compressed_data)
     
     ## Download
     
@@ -170,15 +213,56 @@ class S3Storage:
     
     def _download_as_compressed(self):
         # This line should be the error on when there is no compressed copy
-        self.uncompressed_data = zstd.decompress(self._s3_retrieve_zstd())
+        data = self._s3_retrieve_zstd()
+        t_decompress = perf_counter()
+        self.uncompressed_data = zstd.decompress(data)
+        self.decompression_time_ms = int((perf_counter() - t_decompress) * 1000)  # milliseconds
+        del data  # early cleanup? sure.
+        self.update_s3_db_table()
     
     def _download_and_rewrite_s3_as_compressed(self):
         raw_data = self._s3_retrieve_uncompressed()
-        self.uncompressed_data = raw_data
         
+        self.uncompressed_data = raw_data
         self.compress_and_push_to_storage_and_clear_everything()
         self._s3_delete_uncompressed()
+        
         self.uncompressed_data = raw_data  # reattach the uncompressed data
+    
+    #
+    ## DB ops
+    #
+    
+    def update_metadata(self, **kwargs):
+        for k,v in kwargs.items():
+            self.metadata[k] = v
+    
+    def update_s3_db_table(self):
+        self.metadata.last_updated = timezone.now()
+        S3File.objects.update_or_create(path=self.s3_path_zstd, defaults=self.metadata)
+    
+    def delete_s3_table_entry_zstd(self):
+        S3File.fltr(path=self.s3_path_zstd).delete()  # can't actually fail
+    
+    def delete_s3_table_entry_uncompressed(self):
+        S3File.fltr(path=self.s3_path_uncompressed).delete()  # can't actually fail
+    
+    # (these cached properties may need network/db ops)
+    # Todo: cache for real? do we want to cache the encryption key?
+    
+    @property
+    def encryption_key(self):
+        if hasattr(self, "_encryption_key"):
+            return self._encryption_key
+        self._encryption_key = smart_get_study_encryption_key(self.smart_key_obj)
+        return self._encryption_key
+    
+    @property
+    def get_path_prefix(self):
+        if hasattr(self, "_the_path_prefix"):
+            return self._the_path_prefix
+        self._the_path_prefix = get_just_prefix(self.smart_key_obj)
+        return self._the_path_prefix
     
     #
     ## S3 OPS
@@ -187,18 +271,37 @@ class S3Storage:
     ## Delete
     
     def _s3_delete_zstd(self):
-        return s3_delete(self.prefix + self.s3_path_zstd)
+        if not s3_delete(self.s3_path_zstd):
+            raise S3DeletionException(f"Failed to delete {self.s3_path_zstd}")
+        self.delete_s3_table_entry_zstd()
     
     def _s3_delete_uncompressed(self):
-        return s3_delete(self.prefix + self.s3_path_uncompressed)
+        if not s3_delete(self.s3_path_uncompressed):
+            raise S3DeletionException(f"Failed to delete {self.s3_path_uncompressed}")
+        self.delete_s3_table_entry_uncompressed()
     
     ## Upload
     
     def _s3_upload_zstd(self):
-        self._s3_upload(self.s3_path_zstd, self.compressed_data, self.smart_key_obj)
-    
-    def _s3_upload(self, path: str, data: bytes, obj: StrOrParticipantOrStudy):
-        _do_upload(self.prefix + path, encrypt_for_server(data, self.encryption_key))
+        """ Manually manage these memory/reference count operations.  It matters.
+        This is a critical performance path. DO NOT separate into further functions calls without
+        profiling memory usage. """
+        
+        compressed_data = self.compressed_data  # 1x memory
+        del self.compressed_data
+        
+        t_encrypt = perf_counter()
+        encrypted_compressed_data = encrypt_for_server(compressed_data, self.encryption_key)
+        self.metadata.encryption_time_ms = int((perf_counter() - t_encrypt) * 1000)  # milliseconds
+        
+        del compressed_data
+        
+        t_upload = perf_counter()
+        _do_upload(self.s3_path_zstd, encrypted_compressed_data)  # probable 2x memory usage
+        self.metadata.upload_time_ms = int((perf_counter() - t_upload) * 1000)  # milliseconds
+        
+        del encrypted_compressed_data  # 0x memory
+        self.update_s3_db_table()
     
     ## Retrieve
     
@@ -206,10 +309,21 @@ class S3Storage:
         return decrypt_server(self._s3_retrieve(self.s3_path_uncompressed), self.encryption_key)
     
     def _s3_retrieve_zstd(self):
-        return decrypt_server(self._s3_retrieve(self.s3_path_zstd),self.encryption_key)
+        key = self.encryption_key  # may have network/db op
+        
+        t_download = perf_counter()
+        data = self._s3_retrieve(self.s3_path_zstd)
+        self.download_time_ms = int((perf_counter() - t_download) * 1000)  # milliseconds
+        
+        t_decrypt = perf_counter()
+        ret = decrypt_server(data, key)
+        self.decrypt_time_ms = int((perf_counter() - t_decrypt) * 1000)  # milliseconds
+        del data
+        
+        return ret
     
     def _s3_retrieve(self, path: str) -> bytes:
-        return _do_retrieve(S3_BUCKET, self.prefix + path)['Body'].read()
+        return _do_retrieve(S3_BUCKET, path)['Body'].read()
     
     ## Get Size
     
@@ -427,25 +541,17 @@ TypeError: Object type <class 'botocore.response.StreamingBody'> cannot be passe
 # encryption keys without purging them.  But I couldn't help myself from prototyping it.
 
 
-
-# try:
-#     from database.models import Participant
-# except ImportError:
-#     pass
-
-
 # class SmartKeyPath:
-    
+
 #     object_id_to_keys: dict[str, bytes] = {}
 #     study_pk_to_keys: dict[int, bytes] = {}
 #     study_pk_to_object_id: dict[int, str] = {}
-    
+
 #     both_fields = ("encryption_key", "object_id")
-    
+
 #     @classmethod
 #     def populate(cls, obj: StrOrParticipantOrStudy) -> None:
-#         from database.models import Participant, Study  # circular imports
-        
+
 #         if isinstance(obj, Participant):
 #             cls._populate_participant(obj)  # query
 #         elif isinstance(obj, Study):
@@ -454,66 +560,60 @@ TypeError: Object type <class 'botocore.response.StreamingBody'> cannot be passe
 #             cls._populate_object_id_str(obj)  # query
 #         else:
 #             raise TypeError(f"expected Study, Participant, or 24 char str, received '{type(obj)}'")
-    
+
 #     ## Populate
-    
+
 #     @classmethod
 #     def _populate(cls, study_id: int, key: bytes, study_object_id: str):
 #         cls.study_pk_to_keys[study_id] = key
 #         cls.object_id_to_keys[study_object_id] = key
 #         cls.study_pk_to_object_id[study_id] = study_object_id
-    
+
 #     @classmethod
 #     def _populate_participant(cls, p: Participant):
-#         from database.models import Study  # circular imports
 #         key, study_object_id = Study.fltr(pk=p.study_id).values_list(*cls.both_fields).get()
 #         cls._populate(p.study_id, key.encode(), study_object_id)
-    
+
 #     @classmethod
 #     def _populate_object_id_str(cls, s: str):
-#         from database.models import Study  # circular imports
 #         pk, key, study_object_id = Study.fltr(object_id=s).values_list("pk", *cls.both_fields).get()
 #         cls._populate(pk, key.encode(), study_object_id)
-    
+
 #     ## getters
-    
+
 #     @classmethod
 #     def smart_get_study_encryption_key(cls, obj: StrOrParticipantOrStudy) -> bytes:
-#         from database.models import Participant, Study  # circular imports
-        
 #         # The easy one
 #         if isinstance(obj, Study):
 #             return obj.encryption_key.encode()
-        
+
 #         # The annoying ones
 #         if isinstance(obj, Participant):
 #             if obj.study_id not in cls.study_pk_to_keys:
 #                 cls.populate(obj)
 #             return cls.study_pk_to_keys[obj.study_id]
-        
+
 #         elif isinstance(obj, str) and len(obj) == 24:
 #             if obj not in cls.object_id_to_keys:
 #                 cls.populate(obj)
 #             return cls.object_id_to_keys[obj]
-        
+
 #         else:
 #             raise TypeError(SMART_GET_ERROR.format(type(obj)))
-    
+
 #     @classmethod
 #     def s3_construct_study_key_path(cls, key_path: str, obj: StrOrParticipantOrStudy):
-#         from database.models import Participant, Study  # circular imports
-        
 #         # The easy ones
 #         if isinstance(obj, Study):
 #             return obj.object_id + "/" + key_path
 #         elif isinstance(obj, str) and len(obj) == 24:
 #             return obj + "/" + key_path
-        
+
 #         # The annoying one
 #         elif isinstance(obj, Participant):
 #             if obj.study_id not in cls.study_pk_to_object_id:
 #                 cls.populate(obj)
 #             return cls.study_pk_to_object_id[obj.study_id] + "/" + key_path
-        
+
 #         else:
 #             raise TypeError(SMART_GET_ERROR.format(type(obj)))

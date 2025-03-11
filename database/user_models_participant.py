@@ -28,7 +28,6 @@ from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
 from libs.rsa import get_participant_private_key, RSA
-from libs.s3 import s3_retrieve
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
     VersionError)
 from libs.utils.security_utils import (compare_password, device_hash, django_password_components,
@@ -50,7 +49,7 @@ from libs.utils.security_utils import (compare_password, device_hash, django_pas
 # convenience method on Participants below) you will need to add a local import.
 try:
     from database.models import (ArchivedEvent, ChunkRegistry, EncryptionErrorMetadata,
-        FileToProcess, ForestTask, InterventionDate, IOSDecryptionKey, LineEncryptionError,
+        FileToProcess, ForestTask, InterventionDate, IOSDecryptionKey, LineEncryptionError, S3File,
         ScheduledEvent, StudyField, SummaryStatisticDaily, UploadTracking)
 except ImportError:
     pass
@@ -151,6 +150,7 @@ class Participant(AbstractPasswordUser):
     action_logs: Manager[ParticipantActionLog]
     app_version_history: Manager[AppVersionHistory]
     notification_reports: Manager[SurveyNotificationReport]
+    s3_files: Manager[S3File]
     # undeclared:
     encryptionerrormetadata_set: Manager[EncryptionErrorMetadata]  # TODO: remove when ios stops erroring
     foresttask_set: Manager[ForestTask]
@@ -346,6 +346,7 @@ class Participant(AbstractPasswordUser):
     ################################################################################################
     
     def s3_retrieve(self, s3_path: str) -> bytes:
+        from libs.s3 import s3_retrieve
         raw_path = s3_path.startswith(self.study.object_id)
         return s3_retrieve(s3_path, self, raw_path=raw_path)
     

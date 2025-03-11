@@ -1,5 +1,5 @@
 import itertools
-from typing import List, Tuple
+from typing import Generator
 
 from django.utils import timezone
 
@@ -23,6 +23,29 @@ def add_participant_for_deletion(participant: Participant):
     ParticipantDeletionEvent.objects.create(participant=participant)
 
 
+RELATED_NAMES = [
+    "chunk_registries",
+    "summarystatisticdaily_set",
+    "lineencryptionerror_set",
+    "iosdecryptionkey_set",
+    "foresttask_set",
+    "encryptionerrormetadata_set",
+    "files_to_process",
+    "pushnotificationdisabledevent_set",
+    "fcm_tokens",
+    "field_values",
+    "upload_trackers",
+    "intervention_dates",
+    "scheduled_events",
+    "archived_events",
+    "heartbeats",
+    "device_status_reports",
+    "app_version_history",
+    "notification_reports",
+    "s3_files",
+]
+
+
 def run_next_queued_participant_data_deletion():
     """ checks ParticipantDeletionEvent for un-run events, runs deletion over all of them. """
     # only deletion events that have not been confirmed completed (purge_confirmed_time) and only
@@ -39,43 +62,28 @@ def run_next_queued_participant_data_deletion():
         return
     
     deletion_event.save()  # mark the event as processing...
+    participant = deletion_event.participant
     
     # mark the participant as retired (field name is unregistered, its a legacy name), disable
     # easy enrollment, set a random password (validation runs on save so it needs to be valid)
-    deletion_event.participant.log(action_log_messages.PARTICIPANT_DELETION_EVENT_STARTED)
+    participant.log(action_log_messages.PARTICIPANT_DELETION_EVENT_STARTED)
     
-    deletion_event.participant.update(
+    participant.update(
         permanently_retired=True, easy_enrollment=False, device_id="", os_type=""
     )
-    deletion_event.participant.set_password(generate_easy_alphanumeric_string(50))
+    participant.set_password(generate_easy_alphanumeric_string(50))
     
     delete_participant_data(deletion_event)
     # A meta test that checks that a test for every single related field is present will fail
     # whenever a new relation is added. You have to manually make that test.
-    deletion_event.participant.chunk_registries.all().delete()
-    deletion_event.participant.summarystatisticdaily_set.all().delete()
-    deletion_event.participant.lineencryptionerror_set.all().delete()
-    deletion_event.participant.iosdecryptionkey_set.all().delete()
-    deletion_event.participant.foresttask_set.all().delete()
-    deletion_event.participant.encryptionerrormetadata_set.all().delete()
-    deletion_event.participant.files_to_process.all().delete()
-    deletion_event.participant.pushnotificationdisabledevent_set.all().delete()
-    deletion_event.participant.fcm_tokens.all().delete()
-    deletion_event.participant.field_values.all().delete()
-    deletion_event.participant.upload_trackers.all().delete()
-    deletion_event.participant.scheduled_events.all().delete()
-    deletion_event.participant.archived_events.all().delete()
-    deletion_event.participant.intervention_dates.all().delete()
-    deletion_event.participant.heartbeats.all().delete()
-    deletion_event.participant.device_status_reports.all().delete()
-    deletion_event.participant.app_version_history.all().delete()
-    deletion_event.participant.notification_reports.all().delete()
+    for name in RELATED_NAMES:
+        getattr(participant, name).all().delete()
     
     #! BUT WE DON'T DELETE ACTION LOGS.
     # deletion_event.participant.action_logs.all().delete()
     confirm_deleted(deletion_event)
-    deletion_event.participant.update(deleted=True)
-    deletion_event.participant.log(action_log_messages.PARTICIPANT_DELETION_EVENT_DONE)
+    participant.update(deleted=True)
+    participant.log(action_log_messages.PARTICIPANT_DELETION_EVENT_DONE)
 
 
 def delete_participant_data(deletion_event: ParticipantDeletionEvent):
@@ -104,39 +112,9 @@ def confirm_deleted(deletion_event: ParticipantDeletionEvent):
     for _ in s3_list_files(problem_uploads, as_generator=True):
         raise AssertionError(f"still files present in {problem_uploads}")
     
-    # MAKE SURE TO UPDATE TESTS IF YOU ADD MORE RELATIONS TO THIS LIST
-    if deletion_event.participant.chunk_registries.exists():
-        raise AssertionError("still have database entries for chunk_registries")
-    if deletion_event.participant.summarystatisticdaily_set.exists():
-        raise AssertionError("still have database entries for summarystatisticdaily")
-    if deletion_event.participant.lineencryptionerror_set.exists():
-        raise AssertionError("still have database entries for lineencryptionerror")
-    if deletion_event.participant.iosdecryptionkey_set.exists():
-        raise AssertionError("still have database entries for iosdecryptionkey")
-    if deletion_event.participant.foresttask_set.exists():
-        raise AssertionError("still have database entries for foresttask")
-    if deletion_event.participant.encryptionerrormetadata_set.exists():
-        raise AssertionError("still have database entries for encryptionerrormetadata")
-    if deletion_event.participant.files_to_process.exists():
-        raise AssertionError("still have database entries for files_to_process")
-    if deletion_event.participant.pushnotificationdisabledevent_set.exists():
-        raise AssertionError("still have database entries for pushnotificationdisabledevent")
-    if deletion_event.participant.fcm_tokens.exists():
-        raise AssertionError("still have database entries for fcm tokens (fcm history)")
-    if deletion_event.participant.field_values.exists():
-        raise AssertionError("still have database entries for participant field values")
-    if deletion_event.participant.upload_trackers.exists():
-        raise AssertionError("still have database entries for upload_trackers")
-    if deletion_event.participant.intervention_dates.exists():
-        raise AssertionError("still have database entries for intervention_dates")
-    if deletion_event.participant.scheduled_events.exists():
-        raise AssertionError("still have database entries for scheduled_events")
-    if deletion_event.participant.archived_events.exists():
-        raise AssertionError("still have database entries for archived_events")
-    if deletion_event.participant.heartbeats.exists():
-        raise AssertionError("still have database entries for heartbeats")  
-    if deletion_event.participant.device_status_reports.exists():
-        raise AssertionError("still have database entries for device_status_reports")  
+    for name in RELATED_NAMES:
+        if getattr(deletion_event.participant, name).exists():
+            raise AssertionError(f"still have database entries for {name}")
     
     #! BUT WE DON'T DELETE ACTION LOGS, in fact there should be at least 1
     if not deletion_event.participant.action_logs.exists():
@@ -147,7 +125,7 @@ def confirm_deleted(deletion_event: ParticipantDeletionEvent):
     deletion_event.save()
 
 
-def all_participant_file_paths(participant: Participant) -> List[Tuple[str, str]]:
+def all_participant_file_paths(participant: Participant) -> Generator[list[tuple[str, str]], None, None]:
     """ Generator, iterates over over all files for a participant, yields pages of 100 file_paths
     and version ids at a time. """
     many_file_version_ids = []
@@ -169,7 +147,7 @@ def all_participant_file_paths(participant: Participant) -> List[Tuple[str, str]
 
 # Note from developing the Forest task output file uploads - they are contained inside the regular
 # participant data folder, the jasmine bv_dict etc. are derived and don't have ~pii. 👍 We good.
-def get_all_file_path_prefixes(participant: Participant) -> Tuple[Tuple[str, str]]:
+def get_all_file_path_prefixes(participant: Participant) -> tuple[str,str,str,str]:
     """ The singular canonical location of all locations where participant data may be stored. """
     base = participant.study.object_id + "/" + participant.patient_id + "/"
     chunks_prefix = CHUNKS_FOLDER + "/" + base
