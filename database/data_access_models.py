@@ -16,7 +16,6 @@ from constants.data_stream_constants import (CHUNKABLE_FILES, IDENTIFIERS,
 from constants.user_constants import OS_TYPE_CHOICES
 from database.models import TimestampedModel
 from database.user_models_participant import Participant
-from libs.s3 import s3_retrieve
 from libs.utils.security_utils import chunk_hash
 
 
@@ -68,6 +67,7 @@ class ChunkRegistry(TimestampedModel):
     )
     
     def s3_retrieve(self) -> bytes:
+        from libs.s3 import s3_retrieve
         return s3_retrieve(self.chunk_path, self.study.object_id, raw_path=True)
     
     @classmethod

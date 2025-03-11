@@ -101,7 +101,10 @@ class UtilityModel(models.Model):
     
     @classmethod
     def nice_count(cls):
+        t1 = datetime.now()
         print("{:,}".format(count:= cls.objects.count()))
+        t2 = datetime.now()
+        print("this query took", (t2 - t1).total_seconds(), "seconds.")
         return count
     
     @property

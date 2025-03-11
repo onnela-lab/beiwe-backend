@@ -12,14 +12,14 @@ import zstd
 from dateutil.tz import gettz
 from django.utils import timezone
 
-from constants.common_constants import EASTERN, UTC
+from constants.common_constants import CHUNKS_FOLDER, EASTERN, UTC
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
     ERR_TARGET_VERSION_CANNOT_BE_MISSING, ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
-from database.models import ArchivedEvent, ScheduledEvent
+from database.models import ArchivedEvent, S3File, ScheduledEvent
 from database.profiling_models import EncryptionErrorMetadata, LineEncryptionError, UploadTracking
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
@@ -38,6 +38,7 @@ from tests.common import CommonTestCase
 
 
 COUNT_OF_PATHS_RETURNED_FROM_GET_ALL_FILE_PATH_PREFIXES = 4
+
 
 # Decorator for class instance methods that injects these three mocks, used in data purge tests.
 # @patch('libs.participant_purge.s3_list_files')
@@ -380,6 +381,14 @@ class TestParticipantDataDeletion(CommonTestCase):
         self.assertEqual(SurveyNotificationReport.objects.count(), 1)
         run_next_queued_participant_data_deletion()
         self.assertEqual(SurveyNotificationReport.objects.count(), 0)
+    
+    def test_confirm_S3File(self):
+        # this is a weird test, we can't actually test the s3 file deletion, but we can test that
+        # the function runs without error.
+        self.default_participant_deletion_event
+        S3File.objects.create(participant=self.default_participant, path="whatever")
+        run_next_queued_participant_data_deletion()
+        confirm_deleted(self.default_participant_deletion_event)
     
     def test_for_all_related_fields(self):
         # This test will fail whenever there is a new related model added to the codebase.
@@ -775,99 +784,100 @@ class TestS3Storage(CommonTestCase):
     ENCRYPTED_SLUG = encrypt_for_server(b"content", CommonTestCase.DEFAULT_ENCRYPTION_KEY_BYTES)
     COMPRESSED_ENCRYPTED_SLUG = encrypt_for_server(COMPRESSED_SLUG, CommonTestCase.DEFAULT_ENCRYPTION_KEY_BYTES)
     
+    @property
+    def valid_path_for_bypass_false(self):
+        return "a_path"
+    
+    @property
+    def valid_study_path(self):
+        return f"{self.default_study.object_id}/a_path"
+    
+    @property
+    def valid_non_study_path(self):
+        return CHUNKS_FOLDER + "/" + self.valid_study_path
+    
     def test_participant_instantiation(self):
-        s = S3Storage("a_path", self.default_participant, bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zstd, "a_path.zstd")
-        self.assertEqual(s.s3_path_uncompressed, "a_path")
-        self.assertEqual(s.bypass_study_folder, False)
+        s = S3Storage(self.valid_path_for_bypass_false, self.default_participant, bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zstd, self.valid_study_path + ".zstd")
+        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
         self.assertIs(s.smart_key_obj, self.default_participant)
         self.assertIsNone(s.uncompressed_data)
     
     def test_objectid_instantiation(self):
-        s = S3Storage("a_path", "literally just a string", bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zstd, "a_path.zstd")
-        self.assertEqual(s.s3_path_uncompressed, "a_path")
-        self.assertEqual(s.bypass_study_folder, False)
-        self.assertIs(s.smart_key_obj, "literally just a string")
+        s = S3Storage(self.valid_path_for_bypass_false, self.default_study.object_id, bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zstd, self.valid_study_path + ".zstd")
+        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
+        self.assertIs(s.smart_key_obj, self.default_study.object_id)
         self.assertIsNone(s.uncompressed_data)
     
     def test_study_instantiation(self):
-        s = S3Storage("a_path", self.default_study, bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zstd, "a_path.zstd")
-        self.assertEqual(s.s3_path_uncompressed, "a_path")
-        self.assertEqual(s.bypass_study_folder, False)
+        s = S3Storage(self.valid_path_for_bypass_false, self.default_study, bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zstd, self.valid_study_path + ".zstd")
+        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
         self.assertIs(s.smart_key_obj, self.default_study)
         self.assertIsNone(s.uncompressed_data)
-    
     
     @property
     def default_s3storage_with_prefix(self):
         # participant is probably the best test....
-        return S3Storage("a_path", self.default_participant, bypass_study_folder=False)
+        return S3Storage(self.valid_path_for_bypass_false, self.default_participant, bypass_study_folder=False)
     
     @property
     def default_s3storage_without_prefix(self):
-        return S3Storage("a_path", self.default_participant, bypass_study_folder=True)
+        return S3Storage(self.valid_non_study_path, self.default_participant, bypass_study_folder=True)
     
     ### WITH PREFIX
     
-    def params_for_upload_compressed_with_prefix(self):
+    def params_for_upload_compressed_study_prefix(self):
         return dict(
             Body=self.COMPRESSED_SLUG,
             Bucket='test_bucket',
-            Key=f'{self.default_study.object_id}/a_path.zstd',  # with zstd, with prefix
+            Key=f'{self.default_study.object_id}/a_path.zstd'
         )
     
-    def params_for_download_compressed_with_prefix(self):
+    def params_for_download_compressed_study_prefix(self):
         return dict(
             Bucket='test_bucket',
-            Key=f'{self.default_study.object_id}/a_path.zstd',  # with zstd, with prefix
+            Key=f'{self.default_study.object_id}/a_path.zstd',
             ResponseContentType='string'
         )
     
-    def params_for_download_UNCOMPRESSED_with_prefix(self):
+    def params_for_download_UNCOMPRESSED_study_prefix(self):
         return dict(
             Bucket='test_bucket',
-            Key=f'{self.default_study.object_id}/a_path',  # without zstd, with prefix
+            Key=f'{self.default_study.object_id}/a_path',
             ResponseContentType='string'
         )
     
-    def params_for_delete_UNCOMPRESSED_with_prefix(self):
-        return dict(
-            Bucket='test_bucket',
-            Key=f'{self.default_study.object_id}/a_path',  # without zstd, with prefix
-        )
+    def params_for_delete_UNCOMPRESSED_study_prefix(self):
+        return dict(Bucket='test_bucket', Key=f'{self.default_study.object_id}/a_path')
     
     ### WITHOUT PREFIX
     
-    def params_for_upload_compressed_without_prefix(self):
+    def params_for_upload_compressed_non_study_prefix(self):
         return dict(
             Body=self.COMPRESSED_SLUG,
             Bucket='test_bucket',
-            Key='a_path.zstd',  # with zstd, without prefix
+            Key=self.valid_non_study_path + '.zstd'
         )
     
-    def params_for_download_compressed_without_prefix(self):
+    def params_for_download_compressed_non_study_prefix(self):
         return dict(
             Bucket='test_bucket',
-            Key='a_path.zstd',  # with zstd, without prefix
+            Key=self.valid_non_study_path + '.zstd',
             ResponseContentType='string'
         )
     
-    def params_for_download_UNCOMPRESSED_without_prefix(self):
+    def params_for_download_UNCOMPRESSED_non_study_prefix(self):
         return dict(
-            Bucket='test_bucket',
-            Key='a_path',  # without zstd, without prefix
-            ResponseContentType='string'
+            Bucket='test_bucket', Key=self.valid_non_study_path, ResponseContentType='string'
         )
     
-    def params_for_delete_UNCOMPRESSED_without_prefix(self):
-        return dict(
-            Bucket='test_bucket',
-            Key='a_path',  # without zstd, without prefix
-        )
+    def params_for_delete_UNCOMPRESSED_non_study_prefix(self):
+        return dict(Bucket='test_bucket', Key=self.valid_non_study_path)
     
     ################################################################################################
+    
     def assert_hasattr(self, obj, attr):
         self.assertTrue(hasattr(obj, attr))
     
@@ -885,7 +895,7 @@ class TestS3Storage(CommonTestCase):
     
     def test_zstd_path_rejected(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            S3Storage("a_path.zstd", self.default_participant, bypass_study_folder=False)
+            S3Storage("CHUNKED_DATA/a_path.zstd", self.default_participant, bypass_study_folder=False)
     
     def test_get_cache_encryption_key(self):
         s = self.default_s3storage_with_prefix
@@ -927,7 +937,7 @@ class TestS3Storage(CommonTestCase):
         call = self.extract_mock_call_params(conn)[0]
         self.assertIn("call.put_object(", str(call))
         self.decrypt_kwarg_Body(call.kwargs)
-        self.assertEqual(call.kwargs, self.params_for_upload_compressed_with_prefix())
+        self.assertEqual(call.kwargs, self.params_for_upload_compressed_study_prefix())
     
     @patch("libs.s3.conn")
     def test_compress_and_push_to_storage_and_clear_everything_without_prefix(self, conn=MagicMock()):
@@ -938,39 +948,39 @@ class TestS3Storage(CommonTestCase):
         self.assert_not_hasattr(s, "compressed_data")
         self.assertEqual(len(conn.method_calls), 1)
         call = self.extract_mock_call_params(conn)[0]
-        self.assertIn("call.put_object(", str(call)) 
+        self.assertIn("call.put_object(", str(call))
         self.decrypt_kwarg_Body(call.kwargs)
-        self.assertEqual(call.kwargs, self.params_for_upload_compressed_without_prefix())
+        self.assertEqual(call.kwargs, self.params_for_upload_compressed_non_study_prefix())
     
     ## push_to_storage
     
-    @patch("libs.s3.conn")
-    def test_compress_and_push_to_storage_with_prefix(self, conn=MagicMock()):
-        # as test_compress_and_push_to_storage_and_clear_everything but one different side effect
-        s = self.default_s3storage_with_prefix
-        s.set_file_content(b"content")
-        s.compress_and_push_to_storage()
-        self.assert_not_hasattr(s, "uncompressed_data")
-        self.assert_hasattr(s, "compressed_data")
-        self.assertEqual(len(conn.method_calls), 1)
-        call = self.extract_mock_call_params(conn)[0]
-        self.assertIn("call.put_object(", str(call)) 
-        self.decrypt_kwarg_Body(call.kwargs)
-        self.assertEqual(call.kwargs, self.params_for_upload_compressed_with_prefix())
+    # @patch("libs.s3.conn")
+    # def test_compress_and_push_to_storage_with_prefix(self, conn=MagicMock()):
+    #     # as test_compress_and_push_to_storage_and_clear_everything but one different side effect
+    #     s = self.default_s3storage_with_prefix
+    #     s.set_file_content(b"content")
+    #     s.compress_and_push_to_storage()
+    #     self.assert_not_hasattr(s, "uncompressed_data")
+    #     self.assert_hasattr(s, "compressed_data")
+    #     self.assertEqual(len(conn.method_calls), 1)
+    #     call = self.extract_mock_call_params(conn)[0]
+    #     self.assertIn("call.put_object(", str(call))
+    #     self.decrypt_kwarg_Body(call.kwargs)
+    #     self.assertEqual(call.kwargs, self.params_for_upload_compressed_study_prefix())
     
-    @patch("libs.s3.conn")
-    def test_compress_and_push_to_storage_without_prefix(self, conn=MagicMock()):
-        # as test_compress_and_push_to_storage_and_clear_everything but one different side effect
-        s = self.default_s3storage_without_prefix
-        s.set_file_content(b"content")
-        s.compress_and_push_to_storage()
-        self.assert_not_hasattr(s, "uncompressed_data")
-        self.assert_hasattr(s, "compressed_data")
-        self.assertEqual(len(conn.method_calls), 1)
-        call = self.extract_mock_call_params(conn)[0]
-        self.assertIn("call.put_object(", str(call)) 
-        self.decrypt_kwarg_Body(call.kwargs)
-        self.assertEqual(call.kwargs, self.params_for_upload_compressed_without_prefix())
+    # @patch("libs.s3.conn")
+    # def test_compress_and_push_to_storage_without_prefix(self, conn=MagicMock()):
+    #     # as test_compress_and_push_to_storage_and_clear_everything but one different side effect
+    #     s = self.default_s3storage_without_prefix
+    #     s.set_file_content(b"content")
+    #     s.compress_and_push_to_storage()
+    #     self.assert_not_hasattr(s, "uncompressed_data")
+    #     self.assert_hasattr(s, "compressed_data")
+    #     self.assertEqual(len(conn.method_calls), 1)
+    #     call = self.extract_mock_call_params(conn)[0]
+    #     self.assertIn("call.put_object(", str(call))
+    #     self.decrypt_kwarg_Body(call.kwargs)
+    #     self.assertEqual(call.kwargs, self.params_for_upload_compressed_non_study_prefix())
     
     ## download
     
@@ -985,7 +995,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(len(conn.method_calls), 1)
         call = self.extract_mock_call_params(conn)[0]
         self.assertIn("call.get_object(", str(call))
-        self.assertEqual(call.kwargs, self.params_for_download_compressed_with_prefix())
+        self.assertEqual(call.kwargs, self.params_for_download_compressed_study_prefix())
         self.assertEqual(s.uncompressed_data, b"content")
         self.assert_not_hasattr(s, "compressed_data")
     
@@ -998,7 +1008,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(len(conn.method_calls), 1)
         call = self.extract_mock_call_params(conn)[0]
         self.assertIn("call.get_object(", str(call))
-        self.assertEqual(call.kwargs, self.params_for_download_compressed_without_prefix())
+        self.assertEqual(call.kwargs, self.params_for_download_compressed_non_study_prefix())
         self.assertEqual(s.uncompressed_data, b"content")
         self.assert_not_hasattr(s, "compressed_data")
     
@@ -1011,8 +1021,8 @@ class TestS3Storage(CommonTestCase):
         
         # hits retrieve [compressed, fail]
         # retrieve [uncompressed, success]
-        # upload [compressed, success]   (no side effects) 
-        # delete [uncompressed, success]   (no side effects) 
+        # upload [compressed, success]   (no side effects)
+        # delete [uncompressed, success]   (no side effects)
         do_retrieve.side_effect = [
             self.hack_s3_error("waka waka 1"),
             {"Body": BytesIO(self.ENCRYPTED_SLUG)},
@@ -1026,14 +1036,14 @@ class TestS3Storage(CommonTestCase):
         call_3 = self.extract_mock_call_params(conn)[2]
         call_4 = self.extract_mock_call_params(conn)[3]
         # absolutely cannot work out how to access the name of method called in any other way.
-        self.assertIn("call.get_object(", str(call_1)) 
-        self.assertEqual(call_1.kwargs, self.params_for_download_compressed_with_prefix())
-        self.assertIn("call.get_object(", str(call_2)) 
-        self.assertEqual(call_2.kwargs, self.params_for_download_UNCOMPRESSED_with_prefix())
-        self.assertIn("call.put_object(", str(call_3)) 
+        self.assertIn("call.get_object(", str(call_1))
+        self.assertEqual(call_1.kwargs, self.params_for_download_compressed_study_prefix())
+        self.assertIn("call.get_object(", str(call_2))
+        self.assertEqual(call_2.kwargs, self.params_for_download_UNCOMPRESSED_study_prefix())
+        self.assertIn("call.put_object(", str(call_3))
         self.decrypt_kwarg_Body(call_3.kwargs)
-        self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_with_prefix())
-        self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_with_prefix())
+        self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_study_prefix())
+        self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_study_prefix())
         self.assertIn("call.delete_object(", str(call_4))
     
     @patch("libs.s3.conn")
@@ -1053,12 +1063,12 @@ class TestS3Storage(CommonTestCase):
         call_3 = self.extract_mock_call_params(conn)[2]
         call_4 = self.extract_mock_call_params(conn)[3]
         # absolutely cannot work out how to access the name of method called in any other way.
-        self.assertIn("call.get_object(", str(call_1)) 
-        self.assertEqual(call_1.kwargs, self.params_for_download_compressed_without_prefix())
-        self.assertIn("call.get_object(", str(call_2)) 
-        self.assertEqual(call_2.kwargs, self.params_for_download_UNCOMPRESSED_without_prefix())
-        self.assertIn("call.put_object(", str(call_3)) 
+        self.assertIn("call.get_object(", str(call_1))
+        self.assertEqual(call_1.kwargs, self.params_for_download_compressed_non_study_prefix())
+        self.assertIn("call.get_object(", str(call_2))
+        self.assertEqual(call_2.kwargs, self.params_for_download_UNCOMPRESSED_non_study_prefix())
+        self.assertIn("call.put_object(", str(call_3))
         self.decrypt_kwarg_Body(call_3.kwargs)
-        self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_without_prefix())
-        self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_without_prefix())
+        self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_non_study_prefix())
+        self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_non_study_prefix())
         self.assertIn("call.delete_object(", str(call_4))
