@@ -13,6 +13,10 @@ from database.common_models import UtilityModel
 from database.models import JSONTextField, TimestampedModel
 from database.user_models_participant import Participant
 
+try:
+    from database.study_models import Study  # Used in a type hint
+except ImportError:
+    pass
 
 class EncryptionErrorMetadata(TimestampedModel):
     file_name = models.CharField(max_length=256)
@@ -296,3 +300,17 @@ class UploadTracking(UtilityModel):
             del data["totals"]["users"]
         
         return data
+
+
+class S3File(TimestampedModel):
+    path = models.TextField(unique=True)
+    size_uncompressed = models.PositiveBigIntegerField(null=True, blank=True)
+    size_compressed = models.PositiveBigIntegerField(null=True, blank=True)
+    compression_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    decompression_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    encryption_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    download_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    upload_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    decrypt_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    participant: Participant = models.ForeignKey("Participant", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
+    study: Study = models.ForeignKey("Study", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")

@@ -3,6 +3,9 @@ from os import urandom
 from Cryptodome.Cipher import AES
 
 
+# todo: use the buffer interface to make encryption/decryption faster/not use 2x memory (if possible)
+
+
 def encrypt_for_server(data: bytes, encryption_key: bytes) -> bytes:
     """ Encrypts config using the ENCRYPTION_KEY, prepends the generated initialization vector.
     Use this function on an entire file (as a bytes). """
