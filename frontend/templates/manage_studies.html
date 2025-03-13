@@ -2,8 +2,8 @@
 
 {% block head %}
   {{ super() }}
-  <script>filterableObjects = {{ studies|tojson }}</script>
   <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
+    <script>filterableObjects = {{ allowed_studies|tojson }}</script>
 {% endblock %}
 
 {% block title %}Manage Studies{% endblock %}
@@ -29,7 +29,7 @@
     
     {# Search/filter input field #}
     <div class="form-group col-sm-6 row">
-      <input type="search" class="form-control" placeholder="Find Study by Name or ID" ng-model="allowedStudies" autofocus>
+      <input type="search" class="form-control" placeholder="Find Study by Name or ID" ng-model="studyFilterText" autofocus>
     </div>
     
     <table class="table table-striped">
