@@ -3,6 +3,7 @@
 {% block head %}
     {{ super() }}
     <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
+    <script>filterableObjects = {{ allowed_studies|tojson }}</script>
 {% endblock %}
 
 {% block title %}Choose Study{% endblock %}
@@ -26,7 +27,7 @@
             </div>
 
             <div class="list-group row">
-                <h4 ng-repeat="study in allowedStudies | filter:{search_text: studyFilterText}">
+                <h4 ng-repeat="study in filterableObjects | filter:{search_text: studyFilterText}">
                     <a href="/view_study/{% raw %}{{ study.id }}{% endraw %}" class="list-group-item">
                     {% raw %}
                     {{ study.name }}
