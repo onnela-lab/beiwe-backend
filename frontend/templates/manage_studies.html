@@ -10,23 +10,26 @@
 
 {% block content %}
 
-  <div class="row">
-    <p>Unprocessed data files: {{ "{:,}".format(unprocessed_files_count) }}</p>
-  </div>
+  
 
-  <div class="row">
+  <div class="table">
     <h3>
       All Studies
-      <a href="/create_study" class="btn btn-success pull-right bold">Create New Study</a>
+      <a href="/create_study" class="btn btn-success bold pull-right margin-right-3">Create New Study</a>
     </h3>
   </div>
 
   <br>
 
   <div id="filterableList" ng-controller="FilterableListController" class="col-lg-12 row">
+    
+    <div class="pull-right margin-right-1 text-small-italic" style="color: gray; font">
+      <p>This Beiwe server has {{ "{:,}".format(unprocessed_files_count) }} files waiting to be processed.</p>
+    </div>
+    
     {# Search/filter input field #}
-    <div class="form-group col-sm-4">
-      <input type="search" class="form-control" placeholder="Filter by study name" ng-model="studyFilterText" autofocus>
+    <div class="form-group col-sm-6 row">
+      <input type="search" class="form-control" placeholder="Find Study by Name or ID" ng-model="allowedStudies" autofocus>
     </div>
     
     <table class="table table-striped">
@@ -36,13 +39,17 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="study in filterableObjects | filter:{name: studyFilterText}">
+        <tr ng-repeat="study in filterableObjects | filter:{search_text: studyFilterText}">
           <td>
             <a class="bold text-blackish link-fill" href="/view_study/{% raw %}{{ study.id }}{% endraw %}" >
-               {% raw %}{{ study.name }}{% endraw %}
+            {% raw %}
+            {{ study.name }}
+            
+            <i style="font-weight: lighter; font-size: smaller; color: gray; font-family: monospace;" class="pull-right"> {{study.object_id}} </i>
+            {% endraw %}
             </a>
           </td>
-          <td><a class="link-fill" href="/edit_study/{% raw %}{{ study.id }}{% endraw %}">Edit study</a></td>
+          <td style="width: 6em;"><a class="link-fill" href="/edit_study/{% raw %}{{ study.id }}{% endraw %}">Edit Study</a></td>
           <td><a class="link-fill" href="/dashboard/{% raw %}{{ study.id }}{% endraw %}">Dashboard</a></td>
         </tr>
       </tbody>

@@ -21,10 +21,15 @@ def researcher_context_processor(request: ResearcherRequest):
         # the studies dropdown is on almost all pages.
         allowed_studies_kwargs = {} if request.session_researcher.site_admin else \
             {"study_relations__researcher": request.session_researcher}
-        ret["allowed_studies"] = [
-            study_info_dict for study_info_dict in Study.get_all_studies_by_name()
-            .filter(**allowed_studies_kwargs).values("name", "object_id", "id")
-        ]
+        
+        allowed_studies = list(
+            Study.get_all_studies_by_name().filter(**allowed_studies_kwargs)
+                .values("name", "object_id", "id")
+        )
+        for study in allowed_studies:
+            study["search_text"] = f"{study['name']} ({study['object_id']})"
+        
+        ret["allowed_studies"] = allowed_studies
         ret["is_admin"] = request.session_researcher.is_an_admin()
         ret["site_admin"] = request.session_researcher.site_admin
         ret["session_researcher"] = request.session_researcher

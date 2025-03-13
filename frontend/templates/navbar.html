@@ -13,24 +13,27 @@
       </button>
     </div>
 
-    <div id="main-navbar-menu" ng-controller="NavBarStudyController" class="collapse navbar-collapse">
+    <div id="main-navbar-menu" ng-controller="NavBarStudyController" class="collapse navbar-collapse" style="background-color: transparent;" max-width="10px">
       <ul class="nav navbar-nav navbar-left">
         {# If the current admin is authorized to view more than one study, give them a drop-down menu to switch studies #}
         <li ng-if="navBarStudies.length > 1" class="dropdown" role="presentation">
-          <a class="dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <a class="dropdown-toggle " type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
               Studies <span class="caret"></span>
           </a>
-
           {# The dropdown menu is an AngularJS app that's searchable/filterable #}
-          <ul id="searchableStudyList" class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenu1">
+          <ul id="searchableStudyList" class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenu1" style="background-color: rgb(255, 255, 255, 0.9); backdrop-filter: blur(1.5px);">
             {# Search/filter input field #}
             <li class="dropdown_search_field">
               <div class="form-group">
-                <input type="search" class="form-control" placeholder="Filter by study name" ng-model="searchText" ng-click="$event.stopPropagation()" autofocus>
+                <input type="search" class="form-control"
+                placeholder="Find Study by Name or ID"
+                ng-model="searchText"
+                ng-click="$event.stopPropagation()"
+                autofocus>
               </div>
             </li>
             {# Filtered list of studies #}
-            <li ng-repeat="study in navBarStudies | filter:{name: searchText}">
+            <li ng-repeat="study in navBarStudies | filter:{search_text: searchText}">
               <a href="/view_study/{% raw %}{{ study.id }}{% endraw %}">{% raw %}{{ study.name }}{% endraw %}</a></li>
           </ul>
         </li>

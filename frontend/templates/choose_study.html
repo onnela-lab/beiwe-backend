@@ -2,7 +2,6 @@
 
 {% block head %}
     {{ super() }}
-    <script>filterableObjects = {{ studies|tojson }}</script>
     <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
 {% endblock %}
 
@@ -21,13 +20,19 @@
             {# Search/filter input field #}
             <div class="row">
                 <div class="form-group col-sm-4">
-                    <input type="search" class="form-control" placeholder="Filter by study name" ng-model="studyFilterText" autofocus>
+                    <input type="search" class="form-control"
+                    placeholder="Find Study by Name or ID" ng-model="studyFilterText" autofocus>
                 </div>
             </div>
 
             <div class="list-group row">
-                <h4 ng-repeat="study in filterableObjects | filter:{name: studyFilterText}">
-                    <a href="/view_study/{% raw %}{{ study.id }}{% endraw %}" class="list-group-item">{% raw %}{{ study.name }}{% endraw %}</a>
+                <h4 ng-repeat="study in allowedStudies | filter:{search_text: studyFilterText}">
+                    <a href="/view_study/{% raw %}{{ study.id }}{% endraw %}" class="list-group-item">
+                    {% raw %}
+                    {{ study.name }}
+                    <i style="font-weight: lighter; font-size: smaller; color: gray; font-family: monospace;" class="pull-right margin-top-0-5"> {{study.object_id}} </i>
+                    {% endraw %}
+                    </a>
                 </h4>
             </div>
 

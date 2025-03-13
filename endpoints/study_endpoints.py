@@ -39,6 +39,14 @@ from libs.utils.http_utils import (easy_url, list_of_checkbox_strings_to_boolean
     list_of_intlike_strings_to_int)
 
 
+def get_researcher_allowed_studies_searchable(request: ResearcherRequest):
+    # gets and inserts searchable text for the frontend
+    studies = list(get_administerable_studies_by_name(request).values("id", "name", "object_id"))
+    for s in studies:
+        s["search_text"] = f"{s['name']} {s['object_id']}"
+    return studies
+
+
 @require_GET
 @authenticate_researcher_login
 def choose_study_page(request: ResearcherRequest):
@@ -55,7 +63,7 @@ def choose_study_page(request: ResearcherRequest):
         request,
         'choose_study.html',
         context=dict(
-            studies=list(allowed_studies.values("name", "id")),
+            studies=get_researcher_allowed_studies_searchable(request),
             is_admin=request.session_researcher.is_an_admin(),
         )
     )
@@ -65,11 +73,12 @@ def choose_study_page(request: ResearcherRequest):
 @authenticate_admin
 def manage_studies_page(request: ResearcherRequest):
     """ Site and study admin only page, shows a list of studies they can _edit_. """
+    
     return render(
         request,
         'manage_studies.html',
         context=dict(
-            studies=list(get_administerable_studies_by_name(request).values("id", "name")),
+            studies=get_researcher_allowed_studies_searchable(request),
             unprocessed_files_count=FileToProcess.objects.count(),
         )
     )
