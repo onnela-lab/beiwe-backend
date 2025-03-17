@@ -44,6 +44,7 @@ alias sno="sudo nano -Iwn"
 alias ls='ls --color=auto' # make ls not suck
 alias la='ls -A'
 alias ll='ls -lh'
+alias lg='ls -Alh | grep -i '
 alias lh='ls -lhX --color=auto'
 alias lll="du -ah --max-depth=0 --block-size=MB --time * | sort -nr"
 alias slll="sudo du -ah --max-depth=0 --block-size=MB --time * | sort -nr"
