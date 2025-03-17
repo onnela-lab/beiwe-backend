@@ -1,12 +1,12 @@
 from typing import List
 
 import orjson
-import zstd
 
 from database.user_models_participant import Participant
 from database.user_models_researcher import StudyRelation
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.internal_types import ApiStudyResearcherRequest
+from libs.utils.compression import decompress
 from middleware.abort_middleware import abort
 
 
@@ -55,4 +55,4 @@ class DeviceStatusHistoryPaginator(EfficientQueryPaginator):
                 # orjson.Fragment is orjson's mechanism to pass ...subsegments? that are already
                 # json encoded. This causes the output json to be an object, not a json string,
                 # (And it's faster and avoids a bytes -> string -> bytes conversion.)
-                row["device_status"] = orjson.Fragment(zstd.decompress(device_status))
+                row["device_status"] = orjson.Fragment(decompress(device_status))

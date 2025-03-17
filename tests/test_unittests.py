@@ -8,7 +8,6 @@ from typing import Optional
 from unittest.mock import _Call, MagicMock, Mock, patch
 
 import dateutil
-import zstd
 from dateutil.tz import gettz
 from django.utils import timezone
 
@@ -30,6 +29,7 @@ from libs.file_processing.utility_functions_simple import BadTimecodeError, bini
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
 from libs.s3 import decrypt_server, S3Storage
+from libs.utils.compression import compress
 from libs.utils.forest_utils import get_forest_git_hash
 from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
     is_this_version_gte_participants, is_this_version_lt_participants,
@@ -780,7 +780,7 @@ class TestS3Storage(CommonTestCase):
     def hack_s3_error(self, s: str):
         return self.NoSuchKey(s)
     
-    COMPRESSED_SLUG = zstd.compress(b"content", 1, 0)
+    COMPRESSED_SLUG = compress(b"content")
     ENCRYPTED_SLUG = encrypt_for_server(b"content", CommonTestCase.DEFAULT_ENCRYPTION_KEY_BYTES)
     COMPRESSED_ENCRYPTED_SLUG = encrypt_for_server(COMPRESSED_SLUG, CommonTestCase.DEFAULT_ENCRYPTION_KEY_BYTES)
     
@@ -798,21 +798,21 @@ class TestS3Storage(CommonTestCase):
     
     def test_participant_instantiation(self):
         s = S3Storage(self.valid_path_for_bypass_false, self.default_participant, bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zstd, self.valid_study_path + ".zstd")
+        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
         self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
         self.assertIs(s.smart_key_obj, self.default_participant)
         self.assertIsNone(s.uncompressed_data)
     
     def test_objectid_instantiation(self):
         s = S3Storage(self.valid_path_for_bypass_false, self.default_study.object_id, bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zstd, self.valid_study_path + ".zstd")
+        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
         self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
         self.assertIs(s.smart_key_obj, self.default_study.object_id)
         self.assertIsNone(s.uncompressed_data)
     
     def test_study_instantiation(self):
         s = S3Storage(self.valid_path_for_bypass_false, self.default_study, bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zstd, self.valid_study_path + ".zstd")
+        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
         self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
         self.assertIs(s.smart_key_obj, self.default_study)
         self.assertIsNone(s.uncompressed_data)
@@ -832,13 +832,13 @@ class TestS3Storage(CommonTestCase):
         return dict(
             Body=self.COMPRESSED_SLUG,
             Bucket='test_bucket',
-            Key=f'{self.default_study.object_id}/a_path.zstd'
+            Key=f'{self.default_study.object_id}/a_path.zst'
         )
     
     def params_for_download_compressed_study_prefix(self):
         return dict(
             Bucket='test_bucket',
-            Key=f'{self.default_study.object_id}/a_path.zstd',
+            Key=f'{self.default_study.object_id}/a_path.zst',
             ResponseContentType='string'
         )
     
@@ -858,13 +858,13 @@ class TestS3Storage(CommonTestCase):
         return dict(
             Body=self.COMPRESSED_SLUG,
             Bucket='test_bucket',
-            Key=self.valid_non_study_path + '.zstd'
+            Key=self.valid_non_study_path + '.zst'
         )
     
     def params_for_download_compressed_non_study_prefix(self):
         return dict(
             Bucket='test_bucket',
-            Key=self.valid_non_study_path + '.zstd',
+            Key=self.valid_non_study_path + '.zst',
             ResponseContentType='string'
         )
     
@@ -895,7 +895,7 @@ class TestS3Storage(CommonTestCase):
     
     def test_zstd_path_rejected(self):
         with self.assertRaises(ValueError) as e_wrapper:
-            S3Storage("CHUNKED_DATA/a_path.zstd", self.default_participant, bypass_study_folder=False)
+            S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=False)
     
     def test_get_cache_encryption_key(self):
         s = self.default_s3storage_with_prefix

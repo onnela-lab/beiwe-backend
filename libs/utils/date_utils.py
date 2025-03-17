@@ -79,7 +79,7 @@ def date_to_end_of_day(a_date: date, tz: tzinfo):
     return make_aware(datetime.combine(a_date, datetime.max.time()), tz)
 
 
-def get_timezone_shortcode(a_date: date, timezone_long_name: str) -> str:
+def get_timezone_shortcode(a_date: date, timezone_long_name: str|tzinfo) -> str:
     """ Create datetime of the END OF THE DAY of the target date and get the timezone abbreviation.
     These shortnames provide information about daylight savings, if any, in that timezone, which is
     desireable for researchers.  We always want the end of the day because then the timezone will be
@@ -91,7 +91,7 @@ def get_timezone_shortcode(a_date: date, timezone_long_name: str) -> str:
     savings will correctly be EDT or EST for eastern time. """
     if not type(a_date) is date:
         raise TypeError("get_timezone_shortcode requires dates, datetimes must be handled manually")
-    return make_aware(datetime.combine(a_date, datetime.max.time()), timezone_long_name).tzname()
+    return make_aware(datetime.combine(a_date, datetime.max.time()), timezone=timezone_long_name).tzname()  # type: ignore
 
 
 def date_is_in_the_past(end_date: datetime, timezone_name: str):
