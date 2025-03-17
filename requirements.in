@@ -3,8 +3,9 @@ Django>=4.2.19
 Django<5.0.0
 firebase-admin==5.4.0
 Jinja2 # used to require pinning, I guess review if there is a major version bump.
-zstd>=1.5.6.1 # can be stuck on older versions sometimes - 1.5.6.2 got yanked due to build problem
 orjson==3.9.15
+
+pyzstd
 
 # django-extensions for some really nice management commands and terminal helpers.
 django-extensions==3.2.3

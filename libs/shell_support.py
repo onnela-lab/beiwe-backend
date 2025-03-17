@@ -59,7 +59,7 @@ def tformat4(dt: datetime, tz=EASTERN):
     return _tformat(dt, tz, DEV_TIME_FORMAT4)
 
 
-def PARTICIPANT(patient_id: Union[str, int]):
+def PARTICIPANT(patient_id: Union[str, int]) -> Participant:
     """ Get a Participant, may use a contains match, also supports primary key integers. """
     if isinstance(patient_id, int):
         return Participant.objects.get(pk=patient_id)
@@ -77,7 +77,7 @@ def PARTICIPANT(patient_id: Union[str, int]):
 P = PARTICIPANT  # Shorthand for PARTICIPANT, just type p = P("someone") and you are done
 
 
-def RESEARCHER(username: Union[str, int]):
+def RESEARCHER(username: Union[str, int]) -> Researcher:
     """ Get a Researcher, may use a contains match, also supports primary key integers. """
     if isinstance(username, int):
         return Researcher.objects.get(pk=username)
@@ -94,7 +94,7 @@ def RESEARCHER(username: Union[str, int]):
 R = RESEARCHER  # Shorthand for RESEARCHER, just type r = R("someone") and you are done
 
 
-def SURVEY(id_or_name: Union[str, int]):
+def SURVEY(id_or_name: Union[str, int]) -> Survey:
     """ Get a Survey, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
         ret = Survey.objects.get(pk=id_or_name)
@@ -116,7 +116,7 @@ def SURVEY(id_or_name: Union[str, int]):
     return ret
 
 
-def STUDY(id_or_name: Union[str, int]):
+def STUDY(id_or_name: Union[str, int]) -> Study:
     """ Get a Study, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
         ret = Study.objects.get(pk=id_or_name)

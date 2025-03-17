@@ -6,7 +6,6 @@ from typing import Any, Generator, Protocol, Sequence
 from unittest.mock import MagicMock
 
 import boto3
-import zstd
 from botocore.client import BaseClient
 from cronutils import ErrorHandler
 from django.utils import timezone
@@ -17,6 +16,7 @@ from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_SCRIPT_EB
     CUSTOM_ONDEPLOY_SCRIPT_PROCESSING, PROBLEM_UPLOADS, RUNNING_TESTS)
 from database.models import Participant, S3File, Study
 from libs.aes import decrypt_server, encrypt_for_server
+from libs.utils.compression import compress, decompress
 
 
 try:
@@ -125,8 +125,8 @@ class S3Storage:
     def __init__(
         self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool
     ) -> None:
-        if s3_path.endswith(".zstd"):
-            raise ValueError("path should never end with .zstd")
+        if s3_path.endswith(".zst"):
+            raise ValueError("path should never end with .zst")
         
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
@@ -148,7 +148,7 @@ class S3Storage:
         
         if not bypass_study_folder:
             self.s3_path_uncompressed = path_join(self.get_path_prefix, path)
-            self.s3_path_zstd = self.s3_path_uncompressed + ".zstd"
+            self.s3_path_zst = self.s3_path_uncompressed + ".zst"
             return
         
         # validation of paths:
@@ -159,13 +159,13 @@ class S3Storage:
             raise ValueError(f"Unrecognized base folder: `{path_start}` in path: `{path}`")
         
         self.s3_path_uncompressed = path
-        self.s3_path_zstd = path + ".zstd"
+        self.s3_path_zst = path + ".zst"
     
     ## File State Tracking
     
     def set_file_content(self, file_content: bytes):
         if not isinstance(file_content, bytes):
-            raise TypeError(f"file_content must be bytes, receivef {type(file_content)}")
+            raise TypeError(f"file_content must be bytes, received {type(file_content)}")
         self.uncompressed_data = file_content
         return self
     
@@ -180,7 +180,7 @@ class S3Storage:
     
     def compress_and_push_to_storage_and_clear_everything(self):
         self.compress_data_and_clear_uncompressed()
-        self._s3_upload_zstd()
+        self._s3_upload_zst()
         self.update_s3_db_table()
     
     ## Compression
@@ -192,11 +192,8 @@ class S3Storage:
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         
         t_compress = perf_counter()
-        self.compressed_data = zstd.compress(
-            self.uncompressed_data,
-            1,  # compression level (1 yields better compression on average across our data streams
-            0,  # auto-tune the number of threads based on cpu cores (no apparent drawbacks)
-        )
+        
+        self.compressed_data = compress(self.uncompressed_data)
         self.metadata.compression_time_ms = int((perf_counter() - t_compress) * 1000)  # milliseconds
         
         del self.uncompressed_data  # removes the uncompressed data from memory
@@ -213,9 +210,9 @@ class S3Storage:
     
     def _download_as_compressed(self):
         # This line should be the error on when there is no compressed copy
-        data = self._s3_retrieve_zstd()
+        data = self._s3_retrieve_zst()
         t_decompress = perf_counter()
-        self.uncompressed_data = zstd.decompress(data)
+        self.uncompressed_data = decompress(data)
         self.decompression_time_ms = int((perf_counter() - t_decompress) * 1000)  # milliseconds
         del data  # early cleanup? sure.
         self.update_s3_db_table()
@@ -239,10 +236,10 @@ class S3Storage:
     
     def update_s3_db_table(self):
         self.metadata.last_updated = timezone.now()
-        S3File.objects.update_or_create(path=self.s3_path_zstd, defaults=self.metadata)
+        S3File.objects.update_or_create(path=self.s3_path_zst, defaults=self.metadata)
     
-    def delete_s3_table_entry_zstd(self):
-        S3File.fltr(path=self.s3_path_zstd).delete()  # can't actually fail
+    def delete_s3_table_entry_zst(self):
+        S3File.fltr(path=self.s3_path_zst).delete()  # can't actually fail
     
     def delete_s3_table_entry_uncompressed(self):
         S3File.fltr(path=self.s3_path_uncompressed).delete()  # can't actually fail
@@ -270,10 +267,10 @@ class S3Storage:
     
     ## Delete
     
-    def _s3_delete_zstd(self):
-        if not s3_delete(self.s3_path_zstd):
-            raise S3DeletionException(f"Failed to delete {self.s3_path_zstd}")
-        self.delete_s3_table_entry_zstd()
+    def _s3_delete_zst(self):
+        if not s3_delete(self.s3_path_zst):
+            raise S3DeletionException(f"Failed to delete {self.s3_path_zst}")
+        self.delete_s3_table_entry_zst()
     
     def _s3_delete_uncompressed(self):
         if not s3_delete(self.s3_path_uncompressed):
@@ -282,7 +279,7 @@ class S3Storage:
     
     ## Upload
     
-    def _s3_upload_zstd(self):
+    def _s3_upload_zst(self):
         """ Manually manage these memory/reference count operations.  It matters.
         This is a critical performance path. DO NOT separate into further functions calls without
         profiling memory usage. """
@@ -297,7 +294,7 @@ class S3Storage:
         del compressed_data
         
         t_upload = perf_counter()
-        _do_upload(self.s3_path_zstd, encrypted_compressed_data)  # probable 2x memory usage
+        _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
         self.metadata.upload_time_ms = int((perf_counter() - t_upload) * 1000)  # milliseconds
         
         del encrypted_compressed_data  # 0x memory
@@ -308,11 +305,11 @@ class S3Storage:
     def _s3_retrieve_uncompressed(self):
         return decrypt_server(self._s3_retrieve(self.s3_path_uncompressed), self.encryption_key)
     
-    def _s3_retrieve_zstd(self):
+    def _s3_retrieve_zst(self):
         key = self.encryption_key  # may have network/db op
         
         t_download = perf_counter()
-        data = self._s3_retrieve(self.s3_path_zstd)
+        data = self._s3_retrieve(self.s3_path_zst)
         self.download_time_ms = int((perf_counter() - t_download) * 1000)  # milliseconds
         
         t_decrypt = perf_counter()

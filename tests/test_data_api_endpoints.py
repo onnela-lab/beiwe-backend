@@ -3,7 +3,6 @@
 from datetime import date, datetime, timedelta
 
 import orjson
-import zstd
 from dateutil.tz import UTC
 from django.core.exceptions import ValidationError
 from django.http import StreamingHttpResponse
@@ -20,6 +19,7 @@ from database.study_models import Study
 from database.survey_models import Survey, SurveyArchive
 from database.user_models_participant import AppHeartbeats, AppVersionHistory
 from database.user_models_researcher import StudyRelation
+from libs.utils.compression import compress
 from tests.common import DataApiTest, SmartRequestsTestCase, TableauAPITest
 from tests.helpers import compare_dictionaries, ParticipantTableHelperMixin
 
@@ -1033,11 +1033,11 @@ class TestGetParticipantDeviceStatusHistory(DataApiTest):
             'device_status': {}
         }
         self.assertDictEqual(out_dict, reference_out_dict)
-    
     def test_fields_are_correct_with_compression(self):
         obj = ["this is a test string inside a json list so we have something to deserialize"]
         slug = b'["this is a test string inside a json list so we have something to deserialize"]'
-        zslug = zstd.compress(slug, 0, 0)  # saves 4 whole bytes!
+        
+        zslug = compress(slug)
         self.set_session_study_relation(ResearcherRole.researcher)
         self.using_default_participant()
         status_history = self.generate_device_status_report_history(compressed_report=zslug)

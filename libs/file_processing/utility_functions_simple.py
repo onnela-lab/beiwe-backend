@@ -1,7 +1,5 @@
 from typing import List
 
-import zstd
-
 from constants import common_constants
 from constants.common_constants import EARLIEST_POSSIBLE_DATA_TIMESTAMP
 from constants.data_processing_constants import CHUNK_TIMESLICE_QUANTUM
@@ -103,15 +101,3 @@ def clean_java_timecode(unix_ish_time_code_string: bytes) -> int:
         raise BadTimecodeError("data too late")
     
     return timestamp
-
-
-def compress(data: bytes) -> bytes:
-    return zstd.compress(
-        data,
-        1,  # compression level (1 yields better compression on average across our data streams
-        0,  # auto-tune the number of threads based on cpu cores (no apparent drawbacks)
-    )
-
-
-def decompress(data: bytes) -> bytes:
-    return zstd.decompress(data)

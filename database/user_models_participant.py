@@ -8,7 +8,6 @@ from pprint import pprint
 from typing import Dict, List, Optional, Tuple, Union
 
 import orjson
-import zstd
 from dateutil.tz import gettz
 from django.core.exceptions import ImproperlyConfigured
 from django.core.validators import MinLengthValidator
@@ -28,6 +27,7 @@ from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
 from database.validators import ID_VALIDATOR
 from libs.rsa import get_participant_private_key, RSA
+from libs.utils.compression import compress, decompress
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
     VersionError)
 from libs.utils.security_utils import (compare_password, device_hash, django_password_components,
@@ -379,7 +379,7 @@ class Participant(AbstractPasswordUser):
         # testing on a (sloooowww) aws T3 server got about 20us on a 1.5k string of json data
         # with a compression ratio of about 3x.  7 was slightly better than others on test data.
         if self.device_status_report:
-            compressed_data = zstd.compress(self.device_status_report.encode(), 7, 1)
+            compressed_data = compress(self.device_status_report.encode())
         else:
             compressed_data = b"empty"
         
@@ -636,21 +636,21 @@ class DeviceStatusReportHistory(UtilityModel):
     compressed_report: bytes = models.BinaryField(null=False, blank=False)  # used to be a memoryview
     
     @property
-    def decompress(self) -> Dict[str, Union[str, int]]:
-        return zstd.decompress(self.compressed_report).decode()
+    def decompress(self):
+        return decompress(self.compressed_report).decode()
     
     @property
     def load_json(self):
-        return orjson.loads(zstd.decompress(self.compressed_report))
+        return orjson.loads(decompress(self.compressed_report))
     
     @classmethod
     def bulk_decode(cls, list_of_compressed_reports: List[bytes]) -> List[str]:
         return [
-            zstd.decompress(report).decode() for report in list_of_compressed_reports
+            decompress(report).decode() for report in list_of_compressed_reports
         ]
     
     @classmethod
     def bulk_load_json(cls, list_of_compressed_reports: List[bytes]) -> List[Dict[str, Union[str, int]]]:
         return [
-            orjson.loads(zstd.decompress(report)) for report in list_of_compressed_reports
+            orjson.loads(decompress(report)) for report in list_of_compressed_reports
         ]
