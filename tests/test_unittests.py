@@ -48,9 +48,9 @@ COUNT_OF_PATHS_RETURNED_FROM_GET_ALL_FILE_PATH_PREFIXES = 4
 # assertion error stating that the base s3 file path is not empty, so we patch that in the rest of
 # the tests, which are database purge tests.
 def data_purge_mock_s3_calls(func):
-    s3_delete_many_versioned = patch('libs.participant_purge.s3_delete_many_versioned')
-    s3_list_files = patch('libs.participant_purge.s3_list_files')
-    s3_list_versions = patch('libs.participant_purge.s3_list_versions')
+    s3_delete_many_versioned: MagicMock = patch('libs.participant_purge.s3_delete_many_versioned')
+    s3_list_files: MagicMock = patch('libs.participant_purge.s3_list_files')
+    s3_list_versions: MagicMock = patch('libs.participant_purge.s3_list_versions')
     s3_list_files.return_value = []
     s3_list_versions.return_value = []
     s3_delete_many_versioned.return_value = []
@@ -796,27 +796,6 @@ class TestS3Storage(CommonTestCase):
     def valid_non_study_path(self):
         return CHUNKS_FOLDER + "/" + self.valid_study_path
     
-    def test_participant_instantiation(self):
-        s = S3Storage(self.valid_path_for_bypass_false, self.default_participant, bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
-        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
-        self.assertIs(s.smart_key_obj, self.default_participant)
-        self.assertIsNone(s.uncompressed_data)
-    
-    def test_objectid_instantiation(self):
-        s = S3Storage(self.valid_path_for_bypass_false, self.default_study.object_id, bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
-        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
-        self.assertIs(s.smart_key_obj, self.default_study.object_id)
-        self.assertIsNone(s.uncompressed_data)
-    
-    def test_study_instantiation(self):
-        s = S3Storage(self.valid_path_for_bypass_false, self.default_study, bypass_study_folder=False)
-        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
-        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
-        self.assertIs(s.smart_key_obj, self.default_study)
-        self.assertIsNone(s.uncompressed_data)
-    
     @property
     def default_s3storage_with_prefix(self):
         # participant is probably the best test....
@@ -893,6 +872,34 @@ class TestS3Storage(CommonTestCase):
     
     ################################################################################################
     
+    # test working instantiation
+    
+    def test_participant_instantiation(self):
+        s = S3Storage(self.valid_path_for_bypass_false, self.default_participant, bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
+        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
+        self.assertIs(s.smart_key_obj, self.default_participant)
+        self.assertIsNone(s.uncompressed_data)
+        self.assertEqual(self.default_study.encryption_key, s.encryption_key.decode())
+        self.assertEqual(self.default_study.object_id, s.get_path_prefix)
+    
+    def test_objectid_instantiation(self):
+        s = S3Storage(self.valid_path_for_bypass_false, self.default_study.object_id, bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
+        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
+        self.assertIs(s.smart_key_obj, self.default_study.object_id)
+        self.assertIsNone(s.uncompressed_data)
+        self.assertEqual(self.default_study.encryption_key, s.encryption_key.decode())
+        self.assertEqual(self.default_study.object_id, s.get_path_prefix)
+    
+    def test_study_instantiation(self):
+        s = S3Storage(self.valid_path_for_bypass_false, self.default_study, bypass_study_folder=False)
+        self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
+        self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
+        self.assertIs(s.smart_key_obj, self.default_study)
+        self.assertIsNone(s.uncompressed_data)
+        self.assertEqual(self.default_study.encryption_key, s.encryption_key.decode())
+        self.assertEqual(self.default_study.object_id, s.get_path_prefix)
     
     def test_zstd_path_rejected(self):
         with self.assertRaises(ValueError) as e_wrapper:
@@ -930,8 +937,6 @@ class TestS3Storage(CommonTestCase):
     
     ## push_to_storage_and_clear_everything
     
-    # todo: add s3file details to tests
-    
     @patch("libs.s3.conn")
     def test_compress_and_push_to_storage_and_clear_everything_with_prefix(self, conn=MagicMock()):
         s = self.default_s3storage_with_prefix
@@ -948,16 +953,7 @@ class TestS3Storage(CommonTestCase):
         
         s3_file = S3File.objects.get()
         self.assertEqual(s3_file.path, self.valid_study_path + ".zst")
-        self.assertEqual(s3_file.size_uncompressed, len(b"content"))
-        self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
-        self.assertEqual(s3_file.study, self.default_study) 
-        self.assertEqual(s3_file.participant, self.default_participant)
-        self.assertIsNotNone(s3_file.compression_time_ms)
-        self.assertIsNotNone(s3_file.encryption_time_ms)
-        self.assertIsNotNone(s3_file.upload_time_ms)
-        self.assertIsNone(s3_file.decrypt_time_ms)
-        self.assertIsNone(s3_file.download_time_ms)
-        self.assertIsNone(s3_file.decompression_time_ms)
+        self.assert_correct_uploaded_s3file(s3_file)
     
     @patch("libs.s3.conn")
     def test_compress_and_push_to_storage_and_clear_everything_without_prefix(self, conn=MagicMock()):
@@ -974,16 +970,7 @@ class TestS3Storage(CommonTestCase):
         
         s3_file = S3File.objects.get()
         self.assertEqual(s3_file.path, self.valid_non_study_path + ".zst")
-        self.assertEqual(s3_file.size_uncompressed, len(b"content"))
-        self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
-        self.assertEqual(s3_file.study, self.default_study) 
-        self.assertEqual(s3_file.participant, self.default_participant)
-        self.assertIsNotNone(s3_file.compression_time_ms)
-        self.assertIsNotNone(s3_file.encryption_time_ms)
-        self.assertIsNotNone(s3_file.upload_time_ms)
-        self.assertIsNone(s3_file.decrypt_time_ms)
-        self.assertIsNone(s3_file.download_time_ms)
-        self.assertIsNone(s3_file.decompression_time_ms)
+        self.assert_correct_uploaded_s3file(s3_file)
     
     ## push_to_storage
     
@@ -1123,6 +1110,8 @@ class TestS3Storage(CommonTestCase):
         s3_file = S3File.objects.get()
         self.assertEqual(s3_file.path, self.valid_non_study_path + ".zst")
         self.assert_correct_uploaded_s3file(s3_file)
+    
+    # S3File assertions
     
     def assert_correct_downloaded_s3file(self, s3_file: S3File):
         self.assertEqual(s3_file.size_uncompressed, len(b"content"))
