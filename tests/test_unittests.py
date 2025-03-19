@@ -893,9 +893,11 @@ class TestS3Storage(CommonTestCase):
     
     ################################################################################################
     
+    
     def test_zstd_path_rejected(self):
         with self.assertRaises(ValueError) as e_wrapper:
             S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=False)
+        self.assertFalse(S3File.objects.exists())
     
     def test_get_cache_encryption_key(self):
         s = self.default_s3storage_with_prefix
@@ -913,6 +915,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s.pop_file_content(), b"content")
         self.assert_not_hasattr(s, "uncompressed_data")
         self.assert_not_hasattr(s, "compressed_data")
+        self.assertFalse(S3File.objects.exists())
     
     def test_compress_data_and_clear_uncompressed(self):
         s = self.default_s3storage_with_prefix
@@ -921,15 +924,19 @@ class TestS3Storage(CommonTestCase):
         self.assert_not_hasattr(s, "uncompressed_data")
         self.assert_hasattr(s, "compressed_data")
         self.assertEqual(s.compressed_data, self.COMPRESSED_SLUG)
+        self.assertFalse(S3File.objects.exists())
     
     # S3 tests, requires a with prefix and without prefix version of each test.
     
     ## push_to_storage_and_clear_everything
     
+    # todo: add s3file details to tests
+    
     @patch("libs.s3.conn")
     def test_compress_and_push_to_storage_and_clear_everything_with_prefix(self, conn=MagicMock()):
         s = self.default_s3storage_with_prefix
         s.set_file_content(b"content")
+        self.assertFalse(S3File.objects.exists())
         s.compress_and_push_to_storage_and_clear_everything()
         self.assert_not_hasattr(s, "uncompressed_data")
         self.assert_not_hasattr(s, "compressed_data")
@@ -938,6 +945,19 @@ class TestS3Storage(CommonTestCase):
         self.assertIn("call.put_object(", str(call))
         self.decrypt_kwarg_Body(call.kwargs)
         self.assertEqual(call.kwargs, self.params_for_upload_compressed_study_prefix())
+        
+        s3_file = S3File.objects.get()
+        self.assertEqual(s3_file.path, self.valid_study_path + ".zst")
+        self.assertEqual(s3_file.size_uncompressed, len(b"content"))
+        self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
+        self.assertEqual(s3_file.study, self.default_study) 
+        self.assertEqual(s3_file.participant, self.default_participant)
+        self.assertIsNotNone(s3_file.compression_time_ms)
+        self.assertIsNotNone(s3_file.encryption_time_ms)
+        self.assertIsNotNone(s3_file.upload_time_ms)
+        self.assertIsNone(s3_file.decrypt_time_ms)
+        self.assertIsNone(s3_file.download_time_ms)
+        self.assertIsNone(s3_file.decompression_time_ms)
     
     @patch("libs.s3.conn")
     def test_compress_and_push_to_storage_and_clear_everything_without_prefix(self, conn=MagicMock()):
@@ -951,6 +971,19 @@ class TestS3Storage(CommonTestCase):
         self.assertIn("call.put_object(", str(call))
         self.decrypt_kwarg_Body(call.kwargs)
         self.assertEqual(call.kwargs, self.params_for_upload_compressed_non_study_prefix())
+        
+        s3_file = S3File.objects.get()
+        self.assertEqual(s3_file.path, self.valid_non_study_path + ".zst")
+        self.assertEqual(s3_file.size_uncompressed, len(b"content"))
+        self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
+        self.assertEqual(s3_file.study, self.default_study) 
+        self.assertEqual(s3_file.participant, self.default_participant)
+        self.assertIsNotNone(s3_file.compression_time_ms)
+        self.assertIsNotNone(s3_file.encryption_time_ms)
+        self.assertIsNotNone(s3_file.upload_time_ms)
+        self.assertIsNone(s3_file.decrypt_time_ms)
+        self.assertIsNone(s3_file.download_time_ms)
+        self.assertIsNone(s3_file.decompression_time_ms)
     
     ## push_to_storage
     
@@ -990,7 +1023,9 @@ class TestS3Storage(CommonTestCase):
         # that value as the return to conn.get_object.  (cool)
         conn.get_object = MagicMock(return_value={"Body": BytesIO(self.COMPRESSED_ENCRYPTED_SLUG)})
         s = self.default_s3storage_with_prefix
-        s.download()
+        self.assertFalse(S3File.objects.exists())
+        
+        s.download()  # this fully downloads the file and decompresses it.
         
         self.assertEqual(len(conn.method_calls), 1)
         call = self.extract_mock_call_params(conn)[0]
@@ -998,6 +1033,10 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(call.kwargs, self.params_for_download_compressed_study_prefix())
         self.assertEqual(s.uncompressed_data, b"content")
         self.assert_not_hasattr(s, "compressed_data")
+        
+        s3_file = S3File.objects.get()
+        self.assertEqual(s3_file.path, self.valid_study_path + ".zst")
+        self.assert_correct_downloaded_s3file(s3_file)
     
     @patch("libs.s3.conn")
     def test_download_without_prefix(self, conn=MagicMock()):
@@ -1011,6 +1050,10 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(call.kwargs, self.params_for_download_compressed_non_study_prefix())
         self.assertEqual(s.uncompressed_data, b"content")
         self.assert_not_hasattr(s, "compressed_data")
+        
+        s3_file = S3File.objects.get()
+        self.assertEqual(s3_file.path, self.valid_non_study_path + ".zst")
+        self.assert_correct_downloaded_s3file(s3_file)
     
     ## download compressed does not exist
     
@@ -1045,6 +1088,11 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_study_prefix())
         self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_study_prefix())
         self.assertIn("call.delete_object(", str(call_4))
+        
+        # there should be one s3 file, it is an upload
+        s3_file = S3File.objects.get()
+        self.assertEqual(s3_file.path, self.valid_study_path + ".zst")
+        self.assert_correct_uploaded_s3file(s3_file)
     
     @patch("libs.s3.conn")
     def test_download_compressed_does_not_exist_without_prefix(self, conn: Mock):
@@ -1072,3 +1120,30 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_non_study_prefix())
         self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_non_study_prefix())
         self.assertIn("call.delete_object(", str(call_4))
+        s3_file = S3File.objects.get()
+        self.assertEqual(s3_file.path, self.valid_non_study_path + ".zst")
+        self.assert_correct_uploaded_s3file(s3_file)
+    
+    def assert_correct_downloaded_s3file(self, s3_file: S3File):
+        self.assertEqual(s3_file.size_uncompressed, len(b"content"))
+        self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
+        self.assertEqual(s3_file.study, self.default_study) 
+        self.assertEqual(s3_file.participant, self.default_participant)
+        self.assertIsNone(s3_file.compression_time_ms)
+        self.assertIsNone(s3_file.encryption_time_ms)
+        self.assertIsNone(s3_file.upload_time_ms)
+        self.assertIsNotNone(s3_file.decrypt_time_ms)
+        self.assertIsNotNone(s3_file.download_time_ms)
+        self.assertIsNotNone(s3_file.decompression_time_ms)
+    
+    def assert_correct_uploaded_s3file(self, s3_file: S3File):
+        self.assertEqual(s3_file.size_uncompressed, len(b"content"))
+        self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
+        self.assertEqual(s3_file.study, self.default_study) 
+        self.assertEqual(s3_file.participant, self.default_participant)
+        self.assertIsNotNone(s3_file.compression_time_ms)
+        self.assertIsNotNone(s3_file.encryption_time_ms)
+        self.assertIsNotNone(s3_file.upload_time_ms)
+        self.assertIsNone(s3_file.decrypt_time_ms)
+        self.assertIsNone(s3_file.download_time_ms)
+        self.assertIsNone(s3_file.decompression_time_ms)

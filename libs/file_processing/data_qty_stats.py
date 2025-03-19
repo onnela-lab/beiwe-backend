@@ -66,7 +66,7 @@ def calculate_data_quantity_stats(
     # (related model, study, is cached)
     study_timezone: tzinfo = participant.study.timezone
     query = ChunkRegistry.objects.filter(participant=participant)
-
+    
     # Filter by date range
     if earliest_time_bin_number is not None:
         query = query.filter(
