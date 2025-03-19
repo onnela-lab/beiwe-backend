@@ -112,6 +112,7 @@ class UtilityModel(models.Model):
         """ shortcut for very common cli usage. """
         d = self._pprint()
         pprint(d)
+        return lambda: None # so that you can call it accidentially without a crash
     
     def _pprint(self) -> Dict[str, Any]:
         """ Provides a dictionary representation of the object, with some special formatting. """

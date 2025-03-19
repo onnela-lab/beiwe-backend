@@ -93,6 +93,8 @@ def get_just_prefix(obj: StrOrParticipantOrStudy) -> str:
 ## S3 Storage Class
 
 METADATA_FIELDS = {
+    "last_updated",
+    
     "size_compressed",
     "size_uncompressed",
     "compression_time_ms",
@@ -101,9 +103,9 @@ METADATA_FIELDS = {
     "download_time_ms",
     "upload_time_ms",
     "decrypt_time_ms",
-    "participant",
-    "study",
-    "last_updated",
+    
+    "participant_id",
+    "study_id",
 }
 
 
@@ -128,6 +130,8 @@ class S3Storage:
         if s3_path.endswith(".zst"):
             raise ValueError("path should never end with .zst")
         
+        # todo: add handling of the None cose for smart_key_obj, where some api calls are disabled
+        
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
         
@@ -136,9 +140,10 @@ class S3Storage:
         
         # DB fields
         if isinstance(self.smart_key_obj, Study):
-            self.metadata.study = self.smart_key_obj
+            self.metadata.study_id = self.smart_key_obj.pk
         elif isinstance(self.smart_key_obj, Participant):
-            self.metadata.participant = self.smart_key_obj
+            self.metadata.participant_id = self.smart_key_obj.pk
+            self.metadata.study_id = self.smart_key_obj.study_id
     
     def validate_file_paths(self, path: str, bypass_study_folder: bool):
         # for historical reasons we only sometimes have the full file path. Files only go in a few places:
@@ -213,7 +218,8 @@ class S3Storage:
         data = self._s3_retrieve_zst()
         t_decompress = perf_counter()
         self.uncompressed_data = decompress(data)
-        self.decompression_time_ms = int((perf_counter() - t_decompress) * 1000)  # milliseconds
+        self.metadata.decompression_time_ms = int((perf_counter() - t_decompress) * 1000)  # milliseconds
+        self.metadata.size_uncompressed = len(self.uncompressed_data)
         del data  # early cleanup? sure.
         self.update_s3_db_table()
     
@@ -310,11 +316,13 @@ class S3Storage:
         
         t_download = perf_counter()
         data = self._s3_retrieve(self.s3_path_zst)
-        self.download_time_ms = int((perf_counter() - t_download) * 1000)  # milliseconds
+        self.metadata.download_time_ms = int((perf_counter() - t_download) * 1000)  # milliseconds
         
         t_decrypt = perf_counter()
         ret = decrypt_server(data, key)
-        self.decrypt_time_ms = int((perf_counter() - t_decrypt) * 1000)  # milliseconds
+        self.metadata.decrypt_time_ms = int((perf_counter() - t_decrypt) * 1000)  # milliseconds
+        
+        self.metadata.size_compressed = len(ret)  # after decryption, no iv or padding
         del data
         
         return ret
