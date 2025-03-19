@@ -98,12 +98,12 @@ METADATA_FIELDS = {
     
     "size_compressed",
     "size_uncompressed",
-    "compression_time_us",
-    "decompression_time_us",
-    "encryption_time_us",
-    "download_time_us",
-    "upload_time_us",
-    "decrypt_time_us",
+    "compression_time_ns",
+    "decompression_time_ns",
+    "encryption_time_ns",
+    "download_time_ns",
+    "upload_time_ns",
+    "decrypt_time_ns",
     
     "participant_id",
     "study_id",
@@ -200,7 +200,7 @@ class S3Storage:
         t_compress = perf_counter_ns()
         self.compressed_data = compress(self.uncompressed_data)
         t_compress = perf_counter_ns() - t_compress
-        self.metadata.compression_time_us = t_compress // 1_000  # microseconds
+        self.metadata.compression_time_ns = t_compress
         
         del self.uncompressed_data  # removes the uncompressed data from memory
         self.metadata.size_compressed = len(self.compressed_data)
@@ -220,7 +220,7 @@ class S3Storage:
         t_decompress = perf_counter_ns()
         self.uncompressed_data = decompress(data)
         t_decompress = perf_counter_ns() - t_decompress
-        self.metadata.decompression_time_us = t_decompress // 1_000  # microseconds
+        self.metadata.decompression_time_ns = t_decompress
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         del data  # early cleanup? sure.
         self.update_s3_table()
@@ -298,14 +298,14 @@ class S3Storage:
         t_encrypt = perf_counter_ns()
         encrypted_compressed_data = encrypt_for_server(compressed_data, self.encryption_key)
         t_encrypt = perf_counter_ns() - t_encrypt
-        self.metadata.encryption_time_us = t_encrypt // 1_000  # microseconds
+        self.metadata.encryption_time_ns = t_encrypt
         
         del compressed_data
         
         t_upload = perf_counter_ns()
         _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
         t_upload = perf_counter_ns() - t_upload
-        self.metadata.upload_time_us = t_upload // 1_000  # microseconds
+        self.metadata.upload_time_ns = t_upload
         
         del encrypted_compressed_data  # 0x memory
         self.update_s3_table()
@@ -321,12 +321,12 @@ class S3Storage:
         t_download = perf_counter_ns()
         data = self._s3_retrieve(self.s3_path_zst)
         t_download = perf_counter_ns() - t_download
-        self.metadata.download_time_us = t_download // 1_000  # microseconds
+        self.metadata.download_time_ns = t_download
         
         t_decrypt = perf_counter_ns()
         ret = decrypt_server(data, key)
         t_decrypt = perf_counter_ns() - t_decrypt
-        self.metadata.decrypt_time_us = t_decrypt // 1_000  # microseconds
+        self.metadata.decrypt_time_ns = t_decrypt
         
         self.metadata.size_compressed = len(ret)  # after decryption, no iv or padding
         del data
