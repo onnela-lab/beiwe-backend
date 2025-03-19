@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from os.path import join as path_join
-from time import perf_counter
+from time import perf_counter_ns
 from typing import Any, Generator, Protocol, Sequence
 from unittest.mock import MagicMock
 
@@ -41,7 +41,8 @@ COMPRESSION__COMPRESSED_DATA_NOT_SET = "S3Compressed: file_content was not set b
 COMPRESSION__COMPRESSED_DATA_NONE = "S3Compressed: file_content was None at compression time"
 UNCOMPRESSED_DATA_NONE_ON_POP = "S3Compressed: file_content was not set before pop"
 UNCOMPRESSED_DATA_MISSING = "S3Compressed: file_content was purged before pop"
-
+BAD_FOLDER = "Files in the {path_start} folder should not use the S3Storage class. full path: {path}"
+BAD_FOLDER_2 = "Unrecognized base folder: `{path_start}` in path: `{path}`"
 
 ## Global S3 Connection
 
@@ -66,11 +67,11 @@ SMART_GET_ERROR = "expected Study, Participant, or 24 char str, received '{}'"
 
 def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
     if isinstance(obj, Participant):
-        return obj.study.encryption_key.encode()
+        return Study.value_get("encryption_key", pk=obj.study_id).encode()
     elif isinstance(obj, Study):
         return obj.encryption_key.encode()
     elif isinstance(obj, str) and len(obj) == 24:
-        return Study.objects.values_list("encryption_key", flat=True).get(object_id=obj).encode()
+        return Study.value_get("encryption_key", object_id=obj).encode()
     else:
         raise TypeError(SMART_GET_ERROR.format(type(obj)))
 
@@ -81,7 +82,7 @@ def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy) -> 
 
 def get_just_prefix(obj: StrOrParticipantOrStudy) -> str:
     if isinstance(obj, Participant):
-        return obj.study.object_id
+        return Study.value_get("object_id", pk=obj.study_id)
     elif isinstance(obj, Study):
         return obj.object_id
     elif isinstance(obj, str) and len(obj) == 24:  # extremely basic check
@@ -97,12 +98,12 @@ METADATA_FIELDS = {
     
     "size_compressed",
     "size_uncompressed",
-    "compression_time_ms",
-    "decompression_time_ms",
-    "encryption_time_ms",
-    "download_time_ms",
-    "upload_time_ms",
-    "decrypt_time_ms",
+    "compression_time_us",
+    "decompression_time_us",
+    "encryption_time_us",
+    "download_time_us",
+    "upload_time_us",
+    "decrypt_time_us",
     
     "participant_id",
     "study_id",
@@ -159,9 +160,9 @@ class S3Storage:
         # validation of paths:
         path_start = path.split("/", 1)[0]
         if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_SCRIPT_EB, CUSTOM_ONDEPLOY_SCRIPT_PROCESSING):
-            raise ValueError(f"Files in the {path_start} folder should not use the S3Storage class. full path: {path}")
+            raise ValueError(BAD_FOLDER.format(path_start=path_start, path=path))
         if path_start != CHUNKS_FOLDER:
-            raise ValueError(f"Unrecognized base folder: `{path_start}` in path: `{path}`")
+            raise ValueError(BAD_FOLDER_2.format(path_start=path_start, path=path))
         
         self.s3_path_uncompressed = path
         self.s3_path_zst = path + ".zst"
@@ -186,7 +187,7 @@ class S3Storage:
     def compress_and_push_to_storage_and_clear_everything(self):
         self.compress_data_and_clear_uncompressed()
         self._s3_upload_zst()
-        self.update_s3_db_table()
+        self.update_s3_table()
     
     ## Compression
     
@@ -196,10 +197,10 @@ class S3Storage:
         assert self.uncompressed_data is not None, COMPRESSION__COMPRESSED_DATA_NONE
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         
-        t_compress = perf_counter()
-        
+        t_compress = perf_counter_ns()
         self.compressed_data = compress(self.uncompressed_data)
-        self.metadata.compression_time_ms = int((perf_counter() - t_compress) * 1000)  # milliseconds
+        t_compress = perf_counter_ns() - t_compress
+        self.metadata.compression_time_us = t_compress // 1_000  # microseconds
         
         del self.uncompressed_data  # removes the uncompressed data from memory
         self.metadata.size_compressed = len(self.compressed_data)
@@ -216,12 +217,13 @@ class S3Storage:
     def _download_as_compressed(self):
         # This line should be the error on when there is no compressed copy
         data = self._s3_retrieve_zst()
-        t_decompress = perf_counter()
+        t_decompress = perf_counter_ns()
         self.uncompressed_data = decompress(data)
-        self.metadata.decompression_time_ms = int((perf_counter() - t_decompress) * 1000)  # milliseconds
+        t_decompress = perf_counter_ns() - t_decompress
+        self.metadata.decompression_time_us = t_decompress // 1_000  # microseconds
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         del data  # early cleanup? sure.
-        self.update_s3_db_table()
+        self.update_s3_table()
     
     def _download_and_rewrite_s3_as_compressed(self):
         raw_data = self._s3_retrieve_uncompressed()
@@ -240,7 +242,7 @@ class S3Storage:
         for k,v in kwargs.items():
             self.metadata[k] = v
     
-    def update_s3_db_table(self):
+    def update_s3_table(self):
         self.metadata.last_updated = timezone.now()
         S3File.objects.update_or_create(path=self.s3_path_zst, defaults=self.metadata)
     
@@ -293,18 +295,20 @@ class S3Storage:
         compressed_data = self.compressed_data  # 1x memory
         del self.compressed_data
         
-        t_encrypt = perf_counter()
+        t_encrypt = perf_counter_ns()
         encrypted_compressed_data = encrypt_for_server(compressed_data, self.encryption_key)
-        self.metadata.encryption_time_ms = int((perf_counter() - t_encrypt) * 1000)  # milliseconds
+        t_encrypt = perf_counter_ns() - t_encrypt
+        self.metadata.encryption_time_us = t_encrypt // 1_000  # microseconds
         
         del compressed_data
         
-        t_upload = perf_counter()
+        t_upload = perf_counter_ns()
         _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
-        self.metadata.upload_time_ms = int((perf_counter() - t_upload) * 1000)  # milliseconds
+        t_upload = perf_counter_ns() - t_upload
+        self.metadata.upload_time_us = t_upload // 1_000  # microseconds
         
         del encrypted_compressed_data  # 0x memory
-        self.update_s3_db_table()
+        self.update_s3_table()
     
     ## Retrieve
     
@@ -314,13 +318,15 @@ class S3Storage:
     def _s3_retrieve_zst(self):
         key = self.encryption_key  # may have network/db op
         
-        t_download = perf_counter()
+        t_download = perf_counter_ns()
         data = self._s3_retrieve(self.s3_path_zst)
-        self.metadata.download_time_ms = int((perf_counter() - t_download) * 1000)  # milliseconds
+        t_download = perf_counter_ns() - t_download
+        self.metadata.download_time_us = t_download // 1_000  # microseconds
         
-        t_decrypt = perf_counter()
+        t_decrypt = perf_counter_ns()
         ret = decrypt_server(data, key)
-        self.metadata.decrypt_time_ms = int((perf_counter() - t_decrypt) * 1000)  # milliseconds
+        t_decrypt = perf_counter_ns() - t_decrypt
+        self.metadata.decrypt_time_us = t_decrypt // 1_000  # microseconds
         
         self.metadata.size_compressed = len(ret)  # after decryption, no iv or padding
         del data

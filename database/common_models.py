@@ -74,6 +74,10 @@ class UtilityModel(models.Model):
     ######################################## Query Shortcuts #######################################
     
     @classmethod
+    def value_get(cls, field_name: str, **filters) -> Any:
+        return cls.flat(field_name, **filters).get()
+    
+    @classmethod
     def obj_get(cls, *args, **kwargs) -> Self:
         return cls.objects.get(*args, **kwargs)  # type: ignore[no-any-return] # (mypy is wrong, typeshed is correct, classmethod problem?)
     
