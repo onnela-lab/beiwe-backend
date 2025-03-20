@@ -303,7 +303,11 @@ class UploadTracking(UtilityModel):
 
 
 class S3File(TimestampedModel):
+    study: Study = models.ForeignKey("Study", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
+    participant: Participant = models.ForeignKey("Participant", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
     path = models.TextField(unique=True)
+    sha1 = models.BinaryField(max_length=20, null=True, blank=True)
+    
     size_uncompressed = models.PositiveBigIntegerField(null=True, blank=True)
     size_compressed = models.PositiveBigIntegerField(null=True, blank=True)
     compression_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
@@ -312,5 +316,3 @@ class S3File(TimestampedModel):
     download_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     upload_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     decrypt_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    participant: Participant = models.ForeignKey("Participant", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
-    study: Study = models.ForeignKey("Study", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")

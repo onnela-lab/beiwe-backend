@@ -1,4 +1,5 @@
 # trunk-ignore-all(bandit/B101,bandit/B106,ruff/B018,ruff/E701)
+import hashlib
 import time
 import unittest
 import uuid
@@ -901,9 +902,28 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(self.default_study.encryption_key, s.encryption_key.decode())
         self.assertEqual(self.default_study.object_id, s.get_path_prefix)
     
-    def test_zstd_path_rejected(self):
-        with self.assertRaises(ValueError) as e_wrapper:
+    def test_paths_rejected(self):
+        with self.assertRaises(ValueError):
             S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=False)
+        with self.assertRaises(ValueError):
+            S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=True)
+        
+        S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=False)
+        with self.assertRaises(ValueError):
+            S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=True)
+        
+        S3Storage("CUSTOM_ONDEPLOY_SCRIPT/EB/a_path.csv", self.default_participant, bypass_study_folder=False)
+        with self.assertRaises(ValueError):
+            S3Storage("CUSTOM_ONDEPLOY_SCRIPT/EB/a_path.csv", self.default_participant, bypass_study_folder=True)
+        
+        S3Storage("CUSTOM_ONDEPLOY_SCRIPT/PROCESSING/a_path.csv", self.default_participant, bypass_study_folder=False)
+        with self.assertRaises(ValueError):
+            S3Storage("CUSTOM_ONDEPLOY_SCRIPT/PROCESSING/a_path.csv", self.default_participant, bypass_study_folder=True)
+        
+        S3Storage("CUSTOM_ONDEPLOY_SCRIPT/new/a_path.csv", self.default_participant, bypass_study_folder=False)
+        with self.assertRaises(ValueError):
+            S3Storage("CUSTOM_ONDEPLOY_SCRIPT/new/a_path.csv", self.default_participant, bypass_study_folder=True)
+        
         self.assertFalse(S3File.objects.exists())
     
     def test_get_cache_encryption_key(self):
@@ -933,6 +953,8 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s.compressed_data, self.COMPRESSED_SLUG)
         self.assertFalse(S3File.objects.exists())
     
+    # def test_validate_file_paths(self):
+        
     # S3 tests, requires a with prefix and without prefix version of each test.
     
     ## push_to_storage_and_clear_everything
@@ -1124,6 +1146,7 @@ class TestS3Storage(CommonTestCase):
         self.assertIsNotNone(s3_file.decrypt_time_ns)
         self.assertIsNotNone(s3_file.download_time_ns)
         self.assertIsNotNone(s3_file.decompression_time_ns)
+        self.assertIsNone(s3_file.sha1)
     
     def assert_correct_uploaded_s3file(self, s3_file: S3File):
         self.assertEqual(s3_file.size_uncompressed, len(b"content"))
@@ -1136,3 +1159,4 @@ class TestS3Storage(CommonTestCase):
         self.assertIsNone(s3_file.decrypt_time_ns)
         self.assertIsNone(s3_file.download_time_ns)
         self.assertIsNone(s3_file.decompression_time_ns)
+        self.assertEqual(s3_file.sha1, hashlib.sha1(b"content").digest())

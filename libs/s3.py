@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from os.path import join as path_join
 from time import perf_counter_ns
 from typing import Any, Generator, Protocol, Sequence
@@ -12,8 +13,8 @@ from django.utils import timezone
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
-from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_SCRIPT_EB,
-    CUSTOM_ONDEPLOY_SCRIPT_PROCESSING, PROBLEM_UPLOADS, RUNNING_TESTS)
+from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
+    RUNNING_TESTS)
 from database.models import Participant, S3File, Study
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
@@ -104,6 +105,7 @@ METADATA_FIELDS = {
     "download_time_ns",
     "upload_time_ns",
     "decrypt_time_ns",
+    "sha1",
     
     "participant_id",
     "study_id",
@@ -128,11 +130,7 @@ class S3Storage:
     def __init__(
         self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool
     ) -> None:
-        if s3_path.endswith(".zst"):
-            raise ValueError("path should never end with .zst")
-        
         # todo: add handling of the None cose for smart_key_obj, where some api calls are disabled
-        
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
         
@@ -151,15 +149,18 @@ class S3Storage:
         #  - the study's folder, which is the object id volue on the Study (24 characters)
         #  - the chunks folder - time-binned chunked data in the chunk registry - file structure
         #    mimics the normal file structure.
+        if path.endswith(".zst"):
+            raise ValueError("path should never end with .zst")
         
+        # We don't validate file paths inside study folders.
         if not bypass_study_folder:
             self.s3_path_uncompressed = path_join(self.get_path_prefix, path)
             self.s3_path_zst = self.s3_path_uncompressed + ".zst"
             return
         
-        # validation of paths:
+        # We have some very specific folders and extra clear error messages
         path_start = path.split("/", 1)[0]
-        if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_SCRIPT_EB, CUSTOM_ONDEPLOY_SCRIPT_PROCESSING):
+        if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX):
             raise ValueError(BAD_FOLDER.format(path_start=path_start, path=path))
         if path_start != CHUNKS_FOLDER:
             raise ValueError(BAD_FOLDER_2.format(path_start=path_start, path=path))
@@ -197,6 +198,9 @@ class S3Storage:
         assert self.uncompressed_data is not None, COMPRESSION__COMPRESSED_DATA_NONE
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         
+        # sha1 is twice as fast as md5, it is 20 bytes, we care about speed here.
+        self.metadata.sha1 = hashlib.sha1(self.uncompressed_data).digest()
+        
         t_compress = perf_counter_ns()
         self.compressed_data = compress(self.uncompressed_data)
         t_compress = perf_counter_ns() - t_compress
@@ -222,6 +226,7 @@ class S3Storage:
         t_decompress = perf_counter_ns() - t_decompress
         self.metadata.decompression_time_ns = t_decompress
         self.metadata.size_uncompressed = len(self.uncompressed_data)
+        
         del data  # early cleanup? sure.
         self.update_s3_table()
     
