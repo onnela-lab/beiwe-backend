@@ -953,8 +953,14 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s.compressed_data, self.COMPRESSED_SLUG)
         self.assertFalse(S3File.objects.exists())
     
-    # def test_validate_file_paths(self):
-        
+    # def test_set_compressed_data(self):
+    #     s = self.default_s3storage_with_prefix
+    #     with self.assertRaises(TypeError):
+    #         s.set_file_content_compressed("content")
+    #     with self.assertRaises(ValueError):
+    #         s.set_file_content_compressed(b"content")
+    #     s.set_file_content_compressed(self.COMPRESSED_SLUG)
+    
     # S3 tests, requires a with prefix and without prefix version of each test.
     
     ## push_to_storage_and_clear_everything

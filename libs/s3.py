@@ -44,6 +44,7 @@ UNCOMPRESSED_DATA_NONE_ON_POP = "S3Compressed: file_content was not set before p
 UNCOMPRESSED_DATA_MISSING = "S3Compressed: file_content was purged before pop"
 BAD_FOLDER = "Files in the {path_start} folder should not use the S3Storage class. full path: {path}"
 BAD_FOLDER_2 = "Unrecognized base folder: `{path_start}` in path: `{path}`"
+MUST_BE_ZSTD_FORMAT = "Must be compressed zstd data conforming to the zstd format. data started with {file_content}"
 
 ## Global S3 Connection
 
@@ -126,6 +127,9 @@ class MetaDotDict(dict):
 
 
 class S3Storage:
+    """
+    A class that manages the lifecycle of encryption and compression.
+    """
     
     def __init__(
         self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool
@@ -175,6 +179,16 @@ class S3Storage:
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
         self.uncompressed_data = file_content
         return self
+    
+    # this code is correct but I'm not building the uncompressed upload function unless I need to.
+    # there is a test, "test_set_compressed_data"
+    # def set_file_content_compressed(self, file_content: bytes):
+    #     if not isinstance(file_content, bytes):
+    #         raise TypeError(f"file_content must be bytes, received {type(file_content)}")
+    #     if not file_content.startswith(b'(\xb5/\xfd'):
+    #         raise ValueError(MUST_BE_ZSTD_FORMAT.format(file_content=file_content[:10].decode()))
+    #     self.compressed_data = file_content
+    #     return self
     
     def pop_file_content(self):
         assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING
@@ -258,7 +272,7 @@ class S3Storage:
         S3File.fltr(path=self.s3_path_uncompressed).delete()  # can't actually fail
     
     # (these cached properties may need network/db ops)
-    # Todo: cache for real? do we want to cache the encryption key?
+    # Todo: cache for real? do we want to cache the encryption keys globally?
     
     @property
     def encryption_key(self):
