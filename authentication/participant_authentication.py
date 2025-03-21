@@ -119,7 +119,7 @@ def run_participant_db_updates(request: HttpRequest, participant: Participant):
         prior_os_version != participant.last_os_version):
         # log(f"os version changed: {last_version_code} to {session_participant.last_version_code}")
         participant.generate_app_version_history(
-            prior_version_code, prior_version_name, prior_os_version
+            participant.last_version_code, participant.last_version_name, participant.last_os_version
         )
     
     # we generate a log of the device status report, we do compress the data tho.
