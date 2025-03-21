@@ -5,7 +5,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, tzinfo
 from pprint import pprint
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Self, Tuple, Union
 
 import orjson
 from dateutil.tz import gettz
@@ -359,7 +359,7 @@ class Participant(AbstractPasswordUser):
     ######################################### LOGGING ##############################################
     ################################################################################################
     
-    def generate_app_version_history(self, version_code: str, version_name: str, os_version: str):
+    def generate_app_version_history(self, version_code: str|None, version_name: str|None, os_version: str|None):
         """ Creates an AppVersionHistory object. """
         AppVersionHistory.objects.create(
             participant=self,
@@ -586,7 +586,7 @@ class ParticipantActionLog(UtilityModel):
     action = models.TextField(null=False, blank=False)
     
     @classmethod
-    def heartbeat_notifications(cls) -> QuerySet[ParticipantActionLog]:
+    def heartbeat_notifications(cls) -> QuerySet[Self]:
         return cls.objects.filter(action=HEARTBEAT_PUSH_NOTIFICATION_SENT)
 
 
@@ -619,7 +619,7 @@ class SurveyNotificationReport(TimestampedModel):
     notification_uuid = models.UUIDField(default=uuid.uuid4, null=False, blank=False)
     applied = models.BooleanField(default=False)
     
-    class Meta:
+    class Meta:  # type: ignore
         unique_together = (("participant", "notification_uuid"),)  # statistically global
 
 
