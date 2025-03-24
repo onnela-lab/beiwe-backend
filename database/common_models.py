@@ -281,9 +281,9 @@ class UtilityModel(models.Model):
     
     def __str__(self) -> str:
         """ multipurpose object representation """
-        if hasattr(self, 'study') and hasattr(self, 'name') and self.name:
+        if hasattr(self, 'study') and self.study and hasattr(self, 'name') and self.name:
             return f'{self.__class__.__name__} {self.pk} "{self.name}" of Study {self.study.name}'
-        elif hasattr(self, 'study'):
+        elif hasattr(self, 'study') and self.study:
             return f'{self.__class__.__name__} {self.pk} of Study {self.study.name}'
         elif hasattr(self, 'name') and self.name:
             return f'{self.__class__.__name__} {self.name}'

@@ -316,3 +316,6 @@ class S3File(TimestampedModel):
     download_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     upload_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     decrypt_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.path}"
