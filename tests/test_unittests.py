@@ -1063,7 +1063,6 @@ class TestS3Storage(CommonTestCase):
     def test_download_does_not_exist_and_delete_s3file(self):
         self.valid_study_path
         S3File(path=self.valid_study_path+".zst").save()
-        S3File(path=self.valid_study_path).save()
         self.test_download_does_not_exist()
     
     ## download compressed does not exist

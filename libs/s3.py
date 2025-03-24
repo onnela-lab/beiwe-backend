@@ -269,9 +269,6 @@ class S3Storage:
     def delete_s3_table_entry_zst(self):
         S3File.fltr(path=self.s3_path_zst).delete()  # can't actually fail
     
-    def delete_s3_table_entry_uncompressed(self):
-        S3File.fltr(path=self.s3_path_uncompressed).delete()  # can't actually fail
-    
     # (these cached properties may need network/db ops)
     # Todo: cache for real? do we want to cache the encryption keys globally?
     
@@ -301,7 +298,6 @@ class S3Storage:
     
     def _s3_delete_uncompressed(self):
         s3_delete(self.s3_path_uncompressed)
-        self.delete_s3_table_entry_uncompressed()
     
     ## Upload
     
@@ -342,7 +338,7 @@ class S3Storage:
             data = self._s3_retrieve(self.s3_path_zst)
         except NoSuchKeyException:
             # if it doesn't exist, delete the entry in the database
-            S3File.objects.filter(path=self.s3_path_zst).delete()
+            self.delete_s3_table_entry_zst()
             raise
         
         t_download = perf_counter_ns() - t_download
