@@ -319,3 +319,31 @@ class S3File(TimestampedModel):
     
     def __str__(self):
         return f"{self.path}"
+    
+    def get_data_stream(self):
+        """ Returns the file type of the S3File. """
+        for data_stream, s3_string in UPLOAD_FILE_TYPE_MAPPING.items():
+            if s3_string in self.path:
+                return data_stream
+        return None
+    
+    def stats(self):
+        if self.size_compressed and self.size_uncompressed:
+            ratio = round(self.size_compressed / self.size_uncompressed, 2)
+        else:
+            ratio = None
+        print(f"data stream: {self.get_data_stream()} - ratio: {ratio}")
+    
+    @classmethod
+    def global_ratio(cls):
+        # using django annotations get the sum of all the compressed and uncompressed sizes,
+        # print the ratio of compressed to uncompressed out to 4 decimal places.
+        from django.db.models import Sum
+        
+        totals = cls.objects.aggregate(
+            total_compressed=Sum("size_compressed"), total_uncompressed=Sum("size_uncompressed")
+        )
+        total_compressed = totals["total_compressed"]
+        total_uncompressed = totals["total_uncompressed"]
+        ratio = round(total_compressed / total_uncompressed, 4)
+        print(ratio)
