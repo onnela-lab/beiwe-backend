@@ -18,9 +18,9 @@ billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.37.3
+boto3==1.37.18
     # via -r requirements.in
-botocore==1.37.3
+botocore==1.37.18
     # via
     #   boto3
     #   s3transfer
@@ -59,7 +59,7 @@ decorator==5.2.1
     # via
     #   ipython
     #   librosa
-django==4.2.19
+django==4.2.20
     # via
     #   -r requirements.in
     #   django-extensions
@@ -72,14 +72,14 @@ executing==2.2.0
     # via stack-data
 firebase-admin==5.4.0
     # via -r requirements.in
-google-api-core[grpc]==2.24.1
+google-api-core[grpc]==2.24.2
     # via
     #   firebase-admin
     #   google-api-python-client
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.162.0
+google-api-python-client==2.165.0
     # via firebase-admin
 google-auth==2.38.0
     # via
@@ -91,7 +91,7 @@ google-auth==2.38.0
     #   google-cloud-storage
 google-auth-httplib2==0.2.0
     # via google-api-python-client
-google-cloud-core==2.4.2
+google-cloud-core==2.4.3
     # via
     #   google-cloud-firestore
     #   google-cloud-storage
@@ -99,27 +99,27 @@ google-cloud-firestore==2.20.1
     # via firebase-admin
 google-cloud-storage==3.1.0
     # via firebase-admin
-google-crc32c==1.6.0
+google-crc32c==1.7.0
     # via
     #   google-cloud-storage
     #   google-resumable-media
 google-resumable-media==2.7.2
     # via google-cloud-storage
-googleapis-common-protos==1.68.0
+googleapis-common-protos==1.69.2
     # via
     #   google-api-core
     #   grpcio-status
-grpcio==1.70.0
+grpcio==1.71.0
     # via
     #   google-api-core
     #   grpcio-status
-grpcio-status==1.70.0
+grpcio-status==1.71.0
     # via google-api-core
 gunicorn==23.0.0
     # via -r requirements.in
-h3==4.2.1
+h3==4.2.2
     # via timezonefinder
-holidays==0.67
+holidays==0.69
     # via beiwe-forest
 httplib2==0.22.0
     # via
@@ -127,13 +127,13 @@ httplib2==0.22.0
     #   google-auth-httplib2
 idna==3.10
     # via requests
-ipython==9.0.0
+ipython==9.0.2
     # via -r requirements.in
 ipython-pygments-lexers==1.1.1
     # via ipython
 jedi==0.19.2
     # via ipython
-jinja2==3.1.5
+jinja2==3.1.6
     # via -r requirements.in
 jmespath==1.0.1
     # via
@@ -143,11 +143,11 @@ joblib==1.4.2
     # via
     #   librosa
     #   scikit-learn
-kombu==5.4.2
+kombu==5.5.0
     # via celery
 lazy-loader==0.4
     # via librosa
-librosa==0.10.2.post1
+librosa==0.11.0
     # via beiwe-forest
 llvmlite==0.44.0
     # via numba
@@ -191,7 +191,7 @@ parso==0.8.4
     # via jedi
 pexpect==4.9.0
     # via ipython
-platformdirs==4.3.6
+platformdirs==4.3.7
     # via pooch
 pooch==1.8.2
     # via librosa
@@ -199,18 +199,18 @@ prompt-toolkit==3.0.50
     # via
     #   click-repl
     #   ipython
-proto-plus==1.26.0
+proto-plus==1.26.1
     # via
     #   google-api-core
     #   google-cloud-firestore
-protobuf==5.29.3
+protobuf==5.29.4
     # via
     #   google-api-core
     #   google-cloud-firestore
     #   googleapis-common-protos
     #   grpcio-status
     #   proto-plus
-psycopg==3.2.5
+psycopg==3.2.6
     # via -r requirements.in
 ptyprocess==0.7.0
     # via pexpect
@@ -232,7 +232,7 @@ pygments==2.19.1
     #   ipython-pygments-lexers
 pyotp==2.9.0
     # via -r requirements.in
-pyparsing==3.2.1
+pyparsing==3.2.2
     # via httplib2
 pypng==0.20220715.0
     # via -r requirements.in
@@ -253,6 +253,8 @@ pytz==2025.1
     #   beiwe-forest
     #   django-timezone-field
     #   pandas
+pyzstd==0.16.2
+    # via -r requirements.in
 ratelimit==2.2.1
     # via beiwe-forest
 requests==2.32.3
@@ -265,7 +267,7 @@ requests==2.32.3
     #   pooch
 rsa==4.9
     # via google-auth
-s3transfer==0.11.3
+s3transfer==0.11.4
     # via boto3
 scikit-learn==1.6.1
     # via librosa
@@ -275,7 +277,7 @@ scipy==1.15.2
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.22.0
+sentry-sdk==2.24.1
     # via cronutils
 shapely==2.0.7
     # via beiwe-forest
@@ -291,7 +293,7 @@ ssqueezepy==0.6.5
     # via beiwe-forest
 stack-data==0.6.3
     # via ipython
-threadpoolctl==3.5.0
+threadpoolctl==3.6.0
     # via scikit-learn
 timezonefinder==6.5.8
     # via beiwe-forest
@@ -324,5 +326,3 @@ wcwidth==0.2.13
     # via prompt-toolkit
 webencodings==0.5.1
     # via bleach
-zstd==1.5.6.4
-    # via -r requirements.in
