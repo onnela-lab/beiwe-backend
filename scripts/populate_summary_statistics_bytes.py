@@ -21,6 +21,9 @@ from libs.utils.date_utils import get_timezone_shortcode
 # then updates the chunks and the daily summary statistics. with that size.
 #
 
+from database.models import S3File
+raise exception("this script will be wrong due to file compression.")
+
 
 def mapped_size_getter(raw_chunk_path):
     # we need the chunk theat we pass in back for the insertion
