@@ -29,7 +29,7 @@ from libs.endpoint_helpers.participant_table_helpers import determine_registered
 from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
-from libs.s3 import decrypt_server, S3Storage
+from libs.s3 import BadS3PathException, NoSuchKeyException, decrypt_server, S3Storage
 from libs.utils.compression import compress
 from libs.utils.forest_utils import get_forest_git_hash
 from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
@@ -903,28 +903,30 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(self.default_study.object_id, s.get_path_prefix)
     
     def test_paths_rejected(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(BadS3PathException):
             S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=False)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(BadS3PathException):
             S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=True)
         
         S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=False)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(BadS3PathException):
             S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=True)
         
         S3Storage("CUSTOM_ONDEPLOY_SCRIPT/EB/a_path.csv", self.default_participant, bypass_study_folder=False)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(BadS3PathException):
             S3Storage("CUSTOM_ONDEPLOY_SCRIPT/EB/a_path.csv", self.default_participant, bypass_study_folder=True)
         
         S3Storage("CUSTOM_ONDEPLOY_SCRIPT/PROCESSING/a_path.csv", self.default_participant, bypass_study_folder=False)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(BadS3PathException):
             S3Storage("CUSTOM_ONDEPLOY_SCRIPT/PROCESSING/a_path.csv", self.default_participant, bypass_study_folder=True)
         
         S3Storage("CUSTOM_ONDEPLOY_SCRIPT/new/a_path.csv", self.default_participant, bypass_study_folder=False)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(BadS3PathException):
             S3Storage("CUSTOM_ONDEPLOY_SCRIPT/new/a_path.csv", self.default_participant, bypass_study_folder=True)
         
         self.assertFalse(S3File.objects.exists())
+    
+    ## test some critical inner funcitonality
     
     def test_get_cache_encryption_key(self):
         s = self.default_s3storage_with_prefix
@@ -952,14 +954,6 @@ class TestS3Storage(CommonTestCase):
         self.assert_hasattr(s, "compressed_data")
         self.assertEqual(s.compressed_data, self.COMPRESSED_SLUG)
         self.assertFalse(S3File.objects.exists())
-    
-    # def test_set_compressed_data(self):
-    #     s = self.default_s3storage_with_prefix
-    #     with self.assertRaises(TypeError):
-    #         s.set_file_content_compressed("content")
-    #     with self.assertRaises(ValueError):
-    #         s.set_file_content_compressed(b"content")
-    #     s.set_file_content_compressed(self.COMPRESSED_SLUG)
     
     # S3 tests, requires a with prefix and without prefix version of each test.
     
@@ -1000,35 +994,13 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s3_file.path, self.valid_non_study_path + ".zst")
         self.assert_correct_uploaded_s3file(s3_file)
     
-    ## push_to_storage
+    def test_compress_data_and_clear_uncompressed_without_data(self):
+        s = self.default_s3storage_with_prefix
+        self.assertRaises(AssertionError, s.compress_data_and_clear_uncompressed)
     
-    # @patch("libs.s3.conn")
-    # def test_compress_and_push_to_storage_with_prefix(self, conn=MagicMock()):
-    #     # as test_compress_and_push_to_storage_and_clear_everything but one different side effect
-    #     s = self.default_s3storage_with_prefix
-    #     s.set_file_content(b"content")
-    #     s.compress_and_push_to_storage()
-    #     self.assert_not_hasattr(s, "uncompressed_data")
-    #     self.assert_hasattr(s, "compressed_data")
-    #     self.assertEqual(len(conn.method_calls), 1)
-    #     call = self.extract_mock_call_params(conn)[0]
-    #     self.assertIn("call.put_object(", str(call))
-    #     self.decrypt_kwarg_Body(call.kwargs)
-    #     self.assertEqual(call.kwargs, self.params_for_upload_compressed_study_prefix())
-    
-    # @patch("libs.s3.conn")
-    # def test_compress_and_push_to_storage_without_prefix(self, conn=MagicMock()):
-    #     # as test_compress_and_push_to_storage_and_clear_everything but one different side effect
-    #     s = self.default_s3storage_without_prefix
-    #     s.set_file_content(b"content")
-    #     s.compress_and_push_to_storage()
-    #     self.assert_not_hasattr(s, "uncompressed_data")
-    #     self.assert_hasattr(s, "compressed_data")
-    #     self.assertEqual(len(conn.method_calls), 1)
-    #     call = self.extract_mock_call_params(conn)[0]
-    #     self.assertIn("call.put_object(", str(call))
-    #     self.decrypt_kwarg_Body(call.kwargs)
-    #     self.assertEqual(call.kwargs, self.params_for_upload_compressed_non_study_prefix())
+    def test_compress_and_push_to_storage_and_clear_everything_without_data(self):
+        s = self.default_s3storage_without_prefix
+        self.assertRaises(AssertionError, s.compress_and_push_to_storage_and_clear_everything)
     
     ## download
     
@@ -1069,6 +1041,30 @@ class TestS3Storage(CommonTestCase):
         s3_file = S3File.objects.get()
         self.assertEqual(s3_file.path, self.valid_non_study_path + ".zst")
         self.assert_correct_downloaded_s3file(s3_file)
+    
+    ## download does not exist at all
+    
+    @patch("libs.s3.conn")
+    def test_download_does_not_exist(self, conn: Mock):
+        conn.get_object = do_retrieve = Mock()
+        do_retrieve.side_effect = [
+            self.hack_s3_error("waka waka 1"),
+            self.hack_s3_error("waka waka 2"),
+        ]
+        s = self.default_s3storage_with_prefix
+        self.assertRaises(NoSuchKeyException, s.download)
+        kwarg_1 = {'Bucket': 'test_bucket', 'Key': self.valid_study_path+".zst", 'ResponseContentType': 'string'}
+        kwarg_2 = {'Bucket': 'test_bucket', 'Key': self.valid_study_path, 'ResponseContentType': 'string'}
+        self.assertEqual(conn.method_calls[0].kwargs, kwarg_1)
+        self.assertEqual(conn.method_calls[1].kwargs, kwarg_2)
+        self.assertEqual(len(conn.method_calls), 2)
+        self.assertFalse(S3File.objects.exists())
+    
+    def test_download_does_not_exist_and_delete_s3file(self):
+        self.valid_study_path
+        S3File(path=self.valid_study_path+".zst").save()
+        S3File(path=self.valid_study_path).save()
+        self.test_download_does_not_exist()
     
     ## download compressed does not exist
     
@@ -1135,6 +1131,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(call_3.kwargs, self.params_for_upload_compressed_non_study_prefix())
         self.assertEqual(call_4.kwargs, self.params_for_delete_UNCOMPRESSED_non_study_prefix())
         self.assertIn("call.delete_object(", str(call_4))
+        
         s3_file = S3File.objects.get()
         self.assertEqual(s3_file.path, self.valid_non_study_path + ".zst")
         self.assert_correct_uploaded_s3file(s3_file)
@@ -1144,7 +1141,7 @@ class TestS3Storage(CommonTestCase):
     def assert_correct_downloaded_s3file(self, s3_file: S3File):
         self.assertEqual(s3_file.size_uncompressed, len(b"content"))
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
-        self.assertEqual(s3_file.study, self.default_study) 
+        self.assertEqual(s3_file.study, self.default_study)
         self.assertEqual(s3_file.participant, self.default_participant)
         self.assertIsNone(s3_file.compression_time_ns)
         self.assertIsNone(s3_file.encryption_time_ns)
@@ -1157,7 +1154,7 @@ class TestS3Storage(CommonTestCase):
     def assert_correct_uploaded_s3file(self, s3_file: S3File):
         self.assertEqual(s3_file.size_uncompressed, len(b"content"))
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
-        self.assertEqual(s3_file.study, self.default_study) 
+        self.assertEqual(s3_file.study, self.default_study)
         self.assertEqual(s3_file.participant, self.default_participant)
         self.assertIsNotNone(s3_file.compression_time_ns)
         self.assertIsNotNone(s3_file.encryption_time_ns)

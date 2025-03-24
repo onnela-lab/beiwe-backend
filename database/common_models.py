@@ -266,13 +266,13 @@ class UtilityModel(models.Model):
     
     #TODO: make filters keywords, validate inputs by type for misuse
     @classmethod
-    def make_lookup_dict(cls, filters: Dict, keys: Sequence[str], values: Sequence[str]) -> Dict:
+    def make_lookup_dict(cls, keys: Sequence[str], values: Sequence[str], **filters) -> Dict:
         """ Given a base model, a list of key fields, and a list of value fields, this function will
         return a dictionary that maps the key fields to the value fields. """
         return make_lookup_dict(cls.objects, keys, values, **filters)
     
     @classmethod
-    def make_lookup_dict_list(cls, filters: Dict, keys: Sequence[str], values: Sequence[str]) -> Dict:
+    def make_lookup_dict_list(cls, keys: Sequence[str], values: Sequence[str], **filters) -> Dict:
         """ Given a base model, a list of key fields, and a list of value fields, this function will
         return a dictionary that maps the key fields to any number of value fields as lists. """
         return make_lookup_dict_list(cls.objects, keys, values, **filters)

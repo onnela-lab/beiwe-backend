@@ -29,6 +29,7 @@ except ImportError:
 ## Types
 class NoSuchKeyException(Exception): pass
 class S3DeletionException(Exception): pass
+class BadS3PathException(Exception): pass
 
 # Boto3 doesn't have accessible type hints
 class Readable(Protocol):
@@ -154,7 +155,7 @@ class S3Storage:
         #  - the chunks folder - time-binned chunked data in the chunk registry - file structure
         #    mimics the normal file structure.
         if path.endswith(".zst"):
-            raise ValueError("path should never end with .zst")
+            raise BadS3PathException("path should never end with .zst")
         
         # We don't validate file paths inside study folders.
         if not bypass_study_folder:
@@ -165,9 +166,9 @@ class S3Storage:
         # We have some very specific folders and extra clear error messages
         path_start = path.split("/", 1)[0]
         if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX):
-            raise ValueError(BAD_FOLDER.format(path_start=path_start, path=path))
+            raise BadS3PathException(BAD_FOLDER.format(path_start=path_start, path=path))
         if path_start != CHUNKS_FOLDER:
-            raise ValueError(BAD_FOLDER_2.format(path_start=path_start, path=path))
+            raise BadS3PathException(BAD_FOLDER_2.format(path_start=path_start, path=path))
         
         self.s3_path_uncompressed = path
         self.s3_path_zst = path + ".zst"
@@ -295,13 +296,11 @@ class S3Storage:
     ## Delete
     
     def _s3_delete_zst(self):
-        if not s3_delete(self.s3_path_zst):
-            raise S3DeletionException(f"Failed to delete {self.s3_path_zst}")
+        s3_delete(self.s3_path_zst)
         self.delete_s3_table_entry_zst()
     
     def _s3_delete_uncompressed(self):
-        if not s3_delete(self.s3_path_uncompressed):
-            raise S3DeletionException(f"Failed to delete {self.s3_path_uncompressed}")
+        s3_delete(self.s3_path_uncompressed)
         self.delete_s3_table_entry_uncompressed()
     
     ## Upload
@@ -338,7 +337,14 @@ class S3Storage:
         key = self.encryption_key  # may have network/db op
         
         t_download = perf_counter_ns()
-        data = self._s3_retrieve(self.s3_path_zst)
+        
+        try:
+            data = self._s3_retrieve(self.s3_path_zst)
+        except NoSuchKeyException:
+            # if it doesn't exist, delete the entry in the database
+            S3File.objects.filter(path=self.s3_path_zst).delete()
+            raise
+        
         t_download = perf_counter_ns() - t_download
         self.metadata.download_time_ns = t_download
         
@@ -353,7 +359,7 @@ class S3Storage:
         return ret
     
     def _s3_retrieve(self, path: str) -> bytes:
-        return _do_retrieve(S3_BUCKET, path)['Body'].read()
+        return _do_retrieve(path)['Body'].read()
     
     ## Get Size
     
@@ -417,21 +423,21 @@ def s3_retrieve(key_path: str, obj: StrOrParticipantOrStudy, raw_path: bool = Fa
 
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
     """ Retrieves a file as-is as bytes. """
-    return _do_retrieve(S3_BUCKET, key_path, number_retries=number_retries)['Body'].read()
+    return _do_retrieve(key_path, number_retries=number_retries)['Body'].read()
 
 
-def _do_retrieve(bucket_name: str, key_path: str, number_retries=3) -> Boto3Response:
+def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
     """ Run-logic to do a data retrieval for a file in an S3 bucket."""
     try:
-        return conn.get_object(Bucket=bucket_name, Key=key_path, ResponseContentType='string')
+        return conn.get_object(Bucket=S3_BUCKET, Key=key_path, ResponseContentType='string')
     except Exception as boto_error_unknowable_type:
         # Some error types cannot be imported because they are generated at runtime through a factory
         if boto_error_unknowable_type.__class__.__name__ == "NoSuchKey":
-            raise NoSuchKeyException(f"{bucket_name}: {key_path}")
+            raise NoSuchKeyException(f"{S3_BUCKET}: {key_path}")
         # usually we want to try again
         if number_retries > 0:
             print("s3_retrieve failed, retrying on %s" % key_path)
-            return _do_retrieve(bucket_name, key_path, number_retries=number_retries - 1)
+            return _do_retrieve(key_path, number_retries=number_retries - 1)
         # unknown cases: explode.
         raise
 
@@ -497,9 +503,14 @@ def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None], None, None]
 
 ## Delete
 
-
-def s3_delete(key_path: str) -> bool:
+def s3_delete(key_path: str) -> bool|None:
+    """ None means no info. """
+    # the actual response contains no state indicating that a file was deleted.
+    # there are ~transaction IDs that we can probably use to track operations, but we don't care.
     resp = conn.delete_object(Bucket=S3_BUCKET, Key=key_path)
+    # this only exists if there is/was versioning on the bucket
+    if "DeleteMarker" not in resp:
+        return None
     if not resp["DeleteMarker"]:
         raise S3DeletionException(f"Failed to delete {resp['Key']} version {resp['VersionId']}")
     return resp["DeleteMarker"]
