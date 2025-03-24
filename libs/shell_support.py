@@ -381,9 +381,9 @@ def find_scheduled_events_with_no_notification_checkin(
     )
     
     participant_pk_to_notification_uuids = SurveyNotificationReport.make_lookup_dict_list(
-        {'participant_id': participant.pk} if participant else {},
         "participant_id",
         "notification_uuid",
+        **({'participant_id': participant.pk} if participant else {}),
     )
     _common_print(query, participant_pk_to_notification_uuids, tz)
 
@@ -408,9 +408,9 @@ def find_archived_events_with_no_notification_checkin(
     )
     
     participant_pk_to_notification_uuids = SurveyNotificationReport.make_lookup_dict_list(
-        {'participant_id': participant.pk} if participant else {},
         "participant_id",
         "notification_uuid",
+        **({'participant_id': participant.pk} if participant else {}),
     )
     _common_print(query, participant_pk_to_notification_uuids, tz)
 
