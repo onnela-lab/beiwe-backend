@@ -57,34 +57,12 @@ def create_file_processing_tasks():
 
 @processing_celery_app.task(queue=DATA_PROCESSING_CELERY_QUEUE)
 def celery_process_file_chunks(participant_id):
-    """ This is the function is queued up, it runs through all new uploads from a specific user and
-    'chunks' them. Handles logic for skipping bad files, raising errors. """
+    """ Task caller that runs through all new uploads from a specific user and 'chunks' them.
+    Handles logic for skipping bad files, raising errors. """
     
-    # There is a memory leak of some kind in file processing, possibly becausecelery doesn't clean
-    # up after itself very well. The working assumption is that this probably has something to do
-    # with the fact that celery forks, so possibly picking a different mode would impact this.  But
-    # we can just exit the python process (reporting that error is squashed in Django settings).
-    
-    try:
-        # All iteration logic has been moved into celery_processing_core
-        participant = Participant.objects.get(id=participant_id)
-        easy_run(participant)
-    except Exception as e:
-        # raise the exception if not running in celery.
-        if processing_celery_app is FalseCeleryApp:
-            raise
-        print(f"Error running data processing: {e}")
-    finally:
-        from time import sleep
-        sleep(5)
-        return
-        if processing_celery_app is not FalseCeleryApp:
-            # exit if running inside celery.
-            print(
-                "Data processing task completed. Exiting to clean up memory. You can safely ignore "
-                "the immediately following \"Worker exited prematurely: exitcode 0\" error message."
-            )
-            exit(0)
+    # All iteration logic has been moved into celery_processing_core
+    participant = Participant.objects.get(id=participant_id)
+    easy_run(participant)
 
 
 # and mark it to not retry!
