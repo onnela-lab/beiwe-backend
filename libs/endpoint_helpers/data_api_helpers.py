@@ -1,8 +1,12 @@
+from collections import defaultdict
+from datetime import datetime, tzinfo
 from typing import List
 
 import orjson
 
-from database.user_models_participant import Participant
+from constants.message_strings import MESSAGE_SEND_SUCCESS
+from database.models import Participant
+from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import StudyRelation
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.internal_types import ApiStudyResearcherRequest
@@ -56,3 +60,46 @@ class DeviceStatusHistoryPaginator(EfficientQueryPaginator):
                 # json encoded. This causes the output json to be an object, not a json string,
                 # (And it's faster and avoids a bytes -> string -> bytes conversion.)
                 row["device_status"] = orjson.Fragment(decompress(device_status))
+
+
+def participant_archived_event_dict(p: Participant, tz: tzinfo) -> dict:
+    """ Bulk code of the participant notification history endpoint. """
+    created: datetime
+    sched_time: datetime
+    
+    # sort by the survey, the time sent, then alphabetical schedule type name as tiebreaker
+    query = p.archived_events.order_by(
+        "survey_archive__survey__object_id", "scheduled_time", "created_on"
+    ).values_list(
+        "survey_archive__survey__object_id",
+        "created_on",
+        "schedule_type",
+        "scheduled_time",
+        "status",
+        "uuid",
+        "was_resend",
+    )
+    
+    p.notification_reports
+    uuid_to_confirmed_time = SurveyNotificationReport.make_lookup_dict(
+        {"participant": p}, "notification_uuid", "created_on"
+    )
+    
+    jsonable_data = defaultdict(list)
+    for survey_id, created, sched_type, sched_time, status, a_uuid, resend in query:
+        # convert everything to the (study's timezone or UTC)
+        sched_time = sched_time.astimezone(tz)
+        created = created.astimezone(tz)
+        
+        jsonable_data[survey_id].append(
+            {
+                "timestamp": created,
+                "type": sched_type,
+                "scheduled_time": sched_time,
+                "confirmed_received": uuid_to_confirmed_time.get(a_uuid, False),
+                "uuid": a_uuid,
+                "resend": resend,
+                "push_rejected": not (status == MESSAGE_SEND_SUCCESS), # could push into db....
+            }
+        )
+    return dict(jsonable_data)

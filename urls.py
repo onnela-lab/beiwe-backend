@@ -87,7 +87,7 @@ path(
     login_redirect=SAFE,
 )
 
-# system admin pages
+# Website User Management - researchers
 path("manage_researchers", manage_researcher_endpoints.administrator_manage_researchers_page, login_redirect=SAFE)
 path(
     "edit_researcher/<int:researcher_pk>",
@@ -124,7 +124,7 @@ path("delete_ios_firebase_cert", system_admin_endpoints.delete_ios_firebase_cert
 # data access web form
 path("data_access_web_form", data_page_endpoints.data_api_web_form_page, login_redirect=SAFE)
 
-# admin api
+# researcher api
 path('set_study_timezone/<str:study_id>', manage_study_endpoints.set_study_timezone)
 path('add_researcher_to_study', manage_researcher_endpoints.administrator_add_researcher_to_study)
 path('remove_researcher_from_study', manage_researcher_endpoints.administrator_remove_researcher_from_study)
@@ -217,6 +217,7 @@ path(
 path("get-data/v1", raw_data_api.get_data)
 path("get-studies/v1", data_api_endpoints.get_studies)
 path("get-users/v1", data_api_endpoints.get_participant_ids_in_study)  # deprecated June 2024
+path("get-study-settings/v1", data_api_endpoints.get_study_settings_file)
 path("get-participant-ids/v1", data_api_endpoints.get_participant_ids_in_study)
 path("get-participant-data-quantities/v1", data_api_endpoints.get_participant_data_quantities)
 path("get-interventions/v1", data_api_endpoints.download_study_interventions)
@@ -227,6 +228,7 @@ path("get-participant-version-history/v1", data_api_endpoints.get_participant_ve
 path("get-participant-table-data/v1", data_api_endpoints.get_participant_table_data)
 path("get-summary-statistics/v1", data_api_endpoints.get_summary_statistics)
 path("get-participant-device-status-history/v1", data_api_endpoints.get_participant_device_status_report_history)
+path("get-participant-notification-history/v1", data_api_endpoints.get_participant_notification_history)
 
 # tableau
 path(

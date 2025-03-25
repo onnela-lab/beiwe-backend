@@ -1,11 +1,10 @@
 import json
 import re
-from io import BytesIO
 
 import bleach
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http.response import FileResponse, HttpResponse
+from django.http.response import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -25,7 +24,7 @@ from database.survey_models import Survey
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.django_forms.forms import StudyEndDateForm, StudySecuritySettingsForm
 from libs.endpoint_helpers.copy_study_helpers import (allowed_file_extension, copy_study_from_json,
-    do_duplicate_step, format_study, unpack_json_study)
+    do_duplicate_step, study_settings_fileresponse, unpack_json_study)
 from libs.endpoint_helpers.password_validation_helpers import get_min_password_requirement
 from libs.endpoint_helpers.researcher_helpers import get_administerable_researchers
 from libs.endpoint_helpers.study_helpers import (conditionally_display_study_status_warnings,
@@ -424,25 +423,7 @@ def device_settings(request: ResearcherRequest, study_id=None):
 @require_GET
 @authenticate_admin
 def export_study_settings_file(request: ResearcherRequest, study_id):
-    """ Endpoint that returns a json representation of a study.
-    JSON structure for exporting and importing study surveys and settings:
-        {
-         'device_settings': {},
-         'surveys': [{}, {}, ...],
-         'interventions: [{}, {}, ...],
-        }
-    """
-    
-    study = Study.objects.get(pk=study_id)
-    filename = study.name.replace(' ', '_') + "_surveys_and_settings.json"
-    f = FileResponse(
-        BytesIO(format_study(study)),
-        content_type="application/json",
-        as_attachment=True,
-        filename=filename,
-    )
-    f.set_headers(None)
-    return f
+    return study_settings_fileresponse(study_id)
 
 
 @require_POST

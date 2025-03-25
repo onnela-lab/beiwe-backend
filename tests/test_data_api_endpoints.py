@@ -11,8 +11,11 @@ from django.utils import timezone
 from authentication.tableau_authentication import (check_tableau_permissions,
     TableauAuthenticationFailed, TableauPermissionDenied, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
 from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES
-from constants.message_strings import MISSING_JSON_CSV_MESSAGE
+from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MESSAGE
+from constants.schedule_constants import ScheduleTypes
+from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST
 from constants.user_constants import ResearcherRole
+from database.models import ArchivedEvent
 from database.profiling_models import UploadTracking
 from database.security_models import ApiKey
 from database.study_models import Study
@@ -1057,6 +1060,131 @@ class TestGetParticipantDeviceStatusHistory(DataApiTest):
         self.assertDictEqual(out_dict, reference_out_dict)
 
 
+class TestGetParticipantNotificationHistory(DataApiTest):
+    ENDPOINT_NAME = "data_api_endpoints.get_participant_notification_history"
+    
+    def test_no_participant_parameter(self):
+        # it should 400
+        self.set_session_study_relation(ResearcherRole.researcher)
+        self.using_default_participant()
+        resp = self.smart_post_status_code(400)
+        self.assertEqual(resp.content, b"")
+    
+    def test_participant_no_notification_history(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        resp = self.smart_post_status_code(200, participant_id=self.default_participant.patient_id)
+        self.assertEqual(resp.content, b"{}")
+    
+    def build_archived_event(self, participant=None):
+        p = participant or self.default_participant
+        archived_event_params = dict(
+            survey_archive=self.default_survey.archives.first(),
+            participant=p,
+            schedule_type=ScheduleTypes.weekly,
+            scheduled_time=MONDAY_JAN_10_NOON_2022_EST,
+            status=MESSAGE_SEND_SUCCESS,
+            uuid='9ae6981c-08ac-4179-b385-be068e390054',
+            was_resend=False,
+            confirmed_received=True,
+        )
+        # test that we had all the fields specified
+        self.assertEqual(
+            set(archived_event_params), {
+                field.name
+                for field in ArchivedEvent()._meta.fields
+                if field.name not in ("id", "created_on", "last_updated")
+            }
+        )
+        
+        a = ArchivedEvent(**archived_event_params)
+        a.save()  # run validation
+        a.force_update_only(
+            created_on=MONDAY_JAN_10_NOON_2022_EST, last_updated=MONDAY_JAN_10_NOON_2022_EST,
+        )
+        return a
+    
+    @property
+    def comparator_params_EST(self):
+        return {
+            'u1Z3SH7l2xNsw72hN3LnYi96':
+                [
+                    {
+                        'confirmed_received': False,
+                        'scheduled_time': '2022-01-10T12:00:00-05:00',
+                        'timestamp': '2022-01-10T12:00:00-05:00',
+                        'type': 'weekly',
+                        'uuid': '9ae6981c-08ac-4179-b385-be068e390054',
+                        'push_rejected': False,
+                        'resend': False
+                    }
+                ]
+        }
+    
+    @property
+    def comparator_params_UTC(self):
+        return {
+            'u1Z3SH7l2xNsw72hN3LnYi96':
+                [
+                    {
+                        'confirmed_received': False,
+                        'scheduled_time': '2022-01-10T17:00:00Z',
+                        'timestamp': '2022-01-10T17:00:00Z',
+                        'type': 'weekly',
+                        'uuid': '9ae6981c-08ac-4179-b385-be068e390054',
+                        'push_rejected': False,
+                        'resend': False
+                    }
+                ]
+        }
+    
+    @staticmethod
+    def merge_em(d1: dict, d2: dict):
+        d1 = d1["u1Z3SH7l2xNsw72hN3LnYi96"][0]
+        d2 = d2["u1Z3SH7l2xNsw72hN3LnYi96"][0]
+        return {"u1Z3SH7l2xNsw72hN3LnYi96": [d1, d2]}
+    
+    def test_participant_one_notification_history_ET(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        a = self.build_archived_event()
+        resp = self.smart_post_status_code(200, participant_id=self.default_participant.patient_id)
+        self.assertEqual(orjson.loads(resp.content), self.comparator_params_EST)
+    
+    def test_participant_one_notification_history_UTC(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        a = self.build_archived_event()
+        resp = self.smart_post_status_code(200, participant_id=self.default_participant.patient_id, utc=True)
+        self.assertEqual(orjson.loads(resp.content), self.comparator_params_UTC)
+    
+    def test_one_participant_two_notifications(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        a = self.build_archived_event()
+        a2 = self.build_archived_event()
+        resp = self.smart_post_status_code(200, participant_id=self.default_participant.patient_id)
+        self.assertDictEqual(
+            orjson.loads(resp.content),
+            self.merge_em(self.comparator_params_EST, self.comparator_params_EST)
+        )
+        
+    def test_one_participant_two_notifications_sort(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        a = self.build_archived_event()
+        a2 = self.build_archived_event()
+        resp = self.smart_post_status_code(200, participant_id=self.default_participant.patient_id)
+        a2.force_update_only(scheduled_time=a2.scheduled_time - timedelta(days=1))
+        d2 = self.comparator_params_EST
+        d2["scheduled_time"] = '2022-01-09T12:00:00-05:00'
+        self.assertDictEqual(
+            orjson.loads(resp.content),
+            self.merge_em(d2, self.comparator_params_EST)
+        )
+    
+    def test_two_participants_each_with_one_notification(self):
+        a = self.build_archived_event()
+        b = self.build_archived_event(participant=self.generate_participant(self.default_study))
+        self.set_session_study_relation(ResearcherRole.researcher)
+        resp = self.smart_post_status_code(200, participant_id=self.default_participant.patient_id)
+        self.assertDictEqual(orjson.loads(resp.content), self.comparator_params_EST)
+    
 #
 ## Tableau API
 #
