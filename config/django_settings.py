@@ -217,7 +217,7 @@ sentry_sdk.init(
         CeleryIntegration(
             propagate_traces=False,
             monitor_beat_tasks=False,
-            exclude_beat_tasks=True
+            exclude_beat_tasks=True,
         )
     ],
 )

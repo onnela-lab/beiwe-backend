@@ -75,6 +75,9 @@ def celery_process_file_chunks(participant_id):
             raise
         print(f"Error running data processing: {e}")
     finally:
+        from time import sleep
+        sleep(5)
+        return
         if processing_celery_app is not FalseCeleryApp:
             # exit if running inside celery.
             print(

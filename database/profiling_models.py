@@ -13,6 +13,7 @@ from database.common_models import UtilityModel
 from database.models import JSONTextField, TimestampedModel
 from database.user_models_participant import Participant
 
+
 try:
     from database.study_models import Study  # Used in a type hint
 except ImportError:
@@ -317,14 +318,43 @@ class S3File(TimestampedModel):
     upload_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     decrypt_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     
+    object_ids = {}
+    
+    # @classmethod
+    def get_object_id(self):
+        from database.models import Study
+        
+        # first go through the object_ids cache, then study_id if present, then participant
+        # study, populating the cache if we need to.
+        self.study_id: int
+        self.participant_id: int
+        
+        # if not self.study_id:
+        #     if self.participant_id:
+        #         Participant.value_get("study__object_id", pk=self.participant_id)
+        #         self.study_id = self.participant.study_id
+        #     else:
+        #         return None
+        
+        if self.study_id in self.object_ids:
+            return self.object_ids[self.study_id]
+        
+        object_id = Study.value_get("object_id", pk=self.study_id)
+        self.object_ids[self.study_id] = object_id
+        return object_id
+    
     def __str__(self):
         return f"{self.path}"
     
     def get_data_stream(self):
         """ Returns the file type of the S3File. """
         for data_stream, s3_string in UPLOAD_FILE_TYPE_MAPPING.items():
-            if s3_string in self.path:
-                return data_stream
+            if data_stream in self.path:
+                return s3_string
+        if "ios/log" in self.path:
+            return "ios_log"
+        if "/keys/" in self.path:
+            return "keyfile"
         return None
     
     def stats(self):
@@ -332,7 +362,14 @@ class S3File(TimestampedModel):
             ratio = round(self.size_compressed / self.size_uncompressed, 2)
         else:
             ratio = None
-        print(f"data stream: {self.get_data_stream()} - ratio: {ratio}")
+        data_stream = self.get_data_stream() or self.path
+        
+        if self.study_id:  # type: ignore
+            object_id = self.get_object_id()
+            if self.path.startswith(object_id):
+                print(f"data stream: raw {data_stream} - ratio: {ratio}")
+        
+        print(f"data stream: {data_stream} - ratio: {ratio}")
     
     @classmethod
     def global_ratio(cls):

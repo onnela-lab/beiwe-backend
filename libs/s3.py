@@ -164,10 +164,11 @@ class S3Storage:
             return
         
         # We have some very specific folders and extra clear error messages
+        # (and we do allow the correct study folder on a raw path)
         path_start = path.split("/", 1)[0]
         if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX):
             raise BadS3PathException(BAD_FOLDER.format(path_start=path_start, path=path))
-        if path_start != CHUNKS_FOLDER:
+        if path_start != CHUNKS_FOLDER and path_start != self.get_path_prefix:
             raise BadS3PathException(BAD_FOLDER_2.format(path_start=path_start, path=path))
         
         self.s3_path_uncompressed = path

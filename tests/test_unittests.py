@@ -29,7 +29,7 @@ from libs.endpoint_helpers.participant_table_helpers import determine_registered
 from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
-from libs.s3 import BadS3PathException, NoSuchKeyException, decrypt_server, S3Storage
+from libs.s3 import BadS3PathException, decrypt_server, NoSuchKeyException, S3Storage
 from libs.utils.compression import compress
 from libs.utils.forest_utils import get_forest_git_hash
 from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
@@ -904,7 +904,7 @@ class TestS3Storage(CommonTestCase):
     
     def test_paths_rejected(self):
         with self.assertRaises(BadS3PathException):
-            S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=False)
+            S3Storage(f"{self.valid_study_path}.zst", self.default_participant, bypass_study_folder=False)
         with self.assertRaises(BadS3PathException):
             S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=True)
         
@@ -924,6 +924,14 @@ class TestS3Storage(CommonTestCase):
         with self.assertRaises(BadS3PathException):
             S3Storage("CUSTOM_ONDEPLOY_SCRIPT/new/a_path.csv", self.default_participant, bypass_study_folder=True)
         
+        self.assertFalse(S3File.objects.exists())
+    
+    def test_paths_allowed(self):
+        # special case NOT rejected starting with study path
+        obj_id = self.default_study.object_id
+        S3Storage(obj_id+"/"+"path", self.default_participant, bypass_study_folder=True)
+        S3Storage(obj_id+"/"+"path", self.default_study, bypass_study_folder=True)
+        S3Storage(obj_id+"/"+"path", self.default_study.object_id, bypass_study_folder=True)
         self.assertFalse(S3File.objects.exists())
     
     ## test some critical inner funcitonality

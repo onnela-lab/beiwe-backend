@@ -18,9 +18,9 @@ billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.37.18
+boto3==1.37.20
     # via -r requirements.in
-botocore==1.37.18
+botocore==1.37.20
     # via
     #   boto3
     #   s3transfer
@@ -143,7 +143,7 @@ joblib==1.4.2
     # via
     #   librosa
     #   scikit-learn
-kombu==5.5.0
+kombu==5.5.1
     # via celery
 lazy-loader==0.4
     # via librosa
@@ -232,7 +232,7 @@ pygments==2.19.1
     #   ipython-pygments-lexers
 pyotp==2.9.0
     # via -r requirements.in
-pyparsing==3.2.2
+pyparsing==3.2.3
     # via httplib2
 pypng==0.20220715.0
     # via -r requirements.in
@@ -248,7 +248,7 @@ python-dateutil==2.9.0.post0
     #   celery
     #   holidays
     #   pandas
-pytz==2025.1
+pytz==2025.2
     # via
     #   beiwe-forest
     #   django-timezone-field
@@ -295,7 +295,7 @@ stack-data==0.6.3
     # via ipython
 threadpoolctl==3.6.0
     # via scikit-learn
-timezonefinder==6.5.8
+timezonefinder==6.5.9
     # via beiwe-forest
 traitlets==5.14.3
     # via
