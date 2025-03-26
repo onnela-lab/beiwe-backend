@@ -7,6 +7,7 @@ from typing import Any, Generator, Protocol, Sequence
 from unittest.mock import MagicMock
 
 import boto3
+import botocore
 from botocore.client import BaseClient
 from cronutils import ErrorHandler
 from django.utils import timezone
@@ -24,6 +25,7 @@ try:
     from libs.internal_types import StrOrParticipantOrStudy  # this is purely for ide assistance
 except ImportError:
     pass
+
 
 
 ## Types
@@ -54,7 +56,8 @@ conn: BaseClient = boto3.client(
     aws_access_key_id=BEIWE_SERVER_AWS_ACCESS_KEY_ID,
     aws_secret_access_key=BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     region_name=S3_REGION_NAME,
-    endpoint_url=S3_ENDPOINT
+    endpoint_url=S3_ENDPOINT,
+    config=botocore.config.Config(max_pool_connections=100),  # type: ignore
 )
 
 if RUNNING_TESTS:                       # This lets us cut out some boilerplate in tests

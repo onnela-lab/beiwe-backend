@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, List
 
 from django.db import models
-from django.db.models import QuerySet
+from django.db.models import Count, Q, QuerySet, Sum
 from django.utils import timezone
 
-from constants.data_stream_constants import (ALL_DATA_STREAMS, DATA_STREAM_TO_S3_FILE_NAME_STRING,
-    IDENTIFIERS, UPLOAD_FILE_TYPE_MAPPING)
+from constants.data_stream_constants import *
 from database.common_models import UtilityModel
 from database.models import JSONTextField, TimestampedModel
 from database.user_models_participant import Participant
@@ -87,7 +87,7 @@ class UploadTracking(UtilityModel):
             (this is fairly optimized because it is part of debugging file processing) """
         uploads = cls.objects.order_by("-timestamp")[:number]
         cls._add_files_to_process(uploads)
-        
+    
     @classmethod
     def re_add_files_to_process_time(cls, time: datetime):
         """ re-adds files going back to a specific time. """
@@ -318,10 +318,19 @@ class S3File(TimestampedModel):
     upload_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     decrypt_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     
-    object_ids = {}
+    object_ids = {}  # for caching study object id lookups
     
-    # @classmethod
+    # This is a mapping of data streams to strings found in their paths. it is based off real
+    # values in the s3 bucket, which is a mess for historical reasons.
+    MAPPING = {**UPLOAD_FILE_TYPE_MAPPING}
+    MAPPING.update((stream, stream) for stream in ALL_DATA_STREAMS)
+    MAPPING["/keys/"] = "key_file"
+    MAPPING["forest"] = "forest"
+    MAPPING["ios/log"] = IOS_LOG_FILE
+    
+    
     def get_object_id(self):
+        # TODO: we can just logic this out of the path, we only allow study and CHUNKED_DATA
         from database.models import Study
         
         # first go through the object_ids cache, then study_id if present, then participant
@@ -335,27 +344,38 @@ class S3File(TimestampedModel):
         #         self.study_id = self.participant.study_id
         #     else:
         #         return None
+        object_ids = self.__class__.object_ids
+        if self.study_id in object_ids:
+            return object_ids[self.study_id]
         
-        if self.study_id in self.object_ids:
-            return self.object_ids[self.study_id]
-        
-        object_id = Study.value_get("object_id", pk=self.study_id)
-        self.object_ids[self.study_id] = object_id
+        object_ids[self.study_id] = object_id = Study.value_get("object_id", pk=self.study_id)
         return object_id
     
     def __str__(self):
         return f"{self.path}"
     
     def get_data_stream(self):
-        """ Returns the file type of the S3File. """
-        for data_stream, s3_string in UPLOAD_FILE_TYPE_MAPPING.items():
-            if data_stream in self.path:
-                return s3_string
-        if "ios/log" in self.path:
-            return "ios_log"
-        if "/keys/" in self.path:
-            return "keyfile"
-        return None
+        return self._get_data_stream(self.path)
+    
+    @classmethod
+    def _get_data_stream(cls, path):
+        """ Determines a data stream or file type based purely off the path. """
+        
+        determination = None
+        for data_stream, the_name in cls.MAPPING.items():
+            if data_stream in path:
+                determination = the_name
+                break
+        
+        # its something weird
+        if not determination:
+            return None
+        
+        # study object ids are 24 characters
+        if len(path.split("/")[0]) == 24:
+            determination = "raw_" + determination
+        
+        return determination
     
     def stats(self):
         if self.size_compressed and self.size_uncompressed:
@@ -384,3 +404,89 @@ class S3File(TimestampedModel):
         total_uncompressed = totals["total_uncompressed"]
         ratio = round(total_compressed / total_uncompressed, 4)
         print(ratio)
+    
+    @staticmethod
+    def prant(label: str, compressed: int|None, uncompressed: int|None, count: int|None):
+        if compressed is None and uncompressed is None:
+            return
+        
+        if compressed is not None:
+            compressed = round(compressed / 1024 / 1024, 4)  # type: ignore
+        
+        if uncompressed is not None:
+            uncompressed = round(uncompressed / 1024 / 1024, 4)  # type: ignore
+        
+        if compressed is not None and uncompressed is not None:
+            ratio = round(compressed / uncompressed *100, 4)
+        else:
+            ratio = "-"
+        print(label, f"{ratio}% - ({count}) - {uncompressed}MB -> {compressed}MB")
+    
+    @classmethod
+    def print_stats_slow(cls):
+        """ Data from this can be used to build the mapping structure in _fast. """
+        query = cls.objects.values_list("path", "size_uncompressed", "size_compressed")
+        
+        counter = defaultdict(int)
+        data_streams = set()
+        for i, (path, s_uncompressed, s_compressed) in enumerate(query.iterator()):
+            if i % 100000 == 0:
+                print(i)
+            data_stream = cls._get_data_stream(path)
+            data_streams.add(str(data_stream))
+            if data_stream is None:
+                print(path)
+            counter[f"{data_stream} count"] += 1
+            counter[f"{data_stream} uncompressed"] += s_uncompressed
+            counter[f"{data_stream} compressed"] += s_compressed
+        
+        for k in sorted(data_streams):
+            cls.prant(k, counter[f"{k} compressed"], counter[f"{k} uncompressed"], counter[f"{k} count"])
+    
+    @classmethod
+    def print_stats_fast(cls):
+        # label as the key, all strings to check for as the values.
+        # it _should_ always be a map of ACCELEROMETER: ACCELEROMETER buuuuut we aren't that lucky.
+        MAPPING = {
+            ACCELEROMETER:    ("accel", ACCELEROMETER, ),
+            AMBIENT_AUDIO:    ("ambientAudio", AMBIENT_AUDIO, ),
+            ANDROID_LOG_FILE: ("logFile", ANDROID_LOG_FILE, ),
+            BLUETOOTH:        ("bluetoothLog", BLUETOOTH, ),
+            CALL_LOG:         ("callLog", CALL_LOG, ),
+            DEVICEMOTION:     ("devicemotion", DEVICEMOTION, ),
+            GPS:              ("gps", GPS, ),
+            GYRO:             ("gyro", GYRO, ),
+            IDENTIFIERS:      ("identifiers", IDENTIFIERS, ),
+            IOS_LOG_FILE:     ("ios_log", "ios/log", IOS_LOG_FILE, ),
+            MAGNETOMETER:     ("magnetometer", MAGNETOMETER, ),
+            POWER_STATE:      ("powerState", POWER_STATE, ),
+            PROXIMITY:        ("proximity", PROXIMITY, ),
+            REACHABILITY:     ("reachability", REACHABILITY, ),
+            SURVEY_ANSWERS:   ("surveyAnswers", SURVEY_ANSWERS, ),
+            SURVEY_TIMINGS:   ("surveyTimings", SURVEY_TIMINGS, ),
+            TEXTS_LOG:        ("textsLog", TEXTS_LOG, ),
+            VOICE_RECORDING:  ("voiceRecording", VOICE_RECORDING, ),
+            WIFI:             ("wifiLog", WIFI, ),
+            "key_file":       ("/keys/", ),
+            "forest":         ("forest", ),
+        }
+        
+        for label, filters in MAPPING.items():
+            path_contains = Q()
+            for f in filters:
+                path_contains |= Q(path__contains=f)
+            
+            # chunked data query
+            compressed_chunked, uncompressed_chunked, count = S3File.objects.filter(
+                path_contains, path__startswith="CHUNKED_DATA"
+            ).aggregate(Sum("size_compressed"), Sum("size_uncompressed"), Count("pk")).values()
+            
+            cls.prant(label + "", compressed_chunked, uncompressed_chunked, count)
+            
+            # raw uplaod data query
+            compressed_raw, uncompressed_raw, count_raw = S3File.objects.filter(path_contains)\
+                .exclude(path__startswith="CHUNKED_DATA")\
+                .aggregate(Sum("size_compressed"), Sum("size_uncompressed"), Count("pk")).values()
+            
+            cls.prant(label + " (raw)", compressed_raw, uncompressed_raw, count_raw)
+            print()

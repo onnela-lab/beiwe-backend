@@ -73,26 +73,26 @@ def iterate_all_files():
         # for every datastream in the participant folder
         for datastream in os.listdir(path_join(DATA_FOLDER, user_path)):
             # Pick one data stream, compression is only consistent for a single data stream
-            if datastream != "accelerometer":
-            # if user_datastream != "gyro":
-            # if user_datastream != "gps":
-            # if user_datastream != "wifi":
-            # if user_datastream != "texts":
-            # if user_datastream != "ios_log":
-            # if user_datastream != "app_log":
+            # if datastream != "accelerometer":
+            if datastream != "gyro":
+            # if datastream != "gps":
+            # if datastream != "wifi":
+            # if datastream != "texts":
+            # if datastream != "ios_log":
+            # if datastream != "app_log":
             # low quantities of data:
-            # if user_datastream != "reachability":
-            # if user_datastream != "power_state":
-            # if user_datastream != "identifiers":
-            # if user_datastream != "calls":
+            # if datastream != "reachability":
+            # if datastream != "power_state":
+            # if datastream != "identifiers":
+            # if datastream != "calls":
                 continue
             
             # go through datastream files and read them in
-            user_datastream_path = path_join(DATA_FOLDER, f"{user_path}/{datastream}/")
-            for user_datastream_file in os.listdir(user_datastream_path):
-                user_datastream_file_path = f"{user_datastream_path}/{user_datastream_file}"
-                if not os.path.isdir(user_datastream_file_path):
-                    with open(user_datastream_file_path, "rb") as f:
+            datastream_path = path_join(DATA_FOLDER, f"{user_path}/{datastream}/")
+            for datastream_file in os.listdir(datastream_path):
+                datastream_file_path = f"{datastream_path}/{datastream_file}"
+                if not os.path.isdir(datastream_file_path):
+                    with open(datastream_file_path, "rb") as f:
                         data: bytes = f.read()
                         if data:
                             yield user_path, datastream, data
