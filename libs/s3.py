@@ -16,16 +16,15 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
     S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
-from database.models import Participant, S3File, Study
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
 
 
 try:
-    from libs.internal_types import StrOrParticipantOrStudy  # this is purely for ide assistance
+    from database.models import Participant, S3File, Study
+    StrPartStudy = str | Participant | Study
 except ImportError:
     pass
-
 
 
 ## Types
@@ -71,7 +70,7 @@ SMART_GET_ERROR = "expected Study, Participant, or 24 char str, received '{}'"
 ## Smart Key and Path Getters
 
 
-def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
+def smart_get_study_encryption_key(obj: StrPartStudy) -> bytes:
     if isinstance(obj, Participant):
         return Study.value_get("encryption_key", pk=obj.study_id).encode()
     elif isinstance(obj, Study):
@@ -82,11 +81,11 @@ def smart_get_study_encryption_key(obj: StrOrParticipantOrStudy) -> bytes:
         raise TypeError(SMART_GET_ERROR.format(type(obj)))
 
 
-def s3_construct_study_key_path(key_path: str, obj: StrOrParticipantOrStudy) -> str:
+def s3_construct_study_key_path(key_path: str, obj: StrPartStudy) -> str:
     return get_just_prefix(obj) + "/" + key_path
 
 
-def get_just_prefix(obj: StrOrParticipantOrStudy) -> str:
+def get_just_prefix(obj: StrPartStudy) -> str:
     if isinstance(obj, Participant):
         return Study.value_get("object_id", pk=obj.study_id)
     elif isinstance(obj, Study):
@@ -136,8 +135,9 @@ class S3Storage:
     """
     
     def __init__(
-        self, s3_path: str, obj: StrOrParticipantOrStudy, bypass_study_folder: bool
+        self, s3_path: str, obj: StrPartStudy, bypass_study_folder: bool
     ) -> None:
+        from database.models import Participant, Study
         # todo: add handling of the None cose for smart_key_obj, where some api calls are disabled
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
@@ -267,10 +267,12 @@ class S3Storage:
             self.metadata[k] = v
     
     def update_s3_table(self):
+        from database.models import S3File
         self.metadata.last_updated = timezone.now()
         S3File.objects.update_or_create(path=self.s3_path_zst, defaults=self.metadata)
     
     def delete_s3_table_entry_zst(self):
+        from database.models import S3File
         S3File.fltr(path=self.s3_path_zst).delete()  # can't actually fail
     
     # (these cached properties may need network/db ops)
@@ -386,7 +388,7 @@ def s3_get_size(key_path: str):
 
 
 def s3_upload(
-        key_path: str, data_string: bytes, obj: StrOrParticipantOrStudy, raw_path=False
+        key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
 ) -> None:
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
@@ -413,7 +415,7 @@ def _do_upload(key_path: str, data_string: bytes, number_retries=3):
 ## Download
 
 
-def s3_retrieve(key_path: str, obj: StrOrParticipantOrStudy, raw_path: bool = False, number_retries=3) -> bytes:
+def s3_retrieve(key_path: str, obj: StrPartStudy, raw_path: bool = False, number_retries=3) -> bytes:
     """ Takes an S3 file path (key_path), and a study ID.  Takes an optional argument, raw_path,
     which defaults to false.  When set to false the path is prepended to place the file in the
     appropriate study_id folder. """
@@ -450,7 +452,7 @@ def s3_list_files(prefix: str, as_generator=False) -> list[str]|Generator[str]:
     return _do_list_files(S3_BUCKET, prefix, as_generator=as_generator)
 
 
-def smart_s3_list_study_files(prefix: str, obj: StrOrParticipantOrStudy):
+def smart_s3_list_study_files(prefix: str, obj: StrPartStudy):
     """ Lists s3 keys matching prefix, autoinserting the study object id at start of key path. """
     return s3_list_files(s3_construct_study_key_path(prefix, obj))
 

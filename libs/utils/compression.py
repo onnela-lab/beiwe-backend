@@ -17,6 +17,6 @@ def compress(some_bytes: bytes, level=2) -> bytes:
         }
     ).compress(some_bytes)
 
+
 def decompress(input: bytes):
     return pyzstd.decompress(input)
-    

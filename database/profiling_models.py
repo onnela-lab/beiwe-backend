@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Counter, Dict, List
 
 from django.db import models
 from django.db.models import Count, Q, QuerySet, Sum
@@ -12,6 +12,7 @@ from constants.data_stream_constants import *
 from database.common_models import UtilityModel
 from database.models import JSONTextField, TimestampedModel
 from database.user_models_participant import Participant
+from libs.utils.http_utils import numformat
 
 
 try:
@@ -332,7 +333,7 @@ class S3File(TimestampedModel):
     def get_object_id(self):
         # TODO: we can just logic this out of the path, we only allow study and CHUNKED_DATA
         from database.models import Study
-        
+
         # first go through the object_ids cache, then study_id if present, then participant
         # study, populating the cache if we need to.
         self.study_id: int
@@ -356,6 +357,18 @@ class S3File(TimestampedModel):
     
     def get_data_stream(self):
         return self._get_data_stream(self.path)
+    
+    @property
+    def object_id(self):
+        if self.path.startswith("CHUNKED_DATA/"):
+            return  self.path.split("/", 2)[1]
+        
+        return self.path.split("/", 1)[0]
+    
+    def storage(self):
+        from libs.s3 import S3Storage
+        path = self.path.rsplit(".zst", 1)[0]  # remove the zst extension if present
+        return S3Storage(path, self.object_id, bypass_study_folder=True)
     
     @classmethod
     def _get_data_stream(cls, path):
@@ -395,32 +408,21 @@ class S3File(TimestampedModel):
     def global_ratio(cls):
         # using django annotations get the sum of all the compressed and uncompressed sizes,
         # print the ratio of compressed to uncompressed out to 4 decimal places.
-        from django.db.models import Sum
         
-        totals = cls.objects.aggregate(
-            total_compressed=Sum("size_compressed"), total_uncompressed=Sum("size_uncompressed")
-        )
-        total_compressed = totals["total_compressed"]
-        total_uncompressed = totals["total_uncompressed"]
-        ratio = round(total_compressed / total_uncompressed, 4)
-        print(ratio)
+        compressed, uncompressed, count = cls.objects.aggregate(
+            Sum("size_compressed"), Sum("size_uncompressed"), Count("pk")
+        ).values()
+        
+        cls.prant("global", compressed, uncompressed, count)
     
     @staticmethod
     def prant(label: str, compressed: int|None, uncompressed: int|None, count: int|None):
-        if compressed is None and uncompressed is None:
-            return
-        
-        if compressed is not None:
-            compressed = round(compressed / 1024 / 1024, 4)  # type: ignore
-        
-        if uncompressed is not None:
-            uncompressed = round(uncompressed / 1024 / 1024, 4)  # type: ignore
-        
-        if compressed is not None and uncompressed is not None:
-            ratio = round(compressed / uncompressed *100, 4)
-        else:
-            ratio = "-"
-        print(label, f"{ratio}% - ({count}) - {uncompressed}MB -> {compressed}MB")
+        # handle 0 and null case on uncompressed
+        ratio_fmt = "-" if compressed is None or not (u:= uncompressed) else numformat(compressed / u * 100)
+        compressed_fmt = numformat(compressed / 1024 / 1024) if compressed else "-"
+        uncompressed_fmt = numformat(uncompressed / 1024 / 1024) if uncompressed else "-"
+        count_fmt = numformat(count)
+        print(f"{label}:", f"{ratio_fmt}% - ({count_fmt}) - {uncompressed_fmt}MB -> {compressed_fmt}MB", sep="\t")
     
     @classmethod
     def print_stats_slow(cls):
@@ -471,17 +473,22 @@ class S3File(TimestampedModel):
             "forest":         ("forest", ),
         }
         
+        not_chunked = AMBIENT_AUDIO, SURVEY_ANSWERS, VOICE_RECORDING, "key_file", "forest"
+        
         for label, filters in MAPPING.items():
             path_contains = Q()
             for f in filters:
                 path_contains |= Q(path__contains=f)
             
-            # chunked data query
-            compressed_chunked, uncompressed_chunked, count = S3File.objects.filter(
-                path_contains, path__startswith="CHUNKED_DATA"
-            ).aggregate(Sum("size_compressed"), Sum("size_uncompressed"), Count("pk")).values()
+            count_raw = count_chunked = 0
             
-            cls.prant(label + "", compressed_chunked, uncompressed_chunked, count)
+            if label not in not_chunked:
+                # chunked data query
+                compressed_chunked, uncompressed_chunked, count_chunked = S3File.objects.filter(
+                    path_contains, path__startswith="CHUNKED_DATA"
+                ).aggregate(Sum("size_compressed"), Sum("size_uncompressed"), Count("pk")).values()
+                
+                cls.prant(label + "", compressed_chunked, uncompressed_chunked, count_chunked)
             
             # raw uplaod data query
             compressed_raw, uncompressed_raw, count_raw = S3File.objects.filter(path_contains)\
@@ -489,4 +496,24 @@ class S3File(TimestampedModel):
                 .aggregate(Sum("size_compressed"), Sum("size_uncompressed"), Count("pk")).values()
             
             cls.prant(label + " (raw)", compressed_raw, uncompressed_raw, count_raw)
+            
+            if count_raw or count_chunked:
+                print()
+    
+    @classmethod
+    def find_duplicates(cls):
+        # iterator should bypass the django cache. still uses a lot of ram.
+        # interesting, it looks like the wifilog can create duplicates because it doesn't have an internal timestamp.
+        c = Counter(
+            cls.vlist("sha1").exclude(path__contains="wifi").iterator()
+        ).most_common()
+        
+        for sha1, count in c[:20]:
+            if count <= 1:
+                continue
+            f: S3File = S3File.fltr(sha1=sha1).first()
+            print(sha1.hex(), "-", count, "-", f.get_data_stream())
+            print()
+            s = f.storage()
+            print(s.download().pop_file_content())
             print()

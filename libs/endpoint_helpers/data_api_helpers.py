@@ -82,7 +82,7 @@ def participant_archived_event_dict(p: Participant, tz: tzinfo) -> dict:
     
     p.notification_reports
     uuid_to_confirmed_time = SurveyNotificationReport.make_lookup_dict(
-        {"participant": p}, "notification_uuid", "created_on"
+        "notification_uuid", "created_on", participant=p,
     )
     
     jsonable_data = defaultdict(list)

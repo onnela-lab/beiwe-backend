@@ -1,4 +1,4 @@
-# nohup time python -u run_script.py script_that_compresses_s3_data > compression.log &
+# nohup time nice -n 20 python -u run_script.py script_that_compresses_s3_data > compression.log & tail -f compression.log
 
 from multiprocessing.pool import ThreadPool
 from constants.common_constants import CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS
@@ -53,9 +53,6 @@ def compress_file(path_study):
 the_args = []
 for path in s3_list_files("", as_generator=True):
     
-    if stats.number_paths_total % 1000 == 0:
-        stats.stats()
-    
     stats.number_paths_total += 1
     
     # file already compressed
@@ -78,10 +75,7 @@ for path in s3_list_files("", as_generator=True):
         continue
     
     # get study object id in the chunks folder
-    if path_start == CHUNKS_FOLDER:
-        study_object_id = path.split("/")[1]
-    else:
-        study_object_id = path_start
+    study_object_id = path.split("/")[1] if path_start == CHUNKS_FOLDER else path_start
     
     # we don't want to stop on unknown folders, we want to stash those prefixes to print them later
     # on to review them
@@ -99,6 +93,7 @@ for path in s3_list_files("", as_generator=True):
             pool.imap_unordered(compress_file, the_args, chunksize=1)
         )
         the_args = []
+        stats.stats()
 
 stats.stats()
 

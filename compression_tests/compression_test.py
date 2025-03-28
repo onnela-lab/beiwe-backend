@@ -3,6 +3,9 @@ from time import perf_counter
 from typing import DefaultDict
 
 import blosc2
+import brotli
+import paq
+import pyppmd
 import pyzstd
 from blosc2 import Filter
 
@@ -17,6 +20,7 @@ from blosc2 import Filter
 
 blosc2.set_releasegil(False)  # ok that would be nice - need to test if it blocks
 blosc2.set_nthreads(1)
+
 
 # these are to makey the printing nice
 BLOSC_FILTER_NAMES_MAP = {       # these
@@ -73,8 +77,8 @@ def iterate_all_files():
         # for every datastream in the participant folder
         for datastream in os.listdir(path_join(DATA_FOLDER, user_path)):
             # Pick one data stream, compression is only consistent for a single data stream
-            # if datastream != "accelerometer":
-            if datastream != "gyro":
+            if datastream != "accelerometer":
+            # if datastream != "gyro":
             # if datastream != "gps":
             # if datastream != "wifi":
             # if datastream != "texts":
@@ -192,30 +196,41 @@ def run_both():
     for participant_id, data_stream, content in iterate_all_files():
         running_counts[data_stream] += len(content)
         
-        for comp_level in [0,1,2,3,4,5,6,7,8,9]:  # goes up to 22
-            # if comp_level in [0,1,2,3,4,5]:
-            #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.fast)
-            if comp_level in [0,1,2]:
-                compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.dfast)
-            # if comp_level in [0,1,2,3,4,5]:
-            #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.greedy)
-            # if comp_level in [1,3,5,7,9]:
-            #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.lazy)
-            # if comp_level in [1,2,4,5,6,7,8,9]:
-            # compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.lazy2)
-            # if comp_level in [1,2,4,5,6,7,8,9]:
-            #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btlazy2)
-            # SLOOOWWWW
-            # if comp_level in [1,2,4,5,6,7,8,9]:
-            #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btopt)
-            # compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btopt)
-            # compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btultra)
-            # compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btultra2)
+        # for comp_level in [0,1,2,3,4,5,6,7,8,9]:  # goes up to 22
+        #     # if comp_level in [0,1,2,3,4,5]:
+        #     #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.fast)
+        #     # if comp_level in [0,1,2,4,5]:
+        #     #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.dfast)
+        #     # if comp_level in [0,1,2,3,4,5]:
+        #     #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.greedy)
+        #     if comp_level in [9]:#[1,3,5,7,9]:
+        #         compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.lazy)
+        #     if comp_level in [9]:#[1,2,4,5,6,7,8,9]:
+        #         compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.lazy2)
+        #     if comp_level in [9]:#[1,2,4,5,6,7,8,9]:
+        #         compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btlazy2)
+        #     # SLOOOWWWW
+        #     if comp_level in [9]:#[1,2,4,5,6,7,8,9]:
+        #         compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btopt)
+        #     # compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btopt)
+        #     # compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.btultra)
+        # compress_pyzstd(data_stream, 19, content, running_time, running_counts, pyzstd.Strategy.btopt)
+        # compress_pyzstd(data_stream, 19, content, running_time, running_counts, pyzstd.Strategy.btultra)
+        # compress_pyzstd(data_stream, 19, content, running_time, running_counts, pyzstd.Strategy.btultra2)
+        # compress_pyzstd(data_stream, 19, content, running_time, running_counts, pyzstd.Strategy.btlazy2)
+        
+        # for comp_level in [0, 1, 2, 3, 4, 5, 6]:
+        #     compress_brotli(data_stream, comp_level, content, running_time, running_counts)
+        
+        # compress_pyppmd(data_stream, content, running_time, running_counts, "I")
+        # compress_pyppmd(data_stream, content, running_time, running_counts, "H")
         
         # for blosc_comp_level in [1,2,3]:  # goes up to 9.
         #     # there are only two good block sizes.
         #     compress_blosc(data_stream, blosc_comp_level, typesize, block_size, use_dict, content, running_time, running_counts, meta)
         #     # compress_blosc(data_stream, blosc_comp_level, typesize, 0, use_dict, content, running_time, running_counts, meta)
+        
+        # compress_paq(data_stream, 0, content, running_time, running_counts)
         
         print_stats(data_stream, running_counts, running_time)
 
@@ -275,7 +290,7 @@ ALL 17%
 17.33 / 18.71 = 0.9262426509887759 @ 169.78 / 570.75 = 0.2974682435392028
 17.1 / 18.71 = 0.9139497594869054 @ 102.16 / 570.75 = 0.17899255365746825
 accelerometer_pyzstd_00_strat5lazy2	17.39%	5.37(sec)	170.4	MB/s encode	1933.88	MB/s decode # weird
-accelerometer_pyzstd_01_strat5lazy2	17.61%	5.48(sec)	166.87	MB/s encode	2031.01	MB/s decode # better than any compression level
+accelerometer_pyzstd_01_strat5lazy2	17.61%	5.48(sec)	166.87	MB/s encode	2031.01	MB/s decode # better than any compression level of lazy
 accelerometer_pyzstd_02_strat5lazy2	17.4%	5.26(sec)	174.11	MB/s encode	2039.82	MB/s decode
 accelerometer_pyzstd_03_strat5lazy2	17.39%	5.31(sec)	172.45	MB/s encode	1960.97	MB/s decode # same as 0?
 accelerometer_pyzstd_04_strat5lazy2	17.33%	5.39(sec)	169.78	MB/s encode	1964.72	MB/s decode
@@ -297,6 +312,9 @@ accelerometer_pyzstd_06_strat6btlazy2	16.88%	15.49(sec)	59.09	MB/s encode	1947.9
 accelerometer_pyzstd_07_strat6btlazy2	16.6%	21.53(sec)	42.52	MB/s encode	2007.04	MB/s decode
 accelerometer_pyzstd_08_strat6btlazy2	16.6%	21.37(sec)	42.83	MB/s encode	2021.2	MB/s decode
 accelerometer_pyzstd_09_strat6btlazy2	16.57%	23.46(sec)	39.0	MB/s encode	2002.7	MB/s decode
+accelerometer_pyzstd_19_strat6btlazy2  	16.42%	51.21(sec)	17.87	MB/s encode	1866.31	MB/s decode
+accelerometer_pyzstd_22_strat6btlazy2  	16.42%	58.25(sec)	15.71	MB/s encode	1869.65	MB/s decode
+
 
 VERY SLOW AND BAD
 btopt
@@ -310,6 +328,24 @@ accelerometer_pyzstd_06_strat7btopt	18.05%	35.15(sec)	26.04	MB/s encode	1741.22	
 accelerometer_pyzstd_07_strat7btopt	16.93%	45.91(sec)	19.93	MB/s encode	1834.1	MB/s decode
 accelerometer_pyzstd_08_strat7btopt	17.11%	49.33(sec)	18.55	MB/s encode	1902.11	MB/s decode
 accelerometer_pyzstd_09_strat7btopt	17.07%	52.41(sec)	17.46	MB/s encode	1895.66	MB/s decode
+accelerometer_pyzstd_18_strat7btopt    	14.71%	106.05(sec)	8.63	MB/s encode	2087.8	MB/s decode
+
+
+# highest possible compression - 20,21,22 seem to Work, but don't accomplish anything
+accelerometer_pyzstd_18_strat7btopt    	14.71%	106.05(sec)	8.63	MB/s encode	2087.8	MB/s decode
+accelerometer_pyzstd_19_strat7btopt    	14.71%	109.2(sec)	8.38	MB/s encode	2100.48	MB/s decode
+accelerometer_pyzstd_19_strat8btultra  	14.42%	151.17(sec)	6.05	MB/s encode	2044.79	MB/s decode
+accelerometer_pyzstd_19_strat9btultra2 	14.41%	170.65(sec)	5.36	MB/s encode	2045.02	MB/s decode
+accelerometer_pyzstd_20_strat7btopt    	14.71%	108.44(sec)	8.44	MB/s encode	2114.52	MB/s decode
+accelerometer_pyzstd_20_strat8btultra  	14.42%	151.44(sec)	6.04	MB/s encode	2043.87	MB/s decode
+accelerometer_pyzstd_20_strat9btultra2 	14.41%	170.9(sec)	5.36	MB/s encode	2044.11	MB/s decode
+accelerometer_pyzstd_21_strat7btopt    	14.71%	108.36(sec)	8.45	MB/s encode	2123.5	MB/s decode
+accelerometer_pyzstd_21_strat8btultra  	14.42%	151.37(sec)	6.05	MB/s encode	2043.61	MB/s decode
+accelerometer_pyzstd_21_strat9btultra2 	14.41%	170.94(sec)	5.35	MB/s encode	2042.9	MB/s decode
+accelerometer_pyzstd_22_strat7btopt    	14.71%	113.9(sec)	8.04	MB/s encode	2119.53	MB/s decode
+accelerometer_pyzstd_22_strat8btultra  	14.42%	156.95(sec)	5.83	MB/s encode	2042.42	MB/s decode
+accelerometer_pyzstd_22_strat9btultra2 	14.41%	176.76(sec)	5.18	MB/s encode	2038.05	MB/s decode
+
 
 
 # some gyro data....
@@ -384,9 +420,9 @@ Blosc is oriented towards in-memory computation scenarios where memory bandwidth
 
 accelerometer_blosc_zstd_01_NOFIL_ts8_blk134217792	18.84%	1.57(sec)	583.36	MB/s    1687.69 MB/s decode
 accelerometer_blosc_zstd_02_NOFIL_ts8_blk134217792	18.56%	1.94(sec)	472.92	MB/s    1767.43 MB/s decode
+accelerometer_blosc_zstd_05_NOFIL_ts8_blk134217792	17.11%	9.57(sec)	95.6	MB/s    1966.04 MB/s decode
 accelerometer_blosc_zstd_03_NOFIL_ts8_blk134217792	18.14%	4.4(sec)	208.23	MB/s    1766.57 MB/s decode
 accelerometer_blosc_zstd_04_NOFIL_ts8_blk134217792	17.67%	7.02(sec)	130.41	MB/s    1850.65 MB/s decode
-accelerometer_blosc_zstd_05_NOFIL_ts8_blk134217792	17.11%	9.57(sec)	95.6	MB/s    1966.04 MB/s decode
 accelerometer_blosc_zstd_06_NOFIL_ts8_blk134217792	16.8%	17.39(sec)	52.64	MB/s    2011.77 MB/s decode
 accelerometer_blosc_zstd_07_NOFIL_ts8_blk134217792	16.54%	30.19(sec)	30.31	MB/s    1999.54 MB/s decode
 accelerometer_blosc_zstd_08_NOFIL_ts8_blk134217792	16.29%	38.21(sec)	23.95	MB/s    2032.76 MB/s decode
@@ -446,6 +482,158 @@ def compress_blosc(
         running_counts[key] += len(output)
         running_time[key+"_dec"] += t2
         running_counts[key + "_dec"] += len(decompressed_output1)
+
+
+"""
+Very slow, _very_ good compression, better than zstd, but crashes or produces corrupted output when
+decompressed sometimes so its not even a little bit viable.
+"""
+def compress_pyppmd(data_stream, content, running_time, running_counts, variant):
+    output_name = data_stream + "_ppmd_" + "_variant" + str(variant)
+    
+    max_order: int = 6
+    mem_size: int = 16 << 20
+    #"I"
+    if variant == "I":
+        encoder = pyppmd.Ppmd8Encoder(max_order=max_order, mem_size=16 << 22)
+        decoder = pyppmd.Ppmd8Decoder(max_order=max_order, mem_size=16 << 22)
+        # nope still can fail
+        # decoder = pyppmd.Ppmd8Decoder(max_order=max_order, mem_size=16 << 22, restore_method=pyppmd.PPMD8_RESTORE_METHOD_CUT_OFF)
+        
+        # res = decoder.decode(output)
+    #"H"
+    else:
+        encoder = pyppmd.Ppmd7Encoder(max_order=max_order, mem_size=16 << 22)
+        decoder = pyppmd.Ppmd7Decoder(max_order=max_order, mem_size=16 << 22)
+        # res = decoder.decode(output, len(content))  # REQUIRES LENGTH
+    
+    t1 = perf_counter()
+    output = encoder.encode(content)
+    output = output + encoder.flush()
+    output = output + encoder.flush()  # flushing twice fixes 1 kind of corruption error....
+    output = output + b"\x00"
+    # output = output + encoder.flush()
+    # output = output + encoder.flush()
+    # output = output + encoder.flush()
+    
+    t1 = perf_counter() - t1
+    
+    # if output.endswith(b"\x00"):
+    #     # output = output + b"\x00"
+    #     output = output[:-1]
+        
+    
+    try:
+        t2 = perf_counter()
+        # decompressed_output = decoder.decode(output, len(content))
+        decompressed_output = decoder.decode(output, len(content)*2)
+        
+        t2 = perf_counter() - t2
+    except Exception:  # never had this error
+        # print(f"\n'{content}'")
+        # print("corrupted?")
+        # return
+        # print(f"\n'{output}'")
+        raise
+    print(len(content), len(decompressed_output), len(content) - len(decompressed_output))
+    print(content[-100:])
+    print(decompressed_output[-100:])
+    assert decompressed_output == content, f"'{len(content)}' ==? '{len(decompressed_output)}'"
+    running_time[output_name] += t1
+    running_counts[output_name] += len(output)
+    running_time[output_name + "_dec"] += t2
+    running_counts[output_name + "_dec"] += len(decompressed_output)
+
+"""
+So slow, but competetive at times with zstd
+#TEXT_MODE
+accelerometer_brotli_00	24.39%	1.59(sec)	576.56	MB/s encode	645.72	MB/s decode
+accelerometer_brotli_01	20.26%	2.09(sec)	436.83	MB/s encode	673.82	MB/s decode
+accelerometer_brotli_02	18.47%	3.61(sec)	253.25	MB/s encode	800.62	MB/s decode
+accelerometer_brotli_03	18.77%	4.45(sec)	205.31	MB/s encode	825.47	MB/s decode
+accelerometer_brotli_04	18.44%	6.17(sec)	148.33	MB/s encode	891.04	MB/s decode
+accelerometer_brotli_05	17.23%	13.34(sec)	68.57	MB/s encode	832.47	MB/s decode
+accelerometer_brotli_06	17.08%	16.23(sec)	56.36	MB/s encode	844.64	MB/s decode
+accelerometer_brotli_07	16.95%	21.71(sec)	42.13	MB/s encode	844.92	MB/s decode
+accelerometer_brotli_08	16.86%	26.92(sec)	33.98	MB/s encode	835.91	MB/s decode
+accelerometer_brotli_09	16.81%	45.68(sec)	20.02	MB/s encode	808.04	MB/s decode
+accelerometer_brotli_10	15.06%	319.07(sec)	2.87	MB/s encode	657.03	MB/s decode
+accelerometer_brotli_11	13.76%	980.67(sec)	0.93	MB/s encode	727.36	MB/s decode
+
+lgwin=24
+accelerometer_brotli_00	24.39%	1.56(sec)	587.78	MB/s encode	667.22	MB/s decode
+accelerometer_brotli_01	20.25%	2.05(sec)	445.47	MB/s encode	681.49	MB/s decode
+accelerometer_brotli_02	18.47%	3.84(sec)	238.61	MB/s encode	793.72	MB/s decode
+accelerometer_brotli_03	18.77%	4.7(sec)	194.85	MB/s encode	808.99	MB/s decode
+accelerometer_brotli_04	18.43%	6.31(sec)	145.08	MB/s encode	892.83	MB/s decode
+accelerometer_brotli_05	17.22%	13.58(sec)	67.38	MB/s encode	830.34	MB/s decode
+accelerometer_brotli_06	17.07%	16.48(sec)	55.54	MB/s encode	841.16	MB/s decode
+
+lgwin=10
+accelerometer_brotli_00	36.61%	6.99(sec)	131.0	MB/s encode	287.5	MB/s decode
+accelerometer_brotli_01	33.52%	5.85(sec)	156.55	MB/s encode	290.28	MB/s decode
+accelerometer_brotli_02	21.09%	4.78(sec)	191.61	MB/s encode	516.46	MB/s decode
+accelerometer_brotli_03	20.89%	6.61(sec)	138.5	MB/s encode	523.36	MB/s decode
+accelerometer_brotli_04	20.76%	9.8(sec)	93.38	MB/s encode	563.4	MB/s decode
+accelerometer_brotli_05	20.47%	10.69(sec)	85.58	MB/s encode	441.47	MB/s decode
+accelerometer_brotli_06	20.46%	10.72(sec)	85.4	MB/s encode	447.73	MB/s decode
+
+"""
+def compress_brotli(data_stream, comp_level, content, running_time, running_counts):
+    output_name = data_stream + "_brotli_" + comp_disp(comp_level)
+    
+    t1 = perf_counter()
+    # output = brotli.compress(content, brotli.MODE_GENERIC, quality=comp_level)
+    # output = brotli.compress(content, brotli.MODE_TEXT, quality=comp_level)
+    output = brotli.compress(content, brotli.MODE_TEXT, quality=comp_level)
+    # output = brotli.compress(content, brotli.MODE_FONT)
+    # output = brotli.compress(content)
+    t1 = perf_counter() - t1
+    
+    try:
+        t2 = perf_counter()
+        decompressed_output = brotli.decompress(output)
+        # decompressed_output = pyzstd.decompress(output, the_zstd_dictionary)
+        t2 = perf_counter() - t2
+    except Exception:  # never had this error
+        print(f"\n'{content}'")
+        raise
+    
+    assert decompressed_output == content
+    running_time[output_name] += t1
+    running_counts[output_name] += len(output)
+    running_time[output_name + "_dec"] += t2
+    running_counts[output_name + "_dec"] += len(decompressed_output)
+
+
+"""
+Very VERY slow, _very_ good compression, better than zstd, doesn't crash!  Too slow to be useful.
+Decompression is also insanely slow.
+technically this is paq9a
+accelerometer_paq_00	8.94%	413.9(sec)	2.21	MB/s encode	2.18	MB/s decode
+"""
+def compress_paq(data_stream, comp_level, content, running_time, running_counts):
+    output_name = data_stream + "_paq_" + comp_disp(comp_level)
+    
+    t1 = perf_counter()
+    output = paq.compress(content)
+    t1 = perf_counter() - t1
+    
+    try:
+        t2 = perf_counter()
+        decompressed_output = paq.decompress(output)
+        # decompressed_output = pyzstd.decompress(output, the_zstd_dictionary)
+        t2 = perf_counter() - t2
+    except Exception:  # never had this error
+        print(f"\n'{content}'")
+        raise
+    
+    assert decompressed_output == content
+    running_time[output_name] += t1
+    running_counts[output_name] += len(output)
+    running_time[output_name + "_dec"] += t2
+    running_counts[output_name + "_dec"] += len(decompressed_output)
+
 
 
 # if you want to play around with creating a zstd dictionary for pyzstd do this and then read it in
