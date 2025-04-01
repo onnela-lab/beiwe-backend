@@ -242,8 +242,8 @@ def task_log(request: ResearcherRequest, study_id=None):
         # raw output data data is only available if the task has completed successfully, and not
         # on older tasks that were run before we started saving the output data.
         if task_dict.pop("output_zip_s3_path"):
-            task_dict["has_output_downloadable_data"] = True
-            task_dict["download_output_url"] = easy_url(
+            task_dict["has_runtime_output_downloadable_data"] = True
+            task_dict["download_runtime_output_url"] = easy_url(
                 "forest_endpoints.download_output_data", study_id=study_id, forest_task_external_id=extern_id,
             )
         
@@ -255,7 +255,9 @@ def task_log(request: ResearcherRequest, study_id=None):
                 task_dict["params_dict"] = FOREST_TASKVIEW_PICKLING_ERROR
         else:
             task_dict["params_dict"] = FOREST_TASKVIEW_PICKLING_EMPTY
+        
         tasks.append(task_dict)
+    
     forest_info = ForestVersion.singleton()
     return render(
         request,

@@ -161,6 +161,23 @@ def celery_run_forest(forest_task_id):
 
 
 def run_forest_task(task: ForestTask, start: datetime, end: datetime):
+        ## try-except 3 - clean up files. Report errors.
+        # report cleanup operations cleanly to both sentry and forest task infrastructure.
+        try:
+            _run_forest_task(task, start, end)
+        finally:
+            log("deleting files 2")
+            try:
+                clean_up_files(task)
+            except Exception as e:
+                # merging stack traces, handling null case, then conditionally report with tags
+                task.update_only(stacktrace=((task.stacktrace or "") + CLN_ERR + traceback.format_exc()))
+                log("task.stacktrace 2:", task.stacktrace)
+                with make_error_sentry(SentryTypes.data_processing, tags=task.sentry_tags):
+                    raise e from None
+
+
+def _run_forest_task(task: ForestTask, start: datetime, end: datetime):
     """ Given a time range, downloads all data and executes a tree on that data. """
     ## try-except 1 - the main work block. Download data, run Forest, upload any cache files.
     ## The except block handles reporting errors.
@@ -169,42 +186,43 @@ def run_forest_task(task: ForestTask, start: datetime, end: datetime):
         run_forest(task)
         upload_cache_files(task)
         task.update_only(status=ForestTaskStatus.success)
+    
     except BaseException as e:
-        task.update_only(status=ForestTaskStatus.error, stacktrace=traceback.format_exc())
-        log("task.stacktrace 1:", task.stacktrace)
+        error_repr = traceback.format_exc()
+        task.update_only(status=ForestTaskStatus.error, stacktrace=error_repr)
+        
+        # only report errors that are not our special cases.
         if not isinstance(e, NoSentryException):
-            # manually report the error to sentry, unless its one of our special not-reported cases.
+            print("task.stacktrace 1:\n", error_repr)
             with make_error_sentry(SentryTypes.data_processing, tags=task.sentry_tags):
                 raise
+    
     finally:
         # there won't be anything to run generate report on if there was no data.
-        if task.stacktrace and NO_DATA_ERROR in task.stacktrace:
-            ## try-except 2 - report generation and upload the output of the forest task. Report errors.
+        error_sentry = make_error_sentry(SentryTypes.data_processing, tags=task.sentry_tags)
+        
+        if not task.stacktrace or NO_DATA_ERROR not in task.stacktrace:
+            
             try:
                 generate_report(task)
-                compress_and_upload_raw_output(task)
-            except Exception as e:
-                print(f"Something went wrong with report generation or output upload. {e}")
-                print(traceback.format_exc())  # Hm, don't know which stack trace this prints 🧐
-                with make_error_sentry(SentryTypes.data_processing, tags=task.sentry_tags):
+            except Exception as e1:
+                print(f"Something went wrong with report generation. {e}")
+                print(traceback.format_exc())
+                with error_sentry:
                     raise
-        
-        ## try-except 3 - clean up files. Report errors.
-        # report cleanup operations cleanly to both sentry and forest task infrastructure.
-        try:
-            log("deleting files 1")
-            clean_up_files(task)
-        except Exception:
-            # merging stack traces, handling null case, then conditionally report with tags
-            task.update_only(stacktrace=((task.stacktrace or "") + CLN_ERR + traceback.format_exc()))
-            log("task.stacktrace 2:", task.stacktrace)
-            with make_error_sentry(SentryTypes.data_processing, tags=task.sentry_tags):
-                raise
+            
+            try:
+                compress_and_upload_raw_output(task)
+            except Exception as e2:
+                print(f"Something went wrong with saving task output. {e}")
+                print(traceback.format_exc())
+                with error_sentry:
+                    raise
     
     ## this is functionally a try-except block because all the above real try-except blocks
     ## re-raise their error inside a reporting with-statement, e.g. make_error_sentry.
     log("task.status:", task.status)
-    log("deleting files 2")
+    log("deleting files 1")
     clean_up_files(task)  # if this fails you probably have server oversubscription issues.
     task.update_only(process_end_time=timezone.now())
 

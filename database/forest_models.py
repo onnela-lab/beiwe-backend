@@ -71,7 +71,7 @@ class ForestTask(TimestampedModel):
         return self.forest_tree + "_task"
     
     @property
-    def sentry_tags(self) -> Dict[str, str]:
+    def sentry_tags(self) -> Dict[str, str|uuid.UUID|bool|None]:
         from libs.utils.http_utils import easy_url
         url = path_join(DOMAIN_NAME, easy_url("forest_endpoints.task_log", study_id=self.participant.study.id))
         return {
@@ -91,8 +91,8 @@ class ForestTask(TimestampedModel):
             "process_download_end_time": self.process_download_end_time.isoformat() if self.process_download_end_time else "None",
             "process_end_time": self.process_end_time.isoformat() if self.process_end_time else "None",
             # "stacktrace": self.stacktrace, # it just doesn't work
-            # "forest_output_exists": self.forest_output_exists,
-            # "output_zip_s3_path": self.output_zip_s3_path,
+            "forest_output_exists": self.forest_output_exists,
+            "output_zip_s3_path": self.output_zip_s3_path,
             # "all_bv_set_s3_key": self.all_bv_set_s3_key,
             # "all_memory_dict_s3_key": self.all_memory_dict_s3_key,
         }

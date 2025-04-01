@@ -84,9 +84,9 @@
                 </a>
               </div>
               
-              <div ng-if="log.has_output_downloadable_data">
-                <a class="btn btn-link" ng-href="{% raw %}{{ log.download_output_url|trustAsResourceUrl }}{% endraw %}" style="padding: 0;">
-                  Download Output Data
+              <div ng-if="log.has_runtime_output_downloadable_data">
+                <a class="btn btn-link" ng-href="{% raw %}{{ log.download_runtime_output_url|trustAsResourceUrl }}{% endraw %}" style="padding: 0;">
+                  Download Runtime Output Data
                 </a>
               </div>
               
