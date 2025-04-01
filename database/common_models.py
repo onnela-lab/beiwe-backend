@@ -71,6 +71,34 @@ class UtilityModel(models.Model):
     
     id: int  # this attribute is not correctly populated as an integer type in some IDEs
     
+    @classmethod
+    def m(cls):
+        """ Prints the methods actually defined on the most-sub model subclass. """
+        # "method" and "function" types, plus classmethod - UtilityModel required
+        function_types = type(UtilityModel.m), type(UtilityModel.as_dict), classmethod
+        instance_methods = []
+        class_methods = []
+        
+        for attrname, attr in vars(cls).items():
+            if attrname.startswith("_") or not isinstance(attr, function_types):
+                continue
+            
+            typename = type(attr).__name__
+            if typename == "function":
+                instance_methods.append(attrname)
+            elif typename == "classmethod":
+                class_methods.append(attrname)
+        
+        if instance_methods:
+            print(f"Instance methods:")
+            for method in instance_methods:
+                print(f"\t{method}")
+        
+        if class_methods:
+            print("Class methods:")
+            for method in class_methods:
+                print(f"\t{method}")
+    
     ######################################## Query Shortcuts #######################################
     
     @classmethod
