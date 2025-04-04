@@ -96,20 +96,20 @@ DEFAULT_PARTICIPANT_PARAMS = {
     "last_active_survey_ids": None,
 }
 
-# populated elsewvhere, note that user is an android user.
-_skip = ("id","created_on","last_updated","password","patient_id","device_id","os_type","study")
-
-_all_field_names = [field.name for field in Participant._meta.fields]
-_unskipped_names = [field_name for field_name in _all_field_names if field_name not in _skip]
-
-for _field_name in _unskipped_names:
-    if _field_name not in DEFAULT_PARTICIPANT_PARAMS:
-        raise (f"field {_field_name} is not populated in DEFAULT_PARTICIPANT_PARAMS." )
-for _field_name in DEFAULT_PARTICIPANT_PARAMS:
-    if _field_name not in _all_field_names:
-        raise (f"field {_field_name} is not in the Participant model." )
-Schedule = WeeklySchedule|RelativeSchedule|AbsoluteSchedule
-
+def _some_validation():
+    # sticking in a function to avoid creating global variables
+    # populated elsewvhere, note that user is an android user.
+    skip = ("id","created_on","last_updated","password","patient_id","device_id","os_type","study")
+    all_participant_field_names = [field.name for field in Participant._meta.fields]
+    unskipped_names = [field_name for field_name in all_participant_field_names if field_name not in skip]
+    
+    for field_name in unskipped_names:
+        if field_name not in DEFAULT_PARTICIPANT_PARAMS:
+            raise Exception(f"field {field_name} is not populated in DEFAULT_PARTICIPANT_PARAMS.")
+    for field_name in DEFAULT_PARTICIPANT_PARAMS:
+        if field_name not in all_participant_field_names:
+            raise Exception(f"field {field_name} is not in the Participant model.")
+_some_validation()
 
 # this is a real, if simple, survey, it contains logically displayed questions based on the slider Q
 
@@ -129,9 +129,12 @@ class DatabaseHelperMixin:
     DEFAULT_FCM_TOKEN = "abc123"  # actual value is irrelevant
     SOME_SHA1_PASSWORD_COMPONENTS = 'sha1$1000$zsk387ts02hDMRAALwL2SL3nVHFgMs84UcZRYIQWYNQ=$hllJauvRYDJMQpXQKzTdwQ=='
     DEFAULT_STUDY_FIELD_NAME = "default_study_field_name"
+    DEFAULT_STUDY_OBJECT_ID = "1234567890ABCDEFGHIJKMNO"
     DEFAULT_PARTICIPANT_FIELD_VALUE = "default_study_field_value"
     DEFAULT_ENCRYPTION_KEY = "thequickbrownfoxjumpsoverthelazy"
     DEFAULT_ENCRYPTION_KEY_BYTES = DEFAULT_ENCRYPTION_KEY.encode()
+    A_VALID_PARTICPANT_S3_PATH = f"{DEFAULT_STUDY_OBJECT_ID}/jeff8888/{IDENTIFIERS}/1743608893.csv"
+    
     
     REFERENCE_SURVEY_CONTENT = orjson.dumps(
         [{'display_if': None,
@@ -188,7 +191,7 @@ class DatabaseHelperMixin:
             return self._default_study
         except AttributeError:
             pass
-        self._default_study = self.generate_study(self.DEFAULT_STUDY_NAME)
+        self._default_study = self.generate_study(self.DEFAULT_STUDY_NAME, object_id=self.DEFAULT_STUDY_OBJECT_ID)
         return self._default_study
     
     @property
@@ -817,7 +820,7 @@ class DatabaseHelperMixin:
             return self._default_chunkregistry
         except AttributeError:
             self._default_chunkregistry = self.generate_chunkregistry(
-                self.session_study, self.default_participant, IDENTIFIERS
+                self.default_study, self.default_participant, IDENTIFIERS
             )
             return self._default_chunkregistry
     
@@ -837,7 +840,8 @@ class DatabaseHelperMixin:
             study=study,
             participant=participant,
             data_type=data_type,
-            chunk_path=path or generate_easy_alphanumeric_string(),
+            # this path should be a valid identifiers path, 11:49:28 AM ET 2025-4-2
+            chunk_path=path or self.A_VALID_PARTICPANT_S3_PATH,
             chunk_hash=hash_value or generate_easy_alphanumeric_string(),
             time_bin=time_bin or timezone.now(),
             file_size=file_size or 0,

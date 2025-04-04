@@ -73,7 +73,11 @@ def get_data(request: ApiStudyResearcherRequest):
     )
     
     streaming_zip_file = ZipGenerator(
-        get_these_files, construct_registry='web_form' not in request.POST
+        study=request.api_study,
+        files_list=get_these_files,
+        construct_registry='web_form' not in request.POST,
+        threads=5,
+        as_compressed=False,
     )
     try:
         streaming_response = FileResponse(
