@@ -24,7 +24,7 @@ def get_survey_id(chunk: dict):
     return survey_id
 
 
-def determine_file_name(chunk: dict):
+def determine_base_file_name(chunk: dict):
     """ Generates the correct file name to provide the file with in the zip file.
         (This also includes the folder location files in the zip.) """
     # extension = chunk["chunk_path"][-3:]  # get 3 letter file extension from the source...
@@ -108,7 +108,7 @@ class ZipGenerator:
         return chunk, s3_retrieve(chunk["chunk_path"], self.study, raw_path=True)
     
     def get_file_name_from_chunk(self, chunk: dict) -> str:
-        file_name = determine_file_name(chunk)
+        file_name = determine_base_file_name(chunk)
         return self.process_file_name(file_name)
     
     def process_file_name(self, file_name: str) -> str:

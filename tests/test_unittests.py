@@ -32,7 +32,7 @@ from libs.file_processing.utility_functions_simple import BadTimecodeError, bini
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
 from libs.s3 import BadS3PathException, decrypt_server, NoSuchKeyException, S3Storage
-from libs.streaming_zip import determine_file_name
+from libs.streaming_zip import determine_base_file_name
 from libs.utils.compression import compress
 from libs.utils.forest_utils import get_forest_git_hash
 from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
@@ -1244,7 +1244,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=VOICE_RECORDING,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/audio_recordings/thesurveyobjectidvalue/2018-04-27 19_39_48.384000+00_00.wav"
         )
     
@@ -1255,7 +1255,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=VOICE_RECORDING,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/audio_recordings/thesurveyobjectidvalue/2018-04-27 19_39_48.384000+00_00.mp4"
         )
     
@@ -1265,7 +1265,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=VOICE_RECORDING,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/audio_recordings/123456789012345678901234/2018-04-27 19_39_48.384000+00_00.wav"
         )
     
@@ -1275,7 +1275,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=VOICE_RECORDING,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/audio_recordings/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.wav"
         )
     
@@ -1287,7 +1287,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=SURVEY_ANSWERS,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/survey_answers/thesurveyobjectidvalue/2018-04-27 19_39_48.384000+00_00.csv"
         )
     
@@ -1297,7 +1297,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=SURVEY_ANSWERS,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/survey_answers/123456789012345678901234/2018-04-27 19_39_48.384000+00_00.csv"
         )
     
@@ -1307,7 +1307,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=SURVEY_ANSWERS,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/survey_answers/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.csv"
         )
     
@@ -1320,7 +1320,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=SURVEY_TIMINGS,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/survey_timings/thesurveyobjectidvalue/2018-04-27 19_39_48.384000+00_00.csv"
         )
         
@@ -1330,7 +1330,7 @@ class TestDetermineFileName(CommonTestCase):
             data_type=SURVEY_TIMINGS,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/survey_timings/123456789012345678901234/2018-04-27 19_39_48.384000+00_00.csv"
         )
     
@@ -1340,6 +1340,6 @@ class TestDetermineFileName(CommonTestCase):
             data_type=SURVEY_TIMINGS,
         )
         self.assertEqual(
-            determine_file_name(d),
+            determine_base_file_name(d),
             "steve/survey_timings/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.csv"
         )
