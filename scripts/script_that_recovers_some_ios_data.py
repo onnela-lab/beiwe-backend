@@ -277,18 +277,19 @@ def process_a_participants_file(s3_file_location: str):
     
     upload_and_create_file_to_process_and_log(clean_file_path, participant, decryptor)
 
-# our main loop process files participant-by-participant... holy crap is it slow.
-# Ok, distributing this might be necessary. At least there are no cross-participant dependencies so
-# we could spawn processes for each participant. Testing on a t3.medium server was about 25%$ cpu
-# usage for single threaded.  If we do per-participant we can also correctly re-run any failed files
-# after assembling all the new keys.
-for list_of_file_paths in get_some_problem_uploads_by_participant():
-    process_a_participants_files(list_of_file_paths)
-
-duration = (datetime.now() - t_start).total_seconds() / 60
-print("\n\n\n DONE \n\n\n")
-print("", STATS.FILES_EXAMINED, "files.")
-print("Read in", STATS.DATA_READ_IN/ 1024 / 1023, "Megabytes across", STATS.FILES_EXAMINED, "files.")
-print("Decrypted", STATS.DATA_PUSHED_OUT, "lines of data")
-# truncate to 2 decimal places
-print(f"Time taken {duration:.2f} minutes.")
+def main():
+    # our main loop process files participant-by-participant... holy crap is it slow.
+    # Ok, distributing this might be necessary. At least there are no cross-participant dependencies so
+    # we could spawn processes for each participant. Testing on a t3.medium server was about 25%$ cpu
+    # usage for single threaded.  If we do per-participant we can also correctly re-run any failed files
+    # after assembling all the new keys.
+    for list_of_file_paths in get_some_problem_uploads_by_participant():
+        process_a_participants_files(list_of_file_paths)
+    
+    duration = (datetime.now() - t_start).total_seconds() / 60
+    print("\n\n\n DONE \n\n\n")
+    print("", STATS.FILES_EXAMINED, "files.")
+    print("Read in", STATS.DATA_READ_IN/ 1024 / 1023, "Megabytes across", STATS.FILES_EXAMINED, "files.")
+    print("Decrypted", STATS.DATA_PUSHED_OUT, "lines of data")
+    # truncate to 2 decimal places
+    print(f"Time taken {duration:.2f} minutes.")

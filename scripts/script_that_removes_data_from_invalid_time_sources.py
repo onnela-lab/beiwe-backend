@@ -1,27 +1,17 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.utils import timezone
-from constants.common_constants import UTC
+
+from constants.common_constants import EARLIEST_POSSIBLE_DATA_DATE, EARLIEST_POSSIBLE_DATA_DATETIME
 from constants.data_stream_constants import AMBIENT_AUDIO, VOICE_RECORDING
 from database.data_access_models import ChunkRegistry
 from database.forest_models import SummaryStatisticDaily
 
 
-# Onnela Lab, the first deployment, went live after this date, and it may be early by a whole year.
-# Any uploaded data from before this is due to a user manually setting the date on their phone,
-# or it is corrupted data.
-EARLIST_POSSIBLE_DATA = datetime(year=2014, month=8, day=1, tzinfo=UTC)
-EARLIST_POSSIBLE_DATA_DATE = EARLIST_POSSIBLE_DATA.date()
-
-
-# The longest timezone difference is 14 hours, our arbitrary cutoff will be 36 hours.
-LATEST_POSSIBLE_DATA = timezone.now().replace() + timedelta(hours=36)
-LATEST_POSSIBLE_DATA_DATE = LATEST_POSSIBLE_DATA.date()
-
-
+# this has to be manually imported and run
 def review_data():
     """ This is complex to put together, sticking it in an (unused) function."""
-    query = ChunkRegistry.objects.filter(time_bin__lt=EARLIST_POSSIBLE_DATA) \
+    query = ChunkRegistry.objects.filter(time_bin__lt=EARLIEST_POSSIBLE_DATA_DATETIME) \
         .exclude(data_type__in=[AMBIENT_AUDIO, VOICE_RECORDING])
     
     bad_chunks = []
@@ -61,15 +51,20 @@ def review_data():
         exit(0)
 
 
-review_data()
-
-print("deleting any too-old chunks...")
-print(ChunkRegistry.objects.filter(time_bin__lt=EARLIST_POSSIBLE_DATA).delete())
-print("deleting any too-old daily summaries...")
-print(SummaryStatisticDaily.objects.filter(date__lt=EARLIST_POSSIBLE_DATA_DATE).delete())
-
-print("deleting any future chunks...")
-print(ChunkRegistry.objects.filter(time_bin__gt=LATEST_POSSIBLE_DATA).delete())
-print("deleting any future daily summaries...")
-# this is actually very generous at 2-3 days
-print(SummaryStatisticDaily.objects.filter(date__gt=LATEST_POSSIBLE_DATA_DATE).delete())
+# This will run from the command line tool
+def main():
+    # The longest timezone difference is 14 hours, our arbitrary cutoff will be 36 hours in the future.
+    
+    LATEST_POSSIBLE_DATA = timezone.now() + timedelta(hours=36)
+    LATEST_POSSIBLE_DATA_DATE = LATEST_POSSIBLE_DATA.date()
+    
+    print("deleting any too-old chunks...")
+    print(ChunkRegistry.objects.filter(time_bin__lt=EARLIEST_POSSIBLE_DATA_DATETIME).delete())
+    print("deleting any too-old daily summaries...")
+    print(SummaryStatisticDaily.objects.filter(date__lt=EARLIEST_POSSIBLE_DATA_DATE).delete())
+    
+    print("deleting any future chunks...")
+    print(ChunkRegistry.objects.filter(time_bin__gt=LATEST_POSSIBLE_DATA).delete())
+    print("deleting any future daily summaries...")
+    # this is actually very generous at 2-3 days
+    print(SummaryStatisticDaily.objects.filter(date__gt=LATEST_POSSIBLE_DATA_DATE).delete())

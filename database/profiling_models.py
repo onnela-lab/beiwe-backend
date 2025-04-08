@@ -331,9 +331,9 @@ class S3File(TimestampedModel):
     
     
     def get_object_id(self):
-        # TODO: we can just logic this out of the path, we only allow study and CHUNKED_DATA
+        # TODO: we can just logic this out of the path, we only allow study and CHUNKED_DATA and LOGS
         from database.models import Study
-
+        
         # first go through the object_ids cache, then study_id if present, then participant
         # study, populating the cache if we need to.
         self.study_id: int

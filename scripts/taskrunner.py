@@ -13,13 +13,18 @@ from libs.sentry import get_sentry_client, SentryTypes
 from libs.utils.http_utils import fancy_dt_format_with_tz_and_seconds
 
 
+class TaskRunnerError(Exception): pass
+
 script = sys.argv[1]
 t_start = fancy_dt_format_with_tz_and_seconds(timezone.now(), "UTC")
 print("\nStarting script: ", script, "on", t_start, "\n\n")
 
 try:
     with get_sentry_client(SentryTypes.script_runner):
-        __import__(f"scripts.{script}")
+        a_module = __import__(f"scripts.{script}")
+        if not hasattr(a_module, "main"):
+            raise TaskRunnerError(f"Module {script} does not have a main function.")
+        a_module.main()
 finally:
     t_end = fancy_dt_format_with_tz_and_seconds(timezone.now(), "UTC")
     print("\n\nFinished script: ", script, "on", t_start, "\n\n")

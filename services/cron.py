@@ -15,10 +15,9 @@ from services.celery_data_processing import create_file_processing_tasks
 from services.celery_forest import create_forest_celery_tasks
 from services.celery_push_notifications import (create_heartbeat_tasks,
     create_survey_push_notification_tasks)
-from services.scripts_runner import (create_task_ios_no_decryption_key_task,
-    create_task_participant_data_deletion, create_task_purge_invalid_time_data,
-    create_task_run_push_notification_scheduledevent_rebuild, create_task_update_celery_version,
-    create_task_upload_logs)
+from services.scripts_runner import (create_task_participant_data_deletion,
+    create_task_purge_invalid_time_data, create_task_run_push_notification_scheduledevent_rebuild,
+    create_task_update_celery_version, create_task_upload_logs)
 
 
 FIVE_MINUTES = "five_minutes"
@@ -44,7 +43,7 @@ TASKS = {
             create_task_update_celery_version,
             create_task_run_push_notification_scheduledevent_rebuild,
         ],
-    HOURLY: [create_task_ios_no_decryption_key_task],  # scripts
+    HOURLY: [],
     FOUR_HOURLY: [],
     DAILY: [create_task_upload_logs, create_task_purge_invalid_time_data],  # scripts
     WEEKLY: [],

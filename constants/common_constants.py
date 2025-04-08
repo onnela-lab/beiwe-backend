@@ -72,6 +72,8 @@ DT_WDL_12HR_W_TZ_W_SEC_W_PAREN = "%A %b %-d, %Y, %-I:%M:%S%p (%Z)"
 ## All s3 file paths must be declared here so that we know where they are for participant data purge.
 CHUNKS_FOLDER = "CHUNKED_DATA"
 PROBLEM_UPLOADS = "PROBLEM_UPLOADS"
+# this folder contains logs that we save to s3 for debugging purposes
+LOGS_FOLDER = "LOGS"
 
 # file path for custom ondeploy script
 CUSTOM_ONDEPLOY_PREFIX = "CUSTOM_ONDEPLOY_SCRIPT"
