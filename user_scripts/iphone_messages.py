@@ -1,3 +1,6 @@
+# This is an old script that was used for one study to extract text history out of an iphone from 
+# a specific 3rd party program.  The data it generates matches android text history data.
+
 # This script is tested to have identical output and be compatible with Python 2.7 and 3.6.
 # (It really should be compatible with any version of Python 3.)
 import base64
@@ -28,15 +31,16 @@ OUTPUT_COLUMNS = [
     "timestamp",
     "UTC time",
     "hashed phone number",
-    "call type",
-    "duration in seconds",
+    "sent vs received",
+    "message length",
+    "time sent",
 ]
 
 NECESSARY_COLUMNS = [
-    "Date",         # timestamp
-    "Call type",    # "Incoming" or "Outgoing"
-    "Number",       # Usually a phone number, might be a different value, gets hashed
-    "Duration",     # duration of the call
+    "Message Date",         # timestamp
+    "Type",                 # "Incoming" or "Outgoing"
+    "Text",                 # message content
+    "Sender ID",            # Usually a phone number, might be a different value, gets hashed
 ]
 
 TZ_HELP_STRING = "--tz-help"
@@ -48,6 +52,7 @@ PYTHON_FILE_NAME = __file__.split(SYSTEM_FOLDER_SEPARATOR)[-1] if SYSTEM_FOLDER_
 TIME_FORMAT_ERROR_WARNING = "WARNING: this file contains date strings with an ambiguous formatting."
 TIME_FORMAT_ERROR_WARNING_FLAG = 0
 HASH_CACHE = {}
+
 
 ###############
 ### Helpers ###
@@ -120,11 +125,13 @@ def hash_contact_id(contact_id):
     return ret
 
 
-def determine_duration_in_seconds(duration_string):
-    """ takes a timestamp of the form '10:10:10' (hours, minutes, seconds) and returns an integer
-    number of seconds. """
-    hours, minutes, seconds = duration_string.split(":")
-    return (int(hours)*60*60) + (int(minutes)*60) + int(seconds)
+def consistent_character_length(text):
+    # python 2 and 3 have different string formats, we want to use unicode encoding because
+    # the length should be the number of characters, not the number of 7-bit ascii bytes.
+    if IS_PYTHON_2:
+        return len(text.decode("utf-8"))
+    else:
+        return len(text)
 
 
 def determine_within_end_start(dt):
@@ -137,6 +144,7 @@ def determine_within_end_start(dt):
         return START_DATE < dt
     else:
         return True
+
 
 #############################
 ### Arg Parsing and Setup ###
@@ -214,7 +222,6 @@ with open(INPUT_FILE_NAME) as f:
 for fieldname in NECESSARY_COLUMNS:
     assert fieldname in csv_reader.fieldnames, "This file is missing the '%s' column." % fieldname
 
-
 ############
 ### Main ###
 ############
@@ -225,31 +232,35 @@ def extract_data():
         output_row = {}
 
         # First get the datetime objects we will need
-        dt = input_csv_datetime_string_to_tz_aware_datetime(input_row["Date"])
+        dt = input_csv_datetime_string_to_tz_aware_datetime(input_row["Message Date"])
 
         # determine if row is within date range
         if not determine_within_end_start(dt):
             continue
 
+        unix_timestamp = dt_to_utc_timestamp(dt)
+
         # text csv has 3 timestamps, but they all are from the same source
-        output_row["timestamp"] = dt_to_utc_timestamp(dt)
+        output_row["timestamp"] = unix_timestamp
+        output_row["time sent"] = unix_timestamp
         output_row["UTC time"] = dt_to_output_format(dt)
 
         # get a hashed id of the message sender (always the same for any given user)
-        output_row["hashed phone number"] = hash_contact_id(input_row["Number"])
+        output_row["hashed phone number"] = hash_contact_id(input_row["Sender ID"])
 
-        # call type maps to either 'Incoming' or 'Outgoing'
-        output_row["call type"] = input_row["Call type"].title() + " Call"
+        # length row is very simple.
+        output_row["message length"] = consistent_character_length(input_row["Text"])
 
-        # duration is a standard timestamp, needs to be converted to seconds.
-        output_row["duration in seconds"] = determine_duration_in_seconds(input_row["Duration"])
+        # populate sent vs received with the expected string.
+        # (doing a case insensitive compare for paranoid safety.)
+        message_type = input_row["Type"].lower()
+        output_row["sent vs received"] = "received SMS" if message_type == "incoming" else "sent SMS"
 
         # assemble the data into a correctly ordered list
         output_rows.append([output_row[column] for column in OUTPUT_COLUMNS])
 
     # sort by time (integer value of first column, which is the unix timestamp)
     output_rows.sort(key=lambda x: int(x[0]))
-
     return output_rows
 
 
