@@ -7,8 +7,9 @@ from django.http.request import HttpRequest
 from django.urls.base import reverse
 
 from constants.common_constants import (API_TIME_FORMAT_WITH_TZ, DT_24HR_N_TZ_N_SEC_W_PAREN,
-    DT_24HR_W_TZ_W_SEC_N_PAREN, DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDS_12HR_N_TZ_N_SEC_N_PAREN,
-    DT_WDS_12HR_W_TZ_N_SEC_W_PAREN, LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN)
+    DT_24HR_W_TZ_W_SEC_N_PAREN, DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDL_12HR_W_TZ_W_SEC_W_PAREN,
+    DT_WDS_12HR_N_TZ_N_SEC_N_PAREN, DT_WDS_12HR_W_TZ_N_SEC_W_PAREN,
+    LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN)
 from constants.user_constants import ANDROID_API, IOS_API
 
 
@@ -46,7 +47,6 @@ def time_with_tz(dt: datetime) -> str:
 
 
 def more_compact_iso_time_format(dt: datetime, timezone: tzinfo|str) -> str:
-    """ output looks Tue 2024-8-25 4:31 PM """
     if dt is None:
         return ""
     timezone = gettz(timezone) if isinstance(timezone, str) else timezone
@@ -54,7 +54,6 @@ def more_compact_iso_time_format(dt: datetime, timezone: tzinfo|str) -> str:
 
 
 def compact_iso_time_format(dt: datetime, timezone: tzinfo|str) -> str:
-    """ output looks Tue 2024-8-25 4:31:00 PM """
     if dt is None:
         return ""
     timezone = gettz(timezone) if isinstance(timezone, str) else timezone
@@ -92,6 +91,15 @@ def fancy_dt_format_with_tz(dt: datetime|None, timezone: tzinfo|str) -> str:
     # getting that timezone shortname is odd because it actually depends on the time of the event
     timezone = gettz(timezone) if isinstance(timezone, str) else timezone  # type: ignore
     return dt.astimezone(timezone).strftime(DT_WDL_12HR_W_TZ_N_SEC_W_PAREN)
+
+
+def fancy_dt_format_with_tz_and_seconds(dt: datetime|None, timezone: tzinfo|str) -> str:
+    """ output looks like Tuesday Aug 25, 2020, 4:31 PM (EST) """
+    if dt is None:
+        return ""
+    # getting that timezone shortname is odd because it actually depends on the time of the event
+    timezone = gettz(timezone) if isinstance(timezone, str) else timezone  # type: ignore
+    return dt.astimezone(timezone).strftime(DT_WDL_12HR_W_TZ_W_SEC_W_PAREN)
 
 
 def list_of_checkbox_strings_to_booleans(list_checkbox_params: list[str], dict_all_params: dict) -> None:

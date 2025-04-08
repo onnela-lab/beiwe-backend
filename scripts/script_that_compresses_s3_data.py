@@ -1,9 +1,9 @@
-# nohup time nice -n 20 python -u run_script.py script_that_compresses_s3_data > compression.log & tail -f compression.log
-
 from multiprocessing.pool import ThreadPool
+
 from constants.common_constants import CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS
 from database.models import Study
-from libs.s3 import BadS3PathException, s3_retrieve, s3_list_files
+from libs.s3 import BadS3PathException, s3_list_files, s3_retrieve
+from libs.utils.http_utils import numformat
 
 
 # we can bypass a whole database query by having the study to hand
@@ -21,16 +21,19 @@ class stats:
     @classmethod
     def stats(cls):
         print()
-        print("number_paths_total:", cls.number_paths_total)
-        print("number_already_compressed:", cls.number_already_compressed)
-        print("number_participant_folders:", cls.number_participant_folders)
-        print("number_illegal_folders:", cls.number_illegal_folders)
-        print("number_files_failed:", cls.number_files_failed)
-        print("number_files_compressed:", cls.number_files_compressed)
+        print("number_paths_total:", numformat(cls.number_paths_total))
+        print("number_already_compressed:", numformat(cls.number_already_compressed))
+        print("number_participant_folders:", numformat(cls.number_participant_folders))
+        print("number_illegal_folders:", numformat(cls.number_illegal_folders))
+        print("number_files_failed:", numformat(cls.number_files_failed))
+        print("number_files_compressed:", numformat(cls.number_files_compressed))
         print()
 
 
-
+# performance characteristics:
+# - even on a server with more cores we are seeing a limit of 150% cpu with 25 threads
+# - sometimes it does use all available cpu, so this is probably an artifact of iterating over
+#   many small files.
 pool = ThreadPool(25)
 
 illegal_folders = set()
@@ -87,7 +90,7 @@ for path in s3_list_files("", as_generator=True):
     
     the_args.append((path, study,))
     
-    if len(the_args) >= 250:
+    if len(the_args) >= 10_000:
         # print(the_args)
         list(  # just a fast iterate
             pool.imap_unordered(compress_file, the_args, chunksize=1)

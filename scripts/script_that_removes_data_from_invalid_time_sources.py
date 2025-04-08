@@ -1,8 +1,7 @@
 from datetime import datetime, timedelta
 
-import pytz
 from django.utils import timezone
-
+from constants.common_constants import UTC
 from constants.data_stream_constants import AMBIENT_AUDIO, VOICE_RECORDING
 from database.data_access_models import ChunkRegistry
 from database.forest_models import SummaryStatisticDaily
@@ -11,7 +10,7 @@ from database.forest_models import SummaryStatisticDaily
 # Onnela Lab, the first deployment, went live after this date, and it may be early by a whole year.
 # Any uploaded data from before this is due to a user manually setting the date on their phone,
 # or it is corrupted data.
-EARLIST_POSSIBLE_DATA = datetime(year=2014, month=8, day=1, tzinfo=pytz.utc)
+EARLIST_POSSIBLE_DATA = datetime(year=2014, month=8, day=1, tzinfo=UTC)
 EARLIST_POSSIBLE_DATA_DATE = EARLIST_POSSIBLE_DATA.date()
 
 
@@ -59,7 +58,10 @@ def review_data():
             print(ChunkRegistry.objects.filter(pk__in=[chunk.pk for chunk in bad_chunks]).delete())
     else:
         print("No obviously corrupted chunk registries were found.")
+        exit(0)
 
+
+review_data()
 
 print("deleting any too-old chunks...")
 print(ChunkRegistry.objects.filter(time_bin__lt=EARLIST_POSSIBLE_DATA).delete())

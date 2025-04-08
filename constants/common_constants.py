@@ -67,7 +67,7 @@ DT_WDS_12HR_W_TZ_N_SEC_N_PAREN = "%a %Y-%m-%d %-I:%M:%S %Z"
 # full date requires a comma
 DT_WDS_12HR_W_TZ_N_SEC_W_PAREN = "%a %b %-d, %Y, %-I:%M%p (%Z)"
 DT_WDL_12HR_W_TZ_N_SEC_W_PAREN = "%A %b %-d, %Y, %-I:%M%p (%Z)"
-
+DT_WDL_12HR_W_TZ_W_SEC_W_PAREN = "%A %b %-d, %Y, %-I:%M:%S%p (%Z)"
 
 ## All s3 file paths must be declared here so that we know where they are for participant data purge.
 CHUNKS_FOLDER = "CHUNKED_DATA"
