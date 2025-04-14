@@ -1,5 +1,14 @@
 #!/bin/bash
 
+
+# if you provide a parameter to this script we just blindly run that script via the taskrunner
+# without any extra checks or prompts and then exit with that status code.
+if [ -n "$1" ]; then
+    python -u scripts/taskrunner.py $1 $2 $3 $4 $5 $6 $7 $8 $9
+    exit $?  # exit with that status code
+fi
+
+
 echo
 echo "This task running will dispatch a script safely, running on the local machine with output redirected to a log file."
 echo "Output from the script will immediately be followed, but you can exit the live follow at any time by pressing Ctrl+C."
@@ -30,7 +39,7 @@ while true; do
     read -p "Was this the script you wanted to run? (y/n) " yn
     case $yn in
         [Yy]* ) 
-            echo "Running the script..."
+            echo "Starting the script..."
             break;;
         [Nn]* ) 
             echo "Exiting..."
