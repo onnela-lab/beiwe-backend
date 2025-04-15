@@ -22,8 +22,8 @@ from libs.schedules import (export_weekly_survey_timings, get_next_weekly_event_
     get_start_and_end_of_java_timings_week, NoSchedulesException,
     repopulate_absolute_survey_schedule_events, repopulate_all_survey_scheduled_events,
     repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)
+from scripts.repopulate_push_notifications import main as push_notification_scheduledevent_rebuild
 from services.celery_push_notifications import get_surveys_and_schedules
-from services.scripts_runner import push_notification_scheduledevent_rebuild
 from tests.common import CommonTestCase
 
 

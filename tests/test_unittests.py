@@ -1170,3 +1170,19 @@ class TestS3Storage(CommonTestCase):
         self.assertIsNone(s3_file.download_time_ns)
         self.assertIsNone(s3_file.decompression_time_ns)
         self.assertEqual(s3_file.sha1, hashlib.sha1(b"content").digest())
+
+
+class TestCeleryAtLeastImports(CommonTestCase):
+    
+    def test_data_processing(self):
+        from services.celery_data_processing import create_file_processing_tasks
+    
+    def test_push_notifications(self):
+        from services.celery_push_notifications import create_survey_push_notification_tasks
+    
+    def test_forest(self):
+        from services.celery_forest import create_forest_celery_tasks
+    
+    def test_script_runner(self):
+        from services.scripts_runner import enqueue_six_minute_scripts_tasks
+
