@@ -64,7 +64,7 @@ class FalseCeleryApp:
         our own apply_async function that extracts the "args" parameter.  We pass those
         into our stored function. """
         if not RUNNING_TESTS:
-            print(f"apply_async running, args:{args}, kwargs:{kwargs}")
+            print(f"apply_async running {self.an_function.__name__}, args:{args}, kwargs:{kwargs}")
         if "args" not in kwargs:
             return self.an_function()
         return self.an_function(*kwargs["args"])

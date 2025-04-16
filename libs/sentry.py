@@ -1,9 +1,11 @@
 # WARNING: THIS FILE IS IMPORTED IN THE DJANGO CONF FILE. BE CAREFUL WITH IMPORTS.
 import functools
-from datetime import datetime
+from threading import Thread
+from time import sleep
 
 import sentry_sdk
 from cronutils.error_handler import ErrorSentry, null_error_handler
+from django.utils import timezone
 from sentry_sdk import capture_message, Client as SentryClient, set_tag
 from sentry_sdk.transport import HttpTransport
 
@@ -52,13 +54,13 @@ def get_sentry_client(sentry_type: str):
     return SentryClient(dsn=dsn, transport=HttpTransport)
 
 
-def make_error_sentry(sentry_type: str, tags: dict = None, force_null_error_handler=False):
+def make_error_sentry(sentry_type: str, tags: dict = None, force_null_error_handler=False) -> ErrorSentry:
     """ Creates an ErrorSentry, defaults to error limit 10.
     If the applicable sentry DSN is missing will return an ErrorSentry,
     but if null truthy a NullErrorHandler will be returned instead. """
     
     if RUNNING_TEST_OR_FROM_A_SHELL or force_null_error_handler:
-        return null_error_handler
+        return null_error_handler  # type: ignore[return-value]
     
     tags = tags or {}
     tags["sentry_type"] = sentry_type
@@ -87,10 +89,28 @@ def script_runner_error_sentry(*args, **kwargs) -> ErrorSentry:
 
 
 ####################################################################################################
+######################################## Decorators ################################################
+####################################################################################################
+
+# not tested (should just work)
+def SentryDecorator(sentry_type: str, *args, **kwargs):
+    """ A decorator that wraps a function with an ErrorSentry. """
+    
+    def decorator_output_func(func_that_is_wrapped):
+        @functools.wraps(func_that_is_wrapped)
+        def wrapper_func(*args, **kwargs):
+            
+            with make_error_sentry(sentry_type, *args, **kwargs):
+                return func_that_is_wrapped(*args, **kwargs)
+        
+        return wrapper_func
+    return decorator_output_func
 
 
-class send_warn_on_timer():
-    """ Wrap a function with a timer that sends a warning to sentry if the function takes too long. """
+class SentryTimerWarning():
+    """ Wrap a function with a timer that sends a warning to sentry if the function takes too long.
+    (uses a thread and adds up to one-half second of time to the function execution time.)
+    """
     
     def __init__(self, sentry_type: str, message: str, timeout_seconds: int,  tags: dict = None):
         self.message = message
@@ -101,31 +121,54 @@ class send_warn_on_timer():
         sentry_sdk.init(get_dsn_from_string(sentry_type), transport=HttpTransport)
     
     def __call__(self, some_function):
+        self.finished = False
+        self.name = some_function.__name__
         
         @functools.wraps(some_function)
         def wrapper(*args, **kwargs):
-            t = datetime.now()
+            
+            thread = Thread(target=self.live_warn, name=f"timer thread for {self.name} {id(self)}")
+            thread.start()
+            t = timezone.now()
+            
             try:
                 return some_function(*args, **kwargs)
             finally:
-                if (t_total:= (datetime.now() - t).total_seconds()) > self.timeout_seconds:
-                    for tagk, tagv in self.tags.items():
-                        set_tag(tagk, str(tagv))
-                    set_tag("function_name", some_function.__name__)
-                    
-                    ext = f" - call `{some_function.__name__}` took {t_total} seconds to run."
-                    capture_message(self.message + ext, level="warning")
+                self.finished = True
+                thread.join()  # may be slow
+                if (t_total:= (timezone.now() - t).total_seconds()) > self.timeout_seconds:
+                    more = f" - call `{self.name}` took {t_total} seconds to run."
+                    self.send_warning(more)
         
         return wrapper
+    
+    def live_warn(self):
+        # wait for finished to be set to true, if we go over timeout_seconds send a warning.
+        
+        if RUNNING_TEST_OR_FROM_A_SHELL:
+            return
+        
+        t = timezone.now()
+        while not self.finished:
+            sleep(0.5)
+            if (timezone.now() - t).total_seconds() > self.timeout_seconds:
+                self.send_warning(f" - call `{self.name}` is currently running over its limit.")
+                return
+    
+    def send_warning(self, more: str):
+        for tagk, tagv in self.tags.items():
+            set_tag(tagk, str(tagv))
+        set_tag("function_name", self.name)
+        capture_message(self.message + more, level="warning")
 
 
-def time_warning_elastic_beanstalk(message: str, timeout_seconds: int,  tags: dict = None) -> send_warn_on_timer:
-    return send_warn_on_timer(SentryTypes.elastic_beanstalk, message, timeout_seconds, tags)
+def time_warning_elastic_beanstalk(message: str, timeout_seconds: int,  tags: dict = None) -> SentryTimerWarning:
+    return SentryTimerWarning(SentryTypes.elastic_beanstalk, message, timeout_seconds, tags)
 
 
-def time_warning_data_processing(message: str, timeout_seconds: int,  tags: dict = None) -> send_warn_on_timer:
-    return send_warn_on_timer(SentryTypes.data_processing, message, timeout_seconds, tags)
+def time_warning_data_processing(message: str, timeout_seconds: int,  tags: dict = None) -> SentryTimerWarning:
+    return SentryTimerWarning(SentryTypes.data_processing, message, timeout_seconds, tags)
 
 
-def time_warning_script_runner(message: str, timeout_seconds: int,  tags: dict = None) -> send_warn_on_timer:
-    return send_warn_on_timer(SentryTypes.script_runner, message, timeout_seconds, tags)
+def time_warning_script_runner(message: str, timeout_seconds: int,  tags: dict = None) -> SentryTimerWarning:
+    return SentryTimerWarning(SentryTypes.script_runner, message, timeout_seconds, tags)
