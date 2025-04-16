@@ -25,6 +25,7 @@ from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
     PushNotificationDisabledEvent, SurveyNotificationReport)
 from libs.aes import encrypt_for_server
+from libs.celery_control import DebugCeleryApp
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
 from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
@@ -1176,13 +1177,32 @@ class TestCeleryAtLeastImports(CommonTestCase):
     
     def test_data_processing(self):
         from services.celery_data_processing import create_file_processing_tasks
+        from services import celery_data_processing
+        for attr in celery_data_processing.__dict__.values():
+            if isinstance(attr, DebugCeleryApp):
+                return
+        raise AssertionError("Celery app not found in celery_data_processing, the correct one must be present in the namespace.")
     
     def test_push_notifications(self):
         from services.celery_push_notifications import create_survey_push_notification_tasks
+        from services import celery_push_notifications
+        for attr in celery_push_notifications.__dict__.values():
+            if isinstance(attr, DebugCeleryApp):
+                return
+        raise AssertionError("Celery app not found in celery_push_notifications, the correct one must be present in the namespace.")
     
     def test_forest(self):
         from services.celery_forest import create_forest_celery_tasks
+        from services import celery_forest
+        for attr in celery_forest.__dict__.values():
+            if isinstance(attr, DebugCeleryApp):
+                return
+        raise AssertionError("Celery app not found in celery_forest, the correct one must be present in the namespace.")
     
     def test_script_runner(self):
         from services.scripts_runner import enqueue_six_minute_scripts_tasks
-
+        from services import scripts_runner
+        for attr in scripts_runner.__dict__.values():
+            if isinstance(attr, DebugCeleryApp):
+                return
+        raise AssertionError("Celery app not found in scripts_runner, the correct one must be present in the namespace.")
