@@ -6,11 +6,11 @@ from libs.celery_control import (CeleryDataProcessingTask, get_processing_active
 from libs.file_processing.file_processing_core import easy_run
 from libs.sentry import make_error_sentry, SentryTypes
 
-
 ################################################################################
 ############################# Data Processing ##################################
 ################################################################################
 
+from libs.celery_control import processing_celery_app  # required in the file namespace for celery to work.
 
 def create_file_processing_tasks():
     """ Generates tasks to enqueue.  This is called every 6 minutes, and tasks have a lifetime

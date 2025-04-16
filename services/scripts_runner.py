@@ -11,7 +11,7 @@ To create a "script" just wrap it in @CeleryScriptTask(), name it to start with 
 reporting, warning of long runs, etc. etc.
 """
 
-
+from libs.celery_control import scripts_celery_app  # required in the file namespace for celery to work.
 
 
 ####################################### Six Minutely ###############################################
