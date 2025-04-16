@@ -17,7 +17,7 @@ from tests.common import CommonTestCase
 
 
 class TestHeartbeatQuery(CommonTestCase):
-    # this test class relies on behavior of the FalseCeleryApp class. Specifically, FalseCeleryApps
+    # this test class relies on behavior of the DebugCeleryApp class. Specifically, DebugCeleryApps
     # immediately run the created task synchronously, e.g. calls through safe_apply_async simply run
     # the target function on the same thread completely bypassing Celery.
     

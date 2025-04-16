@@ -15,14 +15,13 @@ from database.study_models import Study
 from database.system_models import GlobalSettings
 from database.user_models_participant import Participant, SurveyNotificationReport
 from libs.push_notification_helpers import fcm_for_pushable_participants
-from libs.sentry import time_warning_data_processing
+from libs.sentry import SentryTypes
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
     VersionError)
 
 
-ParticipantPK = int
-ScheduledEventPK = int
-StudyPK = int
+ParticipantPK, ScheduledEventPK, StudyPK = int, int, int
+from constants.common_constants import DEV_TIME_FORMAT3  # used in log statements
 
 logger = logging.getLogger("push_notifications")
 if RUNNING_TESTS:
@@ -35,10 +34,9 @@ log = logger.info
 logw = logger.warning
 loge = logger.error
 logd = logger.debug
-from constants.common_constants import DEV_TIME_FORMAT3  # used in log statements
 
 
-@time_warning_data_processing("Warning: resend logic took over 30 seconds", 30)
+@SentryTypes.timer_warning_push_notifications("Warning: resend logic took over 30 seconds", 30)
 def restore_scheduledevents_logic():
     """
     Participants upload a list of uuids of their received notifications, these uuids are stashed in

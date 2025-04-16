@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta
 
-from constants.celery_constants import DATA_PROCESSING_CELERY_QUEUE
 from database.user_models_participant import Participant
-from libs.celery_control import (FalseCeleryApp, get_processing_active_job_ids,
-    processing_celery_app, safe_apply_async)
+from libs.celery_control import (CeleryDataProcessingTask, get_processing_active_job_ids,
+    safe_apply_async)
 from libs.file_processing.file_processing_core import easy_run
 from libs.sentry import make_error_sentry, SentryTypes
 
@@ -44,7 +43,7 @@ def create_file_processing_tasks():
             # Queue all users' file processing, and generate a list of currently running jobs to use
             # to detect when all jobs are finished running.
             safe_apply_async(
-                celery_process_file_chunks,
+                daily_celery_process_file_chunks,
                 args=[participant_id],
                 max_retries=0,
                 expires=expiry,
@@ -55,15 +54,12 @@ def create_file_processing_tasks():
         print(f"{len(participants_to_process)} users queued for processing")
 
 
-@processing_celery_app.task(queue=DATA_PROCESSING_CELERY_QUEUE)
-def celery_process_file_chunks(participant_id):
+## uh, this use of "daily" is just to make the timer warning useful for this process.
+@CeleryDataProcessingTask()
+def daily_celery_process_file_chunks(participant_id):
     """ Task caller that runs through all new uploads from a specific user and 'chunks' them.
-    Handles logic for skipping bad files, raising errors. """
+    Handles logic for skipping bad files, raising errors ~nicer. """
     
     # All iteration logic has been moved into celery_processing_core
     participant = Participant.objects.get(id=participant_id)
     easy_run(participant)
-
-
-# and mark it to not retry!
-celery_process_file_chunks.max_retries = 0

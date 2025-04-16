@@ -349,3 +349,29 @@ def p(timer_label=0, caller_stack_location=1, quiet=False, name=None):
     # and at the very end we need to set the timer to the end of our actions (we have print
     # statements, which are slow)
     timer_object.set_timer(perf_counter())
+
+
+def print_dundurvars(obj):
+    for attrname in (d for d in dir(obj) if d.startswith("__")):
+        value = getattr(obj, attrname)
+        print(f"{attrname}:")
+        pprint(value)
+        print()
+
+
+def pprint_super_dundervars(obj):
+    """ pprint that does everything on an object via dir instead of vars """
+    
+    for attrname in (d for d in dir(obj) if d.startswith("__")):
+        value = getattr(obj, attrname)
+        print(f"{attrname}:")
+        pprint(value)
+        print()
+
+
+def pprint_super_vars(obj):
+    for attrname in (d for d in dir(obj)):
+        value = getattr(obj, attrname)
+        print(f"{attrname}:")
+        pprint(value)
+        print()
