@@ -2,11 +2,10 @@ import logging
 from datetime import timedelta
 from typing import List
 
-from dateutil.tz import gettz
 from django.utils import timezone
 
 from constants.celery_constants import PUSH_NOTIFICATION_SEND_QUEUE
-from constants.common_constants import RUNNING_TESTS
+from constants.common_constants import RUNNING_TESTS, UTC
 from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import check_firebase_instance
 from libs.sentry import make_error_sentry, SentryTypes
@@ -21,14 +20,12 @@ logger = logging.getLogger("push_notifications")
 if RUNNING_TESTS:
     logger.setLevel(logging.ERROR)
 else:
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.WARNING)
 
 log = logger.info
 logw = logger.warning
 loge = logger.error
 logd = logger.debug
-
-UTC = gettz("UTC")
 
 
 ####################################################################################################

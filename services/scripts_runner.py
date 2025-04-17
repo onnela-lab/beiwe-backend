@@ -1,6 +1,6 @@
 
 
-from libs.celery_control import CeleryScriptTask
+from libs.celery_control import CeleryScriptTask, DAILY, HOURLY, SIX_MINUTELY
 from scripts import (purge_participant_data, repopulate_push_notifications,
     script_that_removes_data_from_invalid_time_sources, update_forest_version, upload_logs)
 
@@ -11,7 +11,7 @@ To create a "script" just wrap it in @CeleryScriptTask(), name it to start with 
 reporting, warning of long runs, etc. etc.
 """
 
-from libs.celery_control import scripts_celery_app  # required in the file namespace for celery to work.
+from libs.celery_control import scripts_celery_app  # must be in the namespace for celery to work.
 
 
 ####################################### Six Minutely ###############################################
@@ -63,12 +63,12 @@ def daily_purge_invalid_time_data():
 
 
 def enqueue_six_minute_scripts_tasks():
-    CeleryScriptTask.enqueue_tasks(CeleryScriptTask.SIX_MINUTELY)
+    CeleryScriptTask.enqueue_tasks(SIX_MINUTELY)
 
 
 def enqueue_hourly_scripts_tasks():
-    CeleryScriptTask.enqueue_tasks(CeleryScriptTask.HOURLY)
+    CeleryScriptTask.enqueue_tasks(HOURLY)
 
 
 def enqueue_daily_script_tasks():
-    CeleryScriptTask.enqueue_tasks(CeleryScriptTask.DAILY)
+    CeleryScriptTask.enqueue_tasks(DAILY)

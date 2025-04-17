@@ -27,7 +27,7 @@ logger = logging.getLogger("push_notifications")
 if RUNNING_TESTS:
     logger.setLevel(logging.ERROR)
 else:
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.WARNING)
 
 
 log = logger.info

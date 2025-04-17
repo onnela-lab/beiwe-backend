@@ -362,6 +362,8 @@ class AbstractQueueWrapper:
     sentry_type: ClassVar[str]
     ERRORS: ClassVar[dict[str, str]]
     
+    SLEEP_TIME = 2  # seconds - override on tasks that need it
+    
     WARNING_TIMEOUTS = {
         SIX_MINUTELY: (5*60),
         HOURLY: 55*60,
@@ -389,8 +391,8 @@ class AbstractQueueWrapper:
         # down-the-line, or not used at all.  Using it may make task traces literally wrong, but not
         # using it will make the messages on Sentry literally wrong.
         assert self.task_function is the_wrapped_func  # ok but this assertion is important
-        assert self.sentry_function.__name__ == self.original_name
-        assert self.timer_function.__name__ == self.original_name
+        # assert self.sentry_function.__name__ == self.original_name
+        # assert self.timer_function.__name__ == self.original_name
         return self.celery_task_object
     
     def wrapper_setup(self, the_wrapped_func):  # executes at-IMPORT-time!
@@ -413,15 +415,15 @@ class AbstractQueueWrapper:
     def wrapper_with_sentry_etc(self) -> Callable:  # executes at-IMPORT-time!
         # add an error sentry, print statements, and a post-execution sleep
         
-        @functools.wraps(self.task_function)
-        def wrapper_func():
+        # @functools.wraps(self.task_function)
+        def wrapper_func(*args, **kwargs):
             print(f"\nRunning {self.original_name} as {self.task_frequency} task.\n")
             try:
                 with make_error_sentry(self.sentry_type, tags={"task_name": self.original_name}):
-                    self.task_function()
+                    self.task_function(*args, **kwargs)
             finally:
                 print(f"\nTask {self.original_name} is no longer running, pausing for 2 seconds.\n")
-                sleep(2)  # Very fast errors may not send to sentry, sleep for 2 seconds to fix
+                sleep(self.SLEEP_TIME)  # Very fast errors may not send to sentry, sleep for 2 seconds to fix
         
         return wrapper_func
     

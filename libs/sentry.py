@@ -39,54 +39,54 @@ class SentryTypes:
     
     # Error Sentry context managers
     @classmethod
-    def error_handler_data_processing(cls, tags: dict = None, null_error_handler=False):
-        return make_error_sentry(cls.data_processing, tags, null_error_handler)
+    def error_handler_data_processing(cls, null_error_handler=False, **tags):
+        return make_error_sentry(cls.data_processing, null_error_handler, **tags)
     @classmethod
-    def error_handler_elastic_beanstalk(cls, tags: dict = None, null_error_handler=False):
-        return make_error_sentry(cls.elastic_beanstalk, tags, null_error_handler)
+    def error_handler_elastic_beanstalk(cls, null_error_handler=False, **tags):
+        return make_error_sentry(cls.elastic_beanstalk, null_error_handler, **tags)
     @classmethod
-    def error_handler_forest(cls, tags: dict = None, null_error_handler=False):
-        return make_error_sentry(cls.forest, tags, null_error_handler)
+    def error_handler_forest(cls, null_error_handler=False, **tags):
+        return make_error_sentry(cls.forest, null_error_handler, **tags)
     @classmethod
-    def error_handler_push_notifications(cls, tags: dict = None, null_error_handler=False):
-        return make_error_sentry(cls.push_notifications, tags, null_error_handler)
+    def error_handler_push_notifications(cls, null_error_handler=False, **tags):
+        return make_error_sentry(cls.push_notifications, null_error_handler, **tags)
     @classmethod
-    def error_handler_script_runner(cls, tags: dict = None, null_error_handler=False):
-        return make_error_sentry(cls.script_runner, tags, null_error_handler)
+    def error_handler_script_runner(cls, null_error_handler=False, **tags):
+        return make_error_sentry(cls.script_runner, null_error_handler, **tags)
     
     # as decorators
     @classmethod
-    def error_decor_data_processing(cls, tags: dict = None, null_error_handler=False):
-        return SentryDecorator(cls.data_processing, tags, null_error_handler)
+    def error_decor_data_processing(cls, null_error_handler=False, **tags):
+        return SentryDecorator(cls.data_processing, null_error_handler, **tags)
     @classmethod
-    def error_decor_elastic_beanstalk(cls, tags: dict = None, null_error_handler=False):
-        return SentryDecorator(cls.elastic_beanstalk, tags, null_error_handler)
+    def error_decor_elastic_beanstalk(cls, null_error_handler=False, **tags):
+        return SentryDecorator(cls.elastic_beanstalk, null_error_handler, **tags)
     @classmethod
-    def error_decor_forest(cls, tags: dict = None, null_error_handler=False):
-        return SentryDecorator(cls.forest, tags, null_error_handler)
+    def error_decor_forest(cls, null_error_handler=False, **tags):
+        return SentryDecorator(cls.forest, null_error_handler, **tags)
     @classmethod
-    def error_decor_push_notifications(cls, tags: dict = None, null_error_handler=False):
-        return SentryDecorator(cls.push_notifications, tags, null_error_handler)
+    def error_decor_push_notifications(cls, null_error_handler=False, **tags):
+        return SentryDecorator(cls.push_notifications, null_error_handler, **tags)
     @classmethod
-    def error_decor_script_runner(cls, tags: dict = None, null_error_handler=False):
-        return SentryDecorator(cls.script_runner, tags, null_error_handler)
+    def error_decor_script_runner(cls, null_error_handler=False, **tags):
+        return SentryDecorator(cls.script_runner, null_error_handler, **tags)
     
     # Timer Warnings Decorators
     @classmethod
-    def timer_warning_data_processing(cls, message: str, seconds: int, tags: dict = None):
-        return SentryTimerWarning(cls.data_processing, message, seconds, tags=tags)
+    def timer_warning_data_processing(cls, message: str, seconds: int, **tags):
+        return SentryTimerWarning(cls.data_processing, message, seconds, **tags)
     @classmethod
-    def timer_warning_elastic_beanstalk(cls, message: str, seconds: int, tags: dict = None):
-        return SentryTimerWarning(cls.elastic_beanstalk, message, seconds, tags=tags)
+    def timer_warning_elastic_beanstalk(cls, message: str, seconds: int, **tags):
+        return SentryTimerWarning(cls.elastic_beanstalk, message, seconds, **tags)
     @classmethod
-    def timer_warning_forest(cls, message: str, seconds: int, tags: dict = None):
-        return SentryTimerWarning(cls.forest, message, seconds, tags=tags)
+    def timer_warning_forest(cls, message: str, seconds: int, **tags):
+        return SentryTimerWarning(cls.forest, message, seconds, **tags)
     @classmethod
-    def timer_warning_push_notifications(cls, message: str, seconds: int, tags: dict = None):
-        return SentryTimerWarning(cls.push_notifications, message, seconds, tags=tags)
+    def timer_warning_push_notifications(cls, message: str, seconds: int, **tags):
+        return SentryTimerWarning(cls.push_notifications, message, seconds, **tags)
     @classmethod
-    def timer_warning_script_runner(cls, message: str, seconds: int, tags: dict = None):
-        return SentryTimerWarning(cls.script_runner, message, seconds, tags=tags)
+    def timer_warning_script_runner(cls, message: str, seconds: int, **tags):
+        return SentryTimerWarning(cls.script_runner, message, seconds, **tags)
 
 
 def normalize_sentry_dsn(dsn: str):
@@ -110,19 +110,18 @@ def get_dsn_from_string(sentry_type: str):
 
 
 def get_sentry_client(sentry_type: str):
-    dsn = get_dsn_from_string(sentry_type)
-    return SentryClient(dsn=dsn, transport=HttpTransport)
+    return SentryClient(dsn=get_dsn_from_string(sentry_type), transport=HttpTransport)
 
 
-def make_error_sentry(sentry_type: str, tags: dict = None, force_null_error_handler=False) -> ErrorSentry:
-    """ Creates an ErrorSentry, defaults to error limit 10.
-    If the applicable sentry DSN is missing will return an ErrorSentry,
-    but if null truthy a NullErrorHandler will be returned instead. """
+def make_error_sentry(sentry_type: str, force_null_error_handler=False, **tags) -> ErrorSentry:
+    """ Creates an ErrorSentry, defaults to error limit 10. """
     
     if RUNNING_TEST_OR_FROM_A_SHELL or force_null_error_handler:
         return null_error_handler  # type: ignore[return-value]
     
-    tags = tags or {}
+    if "tags" in tags and isinstance(tags["tags"], dict):  # fix tags in a named dict
+        tags.update(tags.pop("tags"))
+    
     tags["code_type"] = sentry_type
     for tagk, tagv in tags.items():  # (how does this work?)
         set_tag(tagk, str(tagv))
@@ -141,14 +140,14 @@ def make_error_sentry(sentry_type: str, tags: dict = None, force_null_error_hand
 ####################################################################################################
 
 # not tested (should just work)
-def SentryDecorator(sentry_type: str, *args, **kwargs):
+def SentryDecorator(sentry_type: str, *sentry_args, **tags):
     """ A decorator that wraps a function with an ErrorSentry. """
     
     def decorator_output_func(func_that_is_wrapped):
-        @functools.wraps(func_that_is_wrapped)
+        # @functools.wraps(func_that_is_wrapped)  # currently disabled, do stack traces get worse?
         def wrapper_func(*args, **kwargs):
             
-            with make_error_sentry(sentry_type, *args, **kwargs):
+            with make_error_sentry(sentry_type, *sentry_args, **tags):
                 return func_that_is_wrapped(*args, **kwargs)
         
         return wrapper_func
@@ -160,19 +159,24 @@ class SentryTimerWarning():
     (uses a thread and adds up to one-half second of time to the function execution time.)
     """
     
-    def __init__(self, sentry_type: str, message: str, timeout_seconds: int,  tags: dict = None):
+    def __init__(self, sentry_type: str, message: str, timeout_seconds: int, **tags):
         self.message = message
         self.timeout_seconds = timeout_seconds
-        self.tags = tags or {}
-        self.tags["code_type"] = sentry_type
-        self.tags["JUST_A_WARNING"] = True
+        
+        if "tags" in tags and isinstance(tags["tags"], dict):  # fix tags in a named dict
+            tags.update(tags.pop("tags"))
+        tags["code_type"] = sentry_type
+        tags["JUST_A_WARNING"] = True
+        self.tags = tags
+        
+        # todo: work out and document why this is in the __init__?
         sentry_sdk.init(get_dsn_from_string(sentry_type), transport=HttpTransport)
     
     def __call__(self, some_function):
         self.finished = False
         self.name = some_function.__name__
         
-        @functools.wraps(some_function)
+        # @functools.wraps(some_function)  # currently disabled, do stack traces get worse?
         def wrapper(*args, **kwargs):
             
             thread = Thread(target=self.live_warn, name=f"timer thread for {self.name} {id(self)}")
@@ -187,18 +191,18 @@ class SentryTimerWarning():
                 if (t_total:= (timezone.now() - t).total_seconds()) > self.timeout_seconds:
                     more = f" - call `{self.name}` took {t_total} seconds to run."
                     self.send_warning(more)
+                    #TODO: um, do we need a sleep here? that gets weird with post-celery-task-sleep
         
         return wrapper
     
     def live_warn(self):
-        # wait for finished to be set to true, if we go over timeout_seconds send a warning.
-        
         if RUNNING_TEST_OR_FROM_A_SHELL:
             return
         
+        # wait for finished to be set to true, if we go over timeout_seconds send a warning.
         t = timezone.now()
         while not self.finished:
-            sleep(0.5)
+            sleep(0.5)  # can't get out of a dangling join above, hope try-finally is robust
             if (timezone.now() - t).total_seconds() > self.timeout_seconds:
                 self.send_warning(f" - call `{self.name}` is currently running over its limit.")
                 return
