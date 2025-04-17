@@ -44,6 +44,7 @@ alias sno="sudo nano -Iwn"
 alias ls='ls --color=auto' # make ls not suck
 alias la='ls -A'
 alias ll='ls -lh'
+alias rr='ls -lh'
 alias lg='ls -Alh | grep -i '
 alias lh='ls -lhX --color=auto'
 alias lll="du -ah --max-depth=0 --block-size=MB --time * | sort -nr"
@@ -56,6 +57,8 @@ alias uuu="cd ../../.."
 
 #Tools with command line config
 alias htop="htop -d 5"
+alias hdop="htop -d 5"
+alias hotp="htop -d 5"
 alias nload="nload -a 5 -i 80000 -o 80000"
 alias df="df -h"
 
@@ -81,7 +84,7 @@ alias processing-stop="killall supervisord > /dev/null 2>&1"
 alias processing-restart="pkill -HUP supervisord 2> /dev/null"
 
 #Watch Logs Live
-alias log='tail -f /home/ubuntu/celery*.log /home/ubuntu/supervisor.log'
+alias log='tail -f /home/ubuntu/celery*.log /home/ubuntu/supervisord.log'
 alias logs='logs'
 alias logd='tail -f /home/ubuntu/supervisor.log'
 

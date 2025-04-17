@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import json
+import logging
 from datetime import timedelta
 from pprint import pformat
 from time import sleep
@@ -23,17 +24,23 @@ from libs.sentry import make_error_sentry, SentryTimerWarning, SentryTypes
 FORCE_CELERY_OFF = False  ##  Flag to force use of our DebugCeleryTask.
 
 
+celery_runtime_logger = logging.getLogger("celery_runtime")
+celery_runtime_logger.setLevel(logging.INFO)
+logd = celery_runtime_logger.debug
+logi = celery_runtime_logger.info
+logw = celery_runtime_logger.warning
+loge = celery_runtime_logger.error
+log = logd
+
+
 class OopsiesError(Exception): pass
 class CeleryNotRunningException(Exception): pass
 
 
-class DebugCeleryApp(object):
-    """ Class that mimics enough functionality of a Celery app for us to be able to execute
-    our celery infrastructure from the shell, single-threaded, without queuing. """
-    
-    events: Any
-    connection: Any
-    max_retries: Any
+class DebugCeleryApp(Task):
+    """ Class that mimics enough functionality of a Celery app and a Task for us to be able to
+    executeour celery infrastructure from the shell, single-threaded, Celery actually running. """
+    events: Any; connection: Any; max_retries: Any
     
     def __init__(self, an_function: Callable):
         """ at instantiation (aka when used as a decorator) stash the function we wrap """
@@ -52,9 +59,9 @@ class DebugCeleryApp(object):
         return DebugCeleryApp
     
     def apply_async(self, *args, **kwargs):
-        """ apply_async is the function we use to queue up tasks.  Our hack is to declare
-        our own apply_async function that extracts the "args" parameter.  We pass those
-        into our stored function. """
+        """ apply_async is the function we use to queue up tasks.  Our hack is to declare our own
+        apply_async function that extracts the "args" parameter.  We pass those into ourstored
+        function. """
         if not RUNNING_TESTS:
             print(f"apply_async running {self.an_function.__name__}, args:{args}, kwargs:{kwargs}")
         if "args" not in kwargs:
@@ -63,14 +70,12 @@ class DebugCeleryApp(object):
 
 
 TaskLike = Task|DebugCeleryApp
-
+CeleryLike = Celery|DebugCeleryApp
 
 def safe_apply_async(tasklike_obj: TaskLike, *args, **kwargs):
     """ Enqueuing a new task, for which we always use Celery's most flexible `apply_async` function,
     can fail deep inside amqp/transport.py with an OperationalError.
-    
-    tasklike_obj is either a "@celery_app.task"-wrapped function, or it is a DebugCeleryApp.
-    
+        
     DebugCeleryApps implement a pattern that allows us to test functions wrapped in celery tasks in
     the terminal and in tests without a celery app running.
     
@@ -84,20 +89,11 @@ def safe_apply_async(tasklike_obj: TaskLike, *args, **kwargs):
             if i >= 3:
                 raise
 
-
 #
 # Connections to Celery (or DebugCeleryApps if Celery is not present)
 #
 
-FORCE_CELERY_OFF = False
-
-
-def instantiate_celery_app_connection(service_name: str) -> Celery|DebugCeleryApp:
-    # this isn't viable because it breaks watch_processing (etc), because the celery.task.inspect
-    # call will time out if no Celery object has been instantiated with credentials.
-    # if RUNNING_TEST_OR_IN_A_SHELL:
-    # return DebugCeleryApp
-    
+def instantiate_celery_app_connection(service_name: str) -> CeleryLike:
     if FORCE_CELERY_OFF:
         return DebugCeleryApp  # type: ignore[return-value]
     
@@ -115,6 +111,7 @@ def instantiate_celery_app_connection(service_name: str) -> Celery|DebugCeleryAp
         backend='rpc://',
         task_publish_retry=False,
         task_track_started=True,
+        broker_connection_retry_on_startup=True,
     )
 
 
@@ -129,7 +126,7 @@ scripts_celery_app = instantiate_celery_app_connection(SCRIPTS_SERVICE)
 
 
 # which celery app(?) used is completely arbitrary, they are all the same.
-def inspect_celery(selery: Celery|DebugCeleryApp):
+def inspect_celery(selery: CeleryLike):
     """ Inspect is annoyingly unreliable and has a default 1 second timeout.
         Will error if executed while a DebugCeleryApp is in use. """
     
@@ -342,6 +339,15 @@ SIX_MINUTELY = "Six Minutely"  # SOME DAY we will have better than 6 minute minu
 HOURLY = "Hourly"
 DAILY = "Daily"
 
+INSTANTIATION_ERROR = lambda m: f"You forgot to include `()` on the Celery decorator for for {m}."
+OVERLOAD_ERROR = "Do not overload AbstractQueueWrapper.unique_names."
+NAME_ERROR = lambda name: f"Wrapped function '{name}' must have a name starting " \
+                          "with `six_minutes_` `hourly_`, or `daily_`"
+UNIQUENESS_ERROR = lambda self: "This Celery task "\
+    f"wrapping {self.task_function} ({self.original_name}) collides with another wrapped " \
+    "function name. It is not worth debugging whether this causses a problem, just rename it."
+
+
 class AbstractQueueWrapper:
     """
     IT EVENTUALLY BECAME APPARENT THAT BEING ABLE TO CREATE NEW TASKS VERY EASILY WAS SUPER IMPORTANT.
@@ -350,56 +356,44 @@ class AbstractQueueWrapper:
     SCENARIO IT CAN FAIL BEFORE SENDING AN ERROR REPORT, AND/OR CAUSE SOME WEIRD ~SPINLOCK CONDITION
     THAT CAUSES RABBITMQ TO GET STUCK AND SPEW LOGGING ERRORS UNTIL THE SERVER GOES DOWN.
     
-    Just wrap a function in A POPULATED SUBCLASS, name it correctly, and it should work better.
+    Just wrap a function in A POPULATED SUBCLASS, name it correctly, and it should just work better.
     There are tests to import all celery tasks, which executes everything but the enqueuing code.
     
-    Timer values are based on the name of the wrapped function.
+    Timeout values are assigned automatically based on the name of the wrapped function.
     """
     
-    queueable_things: ClassVar[list[Self]]  # just make a list
-    celery_app: ClassVar[Celery|DebugCeleryApp]
-    target_queue: ClassVar[str]
-    sentry_type: ClassVar[str]
-    ERRORS: ClassVar[dict[str, str]]
     
-    SLEEP_TIME = 2  # seconds - override on tasks that need it
     
-    WARNING_TIMEOUTS = {
-        SIX_MINUTELY: (5*60),
-        HOURLY: 55*60,
-        DAILY: 23*60*60,
-    }
+    celery_app: ClassVar[CeleryLike];  queueable_tasks: ClassVar[list[Self]]
+    target_queue: ClassVar[str];       ERRORS: ClassVar[dict[str, str]]
+    sentry_type: ClassVar[str]         # just mimic existing subclasses below
+    
+    SLEEP_TIME = 2  # seconds - override on task classes that need it? push notifications?
+    WARNING_TIMEOUTS = {SIX_MINUTELY: 5 * 60, HOURLY: 55 * 60, DAILY: 23 * 60 * 60}
+    
+    unique_names = set[str]()  # do not overload this
     
     def __init__(self, *args): # executes at-import-time
-        # Called as the class is instantiated: global scope. Errors will be raised at import time.
-        
+        # save us from our future selves:
         if args and isinstance(args[0], FunctionType):
-            raise OopsiesError(
-                f"You forgot to include `()` on the @ScriptQueueWrapper for {args[0].__name__}."
-            )
+            raise OopsiesError(INSTANTIATION_ERROR(args[0].__name__))
+        assert self.unique_names is AbstractQueueWrapper.unique_names, OVERLOAD_ERROR
         
-        self.__class__.queueable_things.append(self)
+        self.__class__.queueable_tasks.append(self)
     
-    def __call__(self, the_wrapped_func: Callable) -> Task | DebugCeleryApp:  # executes at-IMPORT-time!
-        
-        self.wrapper_setup(the_wrapped_func)
-        self.sentry_function = self.wrapper_with_sentry_etc()  # wraps task_fusction
-        self.timer_function = self.wrapper_function_in_timer_warning()  # wraps sentry_function
+    def __call__(self, task_function: Callable) -> Task | DebugCeleryApp:  # executes at-IMPORT-time!
+        """ Must create and return a Celery Task over in the code where it is instantiated. """
+        self.one_time_setup(task_function)
         self.celery_task_object = self.wrapper_function_as_celery_task()  # wraps timer_function
-        
-        # Due to the number of wrappers here we have to either ensure functools.wraps is used
-        # down-the-line, or not used at all.  Using it may make task traces literally wrong, but not
-        # using it will make the messages on Sentry literally wrong.
-        assert self.task_function is the_wrapped_func  # ok but this assertion is important
-        # assert self.sentry_function.__name__ == self.original_name
-        # assert self.timer_function.__name__ == self.original_name
         return self.celery_task_object
     
-    def wrapper_setup(self, the_wrapped_func):  # executes at-IMPORT-time!
-        self.original_name = the_wrapped_func.__name__
-        self.task_function = the_wrapped_func
-        startswith = self.original_name.startswith  # (holy CRAP this makes it way easier to read...)
+    def one_time_setup(self, task_function):  # executes at-IMPORT-time!
+        if hasattr(self, "task_function"):
+            return  # let's just not ever rerun this stuff....
         
+        self.task_function, self.original_name = task_function, task_function.__name__
+        
+        startswith = self.original_name.startswith  # (holy CRAP this makes it way easier to read...)
         if startswith("six_minutes_"):
             self.task_frequency = SIX_MINUTELY
         elif startswith("hourly_"):
@@ -407,55 +401,66 @@ class AbstractQueueWrapper:
         elif startswith("daily_"):
             self.task_frequency = DAILY
         else:
-            raise NameError(
-                f"Wrapped function '{self.original_name}' must have a name starting with "
-                "`six_minutes_` `hourly_`, or `daily_`"
-            )
-    
-    def wrapper_with_sentry_etc(self) -> Callable:  # executes at-IMPORT-time!
-        # add an error sentry, print statements, and a post-execution sleep
+            raise NameError(NAME_ERROR(self.original_name))
         
-        # @functools.wraps(self.task_function)
-        def wrapper_func(*args, **kwargs):
-            print(f"\nRunning {self.original_name} as {self.task_frequency} task.\n")
-            try:
-                with make_error_sentry(self.sentry_type, tags={"task_name": self.original_name}):
-                    self.task_function(*args, **kwargs)
-            finally:
-                print(f"\nTask {self.original_name} is no longer running, pausing for 2 seconds.\n")
-                sleep(self.SLEEP_TIME)  # Very fast errors may not send to sentry, sleep for 2 seconds to fix
+        # save us from our future selves:
+        assert self.original_name not in AbstractQueueWrapper.unique_names, UNIQUENESS_ERROR(self)
+        AbstractQueueWrapper.unique_names.add(self.original_name)
         
-        return wrapper_func
+        logd(f"__call__ a new {self.__class__.__name__} Celery Task for {self.original_name}."
+             f"  This task will be run as a {self.task_frequency} task."
+             f"  It will be queued in the {self.target_queue} queue.")
     
-    def wrapper_function_in_timer_warning(self) -> Callable:  # executes at-IMPORT-time!
-        timer_wrapper = SentryTimerWarning(
+    def wrap_task_with_sentry_etc(self, *task_args, **task_kwargs):
+        # add an error sentry, print statements, and a post-execution slee, self.original_namep
+        logi(f"Running {self.original_name} as {self.task_frequency} task.")
+        try:
+            with make_error_sentry(self.sentry_type, tags={"task_name": self.original_name}):
+                self.task_function(*task_args, **task_kwargs)
+        finally:
+            logi(f"Task {self.original_name} is no longer running, pausing for {self.SLEEP_TIME} seconds.")
+            sleep(self.SLEEP_TIME)  # Very fast errors may not send to sentry, sleep for 2 seconds to fix
+    
+    def wrap_task_in_timer_warning(self, *task_args, **task_kwargs):
+        return SentryTimerWarning(    # this is a decorator so the code is gross
             self.sentry_type,
             message=self.ERRORS[self.task_frequency].format(self.original_name),
             timeout_seconds=self.WARNING_TIMEOUTS[self.task_frequency],
-            tags={"task_name": self.original_name}
-        )
-        return timer_wrapper(self.sentry_function)  # uses functools.wrap
+            task_name=self.original_name,
+        ) (self.wrap_task_with_sentry_etc) (*task_args, **task_kwargs)
+        # -----------wrap in timer------ ----execute sentry_etc-----
+        
+    def generate_correct_looking_function(self) -> Callable:
+        # this use of functools _makes the task have the correct original name and location_
+        # in the context of the Celery Worker (and ... queuer)
+        @functools.wraps(self.task_function)
+        def wrapper_that_gets_renamed(*task_args, **task_kwargs):
+            self.wrap_task_in_timer_warning(*task_args, **task_kwargs)
+        return wrapper_that_gets_renamed
     
-    def wrapper_function_as_celery_task(self) -> TaskLike:  # executes at-IMPORT-time!
-        the_task = self.celery_app.task(queue=self.target_queue)(self.timer_function)
+    def wrapper_function_as_celery_task(self) -> TaskLike:
+        the_task = self.celery_app.task(queue=self.target_queue)(
+            self.generate_correct_looking_function()
+        )
         the_task.max_retries = 0  # We never, ever, EVER, _EV-UR_ want to automatically retry a task
-        return the_task  # type: ignore[return-value]
+        return the_task  # type: ignore[return-value]  no its TaskLike
     
     # (you don't have to use these easy enqueue-all functions, if you do the timer still respects
     # the function naming structure.)
     
     @classmethod
     def enqueue_tasks(cls, task_type: str):  # executes at-RUN-time of task queueuing.
-        self: Self
-        for self in (self for self in cls.queueable_things if self.task_frequency == task_type):
-            with make_error_sentry(self.sentry_type, tags={"task_name": self.original_name}):
-                print(f"\nEnqueueing {self.original_name} as {task_type} task.\n")
+        # get the correct tasks and enqueue them
+        for self in (self for self in cls.queueable_tasks if self.task_frequency == task_type):
+            logi(f"Enqueueing {self.original_name} as {task_type} task: " + 
+                ", ".join([str(self.task_function), self.task_frequency]))
+            
+            with make_error_sentry(self.sentry_type, task_name=self.original_name):
                 cls.enqueue_task(self.celery_task_object, task_type)
     
     @classmethod
     def enqueue_task(cls, task: TaskLike, expiry_str: str, *args, **kwargs):  # executes at-RUN-time of task enqueuement
         now = timezone.now().replace(second=0, microsecond=0)
-        
         if expiry_str == SIX_MINUTELY:
             expires = now + timedelta(minutes=6)
         elif expiry_str == HOURLY:
@@ -465,7 +470,6 @@ class AbstractQueueWrapper:
         else:
             raise ValueError("Expiry must be one of SIX_MINUTELY, HOURLY, or DAILY.")
         
-        expires = expires.replace(second=0, microsecond=0)  # clear out seconds and microseconds
         safe_apply_async(
             task,
             args=args,
@@ -479,7 +483,7 @@ class AbstractQueueWrapper:
 
 
 class CeleryScriptTask(AbstractQueueWrapper):
-    queueable_things = []
+    queueable_tasks = []
     celery_app = scripts_celery_app
     target_queue = SCRIPTS_QUEUE
     sentry_type = SentryTypes.script_runner
@@ -491,7 +495,7 @@ class CeleryScriptTask(AbstractQueueWrapper):
 
 
 class CeleryDataProcessingTask(AbstractQueueWrapper):
-    queueable_things = []
+    queueable_tasks = []
     celery_app = processing_celery_app
     target_queue = DATA_PROCESSING_CELERY_QUEUE
     sentry_type = SentryTypes.data_processing
