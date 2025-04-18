@@ -12,7 +12,7 @@ from markupsafe import escape
 
 from authentication.admin_authentication import (abort, assert_admin, assert_site_admin,
     authenticate_admin, authenticate_researcher_login, authenticate_researcher_study_access,
-    get_researcher_allowed_studies_as_query_set)
+    get_researcher_allowed_studies_as_query_set, ResearcherRequest)
 from constants.common_constants import DT_12HR_N_TZ_N_SEC_W_PAREN, RUNNING_TEST_OR_FROM_A_SHELL
 from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
@@ -31,7 +31,6 @@ from libs.endpoint_helpers.study_helpers import (conditionally_display_study_sta
     get_administerable_studies_by_name, notify_changes, trim_whitespace, try_update_device_settings,
     unflatten_consent_sections)
 from libs.firebase_config import check_firebase_instance
-from libs.internal_types import ResearcherRequest
 from libs.sentry import make_error_sentry, SentryTypes
 from libs.timezone_dropdown import ALL_TIMEZONES_DROPDOWN
 from libs.utils.http_utils import (easy_url, list_of_checkbox_strings_to_booleans,

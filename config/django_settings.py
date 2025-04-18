@@ -124,6 +124,7 @@ SHELL_PLUS_POST_IMPORTS = [
     
     # I need to be able to paste code >_O
     ["typing", ("List", "Dict", "Tuple", "Union", 'Counter', 'Deque', 'Dict', 'DefaultDict')],
+    ["database.models", "dbt"],
     
     # really useful constants
     ["constants.user_constants", ("ANDROID_API", "IOS_API", "NULL_OS", "ResearcherRole")],

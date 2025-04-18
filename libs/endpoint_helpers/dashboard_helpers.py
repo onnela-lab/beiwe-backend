@@ -7,14 +7,15 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 
 from django.db.models import Max, Min, Q
 
+from authentication.admin_authentication import ResearcherRequest
 from constants.common_constants import API_DATE_FORMAT, EARLIEST_POSSIBLE_DATA_DATETIME
 from constants.data_stream_constants import ALL_DATA_STREAMS
 from constants.forest_constants import DATA_QUANTITY_FIELD_MAP, DATA_QUANTITY_FIELD_NAMES
 from database.dashboard_models import DashboardColorSetting, DashboardGradient, DashboardInflection
 from database.forest_models import SummaryStatisticDaily
+from database.models import dbt
 from database.study_models import Study
 from database.user_models_participant import Participant
-from libs.internal_types import ParticipantQuerySet, ResearcherRequest
 from middleware.abort_middleware import abort
 
 
@@ -22,7 +23,7 @@ DATETIME_FORMAT_ERROR = 'Dates and times provided to this endpoint must be forma
 
 
 def parse_data_streams(
-    request: ResearcherRequest, study: Study, data_stream: str, participant_objects: ParticipantQuerySet
+    request: ResearcherRequest, study: Study, data_stream: str, participant_objects: dbt.ParticipantQS
 ):
     start, end = extract_date_args_from_request(request)
     first_day, last_day = get_first_and_last_days_of_data(study, data_stream)
@@ -221,7 +222,7 @@ def get_first_and_last_days_of_data(
 
 
 def dashboard_data_query(
-    participants: ParticipantQuerySet, data_stream: str = None
+    participants: dbt.ParticipantQS, data_stream: str = None
 ) -> Dict[str, List[Dict[str, Union[date, str, int]]]]:
     """ Queries SummaryStatistics based on the provided parameters and returns a list of dictionaries
     with 3 keys: bytes, data_stream, and time_bin. """
@@ -237,7 +238,7 @@ def dashboard_data_query(
     return patient_id_to_datapoints, earliest_date, latest_date
 
 
-def do_dashboard_summarystatistics_query(participants: ParticipantQuerySet, data_stream: str = None):
+def do_dashboard_summarystatistics_query(participants: dbt.ParticipantQS, data_stream: str = None):
     """ Business logic to make the database query as fast as possible. """
     
     filter_kwargs = {"participant_id__in": participants}

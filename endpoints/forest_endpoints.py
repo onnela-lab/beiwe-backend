@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from authentication.admin_authentication import (assert_site_admin, authenticate_admin,
-    authenticate_researcher_study_access, forest_enabled)
+    authenticate_researcher_study_access, forest_enabled, ResearcherRequest)
 from constants.celery_constants import ForestTaskStatus
 from constants.common_constants import DEV_TIME_FORMAT, EARLIEST_POSSIBLE_DATA_DATE, RUNNING_TESTS
 from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED,
@@ -25,6 +25,7 @@ from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED,
 from constants.raw_data_constants import CHUNK_FIELDS
 from database.data_access_models import ChunkRegistry
 from database.forest_models import ForestTask, SummaryStatisticDaily
+from database.models import dbt
 from database.study_models import Study
 from database.system_models import ForestVersion
 from database.user_models_participant import Participant
@@ -32,7 +33,6 @@ from libs.django_forms.forms import CreateTasksForm
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.endpoint_helpers.dashboard_helpers import get_first_and_last_days_of_data
 from libs.endpoint_helpers.summary_statistic_helpers import SummaryStatisticsPaginator
-from libs.internal_types import ParticipantQuerySet, ResearcherRequest
 from libs.s3 import NoSuchKeyException
 from libs.streaming_io import CSVBuffer
 from libs.streaming_zip import ZipGenerator
@@ -70,7 +70,7 @@ TASK_SERIALIZER_FIELDS = [
 def forest_tasks_progress(request: ResearcherRequest, study_id=None):
     # generates a chart of study analysis progress logs
     study = Study.objects.get(pk=study_id)
-    participants: ParticipantQuerySet = Participant.objects.filter(study=study_id)
+    participants: dbt.ParticipantQS = Participant.objects.filter(study=study_id)
     
     # later tasks will overwrite earlier tasks - this is intentional.
     # number of forest tasks shouldn't be the bottleneck here.

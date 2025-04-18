@@ -26,7 +26,7 @@ from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import Researcher, StudyRelation
-from libs.internal_types import ResponseOrRedirect, StrOrBytes
+from django.http.response import HttpResponse, HttpResponseRedirect
 from libs.shell_support import tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
@@ -52,7 +52,11 @@ VERBOSE_3 = "-v3" in argv and "-v2" not in argv and "-v1" not in argv
 logging.getLogger("django.request").setLevel(logging.ERROR)
 
 
+ResponseOrRedirect = HttpResponse|HttpResponseRedirect
+
+
 class MisconfiguredTestException(Exception): pass
+StrOrBytes = str|bytes
 
 
 # This parameter sets the password iteration count, which directly adds to the runtime of ALL user

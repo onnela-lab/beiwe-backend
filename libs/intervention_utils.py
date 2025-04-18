@@ -8,8 +8,8 @@ from django.db.models.aggregates import Count
 from database.schedule_models import InterventionDate, RelativeSchedule
 from database.study_models import Study
 from database.user_models_participant import Participant, ParticipantFieldValue
-from libs.internal_types import DictOfStrStr
 
+DictOfStrStr = dict[str, str]
 
 def intervention_survey_data(study: Study) -> Dict[str, Dict[str, DictOfStrStr]]:
     # this was manually tested to cover multiple interventions per survey, and multiple surveys per intervention

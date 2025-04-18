@@ -5,17 +5,13 @@ from django.http import UnreadablePostError
 from django.http.request import HttpRequest
 from django.utils import timezone
 
+from authentication.admin_authentication import ResearcherRequest
 from constants.security_constants import BASE64_GENERIC_ALLOWED_CHARACTERS, OBJECT_ID_ALLOWED_CHARS
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models_researcher import Researcher, StudyRelation
-from libs.internal_types import ApiResearcherRequest, ApiStudyResearcherRequest, ResearcherRequest
 from libs.sentry import make_error_sentry, SentryTypes
 from middleware.abort_middleware import abort
-
-
-class BadObjectIdType(Exception): pass
-class IncorrectAPIAuthUsage(Exception): pass
 
 
 DEBUG_API_AUTHENTICATION = False
@@ -41,6 +37,19 @@ def is_object_id(object_id: str) -> bool:
             return False
     
     return len(object_id) == 24
+
+
+class BadObjectIdType(Exception): pass
+class IncorrectAPIAuthUsage(Exception): pass
+
+
+class ApiStudyResearcherRequest(HttpRequest):
+    api_researcher: Researcher
+    api_study: Study
+
+
+class ApiResearcherRequest(HttpRequest):
+    api_researcher: Researcher
 
 
 ################################# Primary Access Validation ########################################

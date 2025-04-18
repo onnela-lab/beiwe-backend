@@ -2,8 +2,8 @@ from typing import List
 
 from django.db.models import F, Func
 
+from authentication.admin_authentication import ResearcherRequest
 from database.user_models_researcher import Researcher
-from libs.internal_types import ResearcherRequest
 
 
 def get_administerable_researchers(request: ResearcherRequest) -> List[Researcher]:

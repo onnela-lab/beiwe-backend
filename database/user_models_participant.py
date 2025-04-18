@@ -48,9 +48,7 @@ from libs.utils.security_utils import (compare_password, device_hash, django_pas
 # If you must to use an unimportable class (like ArchivedEvent in the notification_events()
 # convenience method on Participants below) you will need to add a local import.
 try:
-    from database.models import (ArchivedEvent, ChunkRegistry, EncryptionErrorMetadata,
-        FileToProcess, ForestTask, InterventionDate, IOSDecryptionKey, LineEncryptionError, S3File,
-        ScheduledEvent, StudyField, SummaryStatisticDaily, UploadTracking)
+    from database.models import ArchivedEvent, dbt, StudyField
 except ImportError:
     pass
 
@@ -67,9 +65,8 @@ class Participant(AbstractPasswordUser):
     patient_id = models.CharField(max_length=8, unique=True, validators=[ID_VALIDATOR])
     device_id = models.CharField(max_length=256, blank=True)
     os_type = models.CharField(max_length=16, choices=OS_TYPE_CHOICES, blank=True)
-    study: Study = models.ForeignKey(
-        Study, on_delete=models.PROTECT, related_name='participants', null=False
-    )
+    study: Study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name='participants', null=False)  # type: ignore
+    
     # see timezone property
     timezone_name = models.CharField(  # Warning: this is not used yet.
         max_length=256, default="America/New_York", null=False, blank=False
@@ -125,7 +122,6 @@ class Participant(AbstractPasswordUser):
     enable_developer_datastream = models.BooleanField(default=False)
     enable_beta_features = models.BooleanField(default=False)
     enable_extensive_device_info_tracking = models.BooleanField(default=False)
-    
     EXPERIMENT_FIELDS = (
         # "enable_aggressive_background_persistence",
         # "enable_binary_uploads",
@@ -136,28 +132,23 @@ class Participant(AbstractPasswordUser):
     )
     
     # related field typings (IDE halp)
-    archived_events: Manager[ArchivedEvent]
-    chunk_registries: Manager[ChunkRegistry]
-    deletion_event: Manager[ParticipantDeletionEvent]
-    device_status_reports: Manager[DeviceStatusReportHistory]
-    fcm_tokens: Manager[ParticipantFCMHistory]
-    field_values: Manager[ParticipantFieldValue]
-    files_to_process: Manager[FileToProcess]
-    heartbeats: Manager[AppHeartbeats]
-    intervention_dates: Manager[InterventionDate]
-    scheduled_events: Manager[ScheduledEvent]
-    upload_trackers: Manager[UploadTracking]
-    action_logs: Manager[ParticipantActionLog]
-    app_version_history: Manager[AppVersionHistory]
-    notification_reports: Manager[SurveyNotificationReport]
-    s3_files: Manager[S3File]
+    action_logs: dbt.ParticipantActionLogs;            files_to_process: dbt.FileToProcesses
+    app_version_history: dbt.AppVersionHistories;      heartbeats: dbt.AppHeartbeatses
+    archived_events: dbt.ArchivedEvents;               intervention_dates: dbt.InterventionDates
+    chunk_registries: dbt.ChunksRegistry;              s3_files: dbt.S3Files
+    deletion_event: dbt.ParticipantDeletionEvents;     scheduled_events: dbt.ScheduledEvents
+    fcm_tokens: dbt.ParticipantFCMHistories;           upload_trackers: dbt.UploadTrackings
+    field_values: dbt.ParticipantFieldValues
+    notification_reports: dbt.SurveyNotificationReports  #.... toooooo
+    device_status_reports: dbt.DeviceStatusReportHistories  #.... loooong
+    
     # undeclared:
-    encryptionerrormetadata_set: Manager[EncryptionErrorMetadata]  # TODO: remove when ios stops erroring
-    foresttask_set: Manager[ForestTask]
-    iosdecryptionkey_set: Manager[IOSDecryptionKey]  # TODO: remove when ios stops erroring
-    lineencryptionerror_set: Manager[LineEncryptionError]  # TODO: remove when ios stops erroring?
-    pushnotificationdisabledevent_set: Manager[PushNotificationDisabledEvent]
-    summarystatisticdaily_set: Manager[SummaryStatisticDaily]
+    encryptionerrormetadata_set: dbt.EncryptionErrorMetadatums
+    foresttask_set: dbt.ForestTasks
+    iosdecryptionkey_set: dbt.IOSDecryptionKeys
+    lineencryptionerror_set: dbt.LineEncryptionErrors
+    pushnotificationdisabledevent_set: dbt.PushNotificationDisabledEvents
+    summarystatisticdaily_set: dbt.SummaryStatisticsDaily
     
     ################################################################################################
     ###################################### Timezones ###############################################
@@ -167,7 +158,7 @@ class Participant(AbstractPasswordUser):
     def timezone(self) -> tzinfo:
         """ So pytz.timezone("America/New_York") provides a tzinfo-like object that is wrong by 4
         minutes.  That's insane.  The dateutil gettz function doesn't have that fun insanity. """
-        return gettz(self.timezone_name)
+        return gettz(self.timezone_name)  # type: ignore
     
     def try_set_timezone(self, new_timezone_name: str):
         """ Use dateutil to test whether the timezone is valid, only set timezone_name field if it

@@ -30,7 +30,6 @@ from database.survey_models import Survey
 from database.user_models_participant import (AppHeartbeats, DeviceStatusReportHistory, Participant,
     ParticipantActionLog, ParticipantDeletionEvent, ParticipantFCMHistory, ParticipantFieldValue)
 from database.user_models_researcher import Researcher, StudyRelation
-from libs.internal_types import Schedule
 from libs.schedules import repopulate_weekly_survey_schedule_events
 from libs.utils.security_utils import device_hash, generate_easy_alphanumeric_string
 
@@ -109,6 +108,7 @@ for _field_name in _unskipped_names:
 for _field_name in DEFAULT_PARTICIPANT_PARAMS:
     if _field_name not in _all_field_names:
         raise (f"field {_field_name} is not in the Participant model." )
+Schedule = WeeklySchedule|RelativeSchedule|AbsoluteSchedule
 
 
 # this is a real, if simple, survey, it contains logically displayed questions based on the slider Q

@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from markupsafe import Markup
 
-from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
+from authentication.admin_authentication import (ResearcherRequest, assert_admin, assert_researcher_under_admin,
     authenticate_admin, authenticate_researcher_login)
 from config.settings import DOMAIN_NAME
 from constants.message_strings import (API_KEY_IS_DISABLED, API_KEY_NOW_DISABLED, MFA_CODE_6_DIGITS,
@@ -28,7 +28,6 @@ from libs.endpoint_helpers.password_validation_helpers import (check_password_re
 from libs.endpoint_helpers.researcher_helpers import get_administerable_researchers
 from libs.endpoint_helpers.study_helpers import get_administerable_studies_by_name
 from libs.endpoint_helpers.system_admin_helpers import mfa_clear_allowed
-from libs.internal_types import ResearcherRequest
 from libs.utils.http_utils import easy_url
 from libs.utils.security_utils import create_mfa_object, qrcode_bas64_png, verify_mfa
 from middleware.abort_middleware import abort

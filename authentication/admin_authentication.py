@@ -21,7 +21,6 @@ from constants.user_constants import (ALL_RESEARCHER_TYPES, EXPIRY_NAME, Researc
 from database.study_models import Study
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.endpoint_helpers.password_validation_helpers import get_min_password_requirement
-from libs.internal_types import ResearcherRequest
 from libs.utils.http_utils import easy_url
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from middleware.abort_middleware import abort
@@ -33,6 +32,10 @@ DEBUG_ADMIN_AUTHENTICATION = False
 def log(*args, **kwargs):
     if DEBUG_ADMIN_AUTHENTICATION:
         print(*args, **kwargs)
+
+
+class ResearcherRequest(HttpRequest):
+    session_researcher: Researcher
 
 
 # Top level authentication wrappers

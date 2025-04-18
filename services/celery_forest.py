@@ -25,11 +25,11 @@ from constants.forest_constants import (CLEANUP_ERROR as CLN_ERR, FOREST_TREE_RE
 from constants.raw_data_constants import CHUNK_FIELDS
 from database.data_access_models import ChunkRegistry
 from database.forest_models import ForestTask, SummaryStatisticDaily
+from database.models import dbt
 from database.system_models import ForestVersion
 from database.user_models_participant import Participant
 from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.endpoint_helpers.copy_study_helpers import format_study
-from libs.internal_types import ChunkRegistryQuerySet
 from libs.intervention_utils import intervention_survey_data
 from libs.s3 import s3_retrieve
 from libs.sentry import make_error_sentry, SentryTypes
@@ -354,7 +354,7 @@ def clean_up_files(forest_task: ForestTask):
     )
 
 
-def download_data_files(task: ForestTask, chunks: ChunkRegistryQuerySet) -> None:
+def download_data_files(task: ForestTask, chunks: dbt.ChunkRegistryQS) -> None:
     """ Download only the files needed for the forest task. """
     ensure_folders_exist(task)
     # this is an iterable, this is intentional, retain it.

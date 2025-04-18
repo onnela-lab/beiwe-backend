@@ -6,7 +6,8 @@ from django.views.decorators.http import require_GET, require_http_methods
 from markupsafe import Markup
 
 from authentication.admin_authentication import (authenticate_researcher_login,
-    authenticate_researcher_study_access, get_researcher_allowed_studies_as_query_set)
+    authenticate_researcher_study_access, get_researcher_allowed_studies_as_query_set,
+    ResearcherRequest)
 from constants.data_stream_constants import (ALL_DATA_STREAMS, COMPLETE_DATA_STREAM_DICT,
     DASHBOARD_DATA_STREAMS)
 from database.study_models import Study
@@ -15,7 +16,6 @@ from libs.endpoint_helpers.dashboard_helpers import (create_next_past_urls, dash
     extract_date_args_from_request, get_bytes_data_stream_match, get_first_and_last_days_of_data,
     get_unique_dates, handle_filters, parse_data_streams)
 from libs.endpoint_helpers.study_helpers import conditionally_display_study_status_warnings
-from libs.internal_types import ResearcherRequest
 
 
 @require_GET

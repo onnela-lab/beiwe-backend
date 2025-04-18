@@ -8,12 +8,12 @@ from django.http.response import HttpResponse
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models_researcher import StudyRelation
-from libs.internal_types import TableauRequest
 
 
 class TableauAuthenticationFailed(Exception): pass
 class TableauPermissionDenied(Exception): pass
 
+class TableauRequest(HttpRequest): pass  # no modifications needed
 
 # we have a bunch of special purpose strings, these cluttec up constants so leave them here
 

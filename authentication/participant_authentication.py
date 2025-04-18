@@ -8,7 +8,6 @@ from django.http.request import HttpRequest
 
 from constants.user_constants import IOS_API
 from database.user_models_participant import Participant, SurveyNotificationReport
-from libs.internal_types import ParticipantRequest
 from middleware.abort_middleware import abort
 
 
@@ -18,6 +17,10 @@ DEBUG_PARTICIPANT_AUTHENTICATION = False
 def log(*args, **kwargs):
     if DEBUG_PARTICIPANT_AUTHENTICATION:
         print("PARTICIPANT AUTH:", *args, **kwargs)
+
+
+class ParticipantRequest(HttpRequest):
+    session_participant: Participant
 
 
 def validate_post(request: HttpRequest, require_password: bool, registration: bool) -> bool:

@@ -3,9 +3,8 @@ import uuid
 from django.http.request import HttpRequest
 from django.shortcuts import redirect
 
-from authentication.admin_authentication import authenticate_researcher_login
+from authentication.admin_authentication import authenticate_researcher_login, ResearcherRequest
 from config.settings import DOWNLOADABLE_APK_URL
-from libs.internal_types import ResearcherRequest
 
 
 """##### Methods responsible for distributing APK file of Android app. #####"""

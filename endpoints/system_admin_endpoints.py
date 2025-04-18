@@ -4,7 +4,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from markupsafe import Markup
 
-from authentication.admin_authentication import authenticate_admin
+from authentication.admin_authentication import authenticate_admin, ResearcherRequest
 from constants.celery_constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     IOS_FIREBASE_CREDENTIALS)
 from constants.message_strings import (ALERT_ANDROID_DELETED_TEXT, ALERT_ANDROID_SUCCESS_TEXT,
@@ -16,7 +16,6 @@ from database.system_models import FileAsText
 from libs.endpoint_helpers.system_admin_helpers import (validate_android_credentials,
     validate_ios_credentials)
 from libs.firebase_config import get_firebase_credential_errors, update_firebase_instance
-from libs.internal_types import ResearcherRequest
 
 
 ########################## FIREBASE CREDENTIALS ENDPOINTS ##################################

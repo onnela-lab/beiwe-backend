@@ -1,19 +1,18 @@
 import json
 
-from django.contrib import messages
 from django.http.response import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.views.decorators.http import require_http_methods, require_POST
 
-from authentication.admin_authentication import authenticate_researcher_study_access
+from authentication.admin_authentication import (authenticate_researcher_study_access,
+    ResearcherRequest)
 from config.settings import DOMAIN_NAME
 from database.schedule_models import AbsoluteSchedule, RelativeSchedule, WeeklySchedule
 from database.study_models import Study
 from database.survey_models import Survey
 from libs.firebase_config import check_firebase_instance
-from libs.internal_types import ResearcherRequest
 from libs.json_logic import do_validate_survey
 from libs.schedules import (repopulate_absolute_survey_schedule_events,
     repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)

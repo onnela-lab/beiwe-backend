@@ -18,9 +18,9 @@ billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.37.20
+boto3==1.37.36
     # via -r requirements.in
-botocore==1.37.20
+botocore==1.37.36
     # via
     #   boto3
     #   s3transfer
@@ -79,9 +79,9 @@ google-api-core[grpc]==2.24.2
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.165.0
+google-api-python-client==2.167.0
     # via firebase-admin
-google-auth==2.38.0
+google-auth==2.39.0
     # via
     #   google-api-core
     #   google-api-python-client
@@ -95,17 +95,17 @@ google-cloud-core==2.4.3
     # via
     #   google-cloud-firestore
     #   google-cloud-storage
-google-cloud-firestore==2.20.1
+google-cloud-firestore==2.20.2
     # via firebase-admin
 google-cloud-storage==3.1.0
     # via firebase-admin
-google-crc32c==1.7.0
+google-crc32c==1.7.1
     # via
     #   google-cloud-storage
     #   google-resumable-media
 google-resumable-media==2.7.2
     # via google-cloud-storage
-googleapis-common-protos==1.69.2
+googleapis-common-protos==1.70.0
     # via
     #   google-api-core
     #   grpcio-status
@@ -119,7 +119,7 @@ gunicorn==23.0.0
     # via -r requirements.in
 h3==4.2.2
     # via timezonefinder
-holidays==0.69
+holidays==0.70
     # via beiwe-forest
 httplib2==0.22.0
     # via
@@ -127,7 +127,7 @@ httplib2==0.22.0
     #   google-auth-httplib2
 idna==3.10
     # via requests
-ipython==9.0.2
+ipython==9.1.0
     # via -r requirements.in
 ipython-pygments-lexers==1.1.1
     # via ipython
@@ -143,7 +143,7 @@ joblib==1.4.2
     # via
     #   librosa
     #   scikit-learn
-kombu==5.5.1
+kombu==5.5.3
     # via celery
 lazy-loader==0.4
     # via librosa
@@ -159,11 +159,11 @@ msgpack==1.1.0
     # via
     #   cachecontrol
     #   librosa
-numba==0.61.0
+numba==0.61.2
     # via
     #   librosa
     #   ssqueezepy
-numpy==2.1.3
+numpy==2.2.4
     # via
     #   beiwe-forest
     #   librosa
@@ -195,7 +195,7 @@ platformdirs==4.3.7
     # via pooch
 pooch==1.8.2
     # via librosa
-prompt-toolkit==3.0.50
+prompt-toolkit==3.0.51
     # via
     #   click-repl
     #   ipython
@@ -220,7 +220,7 @@ pyasn1==0.6.1
     # via
     #   pyasn1-modules
     #   rsa
-pyasn1-modules==0.4.1
+pyasn1-modules==0.4.2
     # via google-auth
 pycparser==2.22
     # via cffi
@@ -265,9 +265,9 @@ requests==2.32.3
     #   google-cloud-storage
     #   openrouteservice
     #   pooch
-rsa==4.9
+rsa==4.9.1
     # via google-auth
-s3transfer==0.11.4
+s3transfer==0.11.5
     # via boto3
 scikit-learn==1.6.1
     # via librosa
@@ -277,9 +277,9 @@ scipy==1.15.2
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.24.1
+sentry-sdk==2.26.1
     # via cronutils
-shapely==2.0.7
+shapely==2.1.0
     # via beiwe-forest
 six==1.17.0
     # via python-dateutil
@@ -301,18 +301,18 @@ traitlets==5.14.3
     # via
     #   ipython
     #   matplotlib-inline
-typing-extensions==4.12.2
+typing-extensions==4.13.2
     # via
     #   librosa
     #   psycopg
-tzdata==2025.1
+tzdata==2025.2
     # via
     #   celery
     #   kombu
     #   pandas
 uritemplate==4.1.1
     # via google-api-python-client
-urllib3==2.3.0
+urllib3==2.4.0
     # via
     #   botocore
     #   requests

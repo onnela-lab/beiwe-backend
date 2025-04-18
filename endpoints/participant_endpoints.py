@@ -16,7 +16,8 @@ from firebase_admin.exceptions import FirebaseError
 from firebase_admin.messaging import (AndroidConfig, Message, Notification,
     send as send_push_notification, UnregisteredError)
 
-from authentication.admin_authentication import authenticate_researcher_study_access
+from authentication.admin_authentication import (authenticate_researcher_study_access,
+    ResearcherRequest)
 from config.settings import ENABLE_EXPERIMENTS
 from constants.common_constants import (API_DATE_FORMAT, API_TIME_FORMAT,
     RUNNING_TEST_OR_FROM_A_SHELL)
@@ -35,7 +36,6 @@ from libs.endpoint_helpers.participant_helpers import (conditionally_display_loc
     convert_to_page_expectations, get_heartbeats_query, get_survey_names_dict,
     query_values_for_notification_history, render_participant_page)
 from libs.firebase_config import check_firebase_instance
-from libs.internal_types import ResearcherRequest
 from libs.intervention_utils import add_fields_and_interventions
 from libs.participant_purge import add_participant_for_deletion
 from libs.rsa import create_participant_key_pair

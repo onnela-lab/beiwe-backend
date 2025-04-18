@@ -9,16 +9,17 @@ from django.core.paginator import Paginator
 from django.db.models import F, Manager
 from django.shortcuts import render
 
+from authentication.admin_authentication import ResearcherRequest
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
 from constants.common_constants import (API_DATE_FORMAT, DT_12HR_N_TZ_N_SEC_N_PAREN,
     DT_24HR_W_TZ_W_SEC_N_PAREN, T_24HR_W_TZ_N_SEC_N_PAREN)
 from constants.message_strings import PARTICIPANT_LOCKED
 from constants.user_constants import DATA_DELETION_ALLOWED_RELATIONS
+from database.models import dbt
 from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.user_models_participant import Participant, ParticipantActionLog
 from libs.firebase_config import check_firebase_instance
-from libs.internal_types import ArchivedEventQuerySet, ResearcherRequest
 from libs.utils.http_utils import (compact_iso_time_format, more_compact_iso_time_format,
     niceish_iso_time_format, null_time_format)
 
@@ -109,7 +110,7 @@ def get_survey_names_dict(study: Study) -> Dict[int, str]:
     return survey_names
 
 
-def query_values_for_notification_history(participant_id) -> ArchivedEventQuerySet:
+def query_values_for_notification_history(participant_id) -> dbt.ArchivedEventQS:
     return (
         ArchivedEvent.objects
         .filter(participant_id=participant_id)

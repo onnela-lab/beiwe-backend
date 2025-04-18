@@ -6,17 +6,17 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from authentication import admin_authentication
+from authentication.admin_authentication import ResearcherRequest
 from constants.message_strings import (MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING,
     MFA_CODE_WRONG)
 from database.user_models_researcher import Researcher
-from libs.internal_types import ResearcherRequest
 from libs.utils.security_utils import verify_mfa
 
 
 @require_GET
 def login_page(request: HttpRequest):
     # if they are logged in then / redirects to the choose study page.
-    if admin_authentication.check_is_logged_in(request):
+    if admin_authentication.check_is_logged_in(request):  # type: ignore
         return redirect("/choose_study")
     
     # Django automatically de-urlifies GET parameters. All our urls are supposed to be unescaped

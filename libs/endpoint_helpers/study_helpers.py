@@ -1,14 +1,14 @@
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 
+from authentication.admin_authentication import ResearcherRequest
 from constants.message_strings import (ENDED_STUDY_MESSAGE, HIDDEN_STUDY_MESSAGE,
     MANUALLY_STOPPED_STUDY_MESSAGE)
 from database.study_models import DeviceSettings, Study
-from libs.internal_types import ResearcherRequest
 
 
 ## Utils, really

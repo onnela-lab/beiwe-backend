@@ -12,8 +12,8 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
 from authentication.data_access_authentication import (api_credential_check,
-    api_study_credential_check)
-from authentication.tableau_authentication import authenticate_tableau
+    api_study_credential_check, ApiResearcherRequest, ApiStudyResearcherRequest)
+from authentication.tableau_authentication import authenticate_tableau, TableauRequest
 from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MISSING_JSON_CSV_MESSAGE
 from database.forest_models import SummaryStatisticDaily
@@ -28,7 +28,6 @@ from libs.endpoint_helpers.participant_table_helpers import (common_data_extract
     get_table_columns)
 from libs.endpoint_helpers.study_summaries_helpers import get_participant_data_upload_summary
 from libs.endpoint_helpers.summary_statistic_helpers import summary_statistics_request_handler
-from libs.internal_types import ApiResearcherRequest, ApiStudyResearcherRequest, TableauRequest
 from libs.intervention_utils import intervention_survey_data, survey_history_export
 
 

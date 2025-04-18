@@ -6,11 +6,12 @@ from typing import List, Union
 from django.db.models import F
 from django.http import HttpResponse, StreamingHttpResponse
 
+from authentication.admin_authentication import ResearcherRequest
+from authentication.tableau_authentication import TableauRequest
 from constants.forest_constants import SERIALIZABLE_FIELD_NAMES
 from database.forest_models import SummaryStatisticDaily
 from libs.django_forms.forms import ApiQueryForm
 from libs.efficient_paginator import EfficientQueryPaginator
-from libs.internal_types import ResearcherRequest, TableauRequest
 
 
 def summary_statistics_request_handler(

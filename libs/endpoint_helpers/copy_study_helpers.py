@@ -7,6 +7,7 @@ import orjson
 from django.contrib import messages
 from django.http.response import FileResponse
 
+from authentication.admin_authentication import ResearcherRequest
 from constants.copy_study_constants import (ABSOLUTE_SCHEDULE_KEY, DEVICE_SETTINGS_KEY,
     INTERVENTIONS_KEY, NEVER_EXPORT_THESE, RELATIVE_SCHEDULE_KEY, STUDY_KEY, SURVEY_CONTENT_KEY,
     SURVEYS_KEY, WEEKLY_SCHEDULE_KEY)
@@ -15,7 +16,6 @@ from database.schedule_models import (AbsoluteSchedule, Intervention, RelativeSc
     WeeklySchedule)
 from database.study_models import Study
 from database.survey_models import Survey
-from libs.internal_types import ResearcherRequest
 from libs.schedules import repopulate_all_survey_scheduled_events
 
 

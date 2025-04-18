@@ -16,7 +16,7 @@ from firebase_admin.messaging import Message, send as send_push_notification
 from sentry_sdk import set_tag
 
 from authentication.participant_authentication import (authenticate_participant,
-    authenticate_participant_registration, minimal_validation)
+    authenticate_participant_registration, minimal_validation, ParticipantRequest)
 from config.settings import UPLOAD_LOGGING_ENABLED
 from constants.celery_constants import ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS
 from constants.common_constants import API_TIME_FORMAT
@@ -33,7 +33,6 @@ from libs.endpoint_helpers.graph_data_helpers import get_survey_results
 from libs.endpoint_helpers.participant_file_upload_helpers import (
     upload_and_create_file_to_process_and_log, upload_problem_file)
 from libs.firebase_config import check_firebase_instance
-from libs.internal_types import ParticipantRequest, ScheduledEventQuerySet
 from libs.rsa import get_participant_public_key_string
 from libs.s3 import s3_upload
 from libs.schedules import (decompose_datetime_to_device_weekly_timings,
@@ -409,7 +408,7 @@ def format_survey_for_device(survey: Survey, participant: Participant):
     # notifications for 4 days, and gives the app 3 days of failing to check in until it is out of
     # sync with abosule and relative surveys.
     # (filter with __lt for the_future since we are "zeroing" to midnight, __gte for the_past.)
-    query: ScheduledEventQuerySet = survey.scheduled_events.filter(
+    query = survey.scheduled_events.filter(
         scheduled_time__gte=the_past,
         scheduled_time__lt=the_future,
         participant=participant,

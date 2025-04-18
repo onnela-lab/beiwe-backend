@@ -128,7 +128,7 @@ def determine_os_api(some_function: Callable) -> Callable:
     To handle any issues that arise from an undeclared keyword argument, throw 'OS_API=""' into your
     url function declaration. """
     
-    from libs.internal_types import ParticipantRequest
+    from authentication.participant_authentication import ParticipantRequest  # can't be global
     
     @functools.wraps(some_function)
     def provide_os_determination_and_call(*args, **kwargs):

@@ -1,7 +1,7 @@
+from authentication.admin_authentication import ResearcherRequest
 from config.settings import ENABLE_EXPERIMENTS
 from constants.user_constants import ANDROID_API, IOS_API
 from database.study_models import Study
-from libs.internal_types import ResearcherRequest
 
 
 # NOTE: there is documentation on the django documentation page about using context processors with
