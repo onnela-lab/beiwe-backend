@@ -237,7 +237,7 @@ def create_study(request: ResearcherRequest):
         return redirect('/create_study')
     
     # normalize all sequences of whitespace to a single space
-    name = re.sub("\s", " ", name)
+    name = re.sub(r"\s", " ", name)
     
     if escape(name) != name:
         if not RUNNING_TEST_OR_FROM_A_SHELL:
