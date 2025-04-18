@@ -34,6 +34,8 @@ from libs.schedules import repopulate_weekly_survey_schedule_events
 from libs.utils.security_utils import device_hash, generate_easy_alphanumeric_string
 
 
+Schedule = WeeklySchedule|RelativeSchedule|AbsoluteSchedule
+
 CURRENT_TEST_HTML_FILEPATH = BEIWE_PROJECT_ROOT + "private/current_test_page.html"
 ABS_STATIC_ROOT = (BEIWE_PROJECT_ROOT + STATIC_ROOT).encode()
 
