@@ -1,26 +1,23 @@
 # trunk-ignore-all(ruff/E701)
 from __future__ import annotations
 
-import builtins
 import json
 from collections import defaultdict
-from datetime import date, datetime, tzinfo
+from datetime import date, datetime
 from pprint import pprint
 from random import choice as random_choice
 from typing import Any, Dict, List, Sequence, Tuple, Union
 
-import dateutil
 from django.db import models
 from django.db.models import Q, QuerySet
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import RelatedField
 from django.db.models.manager import BaseManager
-from django.db.models.query import BaseIterable, QuerySet
+from django.db.models.query import BaseIterable, QuerySet, ValuesIterable, ValuesListIterable
 from django.utils.timezone import localtime
 from typing_extensions import Self
 
-from constants.common_constants import (DEV_TIME_FORMAT3, DT_24HR_N_TZ_W_SEC_N_PAREN,
-    DT_24HR_W_TZ_W_SEC_N_PAREN, EASTERN)
+from constants.common_constants import DEV_TIME_FORMAT3, DT_24HR_W_TZ_W_SEC_N_PAREN, EASTERN
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 
 
@@ -391,75 +388,43 @@ def lookup_dict_setup(queryable, keys: Sequence[str], values: Sequence[str], **f
 
 
 #
-# monkeypatches to add a nicely printable method on django querysets+....
+# Monkeypatches that add a ~pprint property to django querysets for date/time objects.
 #
 
+_special_format = "<" + DT_24HR_W_TZ_W_SEC_N_PAREN.replace(" ", "_") + ">"
 
-_rtypes = {k for v,k in vars(builtins).items() if isinstance(k, type)}
-
-
-def rprint(x: Any, nest_level=0) -> Any:
-    """ Tries to construct legible nested structures version of a collection. """
+def terminal_legible_dt_as_a_method(self: BaseIterable):
+    end = ""
+    ret = [terminal_legible_dt(v) for v in list(self[:31])]
+    if len(ret) > 30:
+        ret.pop(30)  # there we go, if its too long we REPLACE a "..." to the end.....
+        end = ", '...(remaining elements truncated)...'"
     
-    if nest_level >= 10:
-        return f"[nesting at {nest_level}]"
-    
+    return f'<QuerySet [{", ".join([(repr(x)) for x in ret])}{end}]>'
+
+
+def terminal_legible_dt(x: Any) -> Any:
     if isinstance(x, datetime):
-        v = _tformat(x)
-        if x.tzinfo is not None:  # if the orig had a timezone
-            if x.tzinfo != EASTERN:
-                v = v + f" (was {x.strftime("%Z")})"
-        return v
-    
+        return localtime(x, EASTERN).strftime(_special_format)
     elif isinstance(x, date):
         return x.isoformat()
     
+    # .values()
     elif isinstance(x, dict) or issubclass(type(x), dict):
         new = {}
         for k, v in x.items():
-            new[k] = rprint(v, nest_level + 1)
+            new[k] = terminal_legible_dt(v)
         return new
     
-    elif isinstance(x, list) or issubclass(type(x), list):
-        return [rprint(v, nest_level + 1) for v in x]
+    # .values_list(flat!=True) (and many dates)
+    elif isinstance(x, tuple|list) or issubclass(type(x), tuple|list):
+        return tuple(terminal_legible_dt(v) for v in x)
     
-    elif isinstance(x, tuple) or issubclass(type(x), tuple):
-        return tuple(rprint(v, nest_level + 1) for v in x)
-    
-    elif isinstance(x, set) or issubclass(type(x), set):
-        y = ["{this one's a set}"]
-        for v in x:
-            y.append(rprint(v, nest_level + 1))
-        return y
-    
-    elif hasattr(x, "__iter__") and type(x) not in _rtypes:
-        y = [f"(this one's a {type(x).__name__})"]
-        for v in x:
-            y.append(rprint(v, nest_level + 1))
-        return y
-    
-    else:
-        return x
+    return x
 
 
-def _tformat(dt: datetime, tz: tzinfo = EASTERN, fmt: str = DT_24HR_W_TZ_W_SEC_N_PAREN) -> str:
-    if dt.tzinfo is None:
-        return dt.strftime(DT_24HR_N_TZ_W_SEC_N_PAREN) + " (None)"
-    return localtime(dt, tz).strftime(fmt)
-
-
-def rprint_as_method(self: BaseIterable, nest_level=0):
-    return rprint(list(self), nest_level)
-
-
-# QuerySet.rprint = rprint_as_method  # not actually super useful, just gets the repr. # type: ignore  
-BaseIterable.rprint = rprint_as_method  # values_list, values, etc.  # type: ignore
-BaseManager.rprint = rprint_as_method  # "objects." # type: ignore
-
-# this one is probably too dangerous, think study passwords
-# def new_repr(self: BaseIterable):
-#     from pprint import pformat
-#     ret = list(self.values()[:4])
-#     ret.append(" ... ")
-#     return pformat(ret, width=os.get_terminal_size().columns)
-# BaseManager.__repr__ = new_repr  # type: ignore
+QuerySet.__repr__ = terminal_legible_dt_as_a_method  # type: ignore  
+BaseIterable.__repr__ = terminal_legible_dt_as_a_method  # values_list, values, etc.  # type: ignore
+BaseManager.__repr__ = terminal_legible_dt_as_a_method  # "objects." # type: ignore
+ValuesIterable.__repr__ = terminal_legible_dt_as_a_method  # type: ignore
+ValuesListIterable.__repr__ = terminal_legible_dt_as_a_method  # type: ignore
