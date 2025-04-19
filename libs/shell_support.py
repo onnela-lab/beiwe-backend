@@ -29,7 +29,6 @@ from libs.utils.dev_utils import disambiguate_participant_survey, TxtClr
 #
 
 
-
 def as_local(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE):
     """ Takes a datetime object and returns it in a useful timezone, defaults to THE_ONE_TRUE_TIMEZONE. """
     return localtime(dt, tz)

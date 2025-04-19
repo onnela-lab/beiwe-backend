@@ -420,7 +420,7 @@ def device_settings(request: ResearcherRequest, study_id=None):
 
 
 @require_GET
-@authenticate_admin
+@authenticate_researcher_study_access
 def export_study_settings_file(request: ResearcherRequest, study_id):
     return study_settings_fileresponse(study_id)
 

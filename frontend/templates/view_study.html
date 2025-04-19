@@ -60,13 +60,13 @@
       </i>
     </div>
 
-    <div class="row">
+    <div>
       <div class="col-xs-12 row">
         <h3>Participants</h3>
       </div>
     </div>
 
-    <div class="row">
+    <div>
       <div class="col-xs-12 well">        
         <p>Total participants ever registered on this study: 
           {{ "{:,}".format(participants_ever_registered_count) }}</p>
@@ -111,22 +111,22 @@
         {% include 'create_many_participants_modal.html' %}
       </div>
     </div>
-
-    <div class="col-xs-11 row"> 
+    
+    <div class="col-xs-11"> 
       <h3 class="row"> Surveys </h3>
     </div>
     <div class="col-xs-1"> 
-      <a href="/create_survey/{{ study.id }}/tracking_survey" class="btn btn-info h3-margins pull-right">
+      <a href="/create_survey/{{ study.id }}/tracking_survey" class="btn btn-info h3-margins pull-right margin-right-neg-1">
         Create New <b>Survey</b></a>
     </div>
     
-    <div class="row">
+    <div>
       <div class="list-group well col-xs-12">
         {% if tracking_survey_info %}
           {% for info in tracking_survey_info %}
           
             <div class="col-xs-12">
-              <a href="/edit_survey/{{study_id}}/{{info["id"] }}" class="list-group-item survey-button-margins row">  
+              <a href="/edit_survey/{{study_id}}/{{info["id"] }}" class="list-group-item survey-button-margins row">
                 {% if info["name"] != "" %}
                   <span class="col-xs-9 row">
                     {{info["name"]}} 
@@ -161,15 +161,15 @@
       </div>
     </div>
 
-    <div class="col-xs-11 row"> 
+    <div class="col-xs-11"> 
       <h3 class="row"> Audio Surveys </h3>
     </div>
     <div class="col-xs-1"> 
-      <a href="/create_survey/{{ study.id }}/audio_survey" class="btn btn-info h3-margins pull-right">
+      <a href="/create_survey/{{ study.id }}/audio_survey" class="btn btn-info h3-margins pull-right margin-right-neg-1">
         Create New <b>Audio Survey</b></a>
     </div>
 
-    <div class="row">
+    <div>
       <div class="list-group well col-xs-12">
         {% if audio_survey_info %}
           {% for info in audio_survey_info %}
@@ -200,40 +200,52 @@
       </div>
     </div>
 
-    <div class="row" >
+    <div>
       <h3>Study Configuration</h3>
       
-      <div class="col-xs-12 well ">  
+      <div class="col-xs-12 well">  
         {% if push_notifications_enabled %}
-          <div class="col-xs-3">
-
-            <p><a class="btn btn-info h3-margins" 
-            href={{ easy_url("manage_study_endpoints.interventions_page", study_id=study.id) }}>
+          <div class="col-xs-6 margin-bottom-2">
+            <p><a class="btn btn-info" href={{ easy_url("manage_study_endpoints.interventions_page", study_id=study.id) }}>
               Edit Interventions
             </a></p>
             Configure Interventions for use with Relative survey schedules
           </div>
-          
         {% endif %}
 
-        <div class="col-xs-6">
-          <p><a class="btn btn-info h3-margins"  href="/device_settings/{{ study['id'] }}">
+        <div class="col-xs-6 margin-bottom-2">
+          <p><a class="btn btn-info" href={{ easy_url('manage_study_endpoints.study_fields', study_id=study.id) }}>
+            Edit Custom Fields
+          </a></p>
+          Edit custom tags for organizing participants in your study.
+        </div>
+
+        <div class="col-xs-6 margin-bottom-2">
+          <p><a class="btn btn-info" href={{ easy_url('study_endpoints.device_settings', study_id=study.id) }}>
             Edit App Settings
           </a></p>
           Configure types and quantity of the passive data streams this study collects, and the wording that study participants see in the app
         </div>
 
-        <div class="col-xs-3">
-          <p><a class="btn btn-info h3-margins"  href="/study_fields/{{ study['id'] }}">
-            Edit Custom Fields
+        <div class="col-xs-6 margin-bottom-2">
+          <p><a class="btn btn-info" href={{ easy_url('study_endpoints.export_study_settings_file', study_id=study.id) }}>
+          Export Study Settings JSON
           </a></p>
-          Edit custom tags for organizing participants in your study.
+          Download the full JSON configuration for this study.
+        </div>
+
+        <div class="col-xs-6 margin-bottom-2">
+          <p><a class="btn btn-info" href={{ easy_url('manage_study_endpoints.download_study_survey_history', study_id=study.id) }}>
+          Export Survey Edits History JSON
+          </a></p>
+          Download the JSON of every change made to surveys in this study.<i><br>(Includes current surveys.)</i>
         </div>
       </div>
+    
     </div>
 
     {% if study.forest_enabled %}
-      <div class="row" >
+      <div>
         <h3>Forest Data Analysis</h3>
         <div class="col-xs-12 well">
 
