@@ -9,7 +9,7 @@ from django.urls.base import reverse
 from constants.common_constants import (API_TIME_FORMAT_WITH_TZ, DT_24HR_N_TZ_N_SEC_W_PAREN,
     DT_24HR_W_TZ_W_SEC_N_PAREN, DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDL_12HR_W_TZ_W_SEC_W_PAREN,
     DT_WDS_12HR_N_TZ_N_SEC_N_PAREN, DT_WDS_12HR_W_TZ_N_SEC_W_PAREN,
-    LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN)
+    DT_24HR_W_TZ_W_SEC_N_PAREN_WITH_LINE_BREAK)
 from constants.user_constants import ANDROID_API, IOS_API
 
 
@@ -65,7 +65,7 @@ def line_break_compact_iso_time_format(dt: datetime, timezone: tzinfo|str) -> st
     if dt is None:
         return ""
     timezone = gettz(timezone) if isinstance(timezone, str) else timezone
-    return dt.astimezone(timezone).strftime(LINE_BREAK_DT_24HR_W_TZ_W_SEC_N_PAREN)
+    return dt.astimezone(timezone).strftime(DT_24HR_W_TZ_W_SEC_N_PAREN_WITH_LINE_BREAK)
 
 
 def niceish_iso_time_format(dt: datetime, timezone: tzinfo|str) -> str:

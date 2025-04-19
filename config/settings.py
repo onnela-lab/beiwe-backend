@@ -64,6 +64,15 @@ DOWNLOADABLE_APK_URL: str = getenv(
 )
 
 #
+# Customization
+#
+
+# Added April 2025, this timezone should never be used for "real code", it is used in the terminal
+# and for debugging and possibly in error reports (sometimes).
+DEVELOPER_TIMEZONE: str = getenv("DEVELOPER_TIMEZONE", "America/New_York")
+
+
+#
 # File processing and Data Access API options
 #
 

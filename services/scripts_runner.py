@@ -1,5 +1,3 @@
-
-
 from libs.celery_control import CeleryScriptTask, DAILY, HOURLY, SIX_MINUTELY
 from scripts import (purge_participant_data, repopulate_push_notifications,
     script_that_removes_data_from_invalid_time_sources, update_forest_version, upload_logs)

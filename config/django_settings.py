@@ -99,7 +99,7 @@ SHELL_PLUS_POST_IMPORTS = [
     "json",
     "orjson",
     ["collections", ("Counter", "defaultdict")],
-    ["pprint", ("pprint",)],
+    ["pprint", ("pprint", "pp", "pformat")],
     
     # datetimezone
     "dateutil",  # do not add pytz it is deprecated

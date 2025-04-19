@@ -8,11 +8,10 @@ from dateutil.tz import gettz
 from django.utils import timezone
 from django.utils.timezone import localtime
 
+from constants.common_constants import *  # they are common for a reason
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
-from constants.common_constants import (DEV_TIME_FORMAT, DEV_TIME_FORMAT3, DEV_TIME_FORMAT4,
-    DT_24HR_N_TZ_N_SEC_N_PAREN, EASTERN, EDT, EST, UTC)
 from constants.message_strings import MESSAGE_SEND_SUCCESS
-from database.common_models import rprint
+from database.common_models import terminal_legible_dt  # keep
 from database.data_access_models import FileToProcess
 from database.profiling_models import UploadTracking
 from database.schedule_models import ArchivedEvent, ScheduledEvent
@@ -28,34 +27,28 @@ from libs.utils.dev_utils import disambiguate_participant_survey, TxtClr
 ## This file is referenced directly inside of developer documentation, keep it organized
 ## and well commented.
 #
-UTC = UTC
-EST = EST
-EDT = EDT
-EASTERN = EASTERN
-THE_ONE_TRUE_TIMEZONE = EASTERN
 
-# imported!
-rprint = rprint
 
-def as_local(dt: datetime, tz=EASTERN):
-    """ Takes a datetime object and returns it in a useful timezone, defaults to EASTERN. """
+
+def as_local(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE):
+    """ Takes a datetime object and returns it in a useful timezone, defaults to THE_ONE_TRUE_TIMEZONE. """
     return localtime(dt, tz)
 
 
-def _tformat(dt: datetime, tz=EASTERN, fmt=DEV_TIME_FORMAT3):
+def _tformat(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE, fmt=DEV_TIME_FORMAT3):
     """ Takes a datatime, returns a legible string representation using as_local. """
     if dt.tzinfo is None:
         return dt.strftime(DT_24HR_N_TZ_N_SEC_N_PAREN) + " (None)"
     return as_local(dt, tz).strftime(fmt)
 
 
-def tformat(dt: datetime, tz=EASTERN):
+def tformat(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE):
     return _tformat(dt, tz, DEV_TIME_FORMAT)
 
-def tformat3(dt: datetime, tz=EASTERN):
+def tformat3(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE):
     return _tformat(dt, tz, DEV_TIME_FORMAT3)
 
-def tformat4(dt: datetime, tz=EASTERN):
+def tformat4(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE):
     return _tformat(dt, tz, DEV_TIME_FORMAT4)
 
 
@@ -72,7 +65,6 @@ def PARTICIPANT(patient_id: Union[str, int]) -> Participant:
         if participants.count() == 1:
             return participants.get()
         pprint(list(participants.values_list("patient_id", "id")))
-
 
 P = PARTICIPANT  # Shorthand for PARTICIPANT, just type p = P("someone") and you are done
 
@@ -135,6 +127,8 @@ def STUDY(id_or_name: Union[str, int]) -> Study:
     
     print(ret.name)
     return ret
+
+S = STUDY  # Shorthand for STUDY, just type s = S("someone") and you are done
 
 
 def file_process_count():
