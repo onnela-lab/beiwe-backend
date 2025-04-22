@@ -1,21 +1,19 @@
 # nohup time nice -n 20 python -u run_script.py script_that_deletes_data_from_unknown_studies > delete_unknown.log & tail -f delete_unknown.log
 
 from multiprocessing.pool import ThreadPool
-from constants.common_constants import CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS
+
+from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, LOGS_FOLDER,
+    PROBLEM_UPLOADS)
 from database.models import Participant, S3File, Study
-from libs.s3 import BadS3PathException, S3Storage, s3_delete, s3_get_size, s3_retrieve, s3_list_files
-
-
-raise Exception("this script is has not been tested")
-
+from libs.s3 import s3_delete, s3_get_size, s3_list_files
+from libs.utils.http_utils import numformat
 
 
 class stats:
     number_paths_total = 0
     number_total_deleted = 0
-    number_total_bytes_s3 = 0
-    number_bad_paths = 0
-    number_files_failed = 0
+    bytes_deleted_s3 = 0
+    number_deletes_failed = 0
     
     @classmethod
     def reset(cls):
@@ -23,110 +21,118 @@ class stats:
             if attr.startswith('number_'):
                 setattr(cls, attr, 0)
         
-        cls.definitely_illegal_folders = set[str]()
-        cls.study_object_ids = set[str]()
-        cls.patient_ids_with_study = set[tuple[str,str]]()
+        cls.valid_study_object_ids = set[str]()
+        cls.invalid_root_folders = set[str]()
+        cls.valid_patient_ids = set[str]()
+        cls.invalid_participant_prefixes = set[str]()
     
     @classmethod
     def stats(cls):
         print()
-        print("number_paths_total:", cls.number_paths_total)
-        print("number_illegal_folders:", len(cls.definitely_illegal_folders))
-        print("number_studies_found:", len(cls.study_object_ids))
-        print("number_participants_found:", len(cls.patient_ids_with_study))
-        print("number_files_failed:", cls.number_files_failed)
-        print("number_bad_paths:", cls.number_bad_paths)
+        print("number_paths_total:", numformat(cls.number_paths_total))
+        print("invalid_root_folders:", numformat(len(cls.invalid_root_folders)))
+        print("valid_study_object_ids:", numformat(len(cls.valid_study_object_ids)))
+        print("valid_patient_ids:", numformat(len(cls.valid_patient_ids)))
         print()
+    
+    @classmethod
+    def deleted_stats(cls):
+        print("number_total_deleted:", numformat(cls.number_total_deleted))
+        print("bytes_deleted_s3:", numformat(cls.bytes_deleted_s3))
+        print("number_deletes_failed:", numformat(cls.number_deletes_failed))
 
 
 def delete_and_stat_file(path: str):
     try:
-        stats.number_total_bytes_s3 += s3_get_size(path) or 0
+        stats.bytes_deleted_s3 += s3_get_size(path) or 0
         s3_delete(path)
         stats.number_total_deleted += 1
-    except BadS3PathException as e:
-        print(e)
-        stats.number_bad_paths += 1
     except Exception as e:
         print(f"uhoh, encountered an `{e}` on {path}.")
-        stats.number_files_failed += 1
+        stats.number_deletes_failed += 1
+
+
+VALID_JUNK_FOLDERS = (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX, LOGS_FOLDER)
+
+
+def get_obj_patient_file(path: str) -> tuple[str, str, str]:
+    # returns the study_object_id, the patient_id, the rest of the file path
+    if path.startswith("CHUNKED_DATA"):
+        return path.split("/", 4)[1:]  # 3 splits, 4 parts, drop first
+    return path.split("/", 2)  # 2 splits, 3 parts
 
 
 def main():
     stats.reset()
     pool = ThreadPool(25)
     
-    for path in s3_list_files("", as_generator=True):
+    for i, path in s3_list_files("", as_generator=True):
+        if stats.number_paths_total % 100_000 == 0:  # We have a lot of files.
+            stats.number_paths_total += 1
         
         stats.number_paths_total += 1
         path_start = path.split("/", 1)[0]
         
-        # illegal folders
-        if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX):
+        # if it is in these folders it can be ignored
+        if path_start in VALID_JUNK_FOLDERS:
             continue
         
-        study_object_id = path.split("/")[1] if path_start == CHUNKS_FOLDER else path_start
-        
-        if len(study_object_id) != 24:  # if it is not the right
-            stats.definitely_illegal_folders.add(path_start)
+        # if its not a 24 character string then it is not a study, and this folder is unknewn and
+        # the file should be deleted.
+        if len(path_start) != 24:
+            stats.invalid_root_folders.add(path_start)
             continue
-        
-        # we now definitely have an object-id-like string
-        stats.study_object_ids.add(study_object_id)
         
         # get the patient_id, always follows the study_object_id
-        start_is_patient_id = path.split(f"{study_object_id}/", 1)[-1]
-        patient_id = start_is_patient_id.split("/", 1)[0]
-        stats.patient_ids_with_study.add((study_object_id, patient_id, ))
+        study_object_id, patient_id, rest_of_path = get_obj_patient_file(path)
         
-        if stats.number_paths_total % 10000 == 0:
-            stats.stats()
+        # if it is not a study, put it in the illegal folder list, 
+        if study_object_id in stats.invalid_root_folders:
+            continue  # anything in this folder is illegal, skip the participant
+        
+        # test the study object efficiently
+        if study_object_id not in stats.valid_study_object_ids:
+            try:
+                if Study.fltr(object_id=study_object_id).exists():
+                    stats.valid_study_object_ids
+            except Study.DoesNotExist:
+                stats.invalid_root_folders.add(study_object_id)
+                continue  # anything in this folder is illegal, skip the participant
+        
+        # test the participant id efficiently
+        if patient_id not in stats.valid_patient_ids:
+            # check if we have already invalidated this participant-study pair to avoid a database call
+            if (path_prefix:= f"{study_object_id}/{patient_id}") in stats.invalid_participant_prefixes:
+                continue
+            try:
+                if Participant.fltr(patient_id=patient_id).exists():  # validate the patient_id
+                    stats.valid_patient_ids.add(patient_id)
+            except Participant.DoesNotExist:
+                stats.invalid_participant_prefixes.add(path_prefix)
     
     stats.stats()
-    
+    ## We have now separated invalid object ids as invalid folders, so we can delete all of those.
+    ## This is fundamentally sound because we _cannot decrypt them_.
+    ## We have validated the participant ids and stored their prefix info.
+    # To delete we issue delete on the raw folder prefix, and with a CHUNKED_DATA prefix.
     
     # lookups
-    valid_study_object_ids = set(Study.vlist("object_id"))
-    valid_patient_ids = set(Participant.vlist("patient_id"))
-    prefixes_to_empty = []
-    
-    # get bad studies
-    for possible_study_object_id in stats.study_object_ids:
-        if possible_study_object_id not in valid_study_object_ids:
-            prefixes_to_empty.append(possible_study_object_id)
-            prefixes_to_empty.append(CHUNKS_FOLDER + "/" + possible_study_object_id)
-    
-    # get bad participants in valid studies
-    for possible_study_object_id, patient_id in stats.patient_ids_with_study:
-        if possible_study_object_id not in valid_study_object_ids:
-            continue  # already added
-        
-        if patient_id not in valid_patient_ids:
-            prefixes_to_empty.append(possible_study_object_id + "/" + patient_id)
-            prefixes_to_empty.append(CHUNKS_FOLDER + "/" + possible_study_object_id + "/" + patient_id)
+    prefixes_to_empty = list(stats.invalid_root_folders)
+    prefixes_to_empty.extend([f"{CHUNKS_FOLDER}/s" for s in stats.invalid_root_folders])
+    prefixes_to_empty.extend(stats.invalid_participant_prefixes)
+    prefixes_to_empty.extend([f"{CHUNKS_FOLDER}/s" for s in stats.invalid_participant_prefixes])
     
     print("prefixes_to_empty:")
     print(prefixes_to_empty)
     
+    exit(1)
+    ## this script is being tested so it won't delete those files yet.
     for path in prefixes_to_empty:
         print("deleting", path)
-        S3File.fltr(path__startswith=path).delete()
+        deleted = S3File.fltr(path__startswith=path).delete()
+        print("deleted", deleted, "database entries")
         list(
             pool.imap_unordered(s3_delete, s3_list_files(path), chunksize=1)
         )
-        stats.stats()
-    
-    #  patient_ids = set(Study.vlist("object_id"))
-    #  object_ids = set(Participant.vlist("patient_id"))
-    #  for path in paths:
-    #     if path.startswith("CHUNK"):
-    #         continue
-    #     if path.count("/") == 0:
-    #         print("object_id:", path)
-    #         assert path not in object_ids
-    #         continue
-    #     if path.count("/") == 1:
-    #         patient_id, objid = path.split("/")
-    #         print("parts:", patient_id, objid)
-    #         assert objid not in object_ids
-    #         assert patient_id not in patient_ids
+        print()
+    stats.deleted_stats()
