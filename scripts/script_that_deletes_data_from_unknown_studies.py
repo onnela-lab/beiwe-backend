@@ -31,6 +31,7 @@ class stats:
         print()
         print("number_paths_total:", numformat(cls.number_paths_total))
         print("invalid_root_folders:", numformat(len(cls.invalid_root_folders)))
+        print("invalid_participant_prefixes:", numformat(len(cls.invalid_participant_prefixes)))
         print("valid_study_object_ids:", numformat(len(cls.valid_study_object_ids)))
         print("valid_patient_ids:", numformat(len(cls.valid_patient_ids)))
         print()
@@ -55,20 +56,30 @@ def delete_and_stat_file(path: str):
 VALID_JUNK_FOLDERS = (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX, LOGS_FOLDER)
 
 
-def get_obj_patient_file(path: str) -> tuple[str, str, str]:
+def get_obj_patient_file(path: str) -> tuple[str, str]:
     # returns the study_object_id, the patient_id, the rest of the file path
     if path.startswith("CHUNKED_DATA"):
-        return path.split("/", 4)[1:]  # 3 splits, 4 parts, drop first
-    return path.split("/", 2)  # 2 splits, 3 parts
+        path = path[13:]  # remove the prefix
+    
+    if path.count("/") > 1:
+        return path.split("/", 2)[:2]
+    
+    # the patient_id may be patient_id.zst, in principle other extensions in the future
+    obj_id, patient_id = path.split("/")
+    patient_id = patient_id.split(".", 1)[0]
+    return obj_id, patient_id
 
 
 def main():
     stats.reset()
     pool = ThreadPool(25)
     
-    for i, path in s3_list_files("", as_generator=True):
+    for path in s3_list_files("", as_generator=True):
         if stats.number_paths_total % 100_000 == 0:  # We have a lot of files.
-            stats.number_paths_total += 1
+            stats.stats()
+            print("invalid_root_folders:", stats.invalid_root_folders)
+            print("invalid_participant_prefixes:", stats.invalid_participant_prefixes)
+            print()
         
         stats.number_paths_total += 1
         path_start = path.split("/", 1)[0]
@@ -79,12 +90,12 @@ def main():
         
         # if its not a 24 character string then it is not a study, and this folder is unknewn and
         # the file should be deleted.
-        if len(path_start) != 24:
+        if len(path_start) != 24 and path_start != CHUNKS_FOLDER:
             stats.invalid_root_folders.add(path_start)
             continue
         
         # get the patient_id, always follows the study_object_id
-        study_object_id, patient_id, rest_of_path = get_obj_patient_file(path)
+        study_object_id, patient_id = get_obj_patient_file(path)
         
         # if it is not a study, put it in the illegal folder list, 
         if study_object_id in stats.invalid_root_folders:
@@ -94,7 +105,7 @@ def main():
         if study_object_id not in stats.valid_study_object_ids:
             try:
                 if Study.fltr(object_id=study_object_id).exists():
-                    stats.valid_study_object_ids
+                    stats.valid_study_object_ids.add(study_object_id)
             except Study.DoesNotExist:
                 stats.invalid_root_folders.add(study_object_id)
                 continue  # anything in this folder is illegal, skip the participant
