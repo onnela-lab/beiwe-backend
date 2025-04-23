@@ -415,6 +415,7 @@ def _do_upload(key_path: str, data_string: bytes, number_retries=3):
     try:
         conn.put_object(Body=data_string, Bucket=S3_BUCKET, Key=key_path)
     except Exception as e:
+        # these boto errors are terrible, in this case all we can do is look at the string.
         if "Please try again" not in str(e):
             raise
         _do_upload(key_path, data_string, number_retries=number_retries - 1)
@@ -441,8 +442,11 @@ def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
     try:
         return conn.get_object(Bucket=S3_BUCKET, Key=key_path, ResponseContentType='string')
     except Boto3ClientError as e:
-        # These errors are pointlessly messsy, and under virtually all circumstances we want to retry
-        if e.response['Error']['Code'] == '404':
+        # Only retry if the error is not a "NoSuchKey" error.  This error class is JUST STUPID.
+        # - `botocore.errorfactory.NoSuchKey` cannot be imported because it is generated at runtime.
+        # - This error has the same structure as the Boto3ClientError as up in s3_get_size when there
+        #   is "NoSuchKey", but it uses a different magic word - "NoSuchKey" instead of "404".
+        if e.response['Error']['Code'] == 'NoSuchKey':
             raise NoSuchKeyException(f"{key_path}") from None
         
         # usually we want to try again
@@ -452,9 +456,9 @@ def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
         
         raise  # unknown cases: explode
 
-
+#
 ## List Files Matching Prefix
-
+# 
 def s3_list_files(prefix: str, as_generator=False) -> list[str]|Generator[str]:
     """ Lists s3 keys matching prefix. as generator returns a generator instead of a list.
     WARNING: passing in an empty string can be dangerous. """
