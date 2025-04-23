@@ -5,6 +5,7 @@ from zipfile import ZIP_STORED, ZipFile
 
 from constants.data_stream_constants import (SURVEY_ANSWERS, SURVEY_TIMINGS,
     VOICE_RECORDING)
+from constants.forest_constants import AMBIENT_AUDIO
 from database.study_models import Study
 from libs.s3 import s3_retrieve
 from libs.streaming_io import StreamingBytesIO
@@ -60,8 +61,12 @@ def determine_file_name(chunk: dict):
         
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
     
+    elif data_stream == AMBIENT_AUDIO:
+        ext = chunk_path.split(".")[1]  # this one can be weird.
+        return f"{patient_id}/{data_stream}/{time_bin}.{ext}"
+    
     # all other files have this form:
-    return f"{patient_id}/{data_stream}/{time_bin}.{extension}"
+    return f"{patient_id}/{data_stream}/{time_bin}.csv"
 
 
 def batch_retrieve_s3(chunk: dict) -> Tuple[dict, bytes]:

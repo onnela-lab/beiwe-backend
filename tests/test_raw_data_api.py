@@ -37,6 +37,7 @@ class TestGetData(DataApiTest):
     # "particip" is the DEFAULT_PARTICIPANT_NAME
     # 'u1Z3SH7l2xNsw72hN3LnYi96' is the  DEFAULT_SURVEY_OBJECT_ID
     PATIENT_NAME = CommonTestCase.DEFAULT_PARTICIPANT_NAME
+    # D = CommonTestCase.DEFAULT_STUDY_OBJECT_ID
     FILE_NAMES = {                                        # ↓ that Z makes it a timzone'd datetime
         "accelerometer": ("something.csv", "2020-10-05 02:00Z",
                          f"{PATIENT_NAME}/accelerometer/2020-10-05 02_00_00+00_00.csv"),
@@ -66,16 +67,19 @@ class TestGetData(DataApiTest):
                          f"{PATIENT_NAME}/proximity/2020-10-05 02_00_00+00_00.csv"),
         "reachability": ("reachability.csv", "2020-10-05 02:00Z",
                          f"{PATIENT_NAME}/reachability/2020-10-05 02_00_00+00_00.csv"),
-        "survey_answers": ("survey_obj_id/something2/something3.csv", "2020-10-05 02:00Z",
+        "survey_answers": ("survey_obj_id/123456789012345678901234/something3.csv", "2020-10-05 02:00Z",
                           # expecting: patient_id/data_type/survey_id/time.csv
-                         f"{PATIENT_NAME}/survey_answers/something2/2020-10-05 02_00_00+00_00.csv"),
-        "survey_timings": ("something1/something2/something3/something4/something5.csv", "2020-10-05 02:00Z",
+                         f"{PATIENT_NAME}/survey_answers/123456789012345678901234/2020-10-05 02_00_00+00_00.csv"),
+        "survey_timings": ("something1/123456789012345678901234/something3/something4/something5.csv", "2020-10-05 02:00Z",
                           # expecting: patient_id/data_type/survey_id/time.csv
                           f"{PATIENT_NAME}/survey_timings/u1Z3SH7l2xNsw72hN3LnYi96/2020-10-05 02_00_00+00_00.csv"),
         "texts": ("texts.csv", "2020-10-05 02:00Z",
                          f"{PATIENT_NAME}/texts/2020-10-05 02_00_00+00_00.csv"),
-        "audio_recordings": ("audio_recordings.wav", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/audio_recordings/2020-10-05 02_00_00+00_00.wav"),
+        "audio_recordings": (
+            f"{PATIENT_NAME}/voiceRecording/587442edf7321c14da193487/1524857988384.wav",  #the timecode is ignored I copy pasted its fine
+            "2020-10-05 02:00Z",
+            f"{PATIENT_NAME}/audio_recordings/587442edf7321c14da193487/2020-10-05 02_00_00+00_00.wav"
+        ),
         "wifi": ("wifi.csv", "2020-10-05 02:00Z",
                          f"{PATIENT_NAME}/wifi/2020-10-05 02_00_00+00_00.csv"),
         }

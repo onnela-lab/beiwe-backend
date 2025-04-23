@@ -779,10 +779,12 @@ class TestS3Storage(CommonTestCase):
     # due to REALLY STUPID DYNAMIC ERROR CLASS GENERATION IN BOTO3.... we have some code that checks
     # the name of class type because it cannot be imported.  to test this code we need an error class
     # that has that same name
-    class NoSuchKey(Exception): pass
+    # class NoSuchKeyException(Exception): pass
+    
     
     def hack_s3_error(self, s: str):
-        return self.NoSuchKey(s)
+        from libs.s3 import NoSuchKeyException
+        return NoSuchKeyException(s)
     
     COMPRESSED_SLUG = compress(b"content")
     ENCRYPTED_SLUG = encrypt_for_server(b"content", CommonTestCase.DEFAULT_ENCRYPTION_KEY_BYTES)
