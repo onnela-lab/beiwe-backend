@@ -13,10 +13,19 @@ from libs.streaming_io import StreamingBytesIO
 class DummyError(Exception): pass
 
 
-def determine_file_name(chunk):
+def get_survey_id(chunk: dict):
+    survey_id = chunk.get("survey__object_id")
+    if not survey_id:
+        # example real path as it should come in: 5873fe38644ad7557b168e43/q41aozrx/voiceRecording/587442edf7321c14da193487/1524857988384.wav
+        survey_id = chunk["chunk_path"].rsplit("/", 2)[1]
+        if not len(survey_id) == 24:
+            survey_id = "unknown_survey_id"  # if there still isn't a survey input unknown?
+    return survey_id
+
+
+def determine_file_name(chunk: dict):
     """ Generates the correct file name to provide the file with in the zip file.
         (This also includes the folder location files in the zip.) """
-    extension = chunk["chunk_path"][-3:]  # get 3 letter file extension from the source...
     chunk_path = chunk["chunk_path"]
     patient_id = chunk["participant__patient_id"]
     time_bin = str(chunk["time_bin"]).replace(":", "_")  # why wouldn't it be a string...?
@@ -25,26 +34,31 @@ def determine_file_name(chunk):
     if data_stream == SURVEY_ANSWERS:
         # survey answers are not chunkable and we were getting some corrupted file names on
         #corrupted multi-uploads from ios.
-        survey_id = chunk_path.rsplit("/", 2)[1]
+        survey_id = get_survey_id(chunk)
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
     
     elif data_stream == SURVEY_TIMINGS:
         # add the survey_id from the database entry.
-        survey_id = chunk["survey__object_id"]
-        return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
+        survey_id = get_survey_id(chunk)
+        return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
     
     elif data_stream == VOICE_RECORDING:
-        # Audio surveys are also not chunkable and have to work out some extra logic
-        # survey_id = chunk_path.rsplit("/", 2)[1]
-        survey_id = chunk["survey__object_id"]
+        # Audio surveys are also not chunkable, they have a history of file naming issues.
+        # - survey__object_id may not be populated in the provided dict.
+        # - iirc there are some SUPER old files that are missing a survey id entirely.
+        # example real path as it should be:
+        # 5873fe38644ad7557b168e43/q41aozrx/voiceRecording/587442edf7321c14da193487/1524857988384.wav
+        
+        survey_id = get_survey_id(chunk)
         # if for some reason there is no match  just use the original extension.
         if ".mp4" in chunk_path:
             extension = "mp4"
         elif ".wav" in chunk_path:
             extension = "wav"
+        else:
+            extension = chunk_path.rsplit(".")[1]
         
-        if chunk_path.count("/") == 4:
-            return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
+        return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
     
     # all other files have this form:
     return f"{patient_id}/{data_stream}/{time_bin}.{extension}"

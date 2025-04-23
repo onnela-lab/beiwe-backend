@@ -12,7 +12,8 @@ import dateutil
 from dateutil.tz import gettz
 from django.utils import timezone
 
-from constants.common_constants import CHUNKS_FOLDER, EASTERN, UTC
+from constants.common_constants import API_TIME_FORMAT, CHUNKS_FOLDER, EASTERN, UTC
+from constants.data_stream_constants import SURVEY_ANSWERS, SURVEY_TIMINGS, VOICE_RECORDING
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
@@ -31,6 +32,7 @@ from libs.file_processing.utility_functions_simple import BadTimecodeError, bini
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
 from libs.s3 import BadS3PathException, decrypt_server, NoSuchKeyException, S3Storage
+from libs.streaming_zip import determine_file_name
 from libs.utils.compression import compress
 from libs.utils.forest_utils import get_forest_git_hash
 from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
@@ -1176,7 +1178,6 @@ class TestS3Storage(CommonTestCase):
 class TestCeleryAtLeastImports(CommonTestCase):
     
     def test_data_processing(self):
-        from services.celery_data_processing import create_file_processing_tasks
         from services import celery_data_processing
         for attr in celery_data_processing.__dict__.values():
             if isinstance(attr, DebugCeleryApp):
@@ -1184,7 +1185,6 @@ class TestCeleryAtLeastImports(CommonTestCase):
         raise AssertionError("Celery app not found in celery_data_processing, the correct one must be present in the namespace.")
     
     def test_push_notifications(self):
-        from services.celery_push_notifications import create_survey_push_notification_tasks
         from services import celery_push_notifications
         for attr in celery_push_notifications.__dict__.values():
             if isinstance(attr, DebugCeleryApp):
@@ -1192,7 +1192,6 @@ class TestCeleryAtLeastImports(CommonTestCase):
         raise AssertionError("Celery app not found in celery_push_notifications, the correct one must be present in the namespace.")
     
     def test_forest(self):
-        from services.celery_forest import create_forest_celery_tasks
         from services import celery_forest
         for attr in celery_forest.__dict__.values():
             if isinstance(attr, DebugCeleryApp):
@@ -1200,9 +1199,145 @@ class TestCeleryAtLeastImports(CommonTestCase):
         raise AssertionError("Celery app not found in celery_forest, the correct one must be present in the namespace.")
     
     def test_script_runner(self):
-        from services.scripts_runner import enqueue_six_minute_scripts_tasks
         from services import scripts_runner
         for attr in scripts_runner.__dict__.values():
             if isinstance(attr, DebugCeleryApp):
                 return
         raise AssertionError("Celery app not found in scripts_runner, the correct one must be present in the namespace.")
+
+
+class TestDetermineFileName(CommonTestCase):
+    
+    # time_as_unix_int = "1524857988384"
+    THE_TIME = datetime.fromtimestamp(1524857988.384).astimezone(UTC)
+    # T_STR_VALID= "2018-04-27 19_39_48.384000+00_00"
+    # 123456789012345678901234  # needs to be 24 chars long
+    
+    @property
+    def empty_dict_with_the_keys(self) -> dict[str, str|None]:
+        self.most_recent_now = timezone.now().strftime(API_TIME_FORMAT)
+        # these are all the valid keys
+        return {
+            "chunk_path": None,
+            "data_type": None,
+            "participant__patient_id": "steve",
+            "study_id": "STUDY",
+            "survey__object_id": None,
+            "time_bin": self.THE_TIME,  # type: ignore
+        }
+    
+    def updated_dict(self, **kwargs):
+        ret = self.empty_dict_with_the_keys
+        for key in kwargs:
+            if key not in ret:
+                raise ValueError(f"Invalid key: {key}")
+        ret.update(kwargs)
+        return ret
+    
+    # audio recordings
+    def test_survey_id_present_in_audio_survey_with_param(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.wav",
+            survey__object_id="thesurveyobjectidvalue",
+            data_type=VOICE_RECORDING,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/audio_recordings/thesurveyobjectidvalue/2018-04-27 19_39_48.384000+00_00.wav"
+        )
+    
+    def test_survey_id_present_in_audio_survey_with_param_as_mp4(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.mp4",
+            survey__object_id="thesurveyobjectidvalue",
+            data_type=VOICE_RECORDING,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/audio_recordings/thesurveyobjectidvalue/2018-04-27 19_39_48.384000+00_00.mp4"
+        )
+    
+    def test_survey_id_present_in_audio_survey_without_param(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.wav",
+            data_type=VOICE_RECORDING,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/audio_recordings/123456789012345678901234/2018-04-27 19_39_48.384000+00_00.wav"
+        )
+    
+    def test_survey_id_present_in_without_param_or_file_path(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/1524857988384.wav",
+            data_type=VOICE_RECORDING,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/audio_recordings/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.wav"
+        )
+    
+    # survey answers
+    def test_survey_id_present_in_survey_answers_with_param(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/surveyAnswers/123456789012345678901234/1524857988384.csv",
+            survey__object_id="thesurveyobjectidvalue",
+            data_type=SURVEY_ANSWERS,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/survey_answers/thesurveyobjectidvalue/2018-04-27 19_39_48.384000+00_00.csv"
+        )
+    
+    def test_survey_id_present_in_survey_answers_without_param(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/surveyAnswers/123456789012345678901234/1524857988384.csv",
+            data_type=SURVEY_ANSWERS,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/survey_answers/123456789012345678901234/2018-04-27 19_39_48.384000+00_00.csv"
+        )
+    
+    def test_survey_id_present_in_survey_answers_without_param_or_file_path(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/surveyAnswers/1524857988384.csv",
+            data_type=SURVEY_ANSWERS,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/survey_answers/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.csv"
+        )
+    
+    # survey timings
+    
+    def test_survey_id_present_in_survey_timings_with_param(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/surveyTimings/123456789012345678901234/1524857988384.csv",
+            survey__object_id="thesurveyobjectidvalue",
+            data_type=SURVEY_TIMINGS,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/survey_timings/thesurveyobjectidvalue/2018-04-27 19_39_48.384000+00_00.csv"
+        )
+        
+    def test_survey_id_present_in_survey_timings_without_param(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/surveyTimings/123456789012345678901234/1524857988384.csv",
+            data_type=SURVEY_TIMINGS,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/survey_timings/123456789012345678901234/2018-04-27 19_39_48.384000+00_00.csv"
+        )
+    
+    def test_survey_id_present_in_survey_timings_without_param_or_file_path(self):
+        d = self.updated_dict(
+            chunk_path="5873fe38644ad7557b168e43/steve/surveyTimings/1524857988384.csv",
+            data_type=SURVEY_TIMINGS,
+        )
+        self.assertEqual(
+            determine_file_name(d),
+            "steve/survey_timings/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.csv"
+        )
