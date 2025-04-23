@@ -35,7 +35,6 @@ class stats:
         print("number_already_compressed:", numformat(cls.number_already_compressed))
         print("number_of_skipped_files:", numformat(cls.number_of_skipped_files))
         print("number_files_compressed:", numformat(cls.number_files_compressed))
-        print("number_files_compressed:", numformat(cls.number_files_compressed))
         print("number_files_failed_bad_path:", numformat(cls.number_files_failed_bad_path))
         print("number_files_failed_with_error:", numformat(cls.number_files_failed_with_error))
         print()
