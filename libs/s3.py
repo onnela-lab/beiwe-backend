@@ -3,12 +3,14 @@ from __future__ import annotations
 import hashlib
 from os.path import join as path_join
 from time import perf_counter_ns
-from typing import Any, Generator, Protocol, Sequence
+from typing import Any, Generator, Protocol
 from unittest.mock import MagicMock
 
 import boto3
 import botocore
 from botocore.client import BaseClient
+from botocore.exceptions import ClientError as Boto3ClientError
+from botocore.paginate import Paginator
 from cronutils import ErrorHandler
 from django.utils import timezone
 
@@ -21,10 +23,11 @@ from libs.utils.compression import compress, decompress
 
 
 try:
-    from database.models import Participant, S3File, Study
+    from database.models import Participant, Study
     StrPartStudy = str | Participant | Study
 except ImportError:
     pass
+
 
 
 ## Types
@@ -138,6 +141,7 @@ class S3Storage:
         self, s3_path: str, obj: StrPartStudy, bypass_study_folder: bool
     ) -> None:
         from database.models import Participant, Study
+
         # todo: add handling of the None cose for smart_key_obj, where some api calls are disabled
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
@@ -381,8 +385,12 @@ class S3Storage:
 
 
 def s3_get_size(key_path: str):
-    return conn.head_object(Bucket=S3_BUCKET, Key=key_path)["ContentLength"]
-
+    try:
+        return conn.head_object(Bucket=S3_BUCKET, Key=key_path)["ContentLength"]
+    except Boto3ClientError as e:
+        # ClientError: An error occurred (404) when calling the HeadObject operation: Not Found
+        if e.response['Error']['Code'] == '404':
+            raise NoSuchKeyException(f"{key_path}") from None
 
 ## Upload
 
@@ -432,16 +440,17 @@ def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
     """ Run-logic to do a data retrieval for a file in an S3 bucket."""
     try:
         return conn.get_object(Bucket=S3_BUCKET, Key=key_path, ResponseContentType='string')
-    except Exception as boto_error_unknowable_type:
-        # Some error types cannot be imported because they are generated at runtime through a factory
-        if boto_error_unknowable_type.__class__.__name__ == "NoSuchKey":
-            raise NoSuchKeyException(f"{S3_BUCKET}: {key_path}")
+    except Boto3ClientError as e:
+        # These errors are pointlessly messsy, and under virtually all circumstances we want to retry
+        if e.response['Error']['Code'] == '404':
+            raise NoSuchKeyException(f"{key_path}") from None
+        
         # usually we want to try again
         if number_retries > 0:
-            print("s3_retrieve failed, retrying on %s" % key_path)
+            print(f"s3_retrieve failed, retrying on `{key_path}`")
             return _do_retrieve(key_path, number_retries=number_retries - 1)
-        # unknown cases: explode.
-        raise
+        
+        raise  # unknown cases: explode
 
 
 ## List Files Matching Prefix
@@ -458,26 +467,31 @@ def smart_s3_list_study_files(prefix: str, obj: StrPartStudy):
 
 
 def _do_list_files(bucket_name: str, prefix: str, as_generator=False) -> list[str]|Generator[str]:
-    paginator = conn.get_paginator('list_objects_v2')
-    
-    page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+    # page size default is 1,000, the usage below is correct (tested, internal class value gets set
+    # to 10,000) but it still returns 1,000 items.
+    page_iterator: Paginator.PAGE_ITERATOR_CLS = conn.get_paginator('list_objects_v2').paginate(
+        Bucket=bucket_name, Prefix=prefix, PaginationConfig={"PageSize": 10_000}  # terrible ergonomics
+    )
     if as_generator:
-        return _do_list_files_generator(page_iterator)  # type: ignore
+        return _do_list_files_generator(page_iterator)
     
     items = []
     for page in page_iterator:
         if 'Contents' in page:
-            for item in page['Contents']:
-                items.append(item['Key'].strip("/"))
+            # strip() is the same speed as rstrip(), both are faster than endwith()
+            items.extend(item['Key'].strip("/") for item in page['Contents']) 
     return items
 
 
-def _do_list_files_generator(page_iterator: Sequence) -> Generator[str]:
+def _do_list_files_generator(page_iterator: Paginator.PAGE_ITERATOR_CLS) -> Generator[str]:
+    # try-except is faster than checking twice, there doesn't seem to be faster option
     for page in page_iterator:
-        if 'Contents' not in page:
+        try:
+            for item in page['Contents']:
+                yield item['Key'].strip("/")
+        except KeyError as e:
+            assert str(e) == 'Contents'
             return
-        for item in page['Contents']:
-            yield item['Key'].strip("/")
 
 
 def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None], None, None]:

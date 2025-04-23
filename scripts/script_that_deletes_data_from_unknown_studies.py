@@ -1,5 +1,3 @@
-# nohup time nice -n 20 python -u run_script.py script_that_deletes_data_from_unknown_studies > delete_unknown.log & tail -f delete_unknown.log
-
 from multiprocessing.pool import ThreadPool
 
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, LOGS_FOLDER,
@@ -53,7 +51,7 @@ def delete_and_stat_file(path: str):
         stats.number_deletes_failed += 1
 
 
-VALID_JUNK_FOLDERS = (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX, LOGS_FOLDER)
+VALID_JUNK_FOLDERS = (LOGS_FOLDER, PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX)
 
 
 def get_obj_patient_file(path: str) -> tuple[str, str]:
@@ -129,9 +127,9 @@ def main():
     
     # lookups
     prefixes_to_empty = list(stats.invalid_root_folders)
-    prefixes_to_empty.extend([f"{CHUNKS_FOLDER}/s" for s in stats.invalid_root_folders])
+    prefixes_to_empty.extend([f"{CHUNKS_FOLDER}/{s}" for s in stats.invalid_root_folders])
     prefixes_to_empty.extend(stats.invalid_participant_prefixes)
-    prefixes_to_empty.extend([f"{CHUNKS_FOLDER}/s" for s in stats.invalid_participant_prefixes])
+    prefixes_to_empty.extend([f"{CHUNKS_FOLDER}/{s}" for s in stats.invalid_participant_prefixes])
     
     print("prefixes_to_empty:")
     print(prefixes_to_empty)
