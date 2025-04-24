@@ -168,7 +168,7 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         """ Overrides and inserts our diff_strings func to make the error easy to parse. """
         from libs.shell_support import diff_strings
         
-        assert type(first) == type(second), "those are not even the same type"
+        assert type(first) == type(second), f"types are not equal: {type(first)}, {type(second)}"
         
         try:
             return super().assertEqual(first, second, msg)

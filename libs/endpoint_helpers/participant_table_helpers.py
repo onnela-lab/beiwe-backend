@@ -10,7 +10,8 @@ from django.utils import timezone
 from django.utils.functional import Promise
 
 from constants.common_constants import API_DATE_FORMAT, LEGIBLE_DT_FORMAT
-from constants.user_constants import EXTRA_TABLE_FIELDS, PARTICIPANT_STATUS_QUERY_FIELDS
+from constants.user_constants import (BASE_TABLE_FIELD_NAMES, EXTRA_TABLE_FIELDS,
+    PARTICIPANT_STATUS_QUERY_FIELDS)
 from database.models import dbt
 from database.study_models import Study
 from database.user_models_participant import Participant
@@ -51,7 +52,7 @@ class SecondarySort(Promise):
 
 
 def to_tz_str(dt, tz) -> str:
-    """ Convert a datetime to a timezone. """
+    """ We need a code shortener to convert a datetime to a timezone for legibility reasons. """
     return dt.astimezone(tz).strftime(API_DATE_FORMAT)
 
 
@@ -74,9 +75,9 @@ def reference_field_and_interventions(study: Study) -> Tuple[List[str], List[str
 def get_table_columns(study: Study, frontend: bool) -> List[str]:
     """ Extended list of field names for the greater participant table. """
     field_names, intervention_names = reference_field_and_interventions(study)
-    base_table_fields = ["Created On", "Patient ID", "Status", "OS Type"]
+    base_table_fields = list(BASE_TABLE_FIELD_NAMES.values())
     
-    # divergence due to ordering of columss/a duplicate column on the page vs on the backend.
+    # divergence due to ordering of columns/a duplicate column on the page vs on the backend.
     if frontend:
         base_table_fields.insert(1, "First Register")
     return base_table_fields + intervention_names + field_names + list(EXTRA_TABLE_FIELDS.values())

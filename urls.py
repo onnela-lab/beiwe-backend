@@ -236,8 +236,16 @@ path(
     data_api_endpoints.get_tableau_daily
 )
 path(
+    "api/v0/studies/<str:study_object_id>/participant-table/",
+    data_api_endpoints.get_tableau_participant_table_data
+)
+path(
     'api/v0/studies/<str:study_object_id>/summary-statistics/daily/wdc',
-    data_api_endpoints.web_data_connector
+    data_api_endpoints.web_data_connector_summary_statistics
+)
+path(
+    'api/v0/studies/<str:study_object_id>/participant-table/wdc',
+    data_api_endpoints.web_data_connector_participant_table
 )
 
 # forest pages

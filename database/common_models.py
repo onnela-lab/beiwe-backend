@@ -24,7 +24,7 @@ from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 class ObjectIdError(Exception): pass
 
 
-def Q_from_params(q: Union[Dict, Tuple]) -> Q:
+def Q_from_params(q: dict|tuple) -> Q:
     """ Convert a dict or tuple to a Q object. """
     if not isinstance(q, dict):
         return Q(*dict(q))
@@ -143,7 +143,7 @@ class UtilityModel(models.Model):
         pprint(d)
         return lambda: None # so that you can call it accidentially without a crash
     
-    def _pprint(self) -> Dict[str, Any]:
+    def _pprint(self) -> dict[str, Any]:
         """ Provides a dictionary representation of the object, with some special formatting. """
         d = self.as_dict()
         for k, v in d.items():
@@ -176,7 +176,7 @@ class UtilityModel(models.Model):
     
     ###################################### Basic Serialization #####################################
     
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         """ Provides a dictionary representation of the object """
         return {field.name: getattr(self, field.name) for field in self._meta.fields}
     
@@ -220,7 +220,7 @@ class UtilityModel(models.Model):
         ret.update(self._related)
         return ret
     
-    def as_unpacked_native_python(self, field_names: Tuple[str]) -> Dict[str, Any]:
+    def as_unpacked_native_python(self, field_names: Tuple[str]) -> dict[str, Any]:
         """ This function returns a dictionary of the desired fields, unpacking any JSONTextField.
         DO NOT MAKE A VERSION OF THIS THAT TRIVIALLY RETURNS THE ENTIRE MODEL'S DATA. We had that
         and it caused numerous bugs, security issues, and wasted time. If you want to do that use
@@ -291,13 +291,13 @@ class UtilityModel(models.Model):
     
     #TODO: make filters keywords, validate inputs by type for misuse
     @classmethod
-    def make_lookup_dict(cls, keys: Sequence[str], values: Sequence[str], **filters) -> Dict:
+    def make_lookup_dict(cls, keys: Sequence[str], values: Sequence[str], **filters) -> dict:
         """ Given a base model, a list of key fields, and a list of value fields, this function will
         return a dictionary that maps the key fields to the value fields. """
         return make_lookup_dict(cls.objects, keys, values, **filters)
     
     @classmethod
-    def make_lookup_dict_list(cls, keys: Sequence[str], values: Sequence[str], **filters) -> Dict:
+    def make_lookup_dict_list(cls, keys: Sequence[str], values: Sequence[str], **filters) -> dict:
         """ Given a base model, a list of key fields, and a list of value fields, this function will
         return a dictionary that maps the key fields to any number of value fields as lists. """
         return make_lookup_dict_list(cls.objects, keys, values, **filters)
@@ -387,12 +387,23 @@ def lookup_dict_setup(queryable, keys: Sequence[str], values: Sequence[str], **f
     return keys, values, ret_query, keys_count, values_count, dd
 
 
-#
-# Monkeypatches that add a ~pprint property to django querysets for date/time objects.
-#
+"""
+Some probably ill-advised hacks
+
+The Below is a bunch of monkeypatches that add some functionality to the django queryset-adjacent
+classes.  
+
+And then you can just do:
+    study.interventions.vlist("name", "study_object_id")
+And it just works.
+
+I'm sure in some way it doesn't work, like the IDE doesn't understand it and I couldn't get the full
+type hinting working.
+"""
 
 _special_format = "<" + DT_24HR_W_TZ_W_SEC_N_PAREN.replace(" ", "_") + ">"
 
+# Monkeypatches that add a ~pprint property to django querysets for date/time objects.
 def terminal_legible_dt_as_a_method(self: BaseIterable):
     end = ""
     ret = [terminal_legible_dt(v) for v in list(self[:31])]
@@ -402,7 +413,7 @@ def terminal_legible_dt_as_a_method(self: BaseIterable):
     
     return f'<QuerySet [{", ".join([(repr(x)) for x in ret])}{end}]>'
 
-
+# part 2
 def terminal_legible_dt(x: Any) -> Any:
     if isinstance(x, datetime):
         return localtime(x, EASTERN).strftime(_special_format)
@@ -423,8 +434,42 @@ def terminal_legible_dt(x: Any) -> Any:
     return x
 
 
-QuerySet.__repr__ = terminal_legible_dt_as_a_method  # type: ignore  
-BaseIterable.__repr__ = terminal_legible_dt_as_a_method  # values_list, values, etc.  # type: ignore
-BaseManager.__repr__ = terminal_legible_dt_as_a_method  # "objects." # type: ignore
-ValuesIterable.__repr__ = terminal_legible_dt_as_a_method  # type: ignore
-ValuesListIterable.__repr__ = terminal_legible_dt_as_a_method  # type: ignore
+# instance methods that we monkeypatch onto the ~queryset classes
+# These all function as the UtilityModel methods (but don't contain `.objects` in their code).
+def _value_get(self, field_name: str, **filters) -> Any:
+    return self.flat(field_name, **filters).get()
+
+
+def _obj_get(self, *args, **kwargs) -> Self:  # type: ignore
+    return self.get(*args, **kwargs)
+
+
+def _vlist(self, *args, **kwargs) -> BWValuesListIterable[Any]:  # type: ignore
+    return self.values_list(*args, **{"flat": True, **kwargs} if len(args) == 1 else kwargs)
+
+
+def _vdict(self, *args, **kwargs) -> QuerySet[dict[str, Any]]:  # type: ignore
+    return self.values(*args, **kwargs)
+
+
+def _fltr(self, *args, **kwargs) -> QuerySet[Self]:  # type: ignore
+    return self.filter(*args, **kwargs)
+
+
+def _xcld(self, *args, **kwargs) -> QuerySet[Self]:  # type: ignore
+    return self.exclude(*args, **kwargs)
+
+
+def _flat(self, field_name: str, **filter_kwargs) -> QuerySet[Any]:
+    return self.filter(**filter_kwargs).values_list(field_name, flat=True)
+
+# and this is where we assign them - there's a bunch of typing errors, they are wrong. XD
+for _T in (QuerySet, BaseIterable, BaseManager, ValuesIterable, ValuesListIterable):
+    _T.vlist = _vlist  # type: ignore
+    _T.value_get = _value_get  # type: ignore
+    _T.vdict = _vdict  # type: ignore
+    _T.obj_get = _obj_get  # type: ignore
+    _T.fltr = _fltr  # type: ignore
+    _T.xcld = _xcld  # type: ignore
+    _T.flat = _flat  # type: ignore
+    _T.__repr__ = terminal_legible_dt_as_a_method  # type: ignore

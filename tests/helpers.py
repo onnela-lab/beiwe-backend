@@ -34,7 +34,7 @@ from libs.schedules import repopulate_weekly_survey_schedule_events
 from libs.utils.security_utils import device_hash, generate_easy_alphanumeric_string
 
 
-CURRENT_TEST_HTML_FILEPATH = BEIWE_PROJECT_ROOT + "private/current_test_page.html"
+CURRENT_TEST_HTML_FILEPATH = BEIWE_PROJECT_ROOT + "/private/current_test_page.html"
 ABS_STATIC_ROOT = (BEIWE_PROJECT_ROOT + STATIC_ROOT).encode()
 
 # we need this to not be an _instance_ variable in TestDownloadParticipantTreeData
@@ -1004,8 +1004,7 @@ class ParticipantTableHelperMixin:
     """ We have 2 instances of tests needing this, purpose is as a hardcoded clone that of the
     output of the participant_table_data.get_table_columns function. """
     
-    HEADER_1 = ",".join(("Created On", "Patient ID", "Status", "OS Type")) + ","  # trailing comma
-    HEADER_2 = ",".join((
+    API_COLUMNS = [
         "First Registration Date",
         "Last Registration",
         "Last Upload",
@@ -1016,8 +1015,12 @@ class ParticipantTableHelperMixin:
         "Last OS Version",
         "App Version Code",
         "App Version Name",
-        "Last Heartbeat"
-    )) + "\r\n"
+        "Last Heartbeat",
+    ]
+    REGULAR_COLUMNS = ("Created On", "Patient ID", "Status", "OS Type")
+    
+    HEADER_1 = ",".join(REGULAR_COLUMNS) + ","  # trailing comma
+    HEADER_2 = ",".join((API_COLUMNS)) + "\r\n"
     
     def header(self, intervention: bool = False, custom_field: bool = False) -> str:
         ret = self.HEADER_1
@@ -1052,12 +1055,11 @@ class DummyThreadPool():
 
 
 def render_test_html_file(response: HttpResponse, url: str):
-    print("\nwriting url:", url)
-    
     with open(CURRENT_TEST_HTML_FILEPATH, "wb") as f:
         f.write(response.content.replace(b"/static/", ABS_STATIC_ROOT))
     
-    subprocess.check_call(["google-chrome", CURRENT_TEST_HTML_FILEPATH])
+    # subprocess.check_call(["firefox", CURRENT_TEST_HTML_FILEPATH])
+    subprocess.check_call(["subl", CURRENT_TEST_HTML_FILEPATH])
     x = input(f"opening {url} rendered html, press enter to continue test(s) or anything else to exit.")
     if x:
         exit()

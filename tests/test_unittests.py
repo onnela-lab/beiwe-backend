@@ -772,7 +772,6 @@ class TestAppVersionComparison(CommonTestCase):
         self.assertEqual(str(e_wrapper.exception), ERR_IOS_VERSION_COMPONENTS_DIGITS(IOS_VALID, ".2024"))
 
 
-
 class TestS3Storage(CommonTestCase):
     """ Tests for the S3Storage class is libs.s3 """
     
@@ -1214,7 +1213,8 @@ class TestDetermineFileName(CommonTestCase):
     THE_TIME = datetime.fromtimestamp(1524857988.384).astimezone(UTC)
     # T_STR_VALID= "2018-04-27 19_39_48.384000+00_00"
     # 123456789012345678901234  # needs to be 24 chars long
-    
+    # reference real name for audio file on s3:
+    # 5873fe38644ad7557b168e43/q41aozrx/voiceRecording/587442edf7321c14da193487/1524857988384.wav
     @property
     def empty_dict_with_the_keys(self) -> dict[str, str|None]:
         self.most_recent_now = timezone.now().strftime(API_TIME_FORMAT)

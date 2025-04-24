@@ -69,15 +69,11 @@ class Study(TimestampedModel, ObjectIDModel):
     mfa_required = models.BooleanField(default=False)
     
     # related field typings (IDE halp)
-    chunk_registries: Manager[ChunkRegistry]
-    dashboard_colors: Manager[DashboardColorSetting]
-    device_settings: DeviceSettings
-    fields: Manager[StudyField]
+    chunk_registries: Manager[ChunkRegistry];             interventions: Manager[Intervention]
+    dashboard_colors: Manager[DashboardColorSetting];     participants: Manager[Participant]
+    device_settings: DeviceSettings;                      study_relations: Manager[StudyRelation]
+    fields: Manager[StudyField];                          surveys: Manager[Survey]
     files_to_process: Manager[FileToProcess]
-    interventions: Manager[Intervention]
-    participants: Manager[Participant]
-    study_relations: Manager[StudyRelation]
-    surveys: Manager[Survey]
     
     def save(self, *args, **kwargs):
         """ Ensure there is a study device settings attached to this study. """
@@ -105,10 +101,8 @@ class Study(TimestampedModel, ObjectIDModel):
     @classmethod
     def get_all_studies_by_name(cls) -> QuerySet[Study]:
         """ Sort the un-deleted Studies a-z by name, ignoring case. """
-        return (cls.objects
-                .filter(deleted=False)
-                .annotate(name_lower=Func(F('name'), function='LOWER'))
-                .order_by('name_lower'))
+        return cls.objects.filter(deleted=False) \
+                .annotate(name_lower=Func(F('name'), function='LOWER')).order_by('name_lower')
     
     @classmethod
     def _get_administered_studies_by_name(cls, researcher) -> QuerySet[Study]:

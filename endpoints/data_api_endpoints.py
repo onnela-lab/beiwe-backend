@@ -2,6 +2,7 @@ import csv
 from io import StringIO
 from typing import List
 
+import bleach
 import orjson
 from dateutil.tz import UTC
 from django.db.models.fields import Field
@@ -14,8 +15,10 @@ from django.views.decorators.http import require_GET, require_POST
 from authentication.data_access_authentication import (api_credential_check,
     api_study_credential_check, ApiResearcherRequest, ApiStudyResearcherRequest)
 from authentication.tableau_authentication import authenticate_tableau, TableauRequest
+from config.jinja2 import easy_url
 from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MISSING_JSON_CSV_MESSAGE
+from constants.user_constants import TABLEAU_TABLE_FIELD_TYPES
 from database.forest_models import SummaryStatisticDaily
 from database.study_models import Study
 from database.user_models_researcher import StudyRelation
@@ -115,7 +118,6 @@ def get_participant_data_quantities(request: ApiStudyResearcherRequest, study_id
 @api_study_credential_check()
 def get_participant_table_data(request: ApiStudyResearcherRequest):
     """ Returns a streaming JSON response of the participant data for Tableau."""
-    table_data = common_data_extraction_for_apis(request.api_study)
     data_format = request.POST.get("data_format", None)
     
     # error with message for bad data_format
@@ -148,6 +150,19 @@ def get_participant_table_data(request: ApiStudyResearcherRequest):
     assert False, "unreachable code."
 
 
+@require_GET
+@authenticate_tableau
+def get_tableau_participant_table_data(request: TableauRequest, study_object_id: str):
+    """ Returns a streaming JSON response of the participant data for Tableau."""
+    # the study object is already vadidated to exist and to be accessible to the requester
+    study = Study.objects.filter(object_id=study_object_id).get()
+    table_data = common_data_extraction_for_apis(study)
+    column_names = get_table_columns(study, frontend=False)
+    return HttpResponse(
+        orjson.dumps([dict(zip(column_names, row)) for row in table_data]),
+        content_type="application/json",
+    )
+
 ## Summary Statistics and Forest Output
 
 
@@ -165,8 +180,12 @@ def get_tableau_daily(request: TableauRequest, study_object_id: str = None):
     return summary_statistics_request_handler(request, study_object_id)
 
 
+# todo: just make a wdc for the participant table data
+# because tableau creates external dependencies of real code hitting an endpoint, so we can neeeeever change this.... sorta
+
+
 @require_GET
-def web_data_connector(request: TableauRequest, study_object_id: str):
+def web_data_connector_summary_statistics(request: TableauRequest, study_object_id: str):
     """ Build the "columns" data structure for tableau to enumerate the format of the API data.
     This is an open endpoint, it does not require any authentication. """
     # study_id and participant_id are not part of the SummaryStatisticDaily model, so they aren't
@@ -191,9 +210,54 @@ def web_data_connector(request: TableauRequest, study_object_id: str):
         else:
             # if the field is not recognized, supply it to tableau as a string type
             columns.append(f"{{id: '{field.name}', dataType: tableau.dataTypeEnum.string,}},\n")
-    
     columns = "".join(columns) + '];'
-    return render(request, 'wdc.html', context=dict(study_object_id=study_object_id, cols=columns))
+    
+    target_url = easy_url('data_api_endpoints.get_tableau_daily', study_object_id=study_object_id)
+    return render(
+        request,
+        'wdc.html',
+        context=dict(
+            study_object_id=study_object_id,
+            cols=columns,
+            target_url=target_url,
+        )
+    )
+
+
+@require_GET
+def web_data_connector_participant_table(request: TableauRequest, study_object_id: str):
+    """ Build the "columns" data structure for tableau to enumerate the format of the API data.
+    This is an open endpoint, it does not require any authentication. """
+    
+    # this is an open endpoint, it requires a study object id and has non-static data that is specific
+    # to the study. We have to check for this study object id in the database safely.
+    study_object_id = bleach.clean(study_object_id)
+    if len(study_object_id) != 24 or not study_object_id.isalnum():
+        return HttpResponse("Invalid study id", status=400)
+    if not Study.objects.filter(object_id=study_object_id).exists():
+        return HttpResponse("Study not found", status=404)
+    
+    study = Study.objects.get(object_id=study_object_id)
+    columns = ['[\n']
+    column_names = get_table_columns(study, frontend=False)
+    valid_column_names = set(TABLEAU_TABLE_FIELD_TYPES.keys())
+    valid_column_names.update(study.interventions.flat("name"))
+    valid_column_names.update(study.fields.flat("field_name"))
+    
+    # if the field isn't recognized, custom field and intervention names, use tableau.dataTypeEnum.string
+    for name in column_names:
+        t_type = "tableau.dataTypeEnum.string" if not (t:=TABLEAU_TABLE_FIELD_TYPES.get(name)) else t
+        columns.append(f"{{id: '{name}', dataType: {t_type},}},\n")
+    columns = "".join(columns) + '];'
+    
+    target_url = easy_url(
+        'data_api_endpoints.get_tableau_participant_table_data', study_object_id=study_object_id
+    )
+    return render(
+        request,
+        'wdc.html',
+        context=dict(study_object_id=study_object_id, cols=columns, target_url=target_url)
+    )
 
 
 ## New api endpoints for participant metadata
@@ -305,7 +369,7 @@ def get_participant_device_status_report_history(request: ApiStudyResearcherRequ
     query = participant.device_status_reports.order_by("created_on")
     paginator = DeviceStatusHistoryPaginator(
         filtered_query=query,
-        page_size=1000, 
+        page_size=1000,
         values=FIELDS_TO_SERIALIZE,
     )
     

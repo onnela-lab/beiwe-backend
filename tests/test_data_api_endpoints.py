@@ -7,6 +7,7 @@ from dateutil.tz import UTC
 from django.core.exceptions import ValidationError
 from django.http import StreamingHttpResponse
 from django.utils import timezone
+import time_machine
 
 from authentication.tableau_authentication import (check_tableau_permissions,
     TableauAuthenticationFailed, TableauPermissionDenied, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
@@ -463,6 +464,7 @@ class TestStudySurveyHistory(DataApiTest):
         self.assertEqual(ret, should_be)
 
 
+
 class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin):
     ENDPOINT_NAME = "data_api_endpoints.get_participant_table_data"
     
@@ -652,6 +654,44 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
         for name, value in some_column_names_and_values:
             setattr(self.default_participant, name, value)
         self.default_participant.save()
+
+
+class TestDownloadParticipantTableData(TableauAPITest, ParticipantTableHelperMixin):
+    ENDPOINT_NAME = "data_api_endpoints.get_tableau_participant_table_data"
+    
+    # We real tests are in the participant api test, this just checks that it works and has
+    # normal json output.
+    
+    def test_no_access(self):
+        self.smart_get_status_code(400, self.session_study.object_id)
+    
+    def test_access(self):
+        resp = self.smart_get_status_code(200, self.session_study.object_id, **self.raw_headers)
+        self.assertEqual(resp.content, b"[]")  # no participants literally an empty list
+    
+    @time_machine.travel("2020-01-01 12:00:00 UTC")
+    def test_one_participant(self):
+        self.using_default_participant()
+        resp = self.smart_get_status_code(200, self.session_study.object_id, **self.raw_headers)
+        thing = [{
+            "Created On": "2020-01-01",
+            "Patient ID": self.default_participant.patient_id,
+            "Status": "Inactive",
+            "OS Type": "ANDROID",
+            "First Registration Date": "None",
+            "Last Registration": "None",
+            "Last Upload": "None",
+            "Last Survey Download": "None",
+            "Last Set Password": "None",
+            "Last Push Token Update": "None",
+            "Last Device Settings Update": "None",
+            "Last OS Version": "None",
+            "App Version Code": "None",
+            "App Version Name": "None",
+            "Last Heartbeat": "None",
+        }]
+        x = orjson.dumps(thing)
+        self.assertEqual(resp.content, x)
 
 
 class TestGetParticipantUploadHistory(DataApiTest):
@@ -1482,7 +1522,7 @@ class TableauApiAuthTests(TableauAPITest):
 
 
 class TestWebDataConnector(SmartRequestsTestCase):
-    ENDPOINT_NAME = "data_api_endpoints.web_data_connector"
+    ENDPOINT_NAME = "data_api_endpoints.web_data_connector_summary_statistics"
     
     LOCAL_COPY_SERIALIZABLE_FIELD_NAMES = [
         # Metadata
@@ -1584,3 +1624,39 @@ class TestWebDataConnector(SmartRequestsTestCase):
         # update the copy of the list whenever you change the list.
         for field in self.LOCAL_COPY_SERIALIZABLE_FIELD_NAMES:
             self.assertIn(field, SERIALIZABLE_FIELD_NAMES)
+
+
+class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
+    ENDPOINT_NAME = "data_api_endpoints.web_data_connector_participant_table"
+    
+    LOCAL_COPY_FIELD_NAMES = [
+        "Created On",
+        "Patient ID",
+        "Status",
+        "OS Type",
+        # custom fields go here
+        "First Registration Date",
+        "Last Registration",
+        "Last Upload",
+        "Last Survey Download",
+        "Last Set Password",
+        "Last Push Token Update",
+        "Last Device Settings Update",
+        "Last OS Version",
+        "App Version Code",
+        "App Version Name",
+        "Last Heartbeat",
+    ]
+    
+    def test_page_content(self):
+        self.default_participant
+        resp = self.smart_get(self.session_study.object_id)
+        content = resp.content.decode()
+        
+        # test that someone has updated this test if the fields ever change
+        for field in self.LOCAL_COPY_FIELD_NAMES:
+            self.assert_present(field, content)
+        
+        test = 15
+        self.assertEqual(content.count("tableau.dataTypeEnum."), test, 
+                         msg=f"There should be {test} data types in the tableau data types, update the list above if you added one.")
