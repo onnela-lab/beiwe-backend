@@ -29,7 +29,6 @@ except ImportError:
     pass
 
 
-
 ## Types
 class NoSuchKeyException(Exception): pass
 class S3DeletionException(Exception): pass
@@ -141,7 +140,7 @@ class S3Storage:
         self, s3_path: str, obj: StrPartStudy, bypass_study_folder: bool
     ) -> None:
         from database.models import Participant, Study
-
+        
         # todo: add handling of the None cose for smart_key_obj, where some api calls are disabled
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
@@ -459,22 +458,26 @@ def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
 #
 ## List Files Matching Prefix
 # 
-def s3_list_files(prefix: str, as_generator=False) -> list[str]|Generator[str]:
+def s3_list_files(prefix: str, as_generator=False, start_at=None) -> list[str]|Generator[str]:
     """ Lists s3 keys matching prefix. as generator returns a generator instead of a list.
     WARNING: passing in an empty string can be dangerous. """
-    return _do_list_files(S3_BUCKET, prefix, as_generator=as_generator)
+    return _do_list_files(S3_BUCKET, prefix, as_generator=as_generator, start_at=start_at)
 
 
-def smart_s3_list_study_files(prefix: str, obj: StrPartStudy):
+def smart_s3_list_study_files(prefix: str, obj: StrPartStudy, start_at=None) -> list[str]|Generator[str]:
     """ Lists s3 keys matching prefix, autoinserting the study object id at start of key path. """
-    return s3_list_files(s3_construct_study_key_path(prefix, obj))
+    return s3_list_files(s3_construct_study_key_path(prefix, obj), start_at=start_at)
 
 
-def _do_list_files(bucket_name: str, prefix: str, as_generator=False) -> list[str]|Generator[str]:
-    # page size default is 1,000, the usage below is correct (tested, internal class value gets set
-    # to 10,000) but it still returns 1,000 items.
+def _do_list_files(bucket_name: str, prefix: str, as_generator=False, start_at=None) -> list[str]|Generator[str]:
+    """     Possibly useful params: Bucket, Prefix, StartAfter, and maybe PaginationConfig.
+    - PaginationConfig, a dict that accepts MaxItems (not MaxKeys, this one limits the number of
+      returns not the page size), StartingToken, PageSize (I have checked the code).
+    - Useless params are ContinuationToken, RequestPayer, ExpectedBucketOwner, MaxKeys, FetchOwner,
+      OptionalObjectAttributes, EncodingType, and Delimiter. """
+    # PAGE SIZE DEFAULT IS 1,000 AND CANNOT BE MADE LARGER.  STOP TRYING.
     page_iterator: Paginator.PAGE_ITERATOR_CLS = conn.get_paginator('list_objects_v2').paginate(
-        Bucket=bucket_name, Prefix=prefix, PaginationConfig={"PageSize": 10_000}  # terrible ergonomics
+        Bucket=bucket_name, Prefix=prefix, **{"StartAfter":start_at} if start_at else {}
     )
     if as_generator:
         return _do_list_files_generator(page_iterator)
