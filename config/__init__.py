@@ -76,6 +76,11 @@ if settings.SYSADMIN_EMAILS:
 if settings.DATA_DELETION_USERTYPE not in ("study_researcher", "study_admin", "site_admin"):
     ERRORS.append(f"DATA_DELETION_USERTYPE must be one of 'researcher', 'study_admin', or 'site_admin', got '{settings.DATA_DELETION_USERTYPE}'.")
 
+# we currently are limiting compression level due to the dfast parameter
+settings.DATA_COMPRESSION_LEVEL = int(settings.DATA_COMPRESSION_LEVEL)
+if settings.DATA_COMPRESSION_LEVEL > 4:
+    ERRORS.append(f"DATA_COMPRESSION_LEVEL must be less than 4, got '{settings.DATA_COMPRESSION_LEVEL}'.")
+
 #
 # Stick any warning about environment variables that may have changed here
 #

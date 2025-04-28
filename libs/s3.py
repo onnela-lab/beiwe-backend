@@ -25,11 +25,11 @@ from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
 
+
 ## This file must be near-globally importable, including inside db models; so these imports fail.
 # If you need to use a model you must to use a local import.
 try:
     from database.models import Participant, Study
-    
     StrPartStudy = str | Participant | Study
 except ImportError:
     pass
@@ -92,7 +92,7 @@ class S3Storage:
     
     def __init__(self, s3_path: str, obj: StrPartStudy, bypass_study_folder: bool) -> None:
         from database.models import Participant, Study
-        
+
         # todo: add handling of the None cose for smart_key_obj, where some api calls are disabled
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)

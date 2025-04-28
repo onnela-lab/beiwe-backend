@@ -68,8 +68,18 @@ DOWNLOADABLE_APK_URL: str = getenv(
 #
 
 # Added April 2025, this timezone should never be used for "real code", it is used in the terminal
-# and for debugging and possibly in error reports (sometimes).
+# and for debugging and possibly in error reports (sometimes).  (If you identify a location where
+# this should be used but is not, please post an issue on the Github Repo.)
 DEVELOPER_TIMEZONE: str = getenv("DEVELOPER_TIMEZONE", "America/New_York")
+
+
+# The level of compression used by ZSTD compression to use globally. Applies to participant data.
+#
+# Note, April 2025: this setting allows negative values and values below 5. Compression level is a
+# tradeoff of speed and compression ratio. Substantial benchmarking of compression options found
+# ZSTD ideal at compressing our majority csv-based data. The default value of 2 is well-founded.
+# Much of the work on compression benchmarking can be found in the compression_tests folder.
+DATA_COMPRESSION_LEVEL: int = int(getenv("DATA_COMPRESSION_LEVEL", "2"))
 
 
 ## This entire feature is deprecated and behind a feature flag, it will be removed without warning in
@@ -105,6 +115,7 @@ FILE_PROCESS_PAGE_SIZE: int = getenv("FILE_PROCESS_PAGE_SIZE", 100)
 # The number of attempts when sending push notifications to unreachable devices. Send attempts run
 # every 6 minutes, a value of 720 is 3 days. (24h * 3days * 10 attempts per hour = 720)
 PUSH_NOTIFICATION_ATTEMPT_COUNT: int = getenv("PUSH_NOTIFICATION_ATTEMPT_COUNT", 720)
+
 
 # Disables the QuotaExceededError in push notifications.  Enable if this error drowns your Sentry
 # account. Note that under the conditions where you need to enable this flag, those events will
