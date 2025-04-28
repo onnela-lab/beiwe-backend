@@ -26,6 +26,7 @@ from constants.message_strings import (BAD_DEVICE_OS, BAD_PARTICIPANT_OS,
     MESSAGE_SEND_SUCCESS, NO_DELETION_PERMISSION, NOT_IN_STUDY, PARTICIPANT_RETIRED_SUCCESS,
     PUSH_NOTIFICATIONS_NOT_CONFIGURED, RESEND_CLICKED, SUCCESSFULLY_SENT_NOTIFICATION_PREFIX)
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
+from constants.study_constants import NOTIFICATIONS_PER_PAGE
 from constants.user_constants import ANDROID_API, DATA_DELETION_ALLOWED_RELATIONS, IOS_API
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.study_models import Study
@@ -33,7 +34,7 @@ from database.survey_models import Survey
 from database.user_models_participant import Participant
 from libs.django_forms.forms import ParticipantExperimentForm
 from libs.endpoint_helpers.participant_helpers import (conditionally_display_locked_message,
-    convert_to_page_expectations, get_heartbeats_query, get_survey_names_dict,
+    convert_to_template_expectations, get_heartbeats_query, get_survey_names_dict,
     query_values_for_notification_history, render_participant_page)
 from libs.firebase_config import check_firebase_instance
 from libs.intervention_utils import add_fields_and_interventions
@@ -413,7 +414,7 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
     include_keepalive = request.GET.get('include_keepalive', "false").lower() == 'true'
     
     # archived events are survey notification events, logic that expects page size of 25.
-    archived_events = Paginator(query_values_for_notification_history(participant.id), 25)
+    archived_events = Paginator(query_values_for_notification_history(participant.id), NOTIFICATIONS_PER_PAGE)
     try:
         archived_events_page = archived_events.page(page_number)
     except EmptyPage:
@@ -430,7 +431,7 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
     all_notifications = get_and_sort_notifications(
         include_keepalive, participant, archived_events_page, page_number
     )
-    notification_page_content = convert_to_page_expectations(
+    notification_page_content = convert_to_template_expectations(
         all_notifications, study.timezone, get_survey_names_dict(study), uuids_to_received_time
     )
     conditionally_display_locked_message(request, participant)  # and then the conditional message...

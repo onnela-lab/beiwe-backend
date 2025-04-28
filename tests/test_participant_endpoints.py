@@ -8,6 +8,7 @@ from django.utils import timezone
 from constants.message_strings import (DEVICE_HAS_NO_REGISTERED_TOKEN, MESSAGE_SEND_FAILED_UNKNOWN,
     MESSAGE_SEND_SUCCESS, NO_DELETION_PERMISSION, PARTICIPANT_LOCKED,
     PUSH_NOTIFICATIONS_NOT_CONFIGURED)
+from constants.study_constants import NOTIFICATIONS_PER_PAGE
 from constants.user_constants import IOS_API, ResearcherRole
 from database.schedule_models import ArchivedEvent, ScheduledEvent
 from database.user_models_participant import Participant, ParticipantDeletionEvent
@@ -682,17 +683,20 @@ class TestNotificationHistory(ResearcherSessionTest):
         self.smart_get_status_code(200, self.session_study.id, self.default_participant.patient_id)
     
     # we need to hit all the logic possibilities for the heartbeat "pagination", mostly for coverage
-    def test_50_100_200_210(self):
+    def test_more_page_counts(self):
+        double_page_size = NOTIFICATIONS_PER_PAGE * 2
+        base_plus_10 = double_page_size + 10
+        quadruple_page_size = double_page_size * 4
         self.set_session_study_relation(ResearcherRole.study_admin)
         self.generate_participant_action_log() # this will be before everything, last page
         self.smart_get_status_code(200, self.session_study.id, self.default_participant.patient_id)
         # the first query hits logic for a first page of exactly less than 100
-        self.bulk_generate_archived_events(50, self.default_survey, self.default_participant)
+        self.bulk_generate_archived_events(double_page_size, self.default_survey, self.default_participant)
         self.smart_get_status_code(200, self.session_study.id, self.default_participant.patient_id)
         # need to generate more for the followup tests
-        self.bulk_generate_archived_events(60, self.default_survey, self.default_participant)
+        self.bulk_generate_archived_events(base_plus_10, self.default_survey, self.default_participant)
         self.generate_participant_action_log() # this will be in the middle of page two
-        self.bulk_generate_archived_events(100, self.default_survey, self.default_participant)
+        self.bulk_generate_archived_events(quadruple_page_size, self.default_survey, self.default_participant)
         self.generate_participant_action_log() # this will be in at the top of page one
         # The first action log is on the last page now
         # the first query hits logic for a first page of exactly 100

@@ -1,5 +1,10 @@
 import json
 
+
+# setting for the number of items on the notifications page - imports got weird
+NOTIFICATIONS_PER_PAGE = 200
+
+
 ## These are all used on various study pages
 
 ABOUT_PAGE_TEXT = (

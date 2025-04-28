@@ -14,6 +14,7 @@ from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
 from constants.common_constants import (API_DATE_FORMAT, DT_12HR_N_TZ_N_SEC_N_PAREN,
     DT_24HR_W_TZ_W_SEC_N_PAREN, T_24HR_W_TZ_N_SEC_N_PAREN)
 from constants.message_strings import PARTICIPANT_LOCKED
+from constants.study_constants import NOTIFICATIONS_PER_PAGE
 from constants.user_constants import DATA_DELETION_ALLOWED_RELATIONS
 from database.models import dbt
 from database.schedule_models import ArchivedEvent
@@ -138,31 +139,31 @@ def conditionally_display_locked_message(request: ResearcherRequest, participant
 
 def get_heartbeats_query(participant: Participant, archived_events_page: Paginator, page_number: int) -> Manager[ParticipantActionLog]:
     """ Using the elements in the archived pages, determine the bounds for the query of heartbeats,
-    and then construct and return that query. """
+    and then construct and return that query.  (Comments assume page size 25) """
     
     # tested, this does return the size of the page
     count = len(archived_events_page.object_list)
     
-    if page_number == 1 and count < 25:
+    if page_number == 1 and count < NOTIFICATIONS_PER_PAGE:
         # fewer than 25 notifications on the first page means that is all of them. So, get all the
         # heartbeats too. (this also detects and handles the case of zero total survey
         # notifications)
         heartbeat_query = participant.action_logs.filter(action=HEARTBEAT_PUSH_NOTIFICATION_SENT)
-    elif page_number == 1 and count == 25:
+    elif page_number == 1 and count == NOTIFICATIONS_PER_PAGE:
         # if there are exactly 25 notifications on the first page then we want everything after
         # (greater than) the last notification on the page, no latest (most recent) bound).
         heartbeat_query = participant.action_logs.filter(
             timestamp__gte=archived_events_page[-1]["created_on"],
             action=HEARTBEAT_PUSH_NOTIFICATION_SENT
         )
-    elif count < 25:
+    elif count < NOTIFICATIONS_PER_PAGE:
         # any non-full pages that are not the first page = get all heartbeats before the top (most
         # recent) notification on the page with no earliest (most in-the-past) bound.
         heartbeat_query = participant.action_logs.filter(
             timestamp__lte=archived_events_page[0]["created_on"],
             action=HEARTBEAT_PUSH_NOTIFICATION_SENT,
         )
-    elif count == 25:
+    elif count == NOTIFICATIONS_PER_PAGE:
         # if there are exactly 25 notifications and we are not on the first page, then we bound it
         # by the first and last notifications... but that leaves out heartbeats between pages... but
         # that's both transient and rare? Solving this requires an extra queries and is hard so
@@ -233,7 +234,7 @@ def notification_details_archived_event(
     }
 
 
-def convert_to_page_expectations(
+def convert_to_template_expectations(
     all_notifications: List[Dict],
     tz: tzinfo,
     survey_names: Dict[int, str],
