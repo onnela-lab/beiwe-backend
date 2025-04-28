@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from os.path import join as path_join
 from time import perf_counter_ns
-from typing import Any, Generator, Protocol
+from typing import Generator
 from unittest.mock import MagicMock
 
 import boto3
@@ -15,40 +15,25 @@ from cronutils import ErrorHandler
 from django.utils import timezone
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
-    S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
+    ENABLE_IOS_FILE_RECOVERY, S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
+from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException,
+    COMPRESSION__COMPRESSED_DATA_NONE, COMPRESSION__COMPRESSED_DATA_NOT_SET,
+    IOSDataRecoveryDisabledException, MetaDotDict, NoSuchKeyException, S3DeletionException,
+    SMART_GET_ERROR, UNCOMPRESSED_DATA_MISSING, UNCOMPRESSED_DATA_NONE_ON_POP)
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
 
-
+## This file must be near-globally importable, including inside db models; so these imports fail.
+# If you need to use a model you must to use a local import.
 try:
     from database.models import Participant, Study
+    
     StrPartStudy = str | Participant | Study
 except ImportError:
     pass
 
-
-## Types
-class NoSuchKeyException(Exception): pass
-class S3DeletionException(Exception): pass
-class BadS3PathException(Exception): pass
-
-# Boto3 doesn't have accessible type hints
-class Readable(Protocol):
-    def read(self) -> bytes: ...
-
-Boto3Response = dict[str, Readable]
-
-# Debugging messages
-# TODO: stick these somewhere....
-COMPRESSION__COMPRESSED_DATA_NOT_SET = "S3Compressed: file_content was not set before compression"
-COMPRESSION__COMPRESSED_DATA_NONE = "S3Compressed: file_content was None at compression time"
-UNCOMPRESSED_DATA_NONE_ON_POP = "S3Compressed: file_content was not set before pop"
-UNCOMPRESSED_DATA_MISSING = "S3Compressed: file_content was purged before pop"
-BAD_FOLDER = "Files in the {path_start} folder should not use the S3Storage class. full path: {path}"
-BAD_FOLDER_2 = "Unrecognized base folder: `{path_start}` in path: `{path}`"
-MUST_BE_ZSTD_FORMAT = "Must be compressed zstd data conforming to the zstd format. data started with {file_content}"
 
 ## Global S3 Connection
 
@@ -66,13 +51,13 @@ if RUNNING_TESTS:                       # This lets us cut out some boilerplate 
     S3_BUCKET = "test_bucket"
     conn = MagicMock()
 
-SMART_GET_ERROR = "expected Study, Participant, or 24 char str, received '{}'"
 
-
+#
 ## Smart Key and Path Getters
-
+#
 
 def smart_get_study_encryption_key(obj: StrPartStudy) -> bytes:
+    from database.models import Participant, Study
     if isinstance(obj, Participant):
         return Study.value_get("encryption_key", pk=obj.study_id).encode()
     elif isinstance(obj, Study):
@@ -88,6 +73,7 @@ def s3_construct_study_key_path(key_path: str, obj: StrPartStudy) -> str:
 
 
 def get_just_prefix(obj: StrPartStudy) -> str:
+    from database.models import Participant, Study
     if isinstance(obj, Participant):
         return Study.value_get("object_id", pk=obj.study_id)
     elif isinstance(obj, Study):
@@ -97,48 +83,14 @@ def get_just_prefix(obj: StrPartStudy) -> str:
     else:
         raise TypeError(SMART_GET_ERROR.format(type(obj)))
 
-
-## S3 Storage Class
-
-METADATA_FIELDS = {
-    "last_updated",
-    
-    "size_compressed",
-    "size_uncompressed",
-    "compression_time_ns",
-    "decompression_time_ns",
-    "encryption_time_ns",
-    "download_time_ns",
-    "upload_time_ns",
-    "decrypt_time_ns",
-    "sha1",
-    
-    "participant_id",
-    "study_id",
-}
-
-
-class MetaDotDict(dict):
-    def __getattr__(self, item):
-        return self[item]
-    
-    def __setattr__(self, name: str, value: Any):
-        self[name] = value
-    
-    def __setitem__(self, key: Any, value: Any) -> None:
-        if key not in METADATA_FIELDS:
-            raise AttributeError(f"'{key}' is not a validated metadata field")
-        return super().__setitem__(key, value)
-
+#
+## The S3 Storage Class - shim class that is used when actually pulling down s3 files.
+#
 
 class S3Storage:
-    """
-    A class that manages the lifecycle of encryption and compression.
-    """
+    """ A class that manages the lifecycle of encryption and compression of files on S3. """
     
-    def __init__(
-        self, s3_path: str, obj: StrPartStudy, bypass_study_folder: bool
-    ) -> None:
+    def __init__(self, s3_path: str, obj: StrPartStudy, bypass_study_folder: bool) -> None:
         from database.models import Participant, Study
         
         # todo: add handling of the None cose for smart_key_obj, where some api calls are disabled
@@ -174,6 +126,10 @@ class S3Storage:
         path_start = path.split("/", 1)[0]
         if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX):
             raise BadS3PathException(BAD_FOLDER.format(path_start=path_start, path=path))
+        
+        if not ENABLE_IOS_FILE_RECOVERY and path_start == PROBLEM_UPLOADS:
+            raise IOSDataRecoveryDisabledException(BAD_FOLDER.format(path_start=path_start, path=path))
+        
         if path_start != CHUNKS_FOLDER and path_start != self.get_path_prefix:
             raise BadS3PathException(BAD_FOLDER_2.format(path_start=path_start, path=path))
         
@@ -188,7 +144,7 @@ class S3Storage:
         self.uncompressed_data = file_content
         return self
     
-    # this code is correct but I'm not building the uncompressed upload function unless I need to.
+    # this code is correct but we aren't building the uncompressed upload function unless we need to.
     # there is a test, "test_set_compressed_data"
     # def set_file_content_compressed(self, file_content: bytes):
     #     if not isinstance(file_content, bytes):
@@ -255,7 +211,7 @@ class S3Storage:
     def _download_and_rewrite_s3_as_compressed(self):
         raw_data = self._s3_retrieve_uncompressed()
         
-        self.uncompressed_data = raw_data
+        self.uncompressed_data = raw_data  # needs to be set for rewrite
         self.compress_and_push_to_storage_and_clear_everything()
         self._s3_delete_uncompressed()
         
@@ -365,14 +321,6 @@ class S3Storage:
     
     def _s3_retrieve(self, path: str) -> bytes:
         return _do_retrieve(path)['Body'].read()
-    
-    ## Get Size
-    
-    # def _s3_get_size_zstd(self):
-    #     return s3_get_size(self.get_cache_prefix() + self.s3_path_zstd)
-    
-    # def _s3_get_size_uncompressed(self):
-    #     return s3_get_size(self.get_cache_prefix() + self.s3_path_uncompressed)
 
 
 #
@@ -382,7 +330,7 @@ class S3Storage:
 
 ## MetaData
 
-
+# todo: update list to provide this detail
 def s3_get_size(key_path: str):
     try:
         return conn.head_object(Bucket=S3_BUCKET, Key=key_path)["ContentLength"]
@@ -390,6 +338,7 @@ def s3_get_size(key_path: str):
         # ClientError: An error occurred (404) when calling the HeadObject operation: Not Found
         if e.response['Error']['Code'] == '404':
             raise NoSuchKeyException(f"{key_path}") from None
+
 
 ## Upload
 
@@ -457,7 +406,7 @@ def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
 
 #
 ## List Files Matching Prefix
-# 
+#
 def s3_list_files(prefix: str, as_generator=False, start_at=None) -> list[str]|Generator[str]:
     """ Lists s3 keys matching prefix. as generator returns a generator instead of a list.
     WARNING: passing in an empty string can be dangerous. """
@@ -477,7 +426,7 @@ def _do_list_files(bucket_name: str, prefix: str, as_generator=False, start_at=N
       OptionalObjectAttributes, EncodingType, and Delimiter. """
     # PAGE SIZE DEFAULT IS 1,000 AND CANNOT BE MADE LARGER.  STOP TRYING.
     page_iterator: Paginator.PAGE_ITERATOR_CLS = conn.get_paginator('list_objects_v2').paginate(
-        Bucket=bucket_name, Prefix=prefix, **{"StartAfter":start_at} if start_at else {}
+        Bucket=bucket_name, Prefix=prefix, **{"StartAfter": start_at} if start_at else {}
     )
     if as_generator:
         return _do_list_files_generator(page_iterator)
@@ -486,7 +435,7 @@ def _do_list_files(bucket_name: str, prefix: str, as_generator=False, start_at=N
     for page in page_iterator:
         if 'Contents' in page:
             # strip() is the same speed as rstrip(), both are faster than endwith()
-            items.extend(item['Key'].strip("/") for item in page['Contents']) 
+            items.extend(item['Key'].strip("/") for item in page['Contents'])
     return items
 
 

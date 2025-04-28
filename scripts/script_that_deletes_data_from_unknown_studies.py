@@ -41,6 +41,7 @@ class stats:
         print("number_deletes_failed:", numformat(cls.number_deletes_failed))
 
 
+# TODO: can saze an s3 call by using raw s3_list_files and reading output, we strip it in s3_list_files
 def delete_and_stat_file(path: str):
     try:
         stats.bytes_deleted_s3 += s3_get_size(path) or 0

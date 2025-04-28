@@ -72,6 +72,20 @@ DOWNLOADABLE_APK_URL: str = getenv(
 DEVELOPER_TIMEZONE: str = getenv("DEVELOPER_TIMEZONE", "America/New_York")
 
 
+## This entire feature is deprecated and behind a feature flag, it will be removed without warning in
+## the future.  Run the data recover script and then disable this feature because data will not be
+## recoverable after this feature is removed.
+# Very old versions of iOS app, pre 2.5.X, last available on the iOS app store in January 2024,
+# sometimes corrupted data. There is a mechanism for recovering this data involving running a
+# script. This recovery mechanism is no longer enabled by default. Please check the beiwe-backend
+# repository on Githbub for details. This feature will be removed entirely in the future.  Enabling
+# this flag will allow corrupted files to be stashed as they were before, but they will use the new
+# compression code, and which may not be totally compatible with the data recovery script. (it
+# should just run slower because it will compress the data as it goes. but we can't test it anymore
+# because the primary developers have already run the script on their data and then removed it.)
+ENABLE_IOS_FILE_RECOVERY: bool = getenv("ENABLE_IOS_FILE_RECOVERY", "false").lower() == "true"
+
+
 #
 # File processing and Data Access API options
 #
@@ -126,8 +140,7 @@ DATA_DELETION_USERTYPE: str = getenv('DATA_DELETION_USERTYPE', 'study_researcher
 STORE_DECRYPTION_LINE_ERRORS: bool = getenv('STORE_DECRYPTION_LINE_ERRORS', 'false').lower() == 'true'
 
 # upload logging is literally the logging of details of file uploads from mobile devices.
-# (most logging is limited to a single file, this particular logging is spread across multiple
-# files that would have a cross-import, so it needs to be stuck elsewhere.)
+# (This setting exists because this variable has to be imported in multiple locations)
 # (This will eventually be replaced with better logging controls.)
 UPLOAD_LOGGING_ENABLED: bool = getenv('UPLOAD_LOGGING_ENABLED', 'false').lower() == 'true'
 

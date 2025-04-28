@@ -1,3 +1,5 @@
+import logging
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.http.response import HttpResponse
@@ -12,7 +14,8 @@ from database.profiling_models import UploadTracking
 from database.system_models import GenericEvent
 from database.user_models_participant import Participant
 from libs.encryption import DeviceDataDecryptor
-from libs.s3 import s3_retrieve, s3_upload, smart_s3_list_study_files
+from libs.s3 import (IOSDataRecoveryDisabledException, s3_retrieve, s3_upload,
+    smart_s3_list_study_files)
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 
 
@@ -72,9 +75,19 @@ def upload_and_create_file_to_process_and_log(
 def upload_problem_file(
     file_contents: bytes, participant: Participant, s3_file_path: str, exception: Exception
 ):
-    file_path = f"{PROBLEM_UPLOADS}/{participant.study.object_id}/" + s3_file_path \
-        + generate_easy_alphanumeric_string(10)
-    s3_upload(file_path, file_contents, participant, raw_path=True)
+    file_path = f"{PROBLEM_UPLOADS}/{participant.study.object_id}/" + s3_file_path + generate_easy_alphanumeric_string(10)
+    
+    # We can't just test if ENABLE_IOS_FILE_RECOVERY because this code path actually enables
+    # discarding of corrupted files, whatever their origin, which can still happen (it is very rare,
+    # usually due to real-actual data corruption on the device, not our code.)
+    try:
+        s3_upload(file_path, file_contents, participant, raw_path=True)
+    except IOSDataRecoveryDisabledException:
+        logw = logging.getLogger("ios_file_recovery")
+        logw.setLevel(logging.WARNING)
+        logw.warning(f"ios data recovery is deprecated, discarding to uploaded corrupted data: {file_path}")
+        return
+    
     note = f'{file_path} for participant {participant.patient_id} failed with {str(exception)}'
     log("creating problem upload on s3:", note)
     GenericEvent.easy_create(
