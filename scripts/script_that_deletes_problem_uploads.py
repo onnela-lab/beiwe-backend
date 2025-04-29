@@ -1,4 +1,5 @@
 from constants.common_constants import PROBLEM_UPLOADS
+from database.models import GenericEvent, IOSDecryptionKey, S3File
 from libs.s3 import s3_delete_many_versioned, s3_list_versions
 
 
@@ -23,3 +24,8 @@ def main():
     
     if many_file_version_ids:
         s3_delete_many_versioned(many_file_version_ids)
+    
+    IOSDecryptionKey.objects.all().delete()
+    # GenericEvent.objects.filter(tag__startswith="problem_upload").delete()  # actually we can just clear it completely
+    GenericEvent.objects.all().delete()
+    S3File.objects.filter(path__startswith=PROBLEM_UPLOADS).delete()

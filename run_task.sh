@@ -10,7 +10,7 @@ fi
 
 
 echo
-echo "This task running will dispatch a script safely, running on the local machine with output redirected to a log file."
+echo "This task runner will dispatch a script safely, running on the local machine with output redirected to a log file."
 echo "Output from the script will immediately be followed, but you can exit the live follow at any time by pressing Ctrl+C."
 echo "This action WILL NOT STOP THE SCRIPT, it will just stop following the output."
 echo
