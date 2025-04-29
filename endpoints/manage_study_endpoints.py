@@ -178,7 +178,7 @@ def delete_intervention(request: ResearcherRequest, study_id=None):
 def download_participants_csv(request: ResearcherRequest, study_id: int = None):
     """ Download a CSV file version of the participants table on the view study page. """
     study: Study = Study.objects.get(pk=study_id)  # already validated by the decorator.
-    table_data = common_data_extraction_for_apis(study)
+    table_data = common_data_extraction_for_apis(study, for_json=False)
     
     # we need to write the data to a buffer, and then return the buffer as a response
     buffer = StringIO()

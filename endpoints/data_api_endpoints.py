@@ -125,7 +125,7 @@ def get_participant_table_data(request: ApiStudyResearcherRequest):
         return HttpResponse(MISSING_JSON_CSV_MESSAGE, status=400)
     
     column_names = get_table_columns(request.api_study, frontend=False)
-    table_data = common_data_extraction_for_apis(request.api_study)
+    table_data = common_data_extraction_for_apis(request.api_study, for_json=data_format != "csv")
     
     # virtually if not literally identical to the button api
     if data_format == "csv":
@@ -154,12 +154,15 @@ def get_participant_table_data(request: ApiStudyResearcherRequest):
 @authenticate_tableau
 def get_tableau_participant_table_data(request: TableauRequest, study_object_id: str):
     """ Returns a streaming JSON response of the participant data for Tableau."""
-    # the study object is already vadidated to exist and to be accessible to the requester
-    study = Study.objects.filter(object_id=study_object_id).get()
-    table_data = common_data_extraction_for_apis(study)
-    column_names = get_table_columns(study, frontend=False)
+    # the study object is already validated to exist and to be accessible to the requester
+    study = Study.objects.get(object_id=study_object_id)
+    table_data = common_data_extraction_for_apis(study, for_json=True)
+    # Tableau requires keys to be alphanumerics and _
+    column_names = [n.lower().replace(" ", "_") for n in get_table_columns(study, frontend=False)]
+    datums = [dict(zip(column_names, row)) for row in table_data]
+    
     return HttpResponse(
-        orjson.dumps([dict(zip(column_names, row)) for row in table_data]),
+        orjson.dumps(datums, option=orjson.OPT_OMIT_MICROSECONDS|orjson.OPT_UTC_Z),
         content_type="application/json",
     )
 
@@ -239,14 +242,14 @@ def web_data_connector_participant_table(request: TableauRequest, study_object_i
     
     study = Study.objects.get(object_id=study_object_id)
     columns = ['[\n']
-    column_names = get_table_columns(study, frontend=False)
-    valid_column_names = set(TABLEAU_TABLE_FIELD_TYPES.keys())
-    valid_column_names.update(study.interventions.flat("name"))
-    valid_column_names.update(study.fields.flat("field_name"))
+    column_names = [column.lower().replace(" ", "_") for column in get_table_columns(study, False)]
     
     # if the field isn't recognized, custom field and intervention names, use tableau.dataTypeEnum.string
     for name in column_names:
-        t_type = "tableau.dataTypeEnum.string" if not (t:=TABLEAU_TABLE_FIELD_TYPES.get(name)) else t
+        if name not in TABLEAU_TABLE_FIELD_TYPES:
+            t_type = "tableau.dataTypeEnum.string"
+        else:
+            t_type = TABLEAU_TABLE_FIELD_TYPES[name]
         columns.append(f"{{id: '{name}', dataType: {t_type},}},\n")
     columns = "".join(columns) + '];'
     

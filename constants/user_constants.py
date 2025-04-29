@@ -71,7 +71,7 @@ EXTRA_TABLE_FIELDS = {
 }
 
 TABLEAU_TABLE_FIELD_TYPES = {
-    "created_on": "tableau.dataTypeEnum.datetime",
+    "created_on": "tableau.dataTypeEnum.date",
     "patient_id": 'tableau.dataTypeEnum.string',
     "status": 'tableau.dataTypeEnum.string',
     "os_type": 'tableau.dataTypeEnum.string',
