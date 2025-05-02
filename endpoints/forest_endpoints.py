@@ -39,7 +39,7 @@ from libs.streaming_zip import ZipGenerator
 from libs.utils.date_utils import daterange
 from libs.utils.forest_utils import download_output_file
 from libs.utils.http_utils import easy_url
-
+from django.core.paginator import EmptyPage, Paginator
 
 TASK_SERIALIZER_FIELDS = [
     # raw
@@ -200,11 +200,23 @@ def copy_forest_task(request: ResearcherRequest, study_id=None):
 @authenticate_researcher_study_access
 @forest_enabled
 def task_log(request: ResearcherRequest, study_id=None):
+    try:
+        page = int(request.GET.get("page", "1"))
+    except ValueError:
+        return HttpResponse(content="", status=400)
+    
     query = ForestTask.objects.filter(participant__study_id=study_id)\
         .order_by("-created_on").values(*TASK_SERIALIZER_FIELDS)
+    
+    paginator = Paginator(query, 1000)
+    if paginator.num_pages < page:
+        return HttpResponse(content="", status=400)
+    
+    page = paginator.page(page)
+    
     tasks = []
     
-    for task_dict in query:
+    for task_dict in page:
         extern_id = task_dict["external_id"]
         
         # the commit is populated when the task runs, not when it is queued.

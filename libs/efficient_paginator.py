@@ -49,9 +49,13 @@ class EfficientQueryPaginator:
         values: List[str] = None,
         values_list: List[str] = None,
         flat=True,
+        verbose=False,
     ):
         if (not values and not values_list) or (values and values_list):  # Not. Negotiable.
             raise Exception("exactly one of values or values_list must be provided")
+        
+        if page_size > 50_000:
+            raise Exception("page_size must be less than 50,000, there's a fundamental 65k limit.")
         
         self.page_size = page_size
         self.pk_query = filtered_query.values_list("pk", flat=True)
@@ -64,6 +68,7 @@ class EfficientQueryPaginator:
             self.pk_query = self.pk_query[:limit]
         
         # pass values params intelligently
+        
         if values:
             self.value_query = filtered_query.values(*self.field_names)
         elif values_list:
@@ -71,14 +76,25 @@ class EfficientQueryPaginator:
                 *values_list, flat=flat and len(self.field_names) == 1  # intelligently handle flat=True
             )
             self.values_list = values_list
+        
+        if verbose:
+            print("EfficientQueryPaginator __init__ end")
+            print(f"EfficientQueryPaginator pk_query: {self.pk_query.explain()}")
+            print(f"EfficientQueryPaginator value_query: {self.value_query.explain()}")
+        self.verbose = verbose
     
     # uh this is kinda not tested and had a bug...
     def __iter__(self) -> Generator[Any, None, None]:
         """ Grab a page of PKs, the results via iteration. (_Might_ have better memory usage.) """
         pks = []
-        for count, pk in enumerate(self.pk_query.iterator(), start=1):
+        if self.verbose:
+            print("EfficientQueryPaginator __iter__ start")
+        
+        for count, pk in enumerate(self.pk_query.iterator(chunk_size=self.page_size), start=1):
             pks.append(pk)
             if count % self.page_size == 0:
+                if self.verbose:
+                    print(f"EfficientQueryPaginator page {count}, items: {len(pks)}")
                 for result in self.value_query.filter(pk__in=pks):
                     yield result
                 pks = []
@@ -90,10 +106,14 @@ class EfficientQueryPaginator:
     
     def paginate(self) -> Generator[List, None, None]:
         """ Grab a page of PKs, return results in bulk. (Use this one 99% of the time) """
+        if self.verbose:
+            print("EfficientQueryPaginator paginate start")
         pks = []
-        for count, pk in enumerate(self.pk_query.iterator(), start=1):
+        for count, pk in enumerate(self.pk_query.iterator(chunk_size=self.page_size), start=1):
             pks.append(pk)
             if count % self.page_size == 0:
+                if self.verbose:
+                    print(f"EfficientQueryPaginator page {count}, items: {len(pks)}")
                 # using list(query) the iteration occurs inside cpython and is extremely quick.
                 # Do not create a variable that references the list! that creates a reference!
                 # (it might still have a reference, this is very hard to test.)
@@ -102,6 +122,8 @@ class EfficientQueryPaginator:
         
         # after iteration, any remaining pks
         if pks:
+            if self.verbose:
+                print(f"EfficientQueryPaginator final page, items: {len(pks)}")
             yield list(self.value_query.filter(pk__in=pks))
     
     def stream_csv(self, header_names: List[str] = None) -> Generator[str, None, None]:

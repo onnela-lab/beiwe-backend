@@ -113,6 +113,10 @@ SHELL_PLUS_POST_IMPORTS = [
     ["libs.shell_support", "*"],
     ['libs.utils.dev_utils', "GlobalTimeTracker"],
     
+    # honestly misc stuff
+    ['libs.utils.http_utils', "numformat"],
+    ["libs.efficient_paginator", "EfficientQueryPaginator"],
+    
     # s3
     [
         "libs.s3",
