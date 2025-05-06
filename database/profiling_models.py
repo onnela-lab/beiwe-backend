@@ -9,9 +9,11 @@ from django.db.models import Count, Q, QuerySet, Sum
 from django.utils import timezone
 
 from constants.data_stream_constants import *
+from constants.common_constants import CHUNKS_FOLDER
 from database.common_models import UtilityModel
 from database.models import JSONTextField, TimestampedModel
 from database.user_models_participant import Participant
+from libs.efficient_paginator import EfficientQueryPaginator
 from libs.utils.http_utils import numformat
 
 
@@ -310,6 +312,7 @@ class S3File(TimestampedModel):
     path = models.TextField(unique=True)
     sha1 = models.BinaryField(max_length=20, null=True, blank=True)
     
+    # TODO: is there a way to compress this down without losing substantial precision?
     size_uncompressed = models.PositiveBigIntegerField(null=True, blank=True)
     size_compressed = models.PositiveBigIntegerField(null=True, blank=True)
     compression_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
@@ -319,21 +322,23 @@ class S3File(TimestampedModel):
     upload_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     decrypt_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     
+    # TODO: add this field maybe?
+    # glacier = models.BooleanField(default=False)
+    
     object_ids = {}  # for caching study object id lookups
     
     # This is a mapping of data streams to strings found in their paths. it is based off real
     # values in the s3 bucket, which is a mess for historical reasons.
-    MAPPING = {**UPLOAD_FILE_TYPE_MAPPING}
-    MAPPING.update((stream, stream) for stream in ALL_DATA_STREAMS)
-    MAPPING["/keys/"] = "key_file"
-    MAPPING["forest"] = "forest"
-    MAPPING["ios/log"] = IOS_LOG_FILE
-    
+    DATA_STREAM_NAME_MAPPING = {**UPLOAD_FILE_TYPE_MAPPING}
+    DATA_STREAM_NAME_MAPPING.update((stream, stream) for stream in ALL_DATA_STREAMS)
+    DATA_STREAM_NAME_MAPPING["/keys/"] = "key_file"
+    DATA_STREAM_NAME_MAPPING["forest"] = "forest"
+    DATA_STREAM_NAME_MAPPING["ios/log"] = IOS_LOG_FILE
     
     def get_object_id(self):
         # TODO: we can just logic this out of the path, we only allow study and CHUNKED_DATA and LOGS
         from database.models import Study
-        
+
         # first go through the object_ids cache, then study_id if present, then participant
         # study, populating the cache if we need to.
         self.study_id: int
@@ -375,7 +380,7 @@ class S3File(TimestampedModel):
         """ Determines a data stream or file type based purely off the path. """
         
         determination = None
-        for data_stream, the_name in cls.MAPPING.items():
+        for data_stream, the_name in cls.DATA_STREAM_NAME_MAPPING.items():
             if data_stream in path:
                 determination = the_name
                 break
@@ -408,11 +413,9 @@ class S3File(TimestampedModel):
     def global_ratio(cls):
         # using django annotations get the sum of all the compressed and uncompressed sizes,
         # print the ratio of compressed to uncompressed out to 4 decimal places.
-        
         compressed, uncompressed, count = cls.objects.aggregate(
             Sum("size_compressed"), Sum("size_uncompressed"), Count("pk")
         ).values()
-        
         cls.prant("global", compressed, uncompressed, count)
     
     @staticmethod
@@ -427,13 +430,27 @@ class S3File(TimestampedModel):
     @classmethod
     def print_stats_slow(cls):
         """ Data from this can be used to build the mapping structure in _fast. """
-        query = cls.objects.values_list("path", "size_uncompressed", "size_compressed")
+        
+        def prant():
+            print()
+            for k in sorted(data_streams):
+                cls.prant(k, counter[f"{k} compressed"], counter[f"{k} uncompressed"], counter[f"{k} count"])
+            print()
+        
+        paginator = EfficientQueryPaginator(
+            cls.objects.all(),
+            page_size=10_000,
+            values_list=["path", "size_uncompressed", "size_compressed"],
+        )
         
         counter = defaultdict(int)
         data_streams = set()
-        for i, (path, s_uncompressed, s_compressed) in enumerate(query.iterator()):
-            if i % 100000 == 0:
+        # for i, (path, s_uncompressed, s_compressed) in enumerate(query.iterator()):
+        for i, (path, s_uncompressed, s_compressed) in enumerate(paginator):
+            if i % 10_000 == 0:
                 print(i)
+                if i % 100_000 == 0:
+                    prant()
             data_stream = cls._get_data_stream(path)
             data_streams.add(str(data_stream))
             if data_stream is None:
@@ -442,8 +459,7 @@ class S3File(TimestampedModel):
             counter[f"{data_stream} uncompressed"] += s_uncompressed
             counter[f"{data_stream} compressed"] += s_compressed
         
-        for k in sorted(data_streams):
-            cls.prant(k, counter[f"{k} compressed"], counter[f"{k} uncompressed"], counter[f"{k} count"])
+        prant()
     
     @classmethod
     def print_stats_fast(cls):
@@ -490,7 +506,7 @@ class S3File(TimestampedModel):
                 
                 cls.prant(label + "", compressed_chunked, uncompressed_chunked, count_chunked)
             
-            # raw uplaod data query
+            # raw upload data query
             compressed_raw, uncompressed_raw, count_raw = S3File.objects.filter(path_contains)\
                 .exclude(path__startswith="CHUNKED_DATA")\
                 .aggregate(Sum("size_compressed"), Sum("size_uncompressed"), Count("pk")).values()
@@ -500,20 +516,41 @@ class S3File(TimestampedModel):
             if count_raw or count_chunked:
                 print()
     
+    #TODO: implement
+    # def get_compression_time_stats(self):
+    
     @classmethod
     def find_duplicates(cls):
-        # iterator should bypass the django cache. still uses a lot of ram.
         # interesting, it looks like the wifilog can create duplicates because it doesn't have an internal timestamp.
-        c = Counter(
-            cls.vlist("sha1").exclude(path__contains="wifi").iterator()
-        ).most_common()
+        # EfficientQueryPaginator to reduce memory overhead via django cache.
+        # we don't care about chunked data
+        query = cls.objects.exclude(Q(path__startswith=CHUNKS_FOLDER)|Q(path__contains="/wifi"))
+        query = query.order_by()
+        nator = EfficientQueryPaginator(query, page_size=50_000, values_list=["sha1"], verbose=True)
         
-        for sha1, count in c[:20]:
-            if count <= 1:
-                continue
-            f: S3File = S3File.fltr(sha1=sha1).first()
-            print(sha1.hex(), "-", count, "-", f.get_data_stream())
-            print()
-            s = f.storage()
-            print(s.download().pop_file_content())
-            print()
+        outer_counter = defaultdict(int)
+        
+        def prant():
+            print("stats", i)
+            for sha1, count in outer_counter.items():
+                if count <= 1:
+                    continue
+                f: S3File = S3File.fltr(sha1=sha1).order_by().first()
+                print(sha1.hex(), "-", count, "-", f.get_data_stream())
+                print()
+                s = f.storage()
+                print(s.download().pop_file_content())
+                print()
+        
+        # go through 5-million items, get counts, print stats, then reset the counter so we don't oom
+        for i, page in enumerate(nator.paginate()):
+            if i % 10 == 0:  # 50_000 * 100 = 5 million
+                prant()
+                c = Counter()
+            
+            c.update(page)
+            
+            if i % 10 == 0:
+                for some_hash, some_count in c.items():
+                    if some_count > 1:
+                        outer_counter[some_hash] += some_count
