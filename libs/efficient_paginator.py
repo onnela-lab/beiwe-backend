@@ -1,5 +1,6 @@
 import csv
-from typing import Any, Generator, List, Tuple
+from time import perf_counter
+from typing import Any, Generator
 
 from django.db.models import QuerySet
 from orjson import dumps as orjson_dumps
@@ -46,8 +47,8 @@ class EfficientQueryPaginator:
         filtered_query: QuerySet,
         page_size: int,
         limit: int = 0,
-        values: List[str] = None,
-        values_list: List[str] = None,
+        values: list[str] = None,
+        values_list: list[str] = None,
         flat=True,
         verbose=False,
     ):
@@ -90,10 +91,15 @@ class EfficientQueryPaginator:
         if self.verbose:
             print("EfficientQueryPaginator __iter__ start")
         
+        start = perf_counter()
         for count, pk in enumerate(self.pk_query.iterator(chunk_size=self.page_size), start=1):
             pks.append(pk)
             if count % self.page_size == 0:
                 if self.verbose:
+                    if start:
+                        elapsed = perf_counter() - start
+                        print(f"EfficientQueryPaginator time to first index: {elapsed:.4f} seconds")
+                        start = None
                     print(f"EfficientQueryPaginator page {count}, items: {len(pks)}")
                 for result in self.value_query.filter(pk__in=pks):
                     yield result
@@ -104,15 +110,21 @@ class EfficientQueryPaginator:
             for result in self.value_query.filter(pk__in=pks):
                 yield result
     
-    def paginate(self) -> Generator[List, None, None]:
+    def paginate(self) -> Generator[list, None, None]:
         """ Grab a page of PKs, return results in bulk. (Use this one 99% of the time) """
         if self.verbose:
             print("EfficientQueryPaginator paginate start")
         pks = []
+        
+        start = perf_counter()
         for count, pk in enumerate(self.pk_query.iterator(chunk_size=self.page_size), start=1):
             pks.append(pk)
             if count % self.page_size == 0:
                 if self.verbose:
+                    if start:
+                        elapsed = perf_counter() - start
+                        print(f"EfficientQueryPaginator time to first index: {elapsed:.4f} seconds")
+                        start = None
                     print(f"EfficientQueryPaginator page {count}, items: {len(pks)}")
                 # using list(query) the iteration occurs inside cpython and is extremely quick.
                 # Do not create a variable that references the list! that creates a reference!
@@ -126,7 +138,7 @@ class EfficientQueryPaginator:
                 print(f"EfficientQueryPaginator final page, items: {len(pks)}")
             yield list(self.value_query.filter(pk__in=pks))
     
-    def stream_csv(self, header_names: List[str] = None) -> Generator[str, None, None]:
+    def stream_csv(self, header_names: list[str] = None) -> Generator[str, None, None]:
         """ Streams out a page by page csv file for passing into a FileResponse. """
         if not self.doing_values_list:
             raise Exception("stream_csv requires use of values_list parameter.")
@@ -141,7 +153,7 @@ class EfficientQueryPaginator:
         si.empty()
         
         # use the bulk writerows function, should be faster.
-        rows: List[Tuple] = []
+        rows: list[tuple] = []
         for rows in self.paginate():
             filewriter.writerows(rows)
             yield si.getvalue()
