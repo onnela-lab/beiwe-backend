@@ -1,14 +1,12 @@
-from typing import Union
-
 import boto3
 from botocore.client import BaseClient, ClientMeta
 from botocore.session import Session as IDEResourceType
 from deployment_helpers.constants import get_aws_credentials, get_global_config
 
 
-# IDE does not understand boto3 because the types themselves are generated at runtime.  These typing
-# hints gives the IDE some idea, but tbh not much.
-IDEBotoClientType = Union[BaseClient, ClientMeta]
+# Boto typing is virtually impossible because of dynamic typing, this quiets your IDE some
+class IDEBotoClientType(BaseClient, ClientMeta): pass
+
 
 AWS_CREDENTIALS = get_aws_credentials()
 GLOBAL_CONFIGURATION = get_global_config()
@@ -30,12 +28,12 @@ def _prepare_credentials() -> dict:
     return params
 
 
-def _get_client(client_type):
+def _get_client(client_type) -> IDEBotoClientType:
     """ connect to a boto3 CLIENT in the appropriate type and region. """
     return boto3.client(client_type, **_prepare_credentials())
 
 
-def _get_resource(client_type):
+def _get_resource(client_type) -> IDEResourceType:
     """ connect to a boto3 RESOURCE in the appropriate type and region. """
     return boto3.resource(client_type, **_prepare_credentials())
 

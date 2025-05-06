@@ -3,15 +3,14 @@
 from pprint import pprint
 from time import sleep
 
-from deployment_helpers.aws.boto_helpers import (create_eb_client, create_iam_client,
-    create_sts_client)
+from deployment_helpers.aws.boto_helpers import create_eb_client, create_iam_client
 from deployment_helpers.aws.elastic_beanstalk_configuration import (DynamicParameter,
     get_base_eb_configuration)
 from deployment_helpers.aws.iam import (EnvironmentDeploymentFailure,
     get_or_create_automation_policy, iam_attach_role_policy, iam_create_role,
     iam_find_instance_profile, iam_find_role, IamEntityMissingError, PythonPlatformDiscoveryError)
 from deployment_helpers.aws.rds import add_eb_environment_to_rds_database_security_group
-from deployment_helpers.aws.s3 import s3_encrypt_bucket
+from deployment_helpers.aws.s3 import s3_encrypt_eb_bucket
 from deployment_helpers.aws.security_groups import get_security_group_by_name, open_tcp_port
 from deployment_helpers.constants import (AWS_EB_ENHANCED_HEALTH, AWS_EB_MULTICONTAINER_DOCKER,
     AWS_EB_SERVICE, AWS_EB_WEB_TIER, AWS_EB_WORKER_TIER, BEIWE_APPLICATION_NAME,
@@ -107,22 +106,6 @@ def get_environments_list():
 ##
 ## Creation Functions
 ##
-
-def encrypt_eb_s3_bucket():
-    '''
-    This function obtain the account ID and the region, constructs the
-    elasticbeanstalk s3 bucket name and applies a encrypt by default policy
-    to the bucket.
-    '''
-    global_config = get_global_config()
-    sts_client = create_sts_client()
-    account_id = sts_client.get_caller_identity().get('Account')
-    # There ought to be an easier way to get this name, but this works.
-    s3_eb_bucket = 'elasticbeanstalk-{}-{}'.format(global_config['AWS_REGION'],
-                                                   account_id)
-    
-    log.info('Enabling encryption on S3 bucket: %s' % s3_eb_bucket)
-    s3_encrypt_bucket(s3_eb_bucket)
 
 
 def get_or_create_eb_service_role():
@@ -326,7 +309,7 @@ def create_eb_environment(eb_environment_name, without_db=False):
             log.info(f"environment {eb_environment_name}, is ready to have Beiwe deployed to it.")
             break
     
-    encrypt_eb_s3_bucket()
+    s3_encrypt_eb_bucket()
     allow_eb_environment_database_access(eb_environment_name)
     allow_443_traffic_to_load_balancer(eb_environment_name)
     return env
