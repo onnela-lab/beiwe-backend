@@ -70,29 +70,24 @@ EXTRA_TABLE_FIELDS = {
     "last_heartbeat_checkin": "Last Heartbeat",
 }
 
+
 TABLEAU_TABLE_FIELD_TYPES = {
     "created_on": "tableau.dataTypeEnum.date",
     "patient_id": 'tableau.dataTypeEnum.string',
     "status": 'tableau.dataTypeEnum.string',
     "os_type": 'tableau.dataTypeEnum.string',
-    "first_register_user": "tableau.dataTypeEnum.datetime",
-    "last_register_user":  "tableau.dataTypeEnum.datetime",
+    "first_registration_date": "tableau.dataTypeEnum.datetime",
+    "last_registration":  "tableau.dataTypeEnum.datetime",
     "last_upload":  "tableau.dataTypeEnum.datetime",
-    "last_get_latest_surveys":  "tableau.dataTypeEnum.datetime",
+    "last_survey_download":  "tableau.dataTypeEnum.datetime",
     "last_set_password":  "tableau.dataTypeEnum.datetime",
-    "last_set_fcm_token":  "tableau.dataTypeEnum.datetime",
-    "last_get_latest_device_settings":  "tableau.dataTypeEnum.datetime",
+    "last_push_token_update":  "tableau.dataTypeEnum.datetime",
+    "last_device_settings_update":  "tableau.dataTypeEnum.datetime",
     "last_os_version":  "tableau.dataTypeEnum.datetime",
-    "last_version_code":  "tableau.dataTypeEnum.datetime",
-    "last_version_name":  "tableau.dataTypeEnum.datetime",
-    "last_heartbeat_checkin":  "tableau.dataTypeEnum.datetime",
+    "app_version_code":  "tableau.dataTypeEnum.string",
+    "app_version_name":  "tableau.dataTypeEnum.string",
+    "last_heartbeat":  "tableau.dataTypeEnum.datetime",
 }
-
-ALL_PARTICIPANT_TABLE_FIELD_NAMES = [*BASE_TABLE_FIELD_NAMES, *EXTRA_TABLE_FIELDS]  # just keys
-assert set(TABLEAU_TABLE_FIELD_TYPES) == set(ALL_PARTICIPANT_TABLE_FIELD_NAMES), \
-    "you have added a new field to the participant table, but not to the tableau field types, "\
-    f"\n`{set(TABLEAU_TABLE_FIELD_TYPES) - set(ALL_PARTICIPANT_TABLE_FIELD_NAMES)}`"\
-    f"\n`{set(ALL_PARTICIPANT_TABLE_FIELD_NAMES) - set(TABLEAU_TABLE_FIELD_TYPES)}`"
 
 
 # These fields are used to indicate that a participant is still "active", active is defined as

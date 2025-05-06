@@ -25,7 +25,7 @@
         myConnector.getData = function (table, doneCallback) {
             $.ajax({
               dataType: "json",
-              url: "{{ easy_url('data_api_endpoints.get_tableau_daily', study_object_id=study_object_id) }}" + tableau.connectionData,
+              url: "{{ target_url }}" + tableau.connectionData,
               headers: {
                 "X-Access-Key-Id": tableau.username,
                 "X-Access-Key-Secret": tableau.password

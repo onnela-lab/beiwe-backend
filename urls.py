@@ -233,7 +233,7 @@ path("get-participant-notification-history/v1", data_api_endpoints.get_participa
 # tableau
 path(
     "api/v0/studies/<str:study_object_id>/summary-statistics/daily",
-    data_api_endpoints.get_tableau_daily
+    data_api_endpoints.get_tableau_summary_statistics
 )
 path(
     "api/v0/studies/<str:study_object_id>/participant-table/",

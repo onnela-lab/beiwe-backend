@@ -3,11 +3,11 @@
 from datetime import date, datetime, timedelta
 
 import orjson
-from dateutil.tz import UTC, gettz
+import time_machine
+from dateutil.tz import gettz, UTC
 from django.core.exceptions import ValidationError
 from django.http import StreamingHttpResponse
 from django.utils import timezone
-import time_machine
 
 from authentication.tableau_authentication import (check_tableau_permissions,
     TableauAuthenticationFailed, TableauPermissionDenied, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
@@ -16,7 +16,7 @@ from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES, SERIALIZABLE_F
 from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MESSAGE
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST
-from constants.user_constants import ResearcherRole
+from constants.user_constants import ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
 from database.models import ArchivedEvent
 from database.profiling_models import UploadTracking
 from database.security_models import ApiKey
@@ -1233,7 +1233,7 @@ class TestGetParticipantNotificationHistory(DataApiTest):
 #
 
 class TestGetTableauDaily(TableauAPITest):
-    ENDPOINT_NAME = "data_api_endpoints.get_tableau_daily"
+    ENDPOINT_NAME = "data_api_endpoints.get_tableau_summary_statistics"
     today = date.today()
     yesterday = date.today() - timedelta(days=1)
     tomorrow = date.today() + timedelta(days=-1)
@@ -1637,18 +1637,43 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         "{id: 'patient_id', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'status', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'os_type', dataType: tableau.dataTypeEnum.string,},",
-        "{id: 'first_registration_date', dataType: tableau.dataTypeEnum.string,},",
-        "{id: 'last_registration', dataType: tableau.dataTypeEnum.string,},",
+        "{id: 'first_registration_date', dataType: tableau.dataTypeEnum.datetime,},",
+        "{id: 'last_registration', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_upload', dataType: tableau.dataTypeEnum.datetime,},",
-        "{id: 'last_survey_download', dataType: tableau.dataTypeEnum.string,},",
+        "{id: 'last_survey_download', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_set_password', dataType: tableau.dataTypeEnum.datetime,},",
-        "{id: 'last_push_token_update', dataType: tableau.dataTypeEnum.string,},",
-        "{id: 'last_device_settings_update', dataType: tableau.dataTypeEnum.string,},",
+        "{id: 'last_push_token_update', dataType: tableau.dataTypeEnum.datetime,},",
+        "{id: 'last_device_settings_update', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_os_version', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'app_version_code', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'app_version_name', dataType: tableau.dataTypeEnum.string,},",
-        "{id: 'last_heartbeat', dataType: tableau.dataTypeEnum.string,},",
+        "{id: 'last_heartbeat', dataType: tableau.dataTypeEnum.datetime,},",
     ]
+    
+    def test_columns_copy(self):
+        # test manual
+        assert "created_on" in self.LOCAL_COPY_FIELD_NAMES[0]
+        assert "patient_id" in self.LOCAL_COPY_FIELD_NAMES[1]
+        assert "status" in self.LOCAL_COPY_FIELD_NAMES[2]
+        assert "os_type" in self.LOCAL_COPY_FIELD_NAMES[3]
+        assert "first_registration_date" in self.LOCAL_COPY_FIELD_NAMES[4]
+        assert "last_registration" in self.LOCAL_COPY_FIELD_NAMES[5]
+        assert "last_upload" in self.LOCAL_COPY_FIELD_NAMES[6]
+        assert "last_survey_download" in self.LOCAL_COPY_FIELD_NAMES[7]
+        assert "last_set_password" in self.LOCAL_COPY_FIELD_NAMES[8]
+        assert "last_push_token_update" in self.LOCAL_COPY_FIELD_NAMES[9]
+        assert "last_device_settings_update" in self.LOCAL_COPY_FIELD_NAMES[10]
+        assert "last_os_version" in self.LOCAL_COPY_FIELD_NAMES[11]
+        assert "app_version_code" in self.LOCAL_COPY_FIELD_NAMES[12]
+        assert "app_version_name" in self.LOCAL_COPY_FIELD_NAMES[13]
+        assert "last_heartbeat" in self.LOCAL_COPY_FIELD_NAMES[14]
+        
+        # test that is fairly obvious to save debugging time
+        assert len(self.LOCAL_COPY_FIELD_NAMES) == len(TABLEAU_TABLE_FIELD_TYPES)
+        
+        # test that the things actually align
+        for line_number, key in enumerate(TABLEAU_TABLE_FIELD_TYPES):
+            assert key in self.LOCAL_COPY_FIELD_NAMES[line_number]
     
     def test_page_content(self):
         self.default_participant

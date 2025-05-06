@@ -178,7 +178,7 @@ def get_summary_statistics(request: ApiStudyResearcherRequest, study_id: str = N
 
 @require_GET
 @authenticate_tableau
-def get_tableau_daily(request: TableauRequest, study_object_id: str = None):
+def get_tableau_summary_statistics(request: TableauRequest, study_object_id: str = None):
     """ Endpoint for summary statistics and forest output using tableau api credentialing details. """
     return summary_statistics_request_handler(request, study_object_id)
 
@@ -215,7 +215,7 @@ def web_data_connector_summary_statistics(request: TableauRequest, study_object_
             columns.append(f"{{id: '{field.name}', dataType: tableau.dataTypeEnum.string,}},\n")
     columns = "".join(columns) + '];'
     
-    target_url = easy_url('data_api_endpoints.get_tableau_daily', study_object_id=study_object_id)
+    target_url = easy_url('data_api_endpoints.get_tableau_summary_statistics', study_object_id=study_object_id)
     return render(
         request,
         'wdc.html',
