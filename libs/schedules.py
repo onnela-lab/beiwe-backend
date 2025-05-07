@@ -1,6 +1,5 @@
 from collections import Counter
 from datetime import date, datetime, time, timedelta
-from typing import Dict, List, Optional, Set, Tuple
 
 from django.db.models import Q
 from django.utils import timezone
@@ -28,7 +27,7 @@ dt_combine = datetime.combine  # brevity
 # make type annotations useful
 SchedulePK = int
 ParticipantPK = int
-EventLookup = Tuple[SchedulePK, ParticipantPK, datetime]
+EventLookup = tuple[SchedulePK, ParticipantPK, datetime]
 
 
 #
@@ -54,7 +53,7 @@ def participant_allowed_surveys(participant: Participant) -> bool:
 ## Creating ScheduledEvents!
 #
 
-def repopulate_all_survey_scheduled_events(study: Study, participant: Optional[Participant] = None):
+def repopulate_all_survey_scheduled_events(study: Study, participant: Participant = None):
     """ Runs all the survey scheduled event generations on the provided entities. """
     log("repopulate_all_survey_scheduled_events")
     
@@ -80,8 +79,8 @@ def repopulate_all_survey_scheduled_events(study: Study, participant: Optional[P
 def common_setup(
     survey,
     schedule_type: str,
-    participant: Optional[Participant] = None
-) -> Tuple[List[ScheduledEvent], List[ParticipantPK]]:
+    participant: Participant = None
+) -> tuple[list[ScheduledEvent], list[ParticipantPK]]:
     # todo: factor out the repeated database queries here when called on the same study many times
     
     # we need the correct events and the correct participant pks
@@ -89,7 +88,7 @@ def common_setup(
     filter_by_single_participant = {"participant_id": participant.pk} if participant else {}
     
     # don't exclude unpushable participants, this is the source of truth
-    existing_events: List[ScheduledEvent] = list(
+    existing_events: list[ScheduledEvent] = list(
         survey.scheduled_events.filter(**filter_by_survey_type, **filter_by_single_participant)
     )
     
@@ -107,7 +106,7 @@ def common_setup(
 ## Absolute Schedules
 #
 
-def repopulate_absolute_survey_schedule_events(survey: Survey, participant: Optional[Participant] = None) -> None:
+def repopulate_absolute_survey_schedule_events(survey: Survey, participant: Participant = None) -> None:
     log("absolute schedule events")
     existing_events, participant_pks = common_setup(survey, "absolute", participant)
     valid_event_data = setup_info_from_absolute_schedules(survey, participant_pks)
@@ -117,11 +116,11 @@ def repopulate_absolute_survey_schedule_events(survey: Survey, participant: Opti
 
 
 def setup_info_from_absolute_schedules(
-    survey: Survey, participant_pks: List[ParticipantPK]
-) -> List[EventLookup]:
+    survey: Survey, participant_pks: list[ParticipantPK]
+) -> list[EventLookup]:
     # These steps inherently deduplicates events for this time-participant-scheduletype triplet.
     timezone = survey.study.timezone
-    valid_event_data: List[EventLookup] = []
+    valid_event_data: list[EventLookup] = []
     for absolute_schedule in survey.absolute_schedules.all():
         scheduled_time = absolute_schedule.event_time(timezone)
         for participant_pk in participant_pks:
@@ -132,7 +131,7 @@ def setup_info_from_absolute_schedules(
 ## Relative Schedules
 #
 
-def repopulate_relative_survey_schedule_events(survey: Survey, participant: Optional[Participant] = None) -> None:
+def repopulate_relative_survey_schedule_events(survey: Survey, participant: Participant = None) -> None:
     log("relative schedule events")
     
     existing_events, participant_pks = common_setup(survey, "relative", participant)
@@ -145,14 +144,14 @@ def repopulate_relative_survey_schedule_events(survey: Survey, participant: Opti
 
 
 def setup_info_from_relative_schedules(
-    survey: Survey, participant_pks: List[ParticipantPK],
-) -> List[EventLookup]:
-    valid_event_data: List[EventLookup] = []
+    survey: Survey, participant_pks: list[ParticipantPK],
+) -> list[EventLookup]:
+    valid_event_data: list[EventLookup] = []
     timezone = survey.study.timezone
     
     # relative schedules exist only in relation to interventions, they have to be calculated rather
     # than looked up.
-    participant_pks_and_dates_by_intervention_pk: Dict[int, List[Tuple[int, date]]] = \
+    participant_pks_and_dates_by_intervention_pk: dict[int, list[tuple[int, date]]] = \
         get_relative_schedule_intervention_lookup(survey, participant_pks)
     
     # go through valid every participant-intevention_date-relative-schedule combination
@@ -168,8 +167,8 @@ def setup_info_from_relative_schedules(
 
 
 def get_relative_schedule_intervention_lookup(
-    survey: Survey, participant_pks: List[ParticipantPK],
-) -> Dict[int, List[Tuple[int, date]]]:
+    survey: Survey, participant_pks: list[ParticipantPK],
+) -> dict[int, list[tuple[int, date]]]:
     intervention_pks = list(survey.relative_schedules.values_list("intervention_id", flat=True))
     # relative schedules are "linked" to inverventions, the lookup is obnoxious.
     linking_query = InterventionDate.objects.filter(
@@ -181,7 +180,7 @@ def get_relative_schedule_intervention_lookup(
     ).values_list("intervention_id", "participant_id", "date")
     
     # populate all (even empty) intervention lookups (makes other code cleaner, debugging easier)
-    intervention_lookups: Dict[int, List[Tuple[int, date]]] = {
+    intervention_lookups: dict[int, list[tuple[int, date]]] = {
         related_intervention_pk: [] for related_intervention_pk in intervention_pks
     }
     for related_intervention_pk, participant_pk, interventiondate_date in linking_query:
@@ -195,7 +194,7 @@ def get_relative_schedule_intervention_lookup(
 #
 
 
-def repopulate_weekly_survey_schedule_events(survey: Survey, participant: Optional[Participant] = None) -> None:
+def repopulate_weekly_survey_schedule_events(survey: Survey, participant: Participant = None) -> None:
     log("weekly schedule events")
     existing_events, participant_pks = common_setup(survey, "weekly", participant)
     valid_event_data, but_dont_actually_create_these = get_info_for_weekly_events(survey, participant_pks)
@@ -210,9 +209,9 @@ def repopulate_weekly_survey_schedule_events(survey: Survey, participant: Option
 
 
 def get_info_for_weekly_events(
-    survey: Survey, participant_pks: List[ParticipantPK]
-) -> Tuple[List[EventLookup], Set[EventLookup]]:
-    valid_event_data: List[EventLookup] = []
+    survey: Survey, participant_pks: list[ParticipantPK]
+) -> tuple[list[EventLookup], set[EventLookup]]:
+    valid_event_data: list[EventLookup] = []
     but_dont_actually_create_these = []
     
     now, schedule_pks_and_times = get_bounded_2_week_window_of_weekly_schedule_pks_and_times(survey)
@@ -233,9 +232,9 @@ def get_info_for_weekly_events(
 
 def get_bounded_2_week_window_of_weekly_schedule_pks_and_times(
     survey: Survey
-) -> Tuple[datetime, List[Tuple[SchedulePK, datetime]]]:
+) -> tuple[datetime, list[tuple[SchedulePK, datetime]]]:
     # we need the times generated for every schedule, and the pk of the schedule it "came from"
-    schedule_pks_and_times_in_bounded_window: List[Tuple[int, datetime]] = []
+    schedule_pks_and_times_in_bounded_window: list[tuple[int, datetime]] = []
     
     # Using the study's timezone can shift the currently-decided-week, and therefore the exact batch
     # of queued up and deleted schedules by up to one day. That's fine.
@@ -279,7 +278,7 @@ def get_bounded_2_week_window_of_weekly_schedule_pks_and_times(
 ## Weekly Timings Lists
 #
 
-def export_weekly_survey_timings(survey: Survey) -> List[List[int]]:
+def export_weekly_survey_timings(survey: Survey) -> list[list[int]]:
     """Returns a json formatted list of weekly timings for use on the frontend and devices. Not part of scheduling. """
     # this weird sort order results in correctly ordered output.
     fields_ordered = ("hour", "minute", "day_of_week")
@@ -293,7 +292,7 @@ def export_weekly_survey_timings(survey: Survey) -> List[List[int]]:
     return timings
 
 
-def get_start_and_end_of_java_timings_week(now: datetime) -> Tuple[datetime, datetime]:
+def get_start_and_end_of_java_timings_week(now: datetime) -> tuple[datetime, datetime]:
     """ study timezone aware week start and end """
     if now.tzinfo is None:
         raise TypeError("missing required timezone-aware datetime")
@@ -305,7 +304,7 @@ def get_start_and_end_of_java_timings_week(now: datetime) -> Tuple[datetime, dat
     return dt_sunday_start_of_week, dt_saturday_end_of_week
 
 
-def decompose_datetime_to_device_weekly_timings(dt: datetime) -> Tuple[int, int]:
+def decompose_datetime_to_device_weekly_timings(dt: datetime) -> tuple[int, int]:
     """ returns day-index, seconds into day. """
     # have to convert to sunday-zero-indexed
     return (dt.weekday() + 1) % 7, dt.hour * 60 * 60 + dt.minute * 60
@@ -332,16 +331,16 @@ def decompose_datetime_to_device_weekly_timings(dt: datetime) -> Tuple[int, int]
 
 
 def scheduled_event_database_update(
-    existing_events: List[ScheduledEvent],
-    valid_event_data: List[EventLookup],
+    existing_events: list[ScheduledEvent],
+    valid_event_data: list[EventLookup],
     type_of_schedule: str,
     survey: Survey,
-    but_dont_actually_create_these: Set[EventLookup] = set(),
+    but_dont_actually_create_these: set[EventLookup] = set(),
 ):  
-    existing_event_lookup: Set[EventLookup] = set(
+    existing_event_lookup: set[EventLookup] = {
         (event.get_schedule_pk(), event.participant_id, event.scheduled_time)
          for event in existing_events
-    )
+    }
     
     new_event_info_to_create = determine_events_to_create(
         existing_event_lookup, valid_event_data, but_dont_actually_create_these
@@ -365,10 +364,10 @@ def scheduled_event_database_update(
 
 
 def determine_events_to_delete(
-    existing_events: List[ScheduledEvent],
-    valid_event_data: List[EventLookup],
-) -> List[ScheduledEvent]:
-    existing_events_to_delete: List[ScheduledEvent] = []
+    existing_events: list[ScheduledEvent],
+    valid_event_data: list[EventLookup],
+) -> list[ScheduledEvent]:
+    existing_events_to_delete: list[ScheduledEvent] = []
     valid_events_lookup = set(valid_event_data)
     
     for event in existing_events:
@@ -380,11 +379,11 @@ def determine_events_to_delete(
 
 
 def determine_events_to_create(
-    existing_event_lookup: Set[EventLookup],
-    valid_event_data: List[EventLookup],
-    but_dont_actually_create_these: Set[EventLookup],
-) -> List[EventLookup]:
-    events_to_create: List[EventLookup] = []
+    existing_event_lookup: set[EventLookup],
+    valid_event_data: list[EventLookup],
+    but_dont_actually_create_these: set[EventLookup],
+) -> list[EventLookup]:
+    events_to_create: list[EventLookup] = []
     
     # loop over all possible participant-time pairs, append participant-time pairs that don't already exist
     for schedule_participant_and_time in valid_event_data:
@@ -397,10 +396,10 @@ def determine_events_to_create(
 
 def create_new_event_objects(
     survey: Survey,
-    eventlookups_to_create: List[EventLookup],
+    eventlookups_to_create: list[EventLookup],
     type_of_schedule: str,
 ):
-    new_event_objects_to_create: List[ScheduledEvent] = []
+    new_event_objects_to_create: list[ScheduledEvent] = []
     # we need a slightly different set of arguments to instantiate different ScheduledEvents
     arg_constructor: callable = survey_type_base_query_args[type_of_schedule]
     
@@ -423,20 +422,20 @@ def create_new_event_objects(
     )
 
 
-def created_summary(created_objects: List[ScheduledEvent]):
+def created_summary(created_objects: list[ScheduledEvent]):
     summary(created_objects, "created")
 
 
-def deleted_summary(deleted_objects: List[ScheduledEvent]):
+def deleted_summary(deleted_objects: list[ScheduledEvent]):
     summary(deleted_objects, "deleted")
 
 
-def summary(objects: List[ScheduledEvent], prefix: str):
+def summary(objects: list[ScheduledEvent], prefix: str):
     if not ENABLE_SCHEDULE_LOGGING:
         return
     
     now = timezone.now()
-    part_pks = list(set(event.participant_id for event in objects))
+    part_pks = list({event.participant_id for event in objects})
     participant_names = dict(
         Participant.objects.filter(id__in=part_pks).values_list("pk", "patient_id")
     )
@@ -454,11 +453,11 @@ def summary(objects: List[ScheduledEvent], prefix: str):
 
 
 def check_archives_for_newly_created_scheduled_events_to_mark_as_deleted(
-    survey: Survey, created_eventlookups: List[EventLookup], created_events: List[ScheduledEvent]
+    survey: Survey, created_eventlookups: list[EventLookup], created_events: list[ScheduledEvent]
 ):
     # This DOES NOT filter by schedule type
-    participant_pks = list(set(participant_pk for _, participant_pk, _ in created_eventlookups))
-    times = list(set(time for _, _, time in created_eventlookups))
+    participant_pks = list({participant_pk for _, participant_pk, _ in created_eventlookups})
+    times = list({time for _, _, time in created_eventlookups})
     
     new_and_marked_as_unsent_event_lookup = {
         (event.participant_id, event.scheduled_time): event.id for event in created_events
@@ -515,7 +514,7 @@ survey_filter_lookup = {
 }
 
 
-def get_next_weekly_event_and_schedule(survey: Survey) -> Tuple[datetime, WeeklySchedule]:
+def get_next_weekly_event_and_schedule(survey: Survey) -> tuple[datetime, WeeklySchedule]:
     """ Determines the next time for a particular survey, provides the relevant weekly schedule. """
     #  TODO: make this use the participant's timezone.  That introduces the possibility of a missed
     # scheduled event if the participant's timezone changes between individual survey notifications,

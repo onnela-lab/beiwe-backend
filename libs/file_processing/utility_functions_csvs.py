@@ -1,11 +1,10 @@
 import re
 from datetime import datetime
-from typing import List, Tuple
 
 from constants.common_constants import API_TIME_FORMAT
 
 
-def insert_timestamp_single_row_csv(header: bytes, rows_list: List[list], time_stamp: bytes) -> bytes:
+def insert_timestamp_single_row_csv(header: bytes, rows_list: list[list], time_stamp: bytes) -> bytes:
     """ Inserts the timestamp field into the header of a csv, inserts the timestamp
         value provided into the first column.  Returns the new header string."""
     header_list = header.split(b",")
@@ -20,7 +19,7 @@ is_it_a_date_string = re.compile(r"^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d$")
 
 
 # this is the normal version of the function to revert to after the run to fix existing data finishes.
-def csv_to_list_of_list_of_bytes(file_bytes: bytes) -> Tuple[bytes, List[List[bytes]]]:
+def csv_to_list_of_list_of_bytes(file_bytes: bytes) -> tuple[bytes, list[list[bytes]]]:
     lines = file_bytes.splitlines()
     return lines.pop(0), [l.split() for l in lines]
 
@@ -106,10 +105,10 @@ def csv_to_list_of_list_of_bytes(file_bytes: bytes) -> Tuple[bytes, List[List[by
 #     while lines:
 #         yield lines.pop(-1).split(b",")
 
-def construct_csv_string(header: bytes, rows_list: List[bytes]) -> bytes:
+def construct_csv_string(header: bytes, rows_list: list[bytes]) -> bytes:
     """ Takes a header list and a bytes-list and returns a single string of a csv. Very performant."""
     
-    def deduplicate(seq: List[bytes]):
+    def deduplicate(seq: list[bytes]):
         # todo on python 3.11 - this pattern with the cached variable name is probably slower
         # highly optimized order preserving deduplication function.
         seen = set()

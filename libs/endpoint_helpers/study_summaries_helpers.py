@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, Generator, List, Union
+from collections.abc import Generator
 
 from django.db.models import F, Func, Sum
 
@@ -16,7 +16,7 @@ NICE_FIELD_NAME_CONVERSION = dict(zip(
 ))
 
 
-def get_participant_data_upload_summary(study: Study) -> Dict[str, Dict[str, int]]:
+def get_participant_data_upload_summary(study: Study) -> dict[str, dict[str, int]]:
     """ Returns per-participant-data of bytes for each summary statistic. """
     raw_data = query_for_summed_data_summaries(study)
     participant_data = sum_participant_data_query(raw_data)
@@ -24,7 +24,7 @@ def get_participant_data_upload_summary(study: Study) -> Dict[str, Dict[str, int
     return participant_data
 
 
-def sum_participant_data_query(participant_summation_query: List[Dict[str, int]]) -> Dict[str, Dict[str, int]]:
+def sum_participant_data_query(participant_summation_query: list[dict[str, int]]) -> dict[str, dict[str, int]]:
     """ The database query can return multiple rows for each participant, it is unclear why, we 
     suspect it is something to do with internal database ordering. """
     per_participant_data = {}
@@ -51,7 +51,7 @@ def sum_participant_data_query(participant_summation_query: List[Dict[str, int]]
     return per_participant_data
 
 
-def insert_missing_empty_participants(study: Study, participant_data: Dict[str, Dict[str, int]]):
+def insert_missing_empty_participants(study: Study, participant_data: dict[str, dict[str, int]]):
     """ Ensure that there is an entry for every participant in the study, even if they have no data."""
     for patient_id in study.participants.order_by("patient_id").values_list("patient_id", flat=True):
         if patient_id not in participant_data:
@@ -61,7 +61,7 @@ def insert_missing_empty_participants(study: Study, participant_data: Dict[str, 
             }
 
 
-def query_for_summed_data_summaries(study: Study) -> List[Dict[str, Union[int, str]]]:
+def query_for_summed_data_summaries(study: Study) -> list[dict[str, int | str]]:
     """ For every field name in DATA_QUANTITY_FIELD_NAMES, generate an annotated field that sums all
     values of that field for each participant. """
     
@@ -83,7 +83,7 @@ def query_for_summed_data_summaries(study: Study) -> List[Dict[str, Union[int, s
         query_annotation_params[summation_field_name] = Sum(field_name)
     
     # single query for sum of all data quantity fields
-    participant_summation: Dict[str, int] = list(
+    participant_summation: dict[str, int] = list(
         SummaryStatisticDaily.objects
         .filter(participant__study=study)
         .order_by("participant__patient_id")
@@ -93,7 +93,7 @@ def query_for_summed_data_summaries(study: Study) -> List[Dict[str, Union[int, s
     return participant_summation
 
 
-def reference_summarize_data_summaries(study: Study) -> Generator[Dict[str, int], None, None]:
+def reference_summarize_data_summaries(study: Study) -> Generator[dict[str, int], None, None]:
     """ This is a much less complex way to do the same thing as the single-query version, but it
     results in far too many database queries. Implemented as a generator, not used in production.
     
@@ -130,7 +130,7 @@ def reference_summarize_data_summaries(study: Study) -> Generator[Dict[str, int]
             query_annotation_params[summation_field_name] = Func(field_name, function='SUM')
         
         # single query for sum of all data quantity fields
-        participant_summation: Dict[str, int] = participant.summarystatisticdaily_set \
+        participant_summation: dict[str, int] = participant.summarystatisticdaily_set \
             .annotate(**query_annotation_params).values(*query_annotation_params.keys()).get()
         
         final_dict = {

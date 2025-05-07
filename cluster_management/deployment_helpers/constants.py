@@ -148,13 +148,13 @@ AWS_PEM_FILE = path_join(DEPLOYMENT_SPECIFIC_CONFIG_FOLDER, 'aws_deployment_key.
 
 ## Management Tool Configuration Loaders
 def get_global_config():
-    with open(GLOBAL_CONFIGURATION_FILE, 'r') as f:
+    with open(GLOBAL_CONFIGURATION_FILE) as f:
         return json.load(f)
 
 
 ## EC2 Instance Configuration Files
 def get_aws_credentials():
-    with open(AWS_CREDENTIALS_FILE, 'r') as f:
+    with open(AWS_CREDENTIALS_FILE) as f:
         return json.load(f)
 
 
@@ -177,12 +177,12 @@ def get_instance_assume_role_policy_document():
 
 
 def get_automation_policy():
-    with open(AUTOMATION_POLICY_PATH, "r") as document:
+    with open(AUTOMATION_POLICY_PATH) as document:
         return document.read()
 
 
 def get_aws_access_policy():
-    with open(BEIWE_SERVER_AWS_ACCESS_PATH, "r") as document:
+    with open(BEIWE_SERVER_AWS_ACCESS_PATH) as document:
         return document.read()
 
 
@@ -217,7 +217,7 @@ def get_finalized_settings_file_path(eb_environment_name):
 
 
 def get_finalized_settings_variables(eb_environment_name):
-    with open(get_finalized_settings_file_path(eb_environment_name), 'r') as f:
+    with open(get_finalized_settings_file_path(eb_environment_name)) as f:
         return json.load(f)
 
 
@@ -228,7 +228,7 @@ def get_db_credentials_file_path(eb_environment_name):
 
 
 def get_db_credentials_variables(eb_environment_name):
-    with open(get_db_credentials_file_path(eb_environment_name), "r") as f:
+    with open(get_db_credentials_file_path(eb_environment_name)) as f:
         return json.load(f)
 
 
@@ -238,7 +238,7 @@ def get_beiwe_environment_variables_file_path(eb_environment_name):
 
 
 def get_beiwe_environment_variables(eb_environment_name):
-    with open(get_beiwe_environment_variables_file_path(eb_environment_name), 'r') as f:
+    with open(get_beiwe_environment_variables_file_path(eb_environment_name)) as f:
         return json.load(f)
 
 
@@ -248,7 +248,7 @@ def get_server_configuration_variables_path(eb_environment_name):
 
 
 def get_server_configuration_variables(eb_environment_name):
-    with open(get_server_configuration_variables_path(eb_environment_name), 'r') as f:
+    with open(get_server_configuration_variables_path(eb_environment_name)) as f:
         return json.load(f)
 
 

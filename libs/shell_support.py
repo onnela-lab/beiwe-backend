@@ -2,7 +2,6 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, tzinfo
 from pprint import pprint
 from time import sleep
-from typing import Dict, List, Tuple, Union
 
 from dateutil.tz import gettz
 from django.utils import timezone
@@ -51,7 +50,7 @@ def tformat4(dt: datetime, tz=THE_ONE_TRUE_TIMEZONE):
     return _tformat(dt, tz, DEV_TIME_FORMAT4)
 
 
-def PARTICIPANT(patient_id: Union[str, int]) -> Participant:
+def PARTICIPANT(patient_id: str | int) -> Participant:
     """ Get a Participant, may use a contains match, also supports primary key integers. """
     if isinstance(patient_id, int):
         return Participant.objects.get(pk=patient_id)
@@ -68,7 +67,7 @@ def PARTICIPANT(patient_id: Union[str, int]) -> Participant:
 P = PARTICIPANT  # Shorthand for PARTICIPANT, just type p = P("someone") and you are done
 
 
-def RESEARCHER(username: Union[str, int]) -> Researcher:
+def RESEARCHER(username: str | int) -> Researcher:
     """ Get a Researcher, may use a contains match, also supports primary key integers. """
     if isinstance(username, int):
         return Researcher.objects.get(pk=username)
@@ -85,7 +84,7 @@ def RESEARCHER(username: Union[str, int]) -> Researcher:
 R = RESEARCHER  # Shorthand for RESEARCHER, just type r = R("someone") and you are done
 
 
-def SURVEY(id_or_name: Union[str, int]) -> Survey:
+def SURVEY(id_or_name: str | int) -> Survey:
     """ Get a Survey, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
         ret = Survey.objects.get(pk=id_or_name)
@@ -107,7 +106,7 @@ def SURVEY(id_or_name: Union[str, int]) -> Survey:
     return ret
 
 
-def STUDY(id_or_name: Union[str, int]) -> Study:
+def STUDY(id_or_name: str | int) -> Study:
     """ Get a Study, can be a website-style key, a primary key, or a name on a contains match. """
     if isinstance(id_or_name, int):
         ret = Study.objects.get(pk=id_or_name)
@@ -411,7 +410,7 @@ def find_archived_events_with_no_notification_checkin(
 def _common_print(query, participant_pk_to_notification_uuids, tz):
     prior_survey_id = ""
     prior_p_pk = None
-    x: Union[ScheduledEvent, ArchivedEvent]
+    x: ScheduledEvent | ArchivedEvent
     for x in query:
         schedule_type = x.get_schedule_type() if isinstance(x, ScheduledEvent) else x.schedule_type
         # only print participant name and survey id when it changes
@@ -452,7 +451,7 @@ def heartbeat_summary(p: Participant, max_age: int = 12):
         .values_list("timestamp", flat=True)
     
     # insert events, add a timedelta of difference with the previous event.
-    events: List[Tuple[datetime, Union[timedelta, str]]] = []
+    events: list[tuple[datetime, timedelta | str]] = []
     for i, (t, message) in enumerate(heartbeats_query):
         events.append((
             as_local(t),
@@ -475,7 +474,7 @@ def heartbeat_summary(p: Participant, max_age: int = 12):
        events_by_day[t.date()].append((t, delta_or_message, message))
     
     # got type signature?
-    events_by_day: Dict[date, List[Tuple[datetime, Union[timedelta, str]]]] = dict(events_by_day)
+    events_by_day: dict[date, list[tuple[datetime, timedelta | str]]] = dict(events_by_day)
     
     # initialize previous day to the first day
     prev_day = events[0][0].strftime('%Y-%m-%d')

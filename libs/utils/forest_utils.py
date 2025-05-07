@@ -51,7 +51,7 @@ def save_all_memory_dict_bytes(task: ForestTask, all_memory_dict_bytes):
 
 def save_output_file(task: ForestTask, output_file_bytes):
     from libs.s3 import s3_upload
-    
+
     # output_zip_s3_path includes the study id, so we can use raw path
     s3_upload(task.output_zip_s3_path, output_file_bytes, task.participant, raw_path=True)
     task.save(update_fields=["output_zip_s3_path"])  # its already committed to the database
@@ -65,7 +65,7 @@ def download_output_file(task: ForestTask) -> bytes:
 def get_forest_git_hash() -> str:
     that_git_prefix = "beiwe-forest @ git+https://git@github.com/onnela-lab/forest@"
     
-    with open(path_join(BEIWE_PROJECT_ROOT, "requirements.txt"), "rt") as f:
+    with open(path_join(BEIWE_PROJECT_ROOT, "requirements.txt")) as f:
         requirements_file_lines = f.read().splitlines()
     
     git_version = ""

@@ -1,4 +1,4 @@
-class ScheduleTypes(object):
+class ScheduleTypes:
     absolute = "absolute"
     relative = "relative"
     weekly = "weekly"

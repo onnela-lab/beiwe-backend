@@ -1,6 +1,5 @@
 import sys
 import traceback
-from typing import List, Optional, Tuple
 
 from constants.data_stream_constants import (ANDROID_LOG_FILE, CALL_LOG, CHUNKABLE_FILES,
     IDENTIFIERS, SURVEY_TIMINGS, WIFI)
@@ -26,15 +25,15 @@ class FileForProcessing():
         self.file_to_process: FileToProcess = file_to_process
         self.data_type: str = s3_file_path_to_data_type(file_to_process.s3_file_path)
         self.chunkable: bool = self.data_type in CHUNKABLE_FILES
-        self.file_contents: Optional[bytes] = None
+        self.file_contents: bytes | None = None
         
         # populated later
-        self.file_lines: Optional[List[List[bytes]]] = None
-        self.header: Optional[bytes] = None
+        self.file_lines: list[list[bytes]] | None = None
+        self.header: bytes | None = None
         
         # state tracking
-        self.exception: Optional[Exception] = None
-        self.traceback: Optional[str] = None
+        self.exception: Exception | None = None
+        self.traceback: str | None = None
         
         # magically populate at instantiation for now due to networking paradigm.
         self.download_file_contents()
@@ -97,7 +96,7 @@ class FileForProcessing():
         else:
             HEADER_DEDUPLICATOR[self.header] = self.header
     
-    def prepare_data(self) -> Tuple[bytes, List[List[bytes]]]:
+    def prepare_data(self) -> tuple[bytes, list[list[bytes]]]:
         """ We need to apply fixes (in the correct order), and get the list of csv lines."""
         # the android log file is weird, it is almost not a csv, more of a time enumerated list of
         # events. we need to fix it to be a csv.

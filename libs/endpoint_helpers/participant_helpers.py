@@ -1,6 +1,5 @@
 # trunk-ignore-all(bandit/B101)
 from datetime import date, datetime, tzinfo
-from typing import Dict, List, Tuple
 from uuid import UUID
 
 import bleach
@@ -98,7 +97,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
     )
 
 
-def get_survey_names_dict(study: Study) -> Dict[int, str]:
+def get_survey_names_dict(study: Study) -> dict[int, str]:
     survey_names = {}
     fields = ("pk", "name", "survey_type", "object_id")
     for survey_id, survey_name, survey_type, obj_id in study.surveys.values_list(*fields):
@@ -181,14 +180,14 @@ def get_heartbeats_query(participant: Participant, archived_events_page: Paginat
 
 
 def notification_details_archived_event(
-    archived_event: Dict,
+    archived_event: dict,
     study_timezone: tzinfo,
-    survey_names: Dict,
-    uuids_to_received_times: Dict,
+    survey_names: dict,
+    uuids_to_received_times: dict,
     scheduled_formatter: callable,
     attempt_formatter: callable,
     confirmed_formatter: callable,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """ Assembles the details of a notification attempt for display on a page. """
     
     if archived_event is None:
@@ -235,15 +234,15 @@ def notification_details_archived_event(
 
 
 def convert_to_template_expectations(
-    all_notifications: List[Dict],
+    all_notifications: list[dict],
     tz: tzinfo,
-    survey_names: Dict[int, str],
-    uuids_to_received_time: Dict[UUID, datetime],
+    survey_names: dict[int, str],
+    uuids_to_received_time: dict[UUID, datetime],
 ):
     ret = []
     prior_sched_time = None
-    run_of_notifications: List[Dict] = []
-    run_of_heartbeats: List[datetime] = []
+    run_of_notifications: list[dict] = []
+    run_of_heartbeats: list[datetime] = []
     
     # these functions iterate to a next run of notifications or heartbeats
     def terminate_run_of_notifications():
@@ -279,8 +278,8 @@ def convert_to_template_expectations(
 
 
 def frontend_details_for_history_run_from_archived_events(
-    archived_events: List[Dict], study_timezone: tzinfo, survey_names: Dict, uuids_to_received_times: Dict
-) -> List[Dict[str, str]]:
+    archived_events: list[dict], study_timezone: tzinfo, survey_names: dict, uuids_to_received_times: dict
+) -> list[dict[str, str]]:
     """ When listing on the notification history page:
     - Iteration is in reverse chronological order by _schedule_ time.
     - Need to sort by survey_id - in place.
@@ -328,7 +327,7 @@ def frontend_details_for_history_run_from_archived_events(
     return ret
 
 
-def message_from_heartbeat_list(heartbeat_timestamps: List[datetime], tz: tzinfo) -> Tuple[str]:
+def message_from_heartbeat_list(heartbeat_timestamps: list[datetime], tz: tzinfo) -> tuple[str]:
     """ Needs to return an item with length 1 containing a string. """
     
     num_beats = len(heartbeat_timestamps)

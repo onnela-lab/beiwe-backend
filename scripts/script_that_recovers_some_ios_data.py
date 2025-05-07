@@ -1,5 +1,5 @@
+from collections.abc import Generator
 from datetime import datetime
-from typing import Generator, List, Tuple
 
 from Cryptodome.PublicKey import RSA
 from dateutil.tz import gettz
@@ -104,7 +104,7 @@ class STATS:
     FILES_EXAMINED = 0
 
 # get all the file paths for a specific participant. S3 paths are returned in sortable order.
-def get_some_problem_uploads_by_participant() -> Generator[List[str], None, None]:
+def get_some_problem_uploads_by_participant() -> Generator[list[str], None, None]:
     print("OK. Starting.")
     
     # setup, get first path
@@ -145,7 +145,7 @@ def get_some_problem_uploads_by_participant() -> Generator[List[str], None, None
 
 # lines without a : at position 24 (the 25th character) may be decryption keys
 # shift that line to the top of the list
-def find_and_fix_candidate_key_line(lines: List[str]) -> List[str]:
+def find_and_fix_candidate_key_line(lines: list[str]) -> list[str]:
     for i, line in enumerate(lines):
         if len(line) <= 24:
             continue
@@ -162,7 +162,7 @@ def log(*args, **kwargs):
     print(*args, **kwargs, end=" ", flush=True)
 
 
-def process_a_participants_files(some_s3_paths: List[str]):
+def process_a_participants_files(some_s3_paths: list[str]):
     for s3_file_location in some_s3_paths:
         STATS.FILES_EXAMINED += 1
         # because s3 files are sorted, duplicate files will be next to each other.
@@ -170,7 +170,7 @@ def process_a_participants_files(some_s3_paths: List[str]):
         print()  # all other print statements are on the same line, this is a separator.
 
 
-def info(s3_file_location: str) -> Tuple[Study, Participant, RSA.RsaKey, str, str]:
+def info(s3_file_location: str) -> tuple[Study, Participant, RSA.RsaKey, str, str]:
     # file paths look like PROBLEM_UPLOADS/5873fe38644ad7557b168e43/c3b7mk7j/gps/1664315342657.csv
     
     # exactly the path string of the file when uploaded, which we need

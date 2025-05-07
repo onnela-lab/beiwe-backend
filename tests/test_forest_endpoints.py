@@ -491,7 +491,7 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
             b',44,45,46,47,48,49,50,51,52,53,54,55,56.0,57,58,59.0,60,61,62'
     }
     
-    def setup_valid_tree_and_summary_statistic(self, tree_name: str) -> Tuple[ForestTask, SummaryStatisticDaily]:
+    def setup_valid_tree_and_summary_statistic(self, tree_name: str) -> tuple[ForestTask, SummaryStatisticDaily]:
         task = self.default_forest_task
         task.update(forest_tree=tree_name)
         stat = self.default_summary_statistic_daily

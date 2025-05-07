@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict
+from typing import Any
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -50,7 +50,7 @@ def unflatten_consent_sections(consent_sections_dict: dict):
     return dict(refactored_consent_sections)
 
 
-def try_update_device_settings(request: ResearcherRequest, params: Dict[str, Any], study: Study):
+def try_update_device_settings(request: ResearcherRequest, params: dict[str, Any], study: Study):
     """ Attempts to update, backs off if there were any failures, notifies users of bad fields.
     (finally a situation where django forms would be better, sorta, I don't think it allows partial
     updates without mucking around.) """
@@ -70,7 +70,7 @@ def try_update_device_settings(request: ResearcherRequest, params: Dict[str, Any
         study.device_settings.save()
 
 
-def trim_whitespace(request: ResearcherRequest, params: Dict[str, Any], notify: bool = False):
+def trim_whitespace(request: ResearcherRequest, params: dict[str, Any], notify: bool = False):
     """ Trims whitespace from all dictionary values, used when updating study device settings. """
     for k, v in params.items():
         if isinstance(v, str):
@@ -82,7 +82,7 @@ def trim_whitespace(request: ResearcherRequest, params: Dict[str, Any], notify: 
 
 
 def notify_changes(
-    request: ResearcherRequest, params: Dict[str, Any], comparee: Dict[str, Any], message_prefix: str = ""
+    request: ResearcherRequest, params: dict[str, Any], comparee: dict[str, Any], message_prefix: str = ""
 ):
     """ Determines differences between 2 dictionaries and notifies the user based on key name values.
     Used when making changes to study settings. """

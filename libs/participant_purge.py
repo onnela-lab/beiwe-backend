@@ -1,5 +1,5 @@
 import itertools
-from typing import Generator
+from collections.abc import Generator
 
 from django.utils import timezone
 

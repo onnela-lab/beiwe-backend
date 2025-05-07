@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import traceback
 from datetime import datetime
-from typing import Union
-from typing_extensions import Self
+from typing import Self
 
 from django.db import models
-from django.utils import timezone
+
 from database.common_models import TimestampedModel
 from database.user_models_researcher import Researcher
 

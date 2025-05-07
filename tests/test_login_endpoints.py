@@ -487,8 +487,7 @@ class TestDowntime(BasicSessionTestCase):
 class TestResearcherRedirectionLogic(BasicSessionTestCase):
     # This needs to be comprehensive. It is checked for validity in one test and then used in the other.
     # This is a set because there are 2 entries for every endpoint, with and without slashes.
-    LOCAL_COPY_WHITELIST = set(
-        [
+    LOCAL_COPY_WHITELIST = {
             "study_endpoints.view_study_page",
             "data_page_endpoints.dashboard_page",
             "data_page_endpoints.get_data_for_dashboard_datastream_display",
@@ -509,8 +508,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
             "study_endpoints.manage_studies_page",
             "study_endpoints.study_security_page",
             "participant_endpoints.experiments_page",
-        ]
-    )
+    }
     
     @property
     def urls(self):
@@ -556,7 +554,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
     def test_page_list_is_correct(self):
         # Now go create an explicit test for that page. These tests exist to ensure we don't have
         # code rot on this feature.
-        endpoint_names = set(urlpattern.name for urlpattern in LOGIN_REDIRECT_SAFE)
+        endpoint_names = {urlpattern.name for urlpattern in LOGIN_REDIRECT_SAFE}
         self.assertEqual(self.LOCAL_COPY_WHITELIST, endpoint_names)
         
         # Check that every endpoint is in the whitelist, starts with a slash.

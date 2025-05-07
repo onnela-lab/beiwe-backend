@@ -57,7 +57,7 @@ def generate_valid_postgres_credentials():
 def get_full_db_credentials(eb_environment_name):
     """ reads in the database credentials for the project and dynamically identifies the hostname
     parameter. """
-    with open(get_db_credentials_file_path(eb_environment_name), 'r') as f:
+    with open(get_db_credentials_file_path(eb_environment_name)) as f:
         credentials = json.load(f)
     credentials['RDS_HOSTNAME'] = get_db_info(eb_environment_name)['Endpoint']['Address']
     return credentials

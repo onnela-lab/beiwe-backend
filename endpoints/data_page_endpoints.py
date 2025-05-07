@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_http_methods
@@ -141,7 +139,7 @@ def dashboard_participant_page(request: ResearcherRequest, study_id, patient_id)
         next_url, past_url = create_next_past_urls(
             first_date_data_entry, last_date_data_entry, start=start, end=end
         )
-        byte_streams: Dict[str, List[int]] = {
+        byte_streams: dict[str, list[int]] = {
             stream: [get_bytes_data_stream_match(chunks, date, stream) for date in unique_dates]
                 for stream in DASHBOARD_DATA_STREAMS
         }

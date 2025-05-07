@@ -1,6 +1,5 @@
 import logging
 from datetime import timedelta
-from typing import List
 
 from django.utils import timezone
 
@@ -71,7 +70,7 @@ def create_survey_push_notification_tasks():
 
 @push_send_celery_app.task(queue=PUSH_NOTIFICATION_SEND_QUEUE)
 def celery_send_survey_push_notification(
-    fcm_token: str, survey_obj_ids: List[str], schedule_pks: List[int]
+    fcm_token: str, survey_obj_ids: list[str], schedule_pks: list[int]
 ):
     """ Passthrough for the survey push notification function, just a wrapper for celery. """
     send_scheduled_event_survey_push_notification_logic(

@@ -1,5 +1,3 @@
-from typing import Dict
-
 from django.conf import settings
 from django.conf.urls.static import static
 from django.core.exceptions import ImproperlyConfigured
@@ -16,7 +14,7 @@ from endpoints import (data_api_endpoints, data_page_endpoints, forest_endpoints
 
 
 def path(
-    route: str, view: callable, name: str = None, kwargs: Dict = None, login_redirect: str = None
+    route: str, view: callable, name: str = None, kwargs: dict = None, login_redirect: str = None
 ):
     """ Helper function, for creating url endpoints, automates our common logic across all urls.
     

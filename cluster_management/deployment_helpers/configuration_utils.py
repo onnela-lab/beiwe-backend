@@ -21,7 +21,7 @@ from deployment_helpers.general_utils import EXIT, log, random_alphanumeric_stri
 # Sentry DSNs are key_value@some.domain.com/6ish_numbers
 # Sentry has changed their DSN structure again, so I'm making the regex much weaker.
 # (still matches legacy and legacy-legacy).  \S should not be confused with \s.
-DSN_REGEX = re.compile('^https://[\S]+@[\S]+/[\S]+$')
+DSN_REGEX = re.compile(r'^https://[\S]+@[\S]+/[\S]+$')
 
 ####################################################################################################
 ################################### Reference Configs ##############################################
@@ -106,11 +106,11 @@ def ensure_nonempty_string(value, value_name, errors_list, subject):
     """
     if not isinstance(value, str):
         # log.error(value_name + " encountered an error")
-        errors_list.append('({}) {} must be a string'.format(subject, value))
+        errors_list.append(f'({subject}) {value} must be a string')
         return False
     elif not value:
         # log.error(value_name + " encountered an error")
-        errors_list.append('({}) {} cannot be empty'.format(subject, value_name))
+        errors_list.append(f'({subject}) {value_name} cannot be empty')
         return False
     else:
         return True
@@ -127,7 +127,7 @@ def email_param_validation(src_name: str, key_name: str, source: dict, errors: l
     if not email_string:
         errors.append(f'({src_name}) {key_name} cannot be empty.')
     else:
-        if not re.match('^[\S]+@[\S]+\.[\S]+$', email_string):
+        if not re.match(r'^[\S]+@[\S]+\.[\S]+$', email_string):
             errors.append(f'({src_name}) Invalid email address: {email_string}')
 
 
@@ -176,14 +176,14 @@ def validate_beiwe_environment_config(eb_environment_name):
     for name, dsn in sentry_dsns.items():
         if ensure_nonempty_string(dsn, name, errors, beiwe_variables_name):
             if not DSN_REGEX.match(dsn):
-                errors.append('({}) Invalid DSN: {}'.format(beiwe_variables_name, dsn))
+                errors.append(f'({beiwe_variables_name}) Invalid DSN: {dsn}')
     
     domain_name = beiwe_variables.get('DOMAIN', None)
     ensure_nonempty_string(domain_name, 'Domain name', errors, beiwe_variables_name)
     
     for key in reference_environment_configuration_keys:
         if key not in beiwe_variables:
-            errors.append("{} is missing.".format(key))
+            errors.append(f"{key} is missing.")
     
     for key in beiwe_variables:
         if key == "SENTRY_ANDROID_DSN":
@@ -191,7 +191,7 @@ def validate_beiwe_environment_config(eb_environment_name):
                           "Please remove it from your environment variables settings file to continue.")
             continue
         if key not in reference_environment_configuration_keys:
-            errors.append("{} is present but was not expected.".format(key))
+            errors.append(f"{key} is present but was not expected.")
     
     # Raise any errors
     if errors:
@@ -245,7 +245,7 @@ def create_processing_server_configuration_file(eb_environment_name):
     list_to_write = ['import os']
     
     for key, value in get_finalized_settings_variables(eb_environment_name).items():
-        next_line = "os.environ['{key}'] = '{value}'".format(key=key.upper(), value=value)
+        next_line = f"os.environ['{key.upper()}'] = '{value}'"
         list_to_write.append(next_line)
     string_to_write = '\n'.join(list_to_write) + '\n'
     with open(get_pushed_full_processing_server_env_file_path(eb_environment_name), 'w') as fn:
@@ -258,5 +258,5 @@ def create_rabbit_mq_password_file(eb_environment_name):
 
 
 def get_rabbit_mq_password(eb_environment_name):
-    with open(get_rabbit_mq_manager_ip_file_path(eb_environment_name), 'r') as f:
+    with open(get_rabbit_mq_manager_ip_file_path(eb_environment_name)) as f:
         return f.read()

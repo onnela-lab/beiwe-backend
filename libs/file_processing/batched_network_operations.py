@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from django.utils import timezone
 
 from constants.data_processing_constants import CHUNK_EXISTS_CASE
@@ -13,7 +11,7 @@ from libs.utils.security_utils import chunk_hash
 # GLOBAL_TIMESTAMP = datetime.now().isoformat()
 
 
-def batch_upload(upload: Tuple[ChunkRegistry or dict, str, bytes, str]):
+def batch_upload(upload: tuple[ChunkRegistry or dict, str, bytes, str]):
     """ Used for mapping an s3_upload function.  the tuple is unpacked, can only have one parameter. """
     chunk, chunk_path, new_contents, study_object_id = upload
     del upload

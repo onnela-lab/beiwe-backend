@@ -1,6 +1,5 @@
 import csv
 from io import StringIO
-from typing import List
 
 import orjson
 from dateutil.tz import UTC
@@ -178,7 +177,7 @@ def web_data_connector(request: TableauRequest, study_object_id: str):
         "{id: 'participant_id', dataType: tableau.dataTypeEnum.string,},\n"
     ]
     
-    final_serializable_fields: List[Field] = [
+    final_serializable_fields: list[Field] = [
         f for f in SummaryStatisticDaily._meta.fields if f.name in SERIALIZABLE_FIELD_NAMES
     ]
     

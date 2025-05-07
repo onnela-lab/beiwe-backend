@@ -1,7 +1,8 @@
 import time
 from collections import defaultdict
+from collections.abc import Generator
 from datetime import timedelta
-from typing import DefaultDict, Dict, Generator, List, Set, Tuple
+from typing import DefaultDict
 
 from cronutils.error_handler import ErrorHandler
 from django.core.exceptions import ValidationError
@@ -57,7 +58,7 @@ class FileProcessingTracker():
             int(time.mktime((timezone.now() + timedelta(days=90)).timetuple()))
         
         # a defaultdict of a tuple of 2 lists - this stores the data that is being processed.
-        self.all_binified_data: Dict[int, Tuple[List[bytes], List[bytes]]] = defaultdict(lambda: ([], []))
+        self.all_binified_data: dict[int, tuple[list[bytes], list[bytes]]] = defaultdict(lambda: ([], []))
         
         # a dict to store the survey id from the file name, this is a very old design decision and
         # it is bad.
@@ -78,7 +79,7 @@ class FileProcessingTracker():
             self.survey_id_dict = {}
             self.buggy_files = set()
     
-    def get_paginated_files_to_process(self) -> Generator[List[FileToProcess], None, None]:
+    def get_paginated_files_to_process(self) -> Generator[list[FileToProcess], None, None]:
         # we want to be able to delete database objects at any time so we get the whole contents of
         # the query. The memory overhead is not very high, if it ever is change this to a query for
         # pks and then each pagination is a separate query. (only memory overhead matters.)
@@ -102,13 +103,13 @@ class FileProcessingTracker():
                 ret = []
         yield ret
     
-    def do_process_user_file_chunks(self, files_to_process: List[FileToProcess]):
+    def do_process_user_file_chunks(self, files_to_process: list[FileToProcess]):
         """ Run through the files to process, pull their data, sort data into time bins. Run the
         file through the appropriate logic path based on file type. """
         
         # we have dropped multithreading to reduce memory load.
         # Instantiating a FileForProcessing object queries S3 for the File's data. (network request)
-        files_for_processing: List[FileForProcessing] = map(FileForProcessing, files_to_process)
+        files_for_processing: list[FileForProcessing] = map(FileForProcessing, files_to_process)
         
         for file_for_processing in files_for_processing:
             with self.error_handler:
@@ -139,7 +140,7 @@ class FileProcessingTracker():
         else:
             self.process_unchunkable_file(file_for_processing)
     
-    def upload_binified_data(self) -> Tuple[Set[int], List[int], int, int]:
+    def upload_binified_data(self) -> tuple[set[int], list[int], int, int]:
         """ Takes in binified csv data and handles uploading/downloading+updating
             older data to/from S3 for each chunk.
             
@@ -198,7 +199,7 @@ class FileProcessingTracker():
             self.all_binified_data[data_bin][1].append(file_for_processing.pk)  # Add ftp
         return
     
-    def process_csv_data(self, file_for_processing: FileForProcessing) -> Tuple[DefaultDict[tuple, list], Tuple[str, str, str, bytes]]:
+    def process_csv_data(self, file_for_processing: FileForProcessing) -> tuple[DefaultDict[tuple, list], tuple[str, str, str, bytes]]:
         """ Constructs a binified dict of a given list of a csv rows, catches csv files with known
             problems and runs the correct logic. Returns None If the csv has no data in it. """
         # long running function. decomposes the file into a list of rows and a header, applies data

@@ -1,5 +1,3 @@
-from typing import List
-
 from constants import common_constants
 from constants.common_constants import EARLIEST_POSSIBLE_DATA_TIMESTAMP
 from constants.data_processing_constants import CHUNK_TIMESLICE_QUANTUM
@@ -64,7 +62,7 @@ def ensure_sorted_by_timestamp(l: list):
         l.sort(key=lambda x: int(x[0]))
 
 
-def convert_unix_to_human_readable_timestamps(header: bytes, rows: List[List[bytes]]) -> List[bytes]:
+def convert_unix_to_human_readable_timestamps(header: bytes, rows: list[list[bytes]]) -> list[bytes]:
     """ Adds a new column to the end which is the unix time represented in
     a human readable time format.  Returns an appropriately modified header. """
     for row in rows:
@@ -73,7 +71,7 @@ def convert_unix_to_human_readable_timestamps(header: bytes, rows: List[List[byt
         # this line 0-pads millisecond values that have leading 0s.
         time_string += b".%03d" % (unix_millisecond % 1000)
         row.insert(1, time_string)
-    header: List[bytes] = header.split(b",")
+    header: list[bytes] = header.split(b",")
     header.insert(1, b"UTC time")
     return b",".join(header)
 

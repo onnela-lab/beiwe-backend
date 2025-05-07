@@ -1,6 +1,7 @@
 import csv
+from collections.abc import Generator
 from time import perf_counter
-from typing import Any, Generator
+from typing import Any
 
 from django.db.models import QuerySet
 from orjson import dumps as orjson_dumps
@@ -101,14 +102,12 @@ class EfficientQueryPaginator:
                         print(f"EfficientQueryPaginator time to first index: {elapsed:.4f} seconds")
                         start = None
                     print(f"EfficientQueryPaginator page {count}, items: {len(pks)}")
-                for result in self.value_query.filter(pk__in=pks):
-                    yield result
+                yield from self.value_query.filter(pk__in=pks)
                 pks = []
         
         # after iteration, any remaining pks
         if pks:
-            for result in self.value_query.filter(pk__in=pks):
-                yield result
+            yield from self.value_query.filter(pk__in=pks)
     
     def paginate(self) -> Generator[list, None, None]:
         """ Grab a page of PKs, return results in bulk. (Use this one 99% of the time) """

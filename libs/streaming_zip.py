@@ -1,11 +1,12 @@
 import json
+from collections.abc import Generator, Iterable
 from contextlib import suppress
 from multiprocessing.pool import ThreadPool
-from typing import Generator, Iterable, Tuple
 from zipfile import ZIP_STORED, ZipFile
 
 from constants.data_stream_constants import (AMBIENT_AUDIO, SURVEY_ANSWERS, SURVEY_TIMINGS,
     VOICE_RECORDING)
+from constants.forest_constants import AMBIENT_AUDIO
 from database.study_models import Study
 from libs.s3 import s3_retrieve
 from libs.streaming_io import StreamingBytesIO
@@ -79,6 +80,15 @@ def determine_base_file_name(chunk: dict):
     
     # all other files have this form:
     return f"{patient_id}/{data_stream}/{time_bin}.csv"
+
+
+def batch_retrieve_s3(chunk: dict) -> tuple[dict, bytes]:
+    """ Data is returned in the form (chunk_object, file_data). """
+    return chunk, s3_retrieve(
+        chunk["chunk_path"],
+        Study.objects.get(id=chunk["study_id"]),
+        raw_path=True,
+    )
 
 
 class ZipGenerator:

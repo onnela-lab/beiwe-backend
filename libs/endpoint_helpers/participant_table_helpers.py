@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.fields import BooleanField
@@ -58,7 +58,7 @@ def to_tz_str(dt, tz) -> str:
 ## Real code
 
 
-def reference_field_and_interventions(study: Study) -> Tuple[List[str], List[str]]:
+def reference_field_and_interventions(study: Study) -> tuple[list[str], list[str]]:
     """ Returns the field and intervention names in the study, ordered by name. """
     # we need a reference list of all field and intervention names names ordered to match the
     # ordering on the rendering page. Order is defined as lowercase alphanumerical throughout.
@@ -71,7 +71,7 @@ def reference_field_and_interventions(study: Study) -> Tuple[List[str], List[str
     return field_names_ordered, intervention_names_ordered
 
 
-def get_table_columns(study: Study, frontend: bool) -> List[str]:
+def get_table_columns(study: Study, frontend: bool) -> list[str]:
     """ Extended list of field names for the greater participant table. """
     field_names, intervention_names = reference_field_and_interventions(study)
     base_table_fields = ["Created On", "Patient ID", "Status", "OS Type"]
@@ -82,7 +82,7 @@ def get_table_columns(study: Study, frontend: bool) -> List[str]:
     return base_table_fields + intervention_names + field_names + list(EXTRA_TABLE_FIELDS.values())
 
 
-def common_data_extraction_for_apis(study: Study) -> List[List[str]]:
+def common_data_extraction_for_apis(study: Study) -> list[list[str]]:
     # total_participants = Participant.objects.filter(study_id=study_id).count()
     table_data = get_values_for_participants_table(
         study=study,
@@ -103,13 +103,13 @@ def determine_registered_status(
     now: datetime,
     registered: bool,
     permanently_retired: bool,
-    last_upload: Optional[datetime],
-    last_get_latest_surveys: Optional[datetime],
-    last_set_password: Optional[datetime],
-    last_set_fcm_token: Optional[datetime],
-    last_get_latest_device_settings: Optional[datetime],
-    last_register_user: Optional[datetime],
-    last_heartbeat_checkin: Optional[datetime],
+    last_upload: datetime | None,
+    last_get_latest_surveys: datetime | None,
+    last_set_password: datetime | None,
+    last_set_fcm_token: datetime | None,
+    last_get_latest_device_settings: datetime | None,
+    last_register_user: datetime | None,
+    last_heartbeat_checkin: datetime | None,
 ) -> str:
     """ Provides a very simple string for whether this participant is active or inactive. """
     # p.registered is a boolean, it is only present when there is no device id attached to the
@@ -156,7 +156,7 @@ def determine_registered_status(
     return "Inactive"
 
 
-def get_interventions_and_fields(query: dbt.ParticipantQS) -> Dict[int, Dict[str, Union[str, datetime]]]:
+def get_interventions_and_fields(query: dbt.ParticipantQS) -> dict[int, dict[str, str | datetime]]:
     """ intervention dates and fields have a many-to-one relationship with participants, which means
     we need to do it as a single query (or else deal with some very gross autofilled code that I'm
     not sure populates None values in a way that we desire), from which we create a lookup dict to
@@ -192,7 +192,7 @@ def get_values_for_participants_table(
     sort_desc_order: bool,
     contains_string: str,
     frontend: bool,
-)-> List[List[str]]:
+)-> list[list[str]]:
     """ Logic to get paginated information of the participant list on a study.
     This code used to be horrible - e.g. it committed the unforgivable sin of trying to speed up
     complex query logic with prefetch_related. It has been rewritten in ugly but performant and
@@ -270,13 +270,13 @@ def get_values_for_participants_table(
     return all_participants_data[start:start + length]
 
 
-def zip_extra_fields_into_participant_table_data(table_data: List[List[str]], study_id: int) -> None:
+def zip_extra_fields_into_participant_table_data(table_data: list[list[str]], study_id: int) -> None:
     """ Grabs the extra fields for the participants and adds them to the table. Zip like the Python
     builtin function.  """
-    extra_fields: List[Tuple[Optional[datetime]]]
-    field_values: Tuple[Optional[Union[datetime, str]]]
-    patient_ids: List[str]
-    extra_fields_strings: List[str]
+    extra_fields: list[tuple[datetime | None]]
+    field_values: tuple[datetime | str | None]
+    patient_ids: list[str]
+    extra_fields_strings: list[str]
     # for safety: by strictly filtering the on the patient ids in case someone changes something in
     # the table logic. This Almost Definitely slows down the query by forcing a potentially huge
     # blob into the query but not a performance critical endpoint

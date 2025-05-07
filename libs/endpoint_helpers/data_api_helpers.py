@@ -1,6 +1,5 @@
 from collections import defaultdict
 from datetime import datetime, tzinfo
-from typing import List
 
 import orjson
 
@@ -47,7 +46,7 @@ def check_request_for_omit_keys_param(request):
 
 
 class DeviceStatusHistoryPaginator(EfficientQueryPaginator):
-    def mutate_query_results(self, page: List[dict]):
+    def mutate_query_results(self, page: list[dict]):
         """ We need to decompress the json-encoded device status data field. """
         for row in page:
             device_status = row.pop("compressed_report")

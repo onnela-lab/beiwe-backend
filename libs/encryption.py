@@ -1,6 +1,5 @@
 # trunk-ignore-all(ruff/B904)
 import json
-from typing import List
 
 from Cryptodome.Cipher import AES
 from Cryptodome.PublicKey import RSA
@@ -12,8 +11,8 @@ from constants.user_constants import ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
 from database.profiling_models import EncryptionErrorMetadata, LineEncryptionError
 from database.user_models_participant import Participant
-from libs.utils.base64_utils import PaddingException
-from libs.utils.base64_utils import Base64LengthException, decode_base64, encode_base64
+from libs.utils.base64_utils import (Base64LengthException, decode_base64, encode_base64,
+    PaddingException)
 
 
 class DecryptionKeyInvalidError(Exception): pass
@@ -57,9 +56,9 @@ class DeviceDataDecryptor():
         log(f"decrypting {len(self.original_data)//1024} KB for:", self.file_name)
         
         # storage and error tracking
-        self.bad_lines: List[bytes] = []
-        self.error_types: List[str] = []
-        self.good_lines: List[bytes] = []
+        self.bad_lines: list[bytes] = []
+        self.error_types: list[str] = []
+        self.good_lines: list[bytes] = []
         self.error_count: int = 0
         self.line_index = None  # line index is index to files_list variable of the current line
         
@@ -120,7 +119,7 @@ class DeviceDataDecryptor():
         
         return decode_base64(decryption_key.base64_encryption_key.encode())
     
-    def split_file(self) -> List[bytes]:
+    def split_file(self) -> list[bytes]:
         # don't refactor to pop the decryption key line out of the file_data list, this list
         # can be thousands of lines.  Also, this line is a 2x memcopy with N new bytes objects.
         file_data = [line for line in self.original_data.split(b'\n') if line != b""]
@@ -386,7 +385,7 @@ class DeviceDataDecryptor():
                 total_lines=len(self.file_lines),
                 number_errors=self.error_count,
                 # generator comprehension:
-                error_lines=json.dumps((str(line for line in self.bad_lines))),
+                error_lines=json.dumps(str(line for line in self.bad_lines)),
                 error_types=json.dumps(self.error_types),
                 participant=self.participant,
             )
