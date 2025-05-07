@@ -300,7 +300,6 @@ def zip_extra_fields_into_participant_table_data(
             elif isinstance(some_value, bool):
                 new_fields.append("True" if some_value else "False")
             
-            
             elif some_value is None:  # None just has to be null for json
                 if for_json:
                     new_fields.append(None)

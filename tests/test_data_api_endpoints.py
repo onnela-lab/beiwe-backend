@@ -671,6 +671,10 @@ class TestDownloadParticipantTableDataTableau(TableauAPITest, ParticipantTableHe
     
     @time_machine.travel("2020-01-01 12:00:00 UTC")
     def test_one_participant(self):
+        self.default_study_field
+        self.default_intervention
+        self.default_participant_field_value
+        self.default_populated_intervention_date
         now = timezone.now()
         now_str = "2020-01-01T07:00:00-05:00"
         self.default_participant.update(
@@ -695,6 +699,8 @@ class TestDownloadParticipantTableDataTableau(TableauAPITest, ParticipantTableHe
             "patient_id": self.default_participant.patient_id,
             "status": "Active (just now)",
             "os_type": "ANDROID",
+            "default_intervention_name": "2020-01-01",
+            "default_study_field_name": "default_study_field_value",
             "first_registration_date": now_str,
             "last_registration": now_str,
             "last_upload": now_str,
@@ -1652,6 +1658,8 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         "{id: 'patient_id', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'status', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'os_type', dataType: tableau.dataTypeEnum.string,},",
+        "{id: 'default_intervention_name', dataType: tableau.dataTypeEnum.string,},",  # optional
+        "{id: 'default_study_field_name', dataType: tableau.dataTypeEnum.string,},",  # optional
         "{id: 'first_registration_date', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_registration', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_upload', dataType: tableau.dataTypeEnum.datetime,},",
@@ -1671,27 +1679,35 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         assert "patient_id" in self.LOCAL_COPY_FIELD_NAMES[1]
         assert "status" in self.LOCAL_COPY_FIELD_NAMES[2]
         assert "os_type" in self.LOCAL_COPY_FIELD_NAMES[3]
-        assert "first_registration_date" in self.LOCAL_COPY_FIELD_NAMES[4]
-        assert "last_registration" in self.LOCAL_COPY_FIELD_NAMES[5]
-        assert "last_upload" in self.LOCAL_COPY_FIELD_NAMES[6]
-        assert "last_survey_download" in self.LOCAL_COPY_FIELD_NAMES[7]
-        assert "last_set_password" in self.LOCAL_COPY_FIELD_NAMES[8]
-        assert "last_push_token_update" in self.LOCAL_COPY_FIELD_NAMES[9]
-        assert "last_device_settings_update" in self.LOCAL_COPY_FIELD_NAMES[10]
-        assert "last_os_version" in self.LOCAL_COPY_FIELD_NAMES[11]
-        assert "app_version_code" in self.LOCAL_COPY_FIELD_NAMES[12]
-        assert "app_version_name" in self.LOCAL_COPY_FIELD_NAMES[13]
-        assert "last_heartbeat" in self.LOCAL_COPY_FIELD_NAMES[14]
+        assert "default_intervention_name" in self.LOCAL_COPY_FIELD_NAMES[4]  # optional
+        assert "default_study_field_name" in self.LOCAL_COPY_FIELD_NAMES[5]  # optional
+        assert "first_registration_date" in self.LOCAL_COPY_FIELD_NAMES[6]  # optional
+        assert "last_registration" in self.LOCAL_COPY_FIELD_NAMES[7]  # optional
+        assert "last_upload" in self.LOCAL_COPY_FIELD_NAMES[8]
+        assert "last_survey_download" in self.LOCAL_COPY_FIELD_NAMES[9]
+        assert "last_set_password" in self.LOCAL_COPY_FIELD_NAMES[10]
+        assert "last_push_token_update" in self.LOCAL_COPY_FIELD_NAMES[11]
+        assert "last_device_settings_update" in self.LOCAL_COPY_FIELD_NAMES[12]
+        assert "last_os_version" in self.LOCAL_COPY_FIELD_NAMES[13]
+        assert "app_version_code" in self.LOCAL_COPY_FIELD_NAMES[14]
+        assert "app_version_name" in self.LOCAL_COPY_FIELD_NAMES[15]
+        assert "last_heartbeat" in self.LOCAL_COPY_FIELD_NAMES[16]
         
-        # test that is fairly obvious to save debugging time
-        assert len(self.LOCAL_COPY_FIELD_NAMES) == len(TABLEAU_TABLE_FIELD_TYPES)
+        # test that is fairly obvious to save debugging time, 2 custom fields
+        assert len(self.LOCAL_COPY_FIELD_NAMES) - 2 == len(TABLEAU_TABLE_FIELD_TYPES)
+        
+        local_keys = list(TABLEAU_TABLE_FIELD_TYPES)
+        local_keys.insert(4, "default_intervention_name")
+        local_keys.insert(5, "default_study_field_name")
         
         # test that the things actually align
-        for line_number, key in enumerate(TABLEAU_TABLE_FIELD_TYPES):
+        for line_number, key in enumerate(local_keys):
             assert key in self.LOCAL_COPY_FIELD_NAMES[line_number]
     
     def test_page_content(self):
         self.default_participant
+        self.default_study_field
+        self.default_intervention
         resp = self.smart_get(self.session_study.object_id)
         content = resp.content.decode()
         
@@ -1699,6 +1715,6 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         for field in self.LOCAL_COPY_FIELD_NAMES:
             self.assert_present(field, content)
         
-        test = 15
+        test = 17
         self.assertEqual(content.count("tableau.dataTypeEnum."), test, 
                          msg=f"There should be {test} data types in the tableau data types, update the list above if you added one.")
