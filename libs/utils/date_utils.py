@@ -1,8 +1,9 @@
 # FILES IN UTILS SHOULD HAVE SPARSE IMPORTS SO THAT THEY CAN BE USED ANYWHERE.
 # IF YOU ARE IMPORTING FROM A DATABASE MODEL YOU SHOULD PLACE IT ELSEWHERE. (ANNOTATION IMPORTS ARE OK)
 
+from collections.abc import Generator
 from datetime import date, datetime, timedelta, tzinfo
-from typing import Any, Generator, List, Union
+from typing import Any, Union
 
 from dateutil.tz import gettz
 from django.utils import timezone
@@ -41,7 +42,7 @@ def daterange(
         yield start
 
 
-def date_list(start: date_or_time, step: timedelta, count: int) -> List[date_or_time]:
+def date_list(start: date_or_time, step: timedelta, count: int) -> list[date_or_time]:
     """ less complex than daterange, provides a simple list starting on the start time and going for
     a count of steps. Length of output list is equal to count. """
     dates = [start]
@@ -50,7 +51,7 @@ def date_list(start: date_or_time, step: timedelta, count: int) -> List[date_or_
     return dates
 
 
-def datetime_to_list(datetime_obj: Union[date, datetime]) -> List[int]:
+def datetime_to_list(datetime_obj: date | datetime) -> list[int]:
     """ Takes in a date or datetime, returns a list of datetime components. """
     datetime_component_list = [datetime_obj.year, datetime_obj.month, datetime_obj.day]
     if isinstance(datetime_obj, datetime):

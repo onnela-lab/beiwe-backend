@@ -1,14 +1,13 @@
 # to generate the below list run this little script.  Don't use * imports.
-from typing import Union
-from django.db.models import Manager, QuerySet
-from django.db.models.base import ModelBase
-from database import models as database_models
-from database.common_models import TimestampedModel, UtilityModel
-
-from django.db.models.fields.reverse_related import OneToOneRel, ManyToOneRel
-
-from database.survey_models import Survey
 from datetime import date
+
+from django.db.models.base import ModelBase
+from django.db.models.fields.reverse_related import ManyToOneRel, OneToOneRel
+
+from database import models as database_models
+from database.survey_models import Survey
+
+
 # relationships_separater = "\n#=========================================================================" * 2
 
 querysets = set()
@@ -24,7 +23,7 @@ for name, database_model in vars(database_models).items():
         
         # (just adding some ~fake types here for syntax)
         database_model: Survey
-        field_relationship: Union[OneToOneRel, ManyToOneRel]
+        field_relationship: OneToOneRel | ManyToOneRel
         
         code_additions = []
         for field_relationship in database_model._meta.related_objects:

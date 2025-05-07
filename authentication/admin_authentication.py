@@ -1,6 +1,5 @@
 import functools
 from datetime import datetime, timedelta
-from typing import Optional
 
 import bleach
 from django.contrib import messages
@@ -387,7 +386,7 @@ def forest_enabled(func):
 ############################################################################
 
 
-def determine_any_redirects(request: ResearcherRequest) -> Optional[HttpResponseRedirect]:
+def determine_any_redirects(request: ResearcherRequest) -> HttpResponseRedirect | None:
     """ Check for all Researcher user states where the session needs to be redirected.  This
     function is called on every page load. Currently includes password reset and password expiry."""
     researcher = request.session_researcher

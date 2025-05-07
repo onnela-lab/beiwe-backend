@@ -5,7 +5,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, tzinfo
 from pprint import pprint
-from typing import Dict, List, Optional, Self, Tuple, Union
+from typing import Self
 
 import orjson
 from dateutil.tz import gettz
@@ -182,7 +182,7 @@ class Participant(AbstractPasswordUser):
     ################################################################################################
     
     @classmethod
-    def create_with_password(cls, **kwargs) -> Tuple[str, str]:
+    def create_with_password(cls, **kwargs) -> tuple[str, str]:
         """ Creates a new participant with randomly generated patient_id and password. """
         # Ensure that a unique patient_id is generated. If it is not after
         # twenty tries, raise an error.
@@ -200,7 +200,7 @@ class Participant(AbstractPasswordUser):
         password = participant.reset_password()  # this saves participant
         return patient_id, password
     
-    def generate_hash_and_salt(self, password: bytes) -> Tuple[bytes, bytes]:
+    def generate_hash_and_salt(self, password: bytes) -> tuple[bytes, bytes]:
         """ The Participant's device runs sha256 on the input password before sending it. """
         return super().generate_hash_and_salt(device_hash(password))
     
@@ -391,7 +391,7 @@ class Participant(AbstractPasswordUser):
         return f'{self.patient_id} of Study "{self.study.name}"'
     
     @property
-    def _recents(self) -> Dict[str, Union[str, Optional[str]]]:
+    def _recents(self) -> dict[str, str | str | None]:
         self.refresh_from_db()
         now = timezone.now()
         return {
@@ -408,7 +408,7 @@ class Participant(AbstractPasswordUser):
             "last_get_latest_device_settings": f"{(now - self.last_get_latest_device_settings).total_seconds() // 60} minutes ago" if self.last_get_latest_device_settings else None,
         }
     
-    def get_data_summary(self) -> Dict[str, Union[str, int]]:
+    def get_data_summary(self) -> dict[str, str | int]:
         """ Assembles a summary of data quantities for the participant, for debugging. """
         data = {stream: 0 for stream in ALL_DATA_STREAMS}
         for data_type, size in self.chunk_registries.values_list("data_type", "file_size").iterator():
@@ -418,15 +418,15 @@ class Participant(AbstractPasswordUser):
         for k, v in data.items():
             print(f"{k}:", f"{v / 1024 / 1024:.2f} MB")
     
-    def logs(self) -> List[str]:
+    def logs(self) -> list[str]:
         return self._logs()
     
     def logs_heartbeats_sent(self):
         return self._logs(HEARTBEAT_PUSH_NOTIFICATION_SENT)
     
-    def _logs(self, action: str = None)  -> QuerySet[Tuple[datetime, str]]:
+    def _logs(self, action: str = None)  -> QuerySet[tuple[datetime, str]]:
         # this is for terminal debugging - so most recent LAST.
-        query: QuerySet[Tuple[datetime, str]] = self.action_logs.order_by("timestamp").values_list("timestamp", "action")
+        query: QuerySet[tuple[datetime, str]] = self.action_logs.order_by("timestamp").values_list("timestamp", "action")
         if action:
             query = query.filter(action=action)
         tz = self.timezone
@@ -635,13 +635,13 @@ class DeviceStatusReportHistory(UtilityModel):
         return orjson.loads(decompress(self.compressed_report))
     
     @classmethod
-    def bulk_decode(cls, list_of_compressed_reports: List[bytes]) -> List[str]:
+    def bulk_decode(cls, list_of_compressed_reports: list[bytes]) -> list[str]:
         return [
             decompress(report).decode() for report in list_of_compressed_reports
         ]
     
     @classmethod
-    def bulk_load_json(cls, list_of_compressed_reports: List[bytes]) -> List[Dict[str, Union[str, int]]]:
+    def bulk_load_json(cls, list_of_compressed_reports: list[bytes]) -> list[dict[str, str | int]]:
         return [
             orjson.loads(decompress(report)) for report in list_of_compressed_reports
         ]

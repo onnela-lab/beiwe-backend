@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-from typing import List
 
 from django.http.response import HttpResponse
 
@@ -105,7 +104,7 @@ class TestDashboardStream(ResearcherSessionTest):
         self.set_session_study_relation()
         
         # create all the participants we need, populate some summaries
-        participants: List[Participant] = [
+        participants: list[Participant] = [
             self.generate_participant(self.session_study, patient_id=f"patient{i+1}")
             for i in range(number_participants)
         ]

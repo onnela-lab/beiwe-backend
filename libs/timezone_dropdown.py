@@ -6,6 +6,7 @@ from datetime import timedelta
 import pytz
 from dateutil import tz
 
+
 REGION_SUBREGION_SEPARATOR = " - "
 REGION_SEPARATOR = "\n"
 
@@ -503,4 +504,4 @@ ALL_TIMEZONES_DROPDOWN = [
     ["Pacific/Kiritimati", "+14:00 - Pacific/Kiritimati"],
 ]
 
-ALL_TIMEZONES = set([name for name, _ in ALL_TIMEZONES_DROPDOWN])
+ALL_TIMEZONES = {name for name, _ in ALL_TIMEZONES_DROPDOWN}

@@ -1,6 +1,5 @@
 # trunk-ignore-all(ruff/B018)
 from datetime import datetime, timedelta
-from typing import Tuple
 
 import orjson
 from django.utils import timezone
@@ -435,7 +434,7 @@ class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperM
         )
     
     @property
-    def setup_two_base_participants(self) -> Tuple[Participant, Participant]:
+    def setup_two_base_participants(self) -> tuple[Participant, Participant]:
         p1 = self.generate_participant(self.session_study, "patient1")
         p2 = self.generate_participant(self.session_study, "patient2")
         p1.update_only(created_on=self.JAN_1_2020)

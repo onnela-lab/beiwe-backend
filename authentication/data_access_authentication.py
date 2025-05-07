@@ -1,5 +1,4 @@
 import functools
-from typing import Tuple
 
 from django.http import UnreadablePostError
 from django.http.request import HttpRequest
@@ -126,7 +125,7 @@ they are complex and easy to misuse.
 """
 
 
-def api_check_researcher_study_access(request: ResearcherRequest) -> Tuple[Study, Researcher]:
+def api_check_researcher_study_access(request: ResearcherRequest) -> tuple[Study, Researcher]:
     """ Checks whether the researcher is allowed to do api access on this study. """
     # these two function cause aborts if they fail, this function exists to bundle them together
     # without side effects.
@@ -135,7 +134,7 @@ def api_check_researcher_study_access(request: ResearcherRequest) -> Tuple[Study
     return study, researcher
 
 
-def api_get_and_sanitize_credentials(request: HttpRequest) -> Tuple[str, str]:
+def api_get_and_sanitize_credentials(request: HttpRequest) -> tuple[str, str]:
     """ Sanitize access and secret keys from request """
     try:
         access_key = request.POST.get("access_key", None)

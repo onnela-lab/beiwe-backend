@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta
-from typing import Dict
 
 from django.db import models
 from django.db.models import QuerySet
@@ -267,7 +266,7 @@ class FileToProcess(TimestampedModel):
                 cls.append_file_for_processing(fp, participant)
     
     @classmethod
-    def report(cls, *args, **kwargs) -> Dict[str, int]:
+    def report(cls, *args, **kwargs) -> dict[str, int]:
         return dict(
             reversed(
                 Counter(FileToProcess.objects.values_list("participant__patient_id", flat=True)).most_common()

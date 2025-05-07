@@ -1,12 +1,11 @@
 import re
-from typing import Tuple
 
 from constants.message_strings import NEW_PASSWORD_N_LONG, NEW_PASSWORD_RULES_FAIL
 from constants.security_constants import PASSWORD_REQUIREMENT_REGEX_LIST
 from database.user_models_researcher import Researcher
 
 
-def check_password_requirements(researcher: Researcher, password: str) -> Tuple[bool, str]:
+def check_password_requirements(researcher: Researcher, password: str) -> tuple[bool, str]:
     """ Runs all the password requirement tests for researcher passwords. """
     researcher_min = get_min_password_requirement(researcher)
     if len(password) < researcher_min:

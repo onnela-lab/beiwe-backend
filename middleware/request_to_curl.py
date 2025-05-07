@@ -1,6 +1,5 @@
 import json
 from types import FunctionType
-from typing import Dict, List, Tuple, Union
 
 from django.http.request import HttpRequest
 
@@ -40,7 +39,7 @@ def convert_header_names(word: str, delim='-') -> str:
     return delim.join(x.capitalize() or '_' for x in word.split('_'))
 
 
-def get_request_dict(request: Union[str, bytes, HttpRequest, dict]) -> Dict[str, str]:
+def get_request_dict(request: str | bytes | HttpRequest | dict) -> dict[str, str]:
     """ returns a dictionary reqresentation of the request object from several source formats. """
     if isinstance(request, (str, bytes)):
         try:
@@ -53,7 +52,7 @@ def get_request_dict(request: Union[str, bytes, HttpRequest, dict]) -> Dict[str,
     return request
 
 
-def get_headers(request: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
+def get_headers(request: dict[str, str]) -> tuple[str, dict[str, str]]:
     """ Extracts http headers from a request dictionary, escapes double quotes. """
     host = None
     headers = {}
@@ -68,7 +67,7 @@ def get_headers(request: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
 
 
 def validate_request(
-    request: HttpRequest, required_attributes: List[str] = REQUIRED_FIELDS, prefix=''
+    request: HttpRequest, required_attributes: list[str] = REQUIRED_FIELDS, prefix=''
 ):
     for field in required_attributes:
         if '.' in field:

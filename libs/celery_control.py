@@ -3,11 +3,12 @@ from __future__ import annotations
 import functools
 import json
 import logging
+from collections.abc import Callable
 from datetime import timedelta
 from pprint import pformat
 from time import sleep
 from types import FunctionType
-from typing import Any, Callable, ClassVar, Self
+from typing import Any, ClassVar, Self
 
 from celery import Celery, Task
 from celery.events.snapshot import Polaroid
@@ -99,9 +100,9 @@ def instantiate_celery_app_connection(service_name: str) -> CeleryLike:
     
     # the location of the manager_ip credentials file is in the folder above the project folder.
     try:
-        with open(CELERY_CONFIG_LOCATION, 'r') as f:
+        with open(CELERY_CONFIG_LOCATION) as f:
             manager_ip, password = f.read().splitlines()
-    except IOError:
+    except OSError:
         return DebugCeleryApp  # type: ignore[return-value]
     
     return Celery(
@@ -314,8 +315,8 @@ class SnapShot(Polaroid):
         if not state.event_count:
             # No new events since last snapshot.
             print('No new events...\n')
-        print('Workers: {0}'.format(pformat(state.workers, indent=4)))
-        print('Tasks: {0}'.format(pformat(state.tasks, indent=4)))
+        print(f'Workers: {pformat(state.workers, indent=4)}')
+        print(f'Tasks: {pformat(state.tasks, indent=4)}')
         print('Total: {0.event_count} events, {0.task_count} tasks'.format(state))
         print()
 

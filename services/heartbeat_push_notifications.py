@@ -1,6 +1,5 @@
 import logging
 from datetime import timedelta
-from typing import List, Tuple
 
 from django.utils import timezone
 
@@ -33,7 +32,7 @@ logd = logger.debug
 # the periodic checkin that the app makes to the backend.  The periodic checkin is app-code, it hits
 # the mobile_endpoints.mobile_heartbeat endpoint.
 
-def heartbeat_query() -> List[Tuple[int, str, str, str]]:
+def heartbeat_query() -> list[tuple[int, str, str, str]]:
     """ Handles logic of finding all active participants and providing the information required to
     send them all the "heartbeat" push notification to keep them up and running. """
     now = timezone.now()

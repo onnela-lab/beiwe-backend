@@ -1,6 +1,6 @@
 import os
+from collections.abc import Generator
 from time import perf_counter
-from typing import Generator, List, Tuple
 
 # import fpzip
 import numpy
@@ -109,7 +109,7 @@ level 22, btultra2 - oh its slow. real slow. - 47.368s
 # these two top functions are the pretty optimized iteration code from the beiwe-backend codebase,
 # short of migrating the iteration to C or Cython or whatever these have the best characteristics
 # for running on our servers. (we prefer low memory overhead to raw speed)
-def csv_to_list(file_contents: bytes) -> Tuple[bytes, Generator[List[bytes], None, None]]:
+def csv_to_list(file_contents: bytes) -> tuple[bytes, Generator[list[bytes], None, None]]:
     """ Grab a list elements from of every line in the csv, strips off trailing whitespace. dumps
     them into a new list (of lists), and returns the header line along with the list of rows. """
     

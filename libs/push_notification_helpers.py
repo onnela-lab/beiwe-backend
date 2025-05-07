@@ -3,7 +3,6 @@ import operator
 import random
 from datetime import datetime
 from functools import reduce
-from typing import List
 
 from cronutils import null_error_handler
 from dateutil.tz import gettz
@@ -94,7 +93,7 @@ def send_custom_notification_raw(fcm_token: str, os_type: str, message: str):
     send_notification(message)
 
 
-def slowly_get_stopped_study_ids() -> List[int]:
+def slowly_get_stopped_study_ids() -> list[int]:
     """ Returns a list of study ids that are stopped or deleted. """
     # testing for a stopped study is hard enough that we should engineer this to depend on the Study
     # objects. There are at-most hundreds of studies, so performance is good enough.  Me can use 
@@ -201,7 +200,7 @@ def debug_send_all_survey_push_notification(participant: Participant):
         print("no valid token")
         return
     
-    surveys: List[Survey] = list(participant.study.surveys.filter(deleted=False))
+    surveys: list[Survey] = list(participant.study.surveys.filter(deleted=False))
     if not surveys:
         print(f"There are no surveys to send push notifications for {participant}.")
         return

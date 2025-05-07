@@ -7,9 +7,9 @@ from django.http.request import HttpRequest
 from django.urls.base import reverse
 
 from constants.common_constants import (API_TIME_FORMAT_WITH_TZ, DT_24HR_N_TZ_N_SEC_W_PAREN,
-    DT_24HR_W_TZ_W_SEC_N_PAREN, DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDL_12HR_W_TZ_W_SEC_W_PAREN,
-    DT_WDS_12HR_N_TZ_N_SEC_N_PAREN, DT_WDS_12HR_W_TZ_N_SEC_W_PAREN,
-    DT_24HR_W_TZ_W_SEC_N_PAREN_WITH_LINE_BREAK)
+    DT_24HR_W_TZ_W_SEC_N_PAREN, DT_24HR_W_TZ_W_SEC_N_PAREN_WITH_LINE_BREAK,
+    DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDL_12HR_W_TZ_W_SEC_W_PAREN, DT_WDS_12HR_N_TZ_N_SEC_N_PAREN,
+    DT_WDS_12HR_W_TZ_N_SEC_W_PAREN)
 from constants.user_constants import ANDROID_API, IOS_API
 
 
@@ -21,7 +21,7 @@ def numformat(number: float|int|None):
         return "-"
     if isinstance(number, float):
         number = round(number, 2)
-    return "{:,}".format(number)
+    return f"{number:,}"
 
 
 def easy_url(url: str, *args, **kwargs) -> str:

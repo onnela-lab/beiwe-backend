@@ -4,7 +4,7 @@ from django.utils.deconstruct import deconstructible
 
 
 @deconstructible
-class LengthValidator(object):
+class LengthValidator:
     # Oh good, this is referenced in the migrations so it can never be removed
     
     length = None  # If length is None, no validation is done
@@ -45,7 +45,7 @@ ID_VALIDATOR = RegexValidator('^[1-9a-z]+$', message='This field can only contai
 # Base 64 encodings can end in up to two = symbols for padding.
 _b64_chars = "[0-9a-zA-Z+/]"
 _b64_chars_with_padding = _b64_chars + "+={0,2}"
-_b64_chars_url = "[0-9a-zA-Z_\-]"
+_b64_chars_url = r"[0-9a-zA-Z_\-]"
 _b64_chars_url_with_padding = _b64_chars_url + "+={0,2}"
 _valid_algorithms = "(sha1|sha256)"
 

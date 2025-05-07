@@ -1,7 +1,6 @@
 import json
 from io import BytesIO
 from os import path
-from typing import Dict, List, Union
 
 import orjson
 from django.contrib import messages
@@ -44,7 +43,7 @@ def study_settings_fileresponse(study_id: int):
     return f
 
 
-def unpack_json_study(json_string: str) -> Union[dict, List[str], List[dict]]:
+def unpack_json_study(json_string: str) -> dict | list[str] | list[dict]:
     """ Deserializes the data structure of a serialized study """
     study_settings = json.loads(json_string)
     device_settings = study_settings.pop(DEVICE_SETTINGS_KEY, {})
@@ -66,7 +65,7 @@ def format_study(study: Study) -> bytes:
     )
 
 
-def format_surveys(study: Study) -> List[dict]:
+def format_surveys(study: Study) -> list[dict]:
     """ Serializes a survey and its schedule. """
     surveys = []
     for survey in study.surveys.filter(deleted=False):
@@ -93,7 +92,7 @@ def allowed_file_extension(filename: str):
 
 
 def copy_study_from_json(
-    new_study: Study, old_device_settings: dict, surveys_to_copy: List[dict], interventions: List[str]
+    new_study: Study, old_device_settings: dict, surveys_to_copy: list[dict], interventions: list[str]
 ):
     """ Takes the JSON-deserialized data structures (from unpack_json_study) and creates all
     underlying database structures and relations. """
@@ -137,7 +136,7 @@ def schedules_bug_type_check(weekly_schedules, absolute_schedules, relative_sche
     assert isinstance(relative_schedules, (list, NoneType)), f"relative_schedule was a {type(relative_schedules)}."
 
 
-def add_new_surveys(study: Study, new_survey_settings: List[Dict]):
+def add_new_surveys(study: Study, new_survey_settings: list[dict]):
     for survey_settings in new_survey_settings:
         # clean out the keys we don't want/need and pop the schedules.
         purge_unnecessary_fields(survey_settings)
@@ -166,7 +165,7 @@ def add_new_surveys(study: Study, new_survey_settings: List[Dict]):
         repopulate_all_survey_scheduled_events(study)
 
 
-def create_relative_schedules_by_name(timings: List[List[int]], survey: Survey) -> bool:
+def create_relative_schedules_by_name(timings: list[list[int]], survey: Survey) -> bool:
     """ This function is based off RelativeSchedule.create_relative_schedules, but contains special
     casing to maintain forwards compatibility with data exported from older versions of Beiwe. """
     survey.relative_schedules.all().delete()  # should always be empty

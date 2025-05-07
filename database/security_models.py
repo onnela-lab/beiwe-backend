@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from django.db import models
 
 from database.common_models import TimestampedModel
@@ -47,7 +45,7 @@ class ApiKey(TimestampedModel):
         return api_key
     
     @property
-    def access_key_secret_plaintext(self) -> Optional[str]:
+    def access_key_secret_plaintext(self) -> str | None:
         """ Returns the value of the plaintext version of `access_key_secret` if it is cached on
         this instance and immediately deletes it. """
         plaintext = self._access_key_secret_plaintext

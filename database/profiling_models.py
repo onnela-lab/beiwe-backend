@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta
-from typing import Counter, Dict, List
 
 from django.db import models
 from django.db.models import Count, Q, QuerySet, Sum
@@ -104,10 +103,10 @@ class UploadTracking(UtilityModel):
             "file_path", "participant__study__object_id", "participant__study_id", "participant_id"
         )
         participant: Participant
-        participant_cache: Dict[Participant] = {}  # cache participants
+        participant_cache: dict[Participant] = {}  # cache participants
         file_paths = set(FileToProcess.objects.values_list("s3_file_path", flat=True)) # cache file paths
         
-        new_ftps: List[FileToProcess] = []
+        new_ftps: list[FileToProcess] = []
         for i, (file_path, object_id, study_id, participant_id) in enumerate(uploads):
             if participant_id in participant_cache:
                 participant = participant_cache[participant_id]
@@ -220,7 +219,7 @@ class UploadTracking(UtilityModel):
         study_id = participant.study.id
         object_id = participant.study.object_id
         
-        new_ftps: List[FileToProcess] = []
+        new_ftps: list[FileToProcess] = []
         extant_count = 0
         
         extant_file_paths = set(FileToProcess.objects.values_list("s3_file_path", flat=True))

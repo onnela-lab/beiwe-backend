@@ -2,13 +2,13 @@
 import logging
 import os
 import traceback
+from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
 from itertools import chain
 from os.path import join as path_join
 from pprint import pprint
 from sys import argv
-from typing import Callable, Dict
 
 from deepdiff import DeepDiff
 from django.contrib import messages
@@ -26,7 +26,6 @@ from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import Researcher, StudyRelation
-from django.http.response import HttpResponse, HttpResponseRedirect
 from libs.shell_support import tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
@@ -348,13 +347,13 @@ class BasicSessionTestCase(CommonTestCase):
     """ This class has the basics needed to do login operations, but runs no extra setup before each
     test.  This class is probably only useful to test the login pages. """
     
-    def do_default_login(self, **post_params: Dict[str, str]) -> HttpResponse:
+    def do_default_login(self, **post_params: dict[str, str]) -> HttpResponse:
         # logs in the default researcher user, assumes it has been instantiated.
         return self.do_login(
             self.DEFAULT_RESEARCHER_NAME, self.DEFAULT_RESEARCHER_PASSWORD, post_params=post_params
         )
     
-    def do_login(self, username, password, mfa_code=None, post_params: Dict = None) -> HttpResponse:
+    def do_login(self, username, password, mfa_code=None, post_params: dict = None) -> HttpResponse:
         post_params = {} if post_params is None else post_params
         if mfa_code:
             post_params["mfa_code"] = mfa_code

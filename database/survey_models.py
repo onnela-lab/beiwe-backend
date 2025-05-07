@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from typing import List, Tuple
 
 from django.db import models
 from django.db.models import Manager, QuerySet
@@ -93,13 +92,13 @@ class Survey(SurveyBase):
         survey = cls.create_with_object_id(survey_type=survey_type, **kwargs)
         return survey
     
-    def weekly_timings(self) -> List[List[int]]:
+    def weekly_timings(self) -> list[list[int]]:
         """ Returns a json serializable object that represents the weekly schedules of this survey.
         The return object is a list of 7 lists of ints """
         from libs.schedules import export_weekly_survey_timings
         return export_weekly_survey_timings(self)
     
-    def relative_timings(self) -> List[Tuple[int, int, int]]:
+    def relative_timings(self) -> list[tuple[int, int, int]]:
         """ Returns a json serializable object that represents the relative schedules of the survey
         The return object is a list of lists of intervention ids, days offset, and seconds offset. """
         schedules = []
@@ -108,7 +107,7 @@ class Survey(SurveyBase):
             schedules.append((rel_sched.intervention.id, rel_sched.days_after, num_seconds))
         return schedules
     
-    def relative_timings_by_name(self) -> List[Tuple[str, int, int]]:
+    def relative_timings_by_name(self) -> list[tuple[str, int, int]]:
         """ Returns a json serializable object that represents the relative schedules of the survey
         The return object is a list of lists of intervention names, days offset, and seconds offset. """
         schedules = []
@@ -117,7 +116,7 @@ class Survey(SurveyBase):
             schedules.append((rel_sched.intervention.name, rel_sched.days_after, num_seconds))
         return schedules
     
-    def absolute_timings(self) -> List[Tuple[int, int, int, int]]:
+    def absolute_timings(self) -> list[tuple[int, int, int, int]]:
         """ Returns a json serializable object that represents the absolute schedules of the survey
         The return object is a list of lists of the year, month, day and seconds within the day. """
         schedules = []

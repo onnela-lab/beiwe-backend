@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Tuple
-
 from django.db import models
 
 from database.models import TimestampedModel
@@ -24,7 +22,7 @@ class AbstractPasswordUser(TimestampedModel):
     
     password = models.CharField(max_length=256, validators=[PASSWORD_VALIDATOR])
     
-    def generate_hash_and_salt(self, password: bytes) -> Tuple[bytes, bytes]:
+    def generate_hash_and_salt(self, password: bytes) -> tuple[bytes, bytes]:
         return generate_hash_and_salt(self.DESIRED_ALGORITHM, self.DESIRED_ITERATIONS, password)
     
     def set_password(self, password: str):

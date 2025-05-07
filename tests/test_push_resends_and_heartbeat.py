@@ -252,7 +252,7 @@ class The_Most_Meta_Class(CommonTestCase):
         # error that states all missmatches.
         if len(models) < 2:
             raise ValueError("This function requires at least two models to compare.")
-        if len(set(set(model.last_updated for model in models))) == match_count:
+        if len({model.last_updated for model in models}) == match_count:
             return
         # assemble state of all models with their type and last updated time
         raise AssertionError("\n" + "\n".join(
