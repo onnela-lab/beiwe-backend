@@ -1,10 +1,9 @@
 import json
+from collections.abc import Generator, Iterable
 from multiprocessing.pool import ThreadPool
-from typing import Generator, Iterable, Tuple
 from zipfile import ZIP_STORED, ZipFile
 
-from constants.data_stream_constants import (SURVEY_ANSWERS, SURVEY_TIMINGS,
-    VOICE_RECORDING)
+from constants.data_stream_constants import SURVEY_ANSWERS, SURVEY_TIMINGS, VOICE_RECORDING
 from constants.forest_constants import AMBIENT_AUDIO
 from database.study_models import Study
 from libs.s3 import s3_retrieve
@@ -69,7 +68,7 @@ def determine_file_name(chunk: dict):
     return f"{patient_id}/{data_stream}/{time_bin}.csv"
 
 
-def batch_retrieve_s3(chunk: dict) -> Tuple[dict, bytes]:
+def batch_retrieve_s3(chunk: dict) -> tuple[dict, bytes]:
     """ Data is returned in the form (chunk_object, file_data). """
     return chunk, s3_retrieve(
         chunk["chunk_path"],

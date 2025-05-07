@@ -9,7 +9,6 @@ from multiprocessing.pool import ThreadPool
 from os import makedirs
 from os.path import dirname, exists as file_exists, join as path_join
 from time import sleep
-from typing import Dict, Tuple
 
 from dateutil.tz import UTC
 from django.db import transaction
@@ -273,7 +272,7 @@ def construct_summary_statistics(task: ForestTask):
         return False
     
     log("tree:", task.forest_tree)
-    with open(task.forest_results_path, "r") as f:
+    with open(task.forest_results_path) as f:
         log("opened file, parsing...")
         # csv_parse_and_consume returns True if any data was added to the database
         with transaction.atomic():
@@ -367,7 +366,7 @@ def download_data_files(task: ForestTask, chunks: dbt.ChunkRegistryQS) -> None:
             pass
 
 
-def batch_create_file(task_and_chunk_tuple: Tuple[ForestTask, Dict]):
+def batch_create_file(task_and_chunk_tuple: tuple[ForestTask, dict]):
     """ Wrapper for basic file download operations so that it can be run in a ThreadPool. """
     # weird unpack of variables, do s3_retrieve.
     forest_task, chunk = task_and_chunk_tuple

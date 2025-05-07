@@ -67,8 +67,8 @@ def configure_fabric(eb_environment_name, ip_address, key_filename=None):
     fabric_env.user = REMOTE_USERNAME
     fabric_env.key_filename = key_filename
     retry(run, "# waiting for ssh to be connectable...")
-    run("echo >> {log}".format(log=LOG_FILE))
-    sudo("chmod 666 {log}".format(log=LOG_FILE))
+    run(f"echo >> {LOG_FILE}")
+    sudo(f"chmod 666 {LOG_FILE}")
 
 
 def try_run(*args, **kwargs):

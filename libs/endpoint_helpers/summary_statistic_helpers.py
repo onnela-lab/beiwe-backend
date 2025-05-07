@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from typing import List, Union
 
 from django.db.models import F
 from django.http import HttpResponse, StreamingHttpResponse
@@ -15,7 +14,7 @@ from libs.efficient_paginator import EfficientQueryPaginator
 
 
 def summary_statistics_request_handler(
-    request: Union[TableauRequest, ResearcherRequest], study_object_id: str
+    request: TableauRequest | ResearcherRequest, study_object_id: str
 ):
     form = ApiQueryForm(data=request.GET)
     if not form.is_valid():
@@ -45,7 +44,7 @@ def summary_statistics_api_query_database(
     study_object_id, participant_ids=None, limit=None,  # basics
     end_date=None, start_date=None,                     # time
     ordered_by="date", order_direction="default",       # sort
-    query_fields: List[str] = None,
+    query_fields: list[str] = None,
     **_  # Because Whimsy is important.                 # ignore everything else
 ) -> SummaryStatisticsPaginator:
     """ Args:
@@ -109,6 +108,6 @@ class SummaryStatisticsPaginator(EfficientQueryPaginator):
         if  "patient_id" in self.field_names:
             self.mutate_query_results = self._mutate_query_results
         
-    def _mutate_query_results(self, page: List[dict]):
+    def _mutate_query_results(self, page: list[dict]):
         for values_dict in page:
             values_dict["participant_id"] = values_dict.pop("patient_id")

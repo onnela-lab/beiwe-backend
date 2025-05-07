@@ -3,7 +3,6 @@ import json
 import plistlib
 import time
 from datetime import datetime, timedelta
-from typing import Union
 
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
@@ -133,7 +132,7 @@ def upload(request: ParticipantRequest, OS_API=""):
 
 # FIXME: Device Testing. this function exists to handle some ancient behavior, it definitely has
 #  details that can be removed, and an error case that can probably go too.
-def get_uploaded_file(request: ParticipantRequest) -> Union[bytes, HttpResponse]:
+def get_uploaded_file(request: ParticipantRequest) -> bytes | HttpResponse:
     # Slightly different values for iOS vs Android behavior.
     # Android sends the file data as standard form post parameter (request.POST)
     # iOS sends the file as a multipart upload (so ends up in request.FILES)

@@ -1,6 +1,5 @@
 from datetime import date
-
-import mock
+from unittest import mock
 
 from constants.user_constants import ResearcherRole
 from database.survey_models import Survey

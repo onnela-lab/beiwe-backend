@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, tzinfo
-from typing import Any, Dict
+from typing import Any
 
 from dateutil.tz import gettz
 from django.core.exceptions import ObjectDoesNotExist
@@ -188,7 +188,7 @@ class DeviceSettings(TimestampedModel):
     """ The DeviceSettings database contains the structure that defines settings pushed to devices
     of users in of a study. """
     
-    def export(self) -> Dict[str, Any]:
+    def export(self) -> dict[str, Any]:
         """ DeviceSettings is a special case where we want to export all fields.  Do not add fields
         to this model that cannot be trivially exported inside as_unpacked_native_python. """
         field_names = self.local_field_names()

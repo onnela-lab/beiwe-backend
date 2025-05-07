@@ -2,7 +2,7 @@
 import subprocess
 import uuid
 from datetime import date, datetime, timedelta, tzinfo
-from typing import Any, List, Tuple
+from typing import Any
 
 import orjson
 from django.db.models import (AutoField, CharField, DateField, FloatField, ForeignKey, IntegerField,
@@ -421,7 +421,7 @@ class DatabaseHelperMixin:
         return pfv
     
     @property
-    def generate_10_default_participants(self) -> List[Participant]:
+    def generate_10_default_participants(self) -> list[Participant]:
         return [self.generate_participant(self.session_study) for _ in range(10)]
     
     def generate_participant(
@@ -654,7 +654,7 @@ class DatabaseHelperMixin:
     
     def generate_a_real_weekly_schedule_event_with_schedule(
         self, day_of_week: int = 0, hour: int = 0, minute: int = 0, tz: tzinfo = None
-    ) -> Tuple[ScheduledEvent, int]:
+    ) -> tuple[ScheduledEvent, int]:
         raise NotImplementedError("take the code below and paste it into your test, or use an absolute survey")
         # 0,0,0 is a sunday at midnight
         sched = self.generate_weekly_schedule(self.default_survey, day_of_week, hour, minute)
@@ -970,8 +970,8 @@ def compare_dictionaries(first, second, ignore=None):
     if ignore is None:
         ignore = []
     
-    b = set((x, y) for x, y in second.items() if x not in ignore)
-    a = set((x, y) for x, y in first.items() if x not in ignore)
+    b = {(x, y) for x, y in second.items() if x not in ignore}
+    a = {(x, y) for x, y in first.items() if x not in ignore}
     differences_a = a - b
     differences_b = b - a
     

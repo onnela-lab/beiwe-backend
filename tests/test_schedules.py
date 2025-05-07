@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time as dt_time, timedelta
-from typing import List
 from unittest.mock import MagicMock, patch
 
 import time_machine
@@ -639,7 +638,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
     
     @staticmethod
     def assert_is_a_week_in_correct_timezone_period(
-        week: List[datetime], timezone: tz.tzfile, tz_subperiod_str: str
+        week: list[datetime], timezone: tz.tzfile, tz_subperiod_str: str
     ):
         # test that the data our fake data actually matches what we want
         for dt in week:

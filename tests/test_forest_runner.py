@@ -1,7 +1,6 @@
 import csv
 from datetime import date
 from io import StringIO
-from typing import Dict, List
 
 from constants.forest_constants import ForestTree
 from database.forest_models import ForestTask, SummaryStatisticDaily
@@ -14,7 +13,7 @@ class NopeBadCSV(Exception): pass
 
 class TestFileConsumption(CommonTestCase):
     
-    def call_csv_parse_and_consume(self, task: ForestTask, csv_dict_rows: List[Dict]):
+    def call_csv_parse_and_consume(self, task: ForestTask, csv_dict_rows: list[dict]):
         """ We need to test with a real dictreader, this function converts a list of dictionaries to
         an in-memory csv file and then calls csv_parse_and_consume on it. """
         if len(csv_dict_rows) < 1:

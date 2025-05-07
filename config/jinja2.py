@@ -3,7 +3,7 @@ https://samuh.medium.com/using-jinja2-with-django-1-8-onwards-9c58fe1204dc """
 
 import re
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any
 
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import reverse
@@ -21,7 +21,7 @@ from libs.utils.http_utils import (astimezone_with_tz, easy_url, fancy_dt_format
 ## The entrypoint into Jinja. This gets called by django at application load.
 #
 
-def environment(**options: Dict[str, Any]) -> Environment:
+def environment(**options: dict[str, Any]) -> Environment:
     # always, always check for autoescape
     assert "autoescape" in options and options["autoescape"] is True
     
@@ -112,7 +112,7 @@ ASSETS = CdnAssets
 class WhiteSpaceCollapser(Extension):
     """ Simple Jinja2 extension that collapses whitespace on rendered pages what could possibly go wrong. """
     
-    def preprocess(self, source: str, name: Optional[str], filename: Optional[str] = None) -> str:
+    def preprocess(self, source: str, name: str | None, filename: str = None) -> str:
         # collapse normal horizontal whitespace at the start and end of lines
         return re.sub(r'^[ \t]+|[ \t]+$', '', source, flags=re.MULTILINE)
         

@@ -3,7 +3,7 @@ import operator
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import reduce
-from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
+from typing import Any, DefaultDict
 
 from django.db.models import Max, Min, Q
 
@@ -49,11 +49,11 @@ def parse_data_streams(
 
 # FIXME document EXACTLY what this return looks like
 def get_unique_dates(
-    start_date: Optional[date],
-    end_date: Optional[date],
-    first_day: Optional[date],
-    last_day: Optional[date],
-    chunks: Dict[str, List[Dict[str, Union[date, str, int]]]]=None
+    start_date: date | None,
+    end_date: date | None,
+    first_day: date | None,
+    last_day: date | None,
+    chunks: dict[str, list[dict[str, date | str | int]]]=None
 ):
     """ Create a list of all the unique days in which data was recorded for this study """
     # This code used to operate on datetimes and had timezone conversions, it was way more complex.
@@ -67,7 +67,7 @@ def get_unique_dates(
     if chunks:
         # chunks are sourced from dashboard_data_query, so should be in the study timezone
         # must be >= first day bc there are some point for 1970 that get filtered out bc obv are garbage
-        all_dates: List[date] = [chunk["date"] for chunk in chunks if chunk["date"] >= first_day]
+        all_dates: list[date] = [chunk["date"] for chunk in chunks if chunk["date"] >= first_day]
         all_dates.sort()
         
         # create a list of all of the valid days in this study
@@ -103,8 +103,8 @@ def get_unique_dates(
 
 
 def create_next_past_urls(
-    first_day: Optional[date], last_day: Optional[date], start: Optional[date], end: Optional[date],
-) -> Tuple[str, str]:
+    first_day: date | None, last_day: date | None, start: date | None, end: date | None,
+) -> tuple[str, str]:
     """ set the URLs of the next/past pages for patient and data stream dashboard """
     # note: in the "if" cases, the dates are intentionally allowed outside the data collection date
     # range so that the duration stays the same if you page backwards instead of resetting
@@ -143,7 +143,7 @@ def create_next_past_urls(
     return next_url, past_url
 
 
-def get_bytes_data_stream_match(chunks: List[Dict[str, datetime]], a_date: date, stream: str):
+def get_bytes_data_stream_match(chunks: list[dict[str, datetime]], a_date: date, stream: str):
     """ Returns byte value for correct chunk based on data stream and type comparisons. """
     # these time_bin datetime objects should be in the appropriate timezone
     return sum(
@@ -153,7 +153,7 @@ def get_bytes_data_stream_match(chunks: List[Dict[str, datetime]], a_date: date,
 
 
 # FIXME: we don't need this anymore after purging chunksregistry
-def get_bytes_date_match(stream_data: List[Dict[str, datetime]], a_date: date) -> Optional[int]:
+def get_bytes_date_match(stream_data: list[dict[str, datetime]], a_date: date) -> int | None:
     """ Returns byte values for the declared stream based on a date. """
     return sum(
         data_point.get("bytes", 0) or 0 for data_point in stream_data
@@ -173,8 +173,8 @@ FILTER_ALL_STREAMS_WHERE_ANY_DATA_QUANTITY_FIELD_IS_NOT_NULL = reduce(
 
 
 def get_first_and_last_days_of_data(
-    study: Study, data_stream: Optional[str] = None, participant: Optional[Participant] = None
-) -> Tuple[Optional[date], Optional[date]]:
+    study: Study, data_stream: str = None, participant: Participant = None
+) -> tuple[date | None, date | None]:
     """ Gets the first and last days in the study, filters some junk data.
     This code used to operate on the ChunkRegisty model, that got quite slow on large servers, 
     it has been rewritted to use the SummaryStatisticDaily. This data should be the same. """
@@ -223,7 +223,7 @@ def get_first_and_last_days_of_data(
 
 def dashboard_data_query(
     participants: dbt.ParticipantQS, data_stream: str = None
-) -> Dict[str, List[Dict[str, Union[date, str, int]]]]:
+) -> dict[str, list[dict[str, date | str | int]]]:
     """ Queries SummaryStatistics based on the provided parameters and returns a list of dictionaries
     with 3 keys: bytes, data_stream, and time_bin. """
     
@@ -258,7 +258,7 @@ def do_dashboard_summarystatistics_query(participants: dbt.ParticipantQS, data_s
     select_args = {stream: DATA_QUANTITY_FIELD_MAP[stream] for stream in data_streams}
     
     # including the filter FILTER_ALL_STREAMS_WHERE actually makes the query
-    stream_bytes_per_day: Tuple[date, str, Optional[int]] = list(
+    stream_bytes_per_day: tuple[date, str, int | None] = list(
         # trunk-ignore(bandit/B610): extra here takes a static dictionary, it is not a security risk.
         SummaryStatisticDaily.objects
         .extra(select=select_args)
@@ -270,8 +270,8 @@ def do_dashboard_summarystatistics_query(participants: dbt.ParticipantQS, data_s
 
 
 def build_participant_data(
-    stream_bytes_per_day: Tuple[date, str, Optional[int]]
-) -> Tuple[Dict[str, List[Dict[str, Union[date, str, int]]]], date, date]:
+    stream_bytes_per_day: tuple[date, str, int | None]
+) -> tuple[dict[str, list[dict[str, date | str | int]]], date, date]:
     """ Builds a dictionary of participant ids mapped to a list of dictionaries like
         {"bytes": 5," data_stream": "gyro", "date": a_date}
     Also returns the earliest and latest dates in the data set. """
@@ -281,7 +281,7 @@ def build_participant_data(
     earliest_date = original_earliest = date.today() + timedelta(days=1000*365)
     
     # list of participant ids mapped to a list of dictionaries with keys "bytes", "data_stream", "date"
-    patient_id_to_datapoints: DefaultDict[str, List[Dict[str, Union[date, str, int]]]] = defaultdict(list)
+    patient_id_to_datapoints: DefaultDict[str, list[dict[str, date | str | int]]] = defaultdict(list)
     for stream_bytes_day in stream_bytes_per_day:
         day = stream_bytes_day.pop("date")
         patient_id = stream_bytes_day.pop("participant__patient_id")
@@ -304,7 +304,7 @@ def build_participant_data(
     return dict(patient_id_to_datapoints), earliest_date, latest_date
 
 
-def extract_date_args_from_request(request: ResearcherRequest) -> Tuple[Optional[date], Optional[date]]:
+def extract_date_args_from_request(request: ResearcherRequest) -> tuple[date | None, date | None]:
     """ Gets start and end arguments from GET/POST params, throws 400 on date formatting errors. """
     # "or None" handles the case of an empty string getting passed in.
     start = argument_grabber(request, "start", None) or None
@@ -320,7 +320,7 @@ def extract_date_args_from_request(request: ResearcherRequest) -> Tuple[Optional
     return start, end
 
 
-def argument_grabber(request: ResearcherRequest, key: str, default: Any = None) -> Optional[str]:
+def argument_grabber(request: ResearcherRequest, key: str, default: Any = None) -> str | None:
     return request.GET.get(key, request.POST.get(key, default))
 
 

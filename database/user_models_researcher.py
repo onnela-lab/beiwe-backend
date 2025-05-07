@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-from typing import Union
 
 from django.contrib.sessions.backends.db import SessionStore as DBStore
 from django.contrib.sessions.base_session import AbstractBaseSession
@@ -138,7 +137,7 @@ class Researcher(AbstractPasswordUser):
         study_relation.relationship = ResearcherRole.study_admin
         study_relation.save()
     
-    def get_study_relation(self, study_or_study_id: Union[int, Study]) -> str:
+    def get_study_relation(self, study_or_study_id: int | Study) -> str:
         if self.site_admin:
             return ResearcherRole.site_admin
         study_id = study_or_study_id.id if isinstance(study_or_study_id, Study) else study_or_study_id

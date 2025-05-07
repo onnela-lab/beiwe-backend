@@ -1,7 +1,7 @@
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Callable
 
 from django.utils import timezone
 
@@ -22,6 +22,7 @@ from libs.utils.participant_app_version_comparison import (is_participants_versi
 
 ParticipantPK, ScheduledEventPK, StudyPK = int, int, int
 from constants.common_constants import DEV_TIME_FORMAT3  # used in log statements
+
 
 logger = logging.getLogger("push_notifications")
 if RUNNING_TESTS:

@@ -68,7 +68,7 @@ def s3_require_tls(bucket_name):
                 'Effect': 'Deny',
                 'Principal': '*',
                 'Action': '*',
-                'Resource': 'arn:aws:s3:::{}/*'.format(bucket_name),
+                'Resource': f'arn:aws:s3:::{bucket_name}/*',
                 'Condition': {
                     'Bool': {
                         'aws:SecureTransport': 'false'
@@ -92,7 +92,7 @@ def clean_eb_bucket_name(eb_environment_name):
 
 def create_data_bucket(eb_environment_name):
     for i in range(10):
-        name = "beiwe-data-{}-{}".format(eb_environment_name, random_alphanumeric_string(63))[:63].lower()
+        name = f"beiwe-data-{eb_environment_name}-{random_alphanumeric_string(63)}"[:63].lower()
         log.info("checking availability of bucket name '%s'" % name)
         if check_bucket_name_available(name):
             s3_create_bucket(name)

@@ -1,10 +1,8 @@
-from typing import List
-
 from libs.file_processing.utility_functions_csvs import insert_timestamp_single_row_csv
 from libs.file_processing.utility_functions_simple import normalize_s3_file_path
 
 
-def fix_survey_timings(header: bytes, rows_list: List[List[bytes]], file_path: str) -> bytes:
+def fix_survey_timings(header: bytes, rows_list: list[list[bytes]], file_path: str) -> bytes:
     """ Survey timings need to have a column inserted stating the survey id they come from."""
     survey_id = file_path.rsplit("/", 2)[1].encode()
     for row in rows_list:

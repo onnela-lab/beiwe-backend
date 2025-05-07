@@ -271,11 +271,10 @@ def zip_extra_fields_into_participant_table_data(
 ) -> None:
     """ Grabs the extra fields for the participants and adds them to the table. Zip like the Python
     builtin function.  """
-    extra_fields: list[tuple[datetime | None]]
-    field_values: tuple[datetime | str | None]
+    extra_fields: list[tuple [ datetime | None]]
+    new_fields: list[str | datetime | None]
+    field_values: tuple[str | datetime | None]
     patient_ids: list[str]
-    new_fields: list[str|datetime|None]
-    
     # for safety: by strictly filtering the on the patient ids in case someone changes something in
     # the table logic. This Almost Definitely slows down the query by forcing a potentially huge
     # blob into the query but not a performance critical endpoint

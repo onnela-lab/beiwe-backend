@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from collections.abc import Sequence
 from datetime import date, datetime
 from pprint import pprint
 from random import choice as random_choice
-from typing import Any, Dict, List, Sequence, Tuple, Union
+from typing import Any, Self
 
 from django.db import models
 from django.db.models import Q, QuerySet
@@ -15,7 +16,6 @@ from django.db.models.fields.related import RelatedField
 from django.db.models.manager import BaseManager
 from django.db.models.query import BaseIterable, QuerySet, ValuesIterable, ValuesListIterable
 from django.utils.timezone import localtime
-from typing_extensions import Self
 
 from constants.common_constants import DEV_TIME_FORMAT3, DT_24HR_W_TZ_W_SEC_N_PAREN, EASTERN
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
@@ -24,7 +24,7 @@ from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 class ObjectIdError(Exception): pass
 
 
-def Q_from_params(q: dict|tuple) -> Q:
+def Q_from_params(q: dict | tuple) -> Q:
     """ Convert a dict or tuple to a Q object. """
     if not isinstance(q, dict):
         return Q(*dict(q))
@@ -131,7 +131,7 @@ class UtilityModel(models.Model):
     @classmethod
     def nice_count(cls):
         t1 = datetime.now()
-        print("{:,}".format(count:= cls.objects.count()))
+        print(f"{count:= cls.objects.count():,}")
         t2 = datetime.now()
         print("this query took", (t2 - t1).total_seconds(), "seconds.")
         return count
@@ -220,7 +220,7 @@ class UtilityModel(models.Model):
         ret.update(self._related)
         return ret
     
-    def as_unpacked_native_python(self, field_names: Tuple[str]) -> dict[str, Any]:
+    def as_unpacked_native_python(self, field_names: tuple[str]) -> dict[str, Any]:
         """ This function returns a dictionary of the desired fields, unpacking any JSONTextField.
         DO NOT MAKE A VERSION OF THIS THAT TRIVIALLY RETURNS THE ENTIRE MODEL'S DATA. We had that
         and it caused numerous bugs, security issues, and wasted time. If you want to do that use
@@ -247,7 +247,7 @@ class UtilityModel(models.Model):
         return ret
     
     @classmethod
-    def local_field_names(cls) -> List[str]:
+    def local_field_names(cls) -> list[str]:
         """ helper for mostly these basic serialization methods, but useful elswhere. """
         return [f.name for f in cls._meta.fields if not isinstance(f, RelatedField)]
     
@@ -336,7 +336,7 @@ class TimestampedModel(CreatedOnModel):
 #################################### Lookup Dictionaries ###########################################
 
 
-def make_lookup_dict(queryable, keys: Sequence[str], values: Sequence[str], **filters) -> Dict:
+def make_lookup_dict(queryable, keys: Sequence[str], values: Sequence[str], **filters) -> dict:
     """ Given quuery, filters, a list of key fields, and a list of value fields, this function will
     return a dictionary that maps the key fields to the value fields. """
     keys, values, queryable, k_len, v_len, dd = lookup_dict_setup(queryable, keys, values, **filters)
@@ -357,7 +357,7 @@ def make_lookup_dict(queryable, keys: Sequence[str], values: Sequence[str], **fi
     return dict(dd)
 
 
-def make_lookup_dict_list(queryable, keys: Sequence[str], values: Sequence[str], **filters) -> Dict:
+def make_lookup_dict_list(queryable, keys: Sequence[str], values: Sequence[str], **filters) -> dict:
     """ Given quuery, filters, a list of key fields, and a list of value fields, this function will
     return a dictionary that maps the key fields to any number of value fields as lists. """
     keys, values, queryable, k_len, v_len, dd = lookup_dict_setup(queryable, keys, values, **filters)

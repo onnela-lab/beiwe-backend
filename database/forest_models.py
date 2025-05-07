@@ -4,7 +4,6 @@ import pickle
 import uuid
 from datetime import timedelta
 from os.path import join as path_join
-from typing import Dict
 
 from django.db import models
 from django.db.models import Manager
@@ -71,7 +70,7 @@ class ForestTask(TimestampedModel):
         return self.forest_tree + "_task"
     
     @property
-    def sentry_tags(self) -> Dict[str, str|uuid.UUID|bool|None]:
+    def sentry_tags(self) -> dict[str, str|uuid.UUID|bool|None]:
         from libs.utils.http_utils import easy_url
         url = path_join(DOMAIN_NAME, easy_url("forest_endpoints.task_log", study_id=self.participant.study.id))
         return {
@@ -123,7 +122,7 @@ class ForestTask(TimestampedModel):
         self.handle_tree_specific_params(params)
         return params
     
-    def pickle_to_pickled_parameters(self, parameters: Dict):
+    def pickle_to_pickled_parameters(self, parameters: dict):
         """ takes parameters and pickles them """
         if not isinstance(parameters, dict):
             raise TypeError("parameters must be a dict")
@@ -134,7 +133,7 @@ class ForestTask(TimestampedModel):
         self.pickled_parameters = pickle.dumps(cleaned_parameters)
         self.save()
     
-    def unpickle_from_pickled_parameters(self) -> Dict:
+    def unpickle_from_pickled_parameters(self) -> dict:
         """ Unpickle the pickled_parameters field. """
         # If you see a stacktrace pointing here that means Forest code changed substantially and
         # this Forest task's code fundamentally change in a way that means it cannot be rerun.
@@ -160,7 +159,7 @@ class ForestTask(TimestampedModel):
         except Exception as e:
             return str(e)
     
-    def handle_tree_specific_params(self, params: Dict):
+    def handle_tree_specific_params(self, params: dict):
         self.handle_tree_specific_date_params(params)
         if self.forest_tree == ForestTree.jasmine:
             self.assemble_jasmine_dynamic_params(params)

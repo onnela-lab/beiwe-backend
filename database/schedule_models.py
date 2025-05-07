@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import date, datetime, time, timedelta, tzinfo
-from typing import List, Sequence, Tuple
 
 from django.core.validators import MaxValueValidator
 from django.db import models
@@ -51,7 +51,7 @@ class AbsoluteSchedule(TimestampedModel):
         )
     
     @staticmethod
-    def configure_absolute_schedules(timings: Sequence[Tuple[Year, Month, Day, SecondsIntoDay]], survey: Survey):
+    def configure_absolute_schedules(timings: Sequence[tuple[Year, Month, Day, SecondsIntoDay]], survey: Survey):
         """ Creates and deletes AbsoluteSchedules for a survey to match the frontend's absolute
         schedule timings, a list of year, month, day, seconds-into-the-day defining a time. """
         
@@ -91,7 +91,7 @@ class RelativeSchedule(TimestampedModel):
         return make_aware(datetime.combine(a_date, time(self.hour, self.minute)), tz)
     
     @staticmethod
-    def configure_relative_schedules(timings: List[Tuple[InterventionPK, DaysAfter, SecondsIntoDay]], survey: Survey):
+    def configure_relative_schedules(timings: list[tuple[InterventionPK, DaysAfter, SecondsIntoDay]], survey: Survey):
         """ Creates and deletes RelativeSchedules for a survey to match the frontend's relative
         schedule input timings, the pk of the relevant intervention to target, the number of days
         after, and the number of seconds into that day. """
@@ -100,7 +100,7 @@ class RelativeSchedule(TimestampedModel):
             survey.relative_schedules.all().delete()
             return False
             
-        valid_pks: List[int] = []
+        valid_pks: list[int] = []
         for intervention_pk, days_after, num_seconds in timings:
             # using get_or_create to catch duplicate schedules
             instance, _ = RelativeSchedule.objects.get_or_create(
@@ -130,7 +130,7 @@ class WeeklySchedule(TimestampedModel):
     scheduled_events: Manager[ScheduledEvent]
     
     @staticmethod
-    def configure_weekly_schedules(timings: List[List[int]], survey: Survey):
+    def configure_weekly_schedules(timings: list[list[int]], survey: Survey):
         """ Creates and deletes WeeklySchedule for a survey to match the input timings. """
         if survey.deleted or not timings:
             survey.weekly_schedules.all().delete()
@@ -142,7 +142,7 @@ class WeeklySchedule(TimestampedModel):
                 f"Must have schedule for every day of the week, found {len(timings)} instead."
             )
         
-        valid_pks: List[int] = []
+        valid_pks: list[int] = []
         for day in range(7):
             for seconds in timings[day]:
                 # should be all ints, use integer division.
@@ -155,7 +155,7 @@ class WeeklySchedule(TimestampedModel):
         survey.weekly_schedules.exclude(id__in=valid_pks).delete()
     
     @classmethod
-    def export_survey_timings(cls, survey: Survey) -> List[List[int]]:
+    def export_survey_timings(cls, survey: Survey) -> list[list[int]]:
         """Returns a json formatted list of weekly timings for use on the frontend"""
         # this weird sort order results in correctly ordered output.
         fields_ordered = ("hour", "minute", "day_of_week")
@@ -168,7 +168,7 @@ class WeeklySchedule(TimestampedModel):
             timings[day].append((hour * 60 * 60) + (minute * 60))
         return timings
     
-    def get_prior_and_next_event_times(self, now: datetime) -> Tuple[datetime, datetime]:
+    def get_prior_and_next_event_times(self, now: datetime) -> tuple[datetime, datetime]:
         """ Identify the start of the week relative to now, determine this week's push notification
         moment, then add 7 days. tzinfo of input is used to populate tzinfos of return. """
         today = now.date()

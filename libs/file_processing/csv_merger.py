@@ -1,5 +1,3 @@
-from typing import Dict, List, Set, Tuple
-
 from botocore.exceptions import ReadTimeoutError
 from cronutils import ErrorHandler
 
@@ -28,7 +26,7 @@ class CsvMerger:
     the new size and checksum, and uploads the new data to S3, overwritinge existing chunk data. """
     
     def __init__(
-        self, binified_data: Dict, error_handler: ErrorHandler, survey_id_dict: Dict,
+        self, binified_data: dict, error_handler: ErrorHandler, survey_id_dict: dict,
         participant: Participant
     ):
         self.participant = participant
@@ -36,7 +34,7 @@ class CsvMerger:
         self.failed_ftps = set()
         self.ftps_to_retire = set()
         
-        self.upload_these: List[Tuple[ChunkRegistry, str, bytes, str]] = []
+        self.upload_these: list[tuple[ChunkRegistry, str, bytes, str]] = []
         # chunk, something?, file contents, study object id
         
         # Track the earliest and latest time bins, to return them at the end of the function
@@ -48,7 +46,7 @@ class CsvMerger:
         self.survey_id_dict = survey_id_dict
         self.iterate()
     
-    def get_retirees(self) -> Tuple[Set[int], List[int], int, int]:
+    def get_retirees(self) -> tuple[set[int], list[int], int, int]:
         """ returns the ftp pks that have succeeded, the of ftps that have failed, 
         and the earliest and the latest time bins """
         return self.ftps_to_retire.difference(self. failed_ftps), \
@@ -57,7 +55,7 @@ class CsvMerger:
     def iterate(self):
         # this function is the core loop. we iterate over all binified data and merge data into new
         # chunks, then handle ChunkRegistry parameter setup for the next stage of processing.
-        ftp_list: List[int]
+        ftp_list: list[int]
         while True:
             # this construction removes elements from the dictionary as we iterate over them,
             # which should save memory because we are building up large byte arrays as we go from
@@ -69,7 +67,7 @@ class CsvMerger:
             with self.error_handler:
                 self.inner_iterate(data_bin, data_rows_list, ftp_list)
     
-    def inner_iterate(self, data_bin, data_rows_list, ftp_list: List[int]):
+    def inner_iterate(self, data_bin, data_rows_list, ftp_list: list[int]):
         study_object_id: str
         patient_id: str
         data_stream: str
@@ -125,7 +123,7 @@ class CsvMerger:
     
     def chunk_not_exists_case(
         self, chunk_path: str, study_object_id: str, updated_header: str, patient_id: str,
-        data_stream: str, original_header: bytes, time_bin: int, rows: List[bytes]
+        data_stream: str, original_header: bytes, time_bin: int, rows: list[bytes]
     ):
         ensure_sorted_by_timestamp(rows)
         final_header = self.validate_one_header(updated_header, data_stream)
@@ -154,7 +152,7 @@ class CsvMerger:
         )
     
     def chunk_exists_case(
-        self, chunk_path: str, study_object_id: str, updated_header: str, rows: List[bytes],
+        self, chunk_path: str, study_object_id: str, updated_header: str, rows: list[bytes],
         data_stream: str
     ):
         try:

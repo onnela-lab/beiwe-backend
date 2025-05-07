@@ -2,11 +2,11 @@ import csv
 import pickle
 from collections import defaultdict
 from datetime import date, datetime
-from typing import Dict, List
 
 import orjson
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db.models import F, QuerySet
 from django.http import StreamingHttpResponse
 from django.http.response import FileResponse, HttpResponse
@@ -39,7 +39,7 @@ from libs.streaming_zip import ZipGenerator
 from libs.utils.date_utils import daterange
 from libs.utils.forest_utils import download_output_file
 from libs.utils.http_utils import easy_url
-from django.core.paginator import EmptyPage, Paginator
+
 
 TASK_SERIALIZER_FIELDS = [
     # raw
@@ -409,7 +409,7 @@ def download_participant_tree_data(request: ResearcherRequest, study_id: int, fo
         return HttpResponse(content="No such forest tree found.", status=404)
     
     # get the database fields and construct values for the csv header
-    fields_names: List[str] = ["date"] + FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES[forest_task.forest_tree]
+    fields_names: list[str] = ["date"] + FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES[forest_task.forest_tree]
     nice_names = [
         # e.g. jasmine_distance_from_home -> Distance From Home
         name.replace(f"{forest_task.forest_tree}_", "").replace("_", " ").title()
@@ -543,7 +543,7 @@ def stream_forest_task_log_csv(forest_tasks: QuerySet[ForestTask]):
         yield buffer.read()
 
 
-def dict_datetime_to_display(some_dict: Dict[str, datetime], key: str, default: str = None):
+def dict_datetime_to_display(some_dict: dict[str, datetime], key: str, default: str = None):
     # this pattern is repeated numerous times.
     dt = some_dict[key]
     if dt is None:

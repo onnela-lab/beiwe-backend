@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Generator
 from os.path import join as path_join
 from time import perf_counter_ns
-from typing import Generator
 from unittest.mock import MagicMock
 
 import boto3
@@ -450,7 +450,7 @@ def _do_list_files_generator(page_iterator: Paginator.PAGE_ITERATOR_CLS) -> Gene
             return
 
 
-def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None], None, None]:
+def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None]]:
     """ Generator of all matching key paths and their version ids.  Performance in unpredictable, it
     is based on the historical presence of key paths matching the prefix, it is paginated, but we
     don't care about deletion markers """

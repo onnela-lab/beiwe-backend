@@ -264,7 +264,7 @@ def inner_send_survey_push_notification(
 ):
     # There can be multiple instances of the same survey for which we need to deduplicate object
     #   ids, but appropriately map all object ids to schedule uuids.
-    survey_pks_fltr = list(set(scheduled_event.survey_id for scheduled_event in scheduled_events))
+    survey_pks_fltr = list({scheduled_event.survey_id for scheduled_event in scheduled_events})
     survey_obj_ids_by_pk = dict(Survey.fltr(pk__in=survey_pks_fltr).values_list("pk", "object_id"))
     
     survey_obj_ids_to_uuids = defaultdict(list)

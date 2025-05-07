@@ -1,6 +1,6 @@
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime, tzinfo
-from typing import Callable, Dict, Optional
 
 from dateutil.tz import UTC
 from django.db.models.query import QuerySet
@@ -38,7 +38,7 @@ def timeslice_to_end_of_day(timeslice: int, tz: tzinfo):
 
 def populate_data_quantity(
     chunkregistry_query: QuerySet, study_timezone: tzinfo
-) -> Dict[datetime, Dict[str, int]]:
+) -> dict[datetime, dict[str, int]]:
     # Constructs a dict formatted like this: dict[date][data_type] = total_bytes
     daily_data_quantities = defaultdict(lambda: defaultdict(int))
     time_bin: datetime
@@ -56,8 +56,8 @@ def populate_data_quantity(
 
 def calculate_data_quantity_stats(
         participant: Participant,
-        earliest_time_bin_number: Optional[int] = None,
-        latest_time_bin_number: Optional[int] = None,
+        earliest_time_bin_number: int = None,
+        latest_time_bin_number: int = None,
 ):
     """ Update the SummaryStatisticDaily  stats for a participant, using ChunkRegistry data
     earliest_time_bin_number -- expressed in hours since 1/1/1970

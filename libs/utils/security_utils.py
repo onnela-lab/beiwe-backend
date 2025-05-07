@@ -7,7 +7,6 @@ import hashlib
 import io
 import random
 from os import urandom
-from typing import Tuple
 
 import pyotp
 import pyqrcode
@@ -47,7 +46,7 @@ def device_hash(data: bytes) -> bytes:
 ################################## Passwords ###################################
 ################################################################################
 
-def django_password_components(password: str) -> Tuple[str, int, bytes, bytes]:
+def django_password_components(password: str) -> tuple[str, int, bytes, bytes]:
     """ In anticipation of adopting the django user model we are adopting the django password format.
     https://docs.djangoproject.com/en/4.1/topics/auth/passwords/ """
     try:
@@ -61,7 +60,7 @@ def to_django_password_components(algorithm: str, iterations: int, password_hash
     return f"{algorithm}${iterations}${password_hash.decode()}${salt.decode()}"
 
 
-def generate_hash_and_salt(algorithm: str, iterations: int, password: bytes) -> Tuple[bytes, bytes]:
+def generate_hash_and_salt(algorithm: str, iterations: int, password: bytes) -> tuple[bytes, bytes]:
     """ Generates a hash and salt that will match for a given input string based on the algorithm
     and iteration count. """
     if not isinstance(password, bytes):
