@@ -263,7 +263,7 @@ class UtilityModel(models.Model):
         for attr, value in kwargs.items():
             if not hasattr(self, attr):
                 # This safety is good enough, only fails when using defer.
-                raise Exception(f"unpexpected parameter: {attr}")
+                raise Exception(f"unexpected parameter: {attr}")
             setattr(self, attr, value)
         self.save()
     
@@ -274,7 +274,7 @@ class UtilityModel(models.Model):
         
         for attr, value in kwargs.items():
             if not hasattr(self, attr):
-                raise Exception(f"unpexpected parameter: {attr}")
+                raise Exception(f"unexpected parameter: {attr}")
             setattr(self, attr, value)
         self.save(update_fields=kwargs.keys())
     
@@ -283,7 +283,7 @@ class UtilityModel(models.Model):
         will pull the rest of the data from the database. 2 DB queries required. """
         for attr, value in kwargs.items():
             if not hasattr(self, attr):
-                raise Exception(f"unpexpected parameter: {attr}")
+                raise Exception(f"unexpected parameter: {attr}")
         self.__class__.objects.filter(pk=self.pk).update(**kwargs)
         self.refresh_from_db()
     

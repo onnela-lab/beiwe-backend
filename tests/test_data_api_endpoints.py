@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 
 import orjson
 import time_machine
-from dateutil.tz import gettz, UTC
+from dateutil.tz import UTC
 from django.core.exceptions import ValidationError
 from django.http import StreamingHttpResponse
 from django.utils import timezone
@@ -16,7 +16,7 @@ from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES, SERIALIZABLE_F
 from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MESSAGE
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST
-from constants.user_constants import ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
+from constants.user_constants import ANDROID_API, ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
 from database.models import ArchivedEvent
 from database.profiling_models import UploadTracking
 from database.security_models import ApiKey
@@ -672,29 +672,44 @@ class TestDownloadParticipantTableDataTableau(TableauAPITest, ParticipantTableHe
     @time_machine.travel("2020-01-01 12:00:00 UTC")
     def test_one_participant(self):
         now = timezone.now()
-        self.default_participant.update(last_set_fcm_token=now)
+        now_str = "2020-01-01T07:00:00-05:00"
+        self.default_participant.update(
+            created_on=now,
+            first_register_user=now,
+            last_set_fcm_token=now,
+            last_get_latest_surveys=now,
+            last_register_user=now,
+            last_set_password=now,
+            last_get_latest_device_settings=now,
+            last_version_code="1.0",
+            last_version_name="6",
+            last_os_version=ANDROID_API,
+            last_heartbeat_checkin=now,
+            last_upload=now,
+        )
+        
         resp = self.smart_get_status_code(200, self.session_study.object_id, **self.raw_headers)
+        
         thing = [{
             "created_on": "2020-01-01",
             "patient_id": self.default_participant.patient_id,
             "status": "Active (just now)",
             "os_type": "ANDROID",
-            "first_registration_date": None,
-            "last_registration": None,
-            "last_upload": None,
-            "last_survey_download": None,
-            "last_set_password": None,
+            "first_registration_date": now_str,
+            "last_registration": now_str,
+            "last_upload": now_str,
+            "last_survey_download": now_str,
+            "last_set_password": now_str,
             # "last push token update": now.isoformat().replace("t", " ").replace("+00:00", " (UTC)"),
             # "last push token update": now.isoformat().replace("+00:00", "Z"),
-            "last_push_token_update":now.astimezone(gettz("America/New_York")).isoformat(),
-            "last_device_settings_update": None,
-            "last_os_version": None,
-            "app_version_code": None,
-            "app_version_name": None,
-            "last_heartbeat": None,
+            "last_push_token_update":now_str,
+            "last_device_settings_update": now_str,
+            "last_os_version": ANDROID_API,
+            "app_version_code": "1.0",
+            "app_version_name": "6",
+            "last_heartbeat": now_str,
         }]
-        x = orjson.dumps(thing)
-        self.assertEqual(resp.content, x)
+        self.assertEqual(resp.content, orjson.dumps(thing))
 
 
 class TestGetParticipantUploadHistory(DataApiTest):
@@ -1644,7 +1659,7 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         "{id: 'last_set_password', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_push_token_update', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_device_settings_update', dataType: tableau.dataTypeEnum.datetime,},",
-        "{id: 'last_os_version', dataType: tableau.dataTypeEnum.datetime,},",
+        "{id: 'last_os_version', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'app_version_code', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'app_version_name', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'last_heartbeat', dataType: tableau.dataTypeEnum.datetime,},",

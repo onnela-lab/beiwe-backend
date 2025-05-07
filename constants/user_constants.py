@@ -83,7 +83,7 @@ TABLEAU_TABLE_FIELD_TYPES = {
     "last_set_password":  "tableau.dataTypeEnum.datetime",
     "last_push_token_update":  "tableau.dataTypeEnum.datetime",
     "last_device_settings_update":  "tableau.dataTypeEnum.datetime",
-    "last_os_version":  "tableau.dataTypeEnum.datetime",
+    "last_os_version":  "tableau.dataTypeEnum.string",  # not a dt
     "app_version_code":  "tableau.dataTypeEnum.string",
     "app_version_name":  "tableau.dataTypeEnum.string",
     "last_heartbeat":  "tableau.dataTypeEnum.datetime",
