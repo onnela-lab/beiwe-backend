@@ -161,6 +161,7 @@ class S3Storage:
             del self.uncompressed_data
         
         self.compressed_data = file_content  # TLDR - only compressed_data should now be set
+        self.metadata.size_compressed = len(self.compressed_data)
         return self
     
     def pop_uncompressed_file_content(self):
@@ -189,7 +190,6 @@ class S3Storage:
         # upload path.  It is not used in the normal upload path.
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_AT_UPLOAD
         assert self.compressed_data is not None, COMPRESSED_DATA_NONE_AT_UPLOAD
-        self.metadata.size_compressed = len(self.compressed_data)
         self._s3_upload_zst()
         self.update_s3_table()
     
