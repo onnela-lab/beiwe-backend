@@ -946,7 +946,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s.encryption_key, self.DEFAULT_ENCRYPTION_KEY_BYTES)
         self.assert_hasattr(s, "_encryption_key")
     
-    def test_set_pop_file_contents(self):
+    def test_set_pop_uncompressed_file_contents(self):
         s = self.default_s3storage_with_prefix
         self.assert_hasattr(s, "uncompressed_data")
         self.assert_not_hasattr(s, "compressed_data")
@@ -967,7 +967,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s.compressed_data, self.COMPRESSED_SLUG)
         self.assertFalse(S3File.objects.exists())
     
-    def test_set_file_content_compressed(self):
+    def test_set_pop_file_content_compressed(self):
         s = self.default_s3storage_with_prefix
         self.assert_not_hasattr(s, "compressed_data")
         self.assertIsNone(s.uncompressed_data)
@@ -976,6 +976,9 @@ class TestS3Storage(CommonTestCase):
         self.assert_hasattr(s, "compressed_data")
         self.assertEqual(s.compressed_data, self.COMPRESSED_SLUG)
         self.assertFalse(S3File.objects.exists())
+        # pop
+        s.pop_compressed_file_content()
+        self.assert_not_hasattr(s, "compressed_data")
     
     # S3 tests, requires a with prefix and without prefix version of each test.
     
