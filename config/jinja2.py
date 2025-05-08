@@ -51,6 +51,9 @@ def environment(**options: dict[str, Any]) -> Environment:
             "SENTRY_JAVASCRIPT_DSN": SENTRY_JAVASCRIPT_DSN,
             "current_year": date.today().year,
             "len": len,
+            "min": min,
+            "max": max,
+            "abs": abs,
         }
     )
     return env

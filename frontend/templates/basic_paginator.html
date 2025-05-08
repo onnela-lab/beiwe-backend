@@ -1,0 +1,46 @@
+{# SET THESE TEMPLATE VARIABLES #}
+{# PAGING_WINDOW - 13 or 12 ar a good start for full-width pages #}
+{# `PAGINATOR_URL_BASE` for the... base of the target url to page through #}
+{# `page` needs to be django db Paginitar.page(index) object #}
+{# `LAST_PAGE_NUMBER` - a variable off of the Paginator object, (my_paginator.page_range.stop - 1) #}
+{# TODO: make this more abstract #}
+
+{# center the whole list (list is meant to be one line) #}
+<ul class="pagination" style="margin-top:0px; display: flex; justify-content: center;">
+  {# handle #}
+  {% set SUFFIXED_BASE_URL = PAGINATOR_URL_BASE + "?page=" if "?" not in PAGINATOR_URL_BASE else PAGINATOR_URL_BASE + "&page=" %}
+  {# {% set PAGING_WINDOW = 13 %}  #}
+  {# we need a bit of a fudge factor here for longer numbers or else it feels real janky #}
+  {# needs to be dynamic javaascript to not suck #}
+  {% set PAGING_OFFSET = abs(max([(PAGING_WINDOW - page.number), 0]))  + 3 if page.number < PAGING_WINDOW else 0 - 4 if page.number > 90 else 0 %}
+  
+  {% if LAST_PAGE_NUMBER <= PAGING_WINDOW %}
+    {# its just easier to separate this one out #}
+    {% for link_number in range(1, LAST_PAGE_NUMBER) %}
+      {# the <a> is cickable even if the <li> is disabled #}
+      <li class={% if link_number == page.number %}"disabled"{% else %}"active"{% endif %}>
+        <a {% if link_number != page.number %}href="{{ SUFFIXED_BASE_URL }}{{ link_number }}"{% endif %}>{{ link_number }}
+      </a></li>
+    {% endfor %}
+    
+  {% else %}
+    {# hardcode a "first" link as << if page at -PAGING_WINDOW out of range #}
+    {% if page.number - PAGING_WINDOW > 1 %}
+      <li class="active"><a href="{{ SUFFIXED_BASE_URL }}1"><<</a></li>
+    {% endif %}
+    
+    {% for link_number in range( max([page.number - PAGING_WINDOW, 1]), min([page.number + PAGING_WINDOW + PAGING_OFFSET, LAST_PAGE_NUMBER])) %}
+      {# a button for the previous and next (PAGING_WINDOW) sized pages #}
+      <li class={% if link_number == page.number %} "disabled" {% else %} "active" {% endif %}>
+        <a {% if link_number != page.number %} href="{{ SUFFIXED_BASE_URL }}{{ link_number }}" {% endif %}> {{ link_number }}
+      </a>
+      </li>
+    {% endfor %}
+    
+    {# hardcode a last link #}
+    {% if page.number + PAGING_WINDOW < LAST_PAGE_NUMBER %}
+      <li class="active"><a href="{{ SUFFIXED_BASE_URL }}{{ LAST_PAGE_NUMBER }}">>></a></li>
+    {% endif %}
+  
+  {% endif %}
+</ul>

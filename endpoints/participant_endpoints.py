@@ -419,7 +419,6 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
         archived_events_page = archived_events.page(page_number)
     except EmptyPage:
         return HttpResponse(content="", status=404)
-    last_page_number = archived_events.page_range.stop - 1
     
     # obscure: this changes the internal objects_list from a query to a list
     notifcation_uuids = [event["uuid"] for event in archived_events_page if event["uuid"]]
@@ -435,6 +434,11 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
         all_notifications, study.timezone, get_survey_names_dict(study), uuids_to_received_time
     )
     conditionally_display_locked_message(request, participant)  # and then the conditional message...
+    
+    # show keepalive isn't trivial how do I retain that
+    base_url = easy_url("participant_endpoints.notification_history", study_id=study_id, patient_id=patient_id)
+    if include_keepalive:
+        base_url += "?include_keepalive=true"
     return render(
         request,
         'notification_history.html',
@@ -443,9 +447,11 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
             page=archived_events_page,
             notification_attempts=notification_page_content,
             study=study,
-            last_page_number=last_page_number,
+            LAST_PAGE_NUMBER=archived_events.page_range.stop - 1,
             locked=participant.is_dead,
             include_keepalive=include_keepalive,
+            PAGINATOR_URL_BASE=base_url,
+            PAGING_WINDOW=13,
         )
     )
 
