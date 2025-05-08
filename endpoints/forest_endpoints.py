@@ -208,12 +208,11 @@ def task_log(request: ResearcherRequest, study_id=None):
     query = ForestTask.objects.filter(participant__study_id=study_id)\
         .order_by("-created_on").values(*TASK_SERIALIZER_FIELDS)
     
-    paginator = Paginator(query, 1000)
+    paginator = Paginator(query, 50)
     if paginator.num_pages < page:
         return HttpResponse(content="", status=400)
     
     page = paginator.page(page)
-    
     tasks = []
     
     for task_dict in page:
@@ -277,6 +276,10 @@ def task_log(request: ResearcherRequest, study_id=None):
         context=dict(
             study=Study.objects.get(pk=study_id),
             status_choices=ForestTaskStatus,
+            page=page,
+            LAST_PAGE_NUMBER=paginator.page_range.stop - 1,
+            PAGING_WINDOW=13,
+            PAGINATOR_URL_BASE=easy_url("forest_endpoints.task_log", study_id=study_id),
             forest_log=orjson.dumps(tasks).decode(),  # orjson is very fast and handles the remaining date objects
             forest_commit=forest_info.git_commit or "commit not found",
             forest_version=forest_info.package_version or "version not found",
