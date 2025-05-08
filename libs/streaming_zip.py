@@ -110,10 +110,10 @@ class ZipGenerator:
         self.file_registry: dict[str, str] = {}
         self.total_bytes = 0
         self.thread_count = threads
-        # self.as_compressed = as_compressed
+        self.as_compressed = as_compressed
         self.study = study
     
-    def batch_retrieve_s3(self, chunk: dict) -> Tuple[dict, bytes]:
+    def batch_retrieve_s3(self, chunk: dict) -> tuple[dict, bytes]:
         """ Data is returned in the form (chunk_object, file_data). """
         return chunk, s3_retrieve(chunk["chunk_path"], self.study, raw_path=True)
     

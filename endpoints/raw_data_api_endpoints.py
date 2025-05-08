@@ -33,6 +33,17 @@ def log(*args, **kwargs):
 @api_study_credential_check()
 @transaction.non_atomic_requests
 def get_data(request: ApiStudyResearcherRequest):
+    return _get_data(request, as_compressed=False)
+
+
+@require_http_methods(['POST', "GET"])
+@api_study_credential_check()
+@transaction.non_atomic_requests
+def get_data_2(request: ApiStudyResearcherRequest):
+    return _get_data(request, as_compressed=True)
+
+
+def _get_data(request: ApiStudyResearcherRequest, as_compressed: bool):
     """ Required: access key, access secret, study_id
     JSON blobs: data streams, users - default to all
     Strings: date-start, date-end - format as "YYYY-MM-DDThh:mm:ss"
@@ -77,7 +88,7 @@ def get_data(request: ApiStudyResearcherRequest):
         files_list=get_these_files,
         construct_registry='web_form' not in request.POST,
         threads=5,
-        as_compressed=False,
+        as_compressed=as_compressed,
     )
     try:
         streaming_response = FileResponse(

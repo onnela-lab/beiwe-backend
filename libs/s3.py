@@ -19,9 +19,12 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
 from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException,
+    COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
+    COMPRESSED_DATA_NONE_AT_UPLOAD, COMPRESSED_DATA_NONE_ON_POP, COMPRESSED_DATA_PRESENT,
     COMPRESSION__COMPRESSED_DATA_NONE, COMPRESSION__COMPRESSED_DATA_NOT_SET,
-    IOSDataRecoveryDisabledException, MetaDotDict, NoSuchKeyException, S3DeletionException,
-    SMART_GET_ERROR, UNCOMPRESSED_DATA_MISSING, UNCOMPRESSED_DATA_NONE_ON_POP)
+    IOSDataRecoveryDisabledException, MetaDotDict, MUST_BE_ZSTD_FORMAT, NoSuchKeyException,
+    S3DeletionException, SMART_GET_ERROR, UNCOMPRESSED_DATA_MISSING, UNCOMPRESSED_DATA_NONE_ON_POP,
+    UNCOMPRESSED_DATA_WAS_SET_WHEN_IT_SHOULDNT)
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
 
@@ -138,33 +141,55 @@ class S3Storage:
     
     ## File State Tracking
     
-    def set_file_content(self, file_content: bytes):
+    def set_file_content_uncompressed(self, file_content: bytes):
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
         self.uncompressed_data = file_content
         return self
     
-    # this code is correct but we aren't building the uncompressed upload function unless we need to.
-    # there is a test, "test_set_compressed_data"
-    # def set_file_content_compressed(self, file_content: bytes):
-    #     if not isinstance(file_content, bytes):
-    #         raise TypeError(f"file_content must be bytes, received {type(file_content)}")
-    #     if not file_content.startswith(b'(\xb5/\xfd'):
-    #         raise ValueError(MUST_BE_ZSTD_FORMAT.format(file_content=file_content[:10].decode()))
-    #     self.compressed_data = file_content
-    #     return self
+    def set_file_content_compressed(self, file_content: bytes):
+        # validate
+        if not isinstance(file_content, bytes):
+            raise TypeError(f"file_content must be bytes, received {type(file_content)}")
+        if not file_content.startswith(b'(\xb5/\xfd'):
+            raise ValueError(MUST_BE_ZSTD_FORMAT(file_content=file_content[:10].decode()))
+        
+        # missuse cases
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT
+        if hasattr(self, "uncompressed_data"):
+            assert self.uncompressed_data is None, UNCOMPRESSED_DATA_WAS_SET_WHEN_IT_SHOULDNT
+            del self.uncompressed_data
+        
+        self.compressed_data = file_content  # TLDR - only compressed_data should now be set
+        return self
     
-    def pop_file_content(self):
+    def pop_uncompressed_file_content(self):
         assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING
         assert self.uncompressed_data is not None, UNCOMPRESSED_DATA_NONE_ON_POP
         uncompressed_data = self.uncompressed_data
         del self.uncompressed_data
         return uncompressed_data
     
+    def pop_compressed_file_content(self):
+        assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_ON_POP
+        assert self.compressed_data is not None, COMPRESSED_DATA_NONE_ON_POP
+        compressed_data = self.compressed_data
+        del self.compressed_data
+        return compressed_data
+    
     # Upload
     
     def compress_and_push_to_storage_and_clear_everything(self):
         self.compress_data_and_clear_uncompressed()
+        self._s3_upload_zst()
+        self.update_s3_table()
+    
+    def push_to_storage_already_compressed_and_clear(self):
+        # this is a special case for the iOS file recovery code, which is not in the normal
+        # upload path.  It is not used in the normal upload path.
+        assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_AT_UPLOAD
+        assert self.compressed_data is not None, COMPRESSED_DATA_NONE_AT_UPLOAD
+        self.metadata.size_compressed = len(self.compressed_data)
         self._s3_upload_zst()
         self.update_s3_table()
     
@@ -348,7 +373,7 @@ def s3_upload(
 ) -> None:
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
-    storage = S3Storage(key_path, obj, raw_path).set_file_content(data_string)
+    storage = S3Storage(key_path, obj, raw_path).set_file_content_uncompressed(data_string)
     storage.compress_and_push_to_storage_and_clear_everything()
 
 
@@ -377,7 +402,7 @@ def s3_retrieve(key_path: str, obj: StrPartStudy, raw_path: bool = False, number
     which defaults to false.  When set to false the path is prepended to place the file in the
     appropriate study_id folder. """
     # This reference pattern clears internal references before the return statement.
-    return S3Storage(key_path, obj, raw_path).download().pop_file_content()
+    return S3Storage(key_path, obj, raw_path).download().pop_uncompressed_file_content()
 
 
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
