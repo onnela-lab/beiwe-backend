@@ -1,10 +1,28 @@
 {% extends "base.html" %}
 {% block title %}Notification History{% endblock %}
 
-{%  block content %}
+{% block content %}
+
   <div class="title row">
     <h1>Notification history for <a href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}">{{ participant.patient_id }}</a></h1>
+    <div class="well well-sm ">
+    <ol class="breadcrumb">
+      <li>
+        <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
+      </li>
+      <li class="active">
+        {# <a href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}">{{ participant.patient_id }} #}
+        <a href="{{ easy_url("participant_endpoints.participant_page", participant.study_id, participant.patient_id) }}">{{ participant.patient_id }}
+        Edit and View Attributes of Participant <b>{{ participant.patient_id }}</b>
+        </a>
+      </li>
+      <li>
+        Participant Notification history
+      </li>
+    </ol>
+    </div>
 
+<div class="well">
     {# add a url to load the page without the message notifications #}
     {% if include_keepalive %}
       {# INCLUDE the keepalive parameter on the page links #}
@@ -19,15 +37,8 @@
       {# INCLUDE the parameter to tho swap mode link #}
       <a href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}/notification_history?include_keepalive=true&page={{page.number}}">Show keepalive notifications</a>
     {% endif %}
-
-    <p><b>Page of results:</b></p>
-    <ul class="pagination" style="margin-top:0px;">
-      {% set urlbase = "/view_study/" + study.id|string + "/participant/" + participant.patient_id + "/notification_history?" + keepalive_param + "page=" %}
-      {# just create a button for every page it's fine #}
-      {% for page_number in range(last_page_number) %}
-        <li class={% if (page_number +1) == page.number %}"disabled"{% else %}"active"{% endif %}><a href="{{ urlbase }}{{ page_number + 1 }}">{{ page_number + 1 }}</a></li>
-      {% endfor %}
-    </ul>
+    
+    {% include "basic_paginator.html" %}
     
     <table class="table table-bordered table-notifications">
       <thead>
@@ -73,4 +84,5 @@
       </tbody>
     </table>
   </div>
+</div>
 {% endblock %}
