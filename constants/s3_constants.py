@@ -2,16 +2,27 @@ from typing import Any, Protocol
 
 
 # Debugging / correctness checks
-COMPRESSION__COMPRESSED_DATA_NOT_SET = "S3Compressed: file_content was not set before compression"
-COMPRESSION__COMPRESSED_DATA_NONE = "S3Compressed: file_content was None at compression time"
-UNCOMPRESSED_DATA_NONE_ON_POP = "S3Compressed: file_content was not set before pop"
-UNCOMPRESSED_DATA_MISSING = "S3Compressed: file_content was purged before pop"
-COMPRESSED_DATA_NONE_ON_POP = "S3Compressed: file_content was not set before pop"
-COMPRESSED_DATA_MISSING_ON_POP = "S3Compressed: file_content was purged before pop"
-COMPRESSED_DATA_NONE_AT_UPLOAD = "S3Compressed: compressed_data was None at upload time"
-COMPRESSED_DATA_MISSING_AT_UPLOAD = "S3Compressed: compressed_data was purged before upload"
-UNCOMPRESSED_DATA_WAS_SET_WHEN_IT_SHOULDNT = "S3Compressed: uncompressed_data was set when it should have been None"
-COMPRESSED_DATA_PRESENT = "S3Compressed: compressed_data when it shouldn't be present"
+COMPRESSION__UNCOMPRESSED_DATA_NOT_SET = "uncompressed_data not set before compression"
+COMPRESSION__UNCOMPRESSED_DATA_NONE = "uncompressed_data was None at compression"
+
+UNCOMPRESSED_DATA_NONE_ON_POP = "uncompressed_data not set before pop"
+COMPRESSED_DATA_NONE_ON_POP = "compressed_data not set before pop"
+
+UNCOMPRESSED_DATA_MISSING_ON_POP = "uncompressed_data was missing before pop"
+COMPRESSED_DATA_MISSING_ON_POP = "compressed_data was missing before pop"
+
+COMPRESSED_DATA_MISSING_AT_UPLOAD = "compressed_data was purged before upload"
+COMPRESSED_DATA_NONE_AT_UPLOAD = "compressed_data was None at upload"
+
+UNCOMPRESSED_DATA_PRESENT_ON_DECOMPRESS = "uncompressed_data present on decompress"
+COMPRESSED_DATA_MISSING_ON_DECOMPRESS = "compressed_data missing on decompress"
+COMPRESSED_DATA_NONE_ON_DECOMPRESS = "compressed_data was None on decompress"
+
+UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD = "uncompressed_data present on download"
+
+COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT = "compressed_data was set when it shouldn't be present"
+UNCOMPRESSED_DATA_NOT_NONE_ON_ASSIGNMENT = "uncompressed_data was not None when it should be"
+UNCOMPRESSED_DATA_MISSING_ON_ASSIGNMENT = "uncompressed_data was missing when it should be present"
 
 # error messages
 MUST_BE_ZSTD_FORMAT = lambda file_content: "Must be compressed zstd data conforming to the zstd format. data started with {file_content}"

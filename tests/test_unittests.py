@@ -18,6 +18,8 @@ from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
     ERR_TARGET_VERSION_CANNOT_BE_MISSING, ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
+from constants.s3_constants import (COMPRESSION__UNCOMPRESSED_DATA_NONE,
+    COMPRESSION__UNCOMPRESSED_DATA_NOT_SET)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
 from database.models import ArchivedEvent, S3File, ScheduledEvent
@@ -980,16 +982,18 @@ class TestS3Storage(CommonTestCase):
         s.pop_compressed_file_content()
         self.assert_not_hasattr(s, "compressed_data")
     
-    # S3 tests, requires a with prefix and without prefix version of each test.
+    # S3Storage tests, requires a with prefix and without prefix version of each test.
     
     ## push_to_storage_and_clear_everything
     
     @patch("libs.s3.conn")
-    def test_compress_and_push_to_storage_and_clear_everything_with_prefix(self, conn=MagicMock()):
+    def test_compress_and_push_to_storage_and_clear_memory_with_prefix(self, conn=MagicMock()):
+        # this is a sufficient test of compress_and_push_to_storage_retaining_compressed because
+        # compress_and_push_to_storage_and_clear_memory_with_prefix calls it directly.
         s = self.default_s3storage_with_prefix
         s.set_file_content_uncompressed(b"content")
         self.assertFalse(S3File.objects.exists())
-        s.compress_and_push_to_storage_and_clear_everything()
+        s.compress_and_push_to_storage_and_clear_memory()
         self.assert_not_hasattr(s, "uncompressed_data")
         self.assert_not_hasattr(s, "compressed_data")
         self.assertEqual(len(conn.method_calls), 1)
@@ -1003,10 +1007,10 @@ class TestS3Storage(CommonTestCase):
         self.assert_correct_uploaded_s3file(s3_file)
     
     @patch("libs.s3.conn")
-    def test_compress_and_push_to_storage_and_clear_everything_without_prefix(self, conn=MagicMock()):
+    def test_compress_and_push_to_storage_and_clear_memory_without_prefix(self, conn=MagicMock()):
         s = self.default_s3storage_without_prefix
         s.set_file_content_uncompressed(b"content")
-        s.compress_and_push_to_storage_and_clear_everything()
+        s.compress_and_push_to_storage_and_clear_memory()
         self.assert_not_hasattr(s, "uncompressed_data")
         self.assert_not_hasattr(s, "compressed_data")
         self.assertEqual(len(conn.method_calls), 1)
@@ -1021,19 +1025,29 @@ class TestS3Storage(CommonTestCase):
     
     def test_compress_data_and_clear_uncompressed_without_data(self):
         s = self.default_s3storage_with_prefix
-        self.assertRaises(AssertionError, s.compress_data_and_clear_uncompressed)
+        e = self.assertRaises(AssertionError, s.compress_data_and_clear_uncompressed)
     
-    def test_compress_and_push_to_storage_and_clear_everything_without_data(self):
+    def test_compress_and_push_to_storage_and_clear_memory_without_data(self):
         s = self.default_s3storage_without_prefix
-        self.assertRaises(AssertionError, s.compress_and_push_to_storage_and_clear_everything)
+        self.assertRaisesRegex(
+            AssertionError,
+            COMPRESSION__UNCOMPRESSED_DATA_NONE,
+            s.compress_and_push_to_storage_and_clear_memory,
+        )
+        del s.uncompressed_data
+        self.assertRaisesRegex(
+            AssertionError,
+            COMPRESSION__UNCOMPRESSED_DATA_NOT_SET,
+            s.compress_and_push_to_storage_and_clear_memory,
+        )
     
-    def test_precompressed_upload__compress_and_push_to_storage_and_clear_everything(self):
+    def test_precompressed_upload__compress_and_push_to_storage_and_clear_memory(self):
         s = self.default_s3storage_with_prefix
         s.set_file_content_compressed(self.COMPRESSED_SLUG)
         self.assertFalse(S3File.objects.exists())
         self.assertRaises(
             AssertionError,
-            s.compress_and_push_to_storage_and_clear_everything,
+            s.compress_and_push_to_storage_and_clear_memory,
         )
     
     @patch("libs.s3.conn")
@@ -1041,7 +1055,7 @@ class TestS3Storage(CommonTestCase):
         s = self.default_s3storage_with_prefix
         s.set_file_content_compressed(self.COMPRESSED_SLUG)
         self.assertFalse(S3File.objects.exists())
-        s.push_to_storage_already_compressed_and_clear()
+        s.push_to_storage_already_compressed_and_clear_memory()
         
         self.assert_not_hasattr(s, "uncompressed_data")
         self.assert_not_hasattr(s, "compressed_data")

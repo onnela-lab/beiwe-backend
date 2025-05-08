@@ -68,7 +68,7 @@ def compress_file(path_study):
     try:
         # if we do S3Storage._download_and_rewrite_s3_as_compressed it doesn't it skips an S3 query
         s = S3Storage(path, study, bypass_study_folder=True)
-        s._download_and_rewrite_s3_as_compressed()
+        s._download_and_rewrite_s3_as_compressed_retaining_uncompressed()
         s.pop_uncompressed_file_content()  # manual memory management to maybe reduce cycles in gc?
         stats.number_files_compressed += 1
     except BadS3PathException as e:
