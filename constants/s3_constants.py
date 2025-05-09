@@ -2,27 +2,20 @@ from typing import Any, Protocol
 
 
 # Debugging / correctness checks
-COMPRESSION__UNCOMPRESSED_DATA_NOT_SET = "uncompressed_data not set before compression"
-COMPRESSION__UNCOMPRESSED_DATA_NONE = "uncompressed_data was None at compression"
-
-UNCOMPRESSED_DATA_NONE_ON_POP = "uncompressed_data not set before pop"
-COMPRESSED_DATA_NONE_ON_POP = "compressed_data not set before pop"
+UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION = "uncompressed_data not set before compression"
+COMPRESSED_DATA_PRESENT_AT_COMPRESSION = "compressed_data was set before compression"
 
 UNCOMPRESSED_DATA_MISSING_ON_POP = "uncompressed_data was missing before pop"
 COMPRESSED_DATA_MISSING_ON_POP = "compressed_data was missing before pop"
 
-COMPRESSED_DATA_MISSING_AT_UPLOAD = "compressed_data was purged before upload"
-COMPRESSED_DATA_NONE_AT_UPLOAD = "compressed_data was None at upload"
-
-UNCOMPRESSED_DATA_PRESENT_ON_DECOMPRESS = "uncompressed_data present on decompress"
-COMPRESSED_DATA_MISSING_ON_DECOMPRESS = "compressed_data missing on decompress"
-COMPRESSED_DATA_NONE_ON_DECOMPRESS = "compressed_data was None on decompress"
+COMPRESSED_DATA_MISSING_AT_UPLOAD = "compressed_data was misssing before upload"
+UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD = "uncompressed_data was present before upload (when it shouldn't)"
 
 UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD = "uncompressed_data present on download"
+COMPRESSED_DATA_PRESENT_ON_DOWNLOAD = "compressed_data present on download"
 
-COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT = "compressed_data was set when it shouldn't be present"
-UNCOMPRESSED_DATA_NOT_NONE_ON_ASSIGNMENT = "uncompressed_data was not None when it should be"
-UNCOMPRESSED_DATA_MISSING_ON_ASSIGNMENT = "uncompressed_data was missing when it should be present"
+COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT = "compressed_data was present on assignment"
+UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT = "uncompressed_data was present on assignment"
 
 # error messages
 MUST_BE_ZSTD_FORMAT = lambda file_content: "Must be compressed zstd data conforming to the zstd format. data started with {file_content}"

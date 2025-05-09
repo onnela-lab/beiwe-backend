@@ -18,8 +18,12 @@ from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
     ERR_TARGET_VERSION_CANNOT_BE_MISSING, ERR_TARGET_VERSION_MUST_BE_STRING, ERR_UNKNOWN_OS_TYPE)
-from constants.s3_constants import (COMPRESSION__UNCOMPRESSED_DATA_NONE,
-    COMPRESSION__UNCOMPRESSED_DATA_NOT_SET)
+from constants.s3_constants import (COMPRESSED_DATA_MISSING_AT_UPLOAD,
+    COMPRESSED_DATA_MISSING_ON_POP, COMPRESSED_DATA_PRESENT_AT_COMPRESSION,
+    COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
+    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION, UNCOMPRESSED_DATA_MISSING_ON_POP,
+    UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
+    UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
 from database.models import ArchivedEvent, S3File, ScheduledEvent
@@ -886,7 +890,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
         self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
         self.assertIs(s.smart_key_obj, self.default_participant)
-        self.assertIsNone(s.uncompressed_data)
+        self.assert_not_hasattr(s, "uncompressed_data")
         self.assertEqual(self.default_study.encryption_key, s.encryption_key.decode())
         self.assertEqual(self.default_study.object_id, s.get_path_prefix)
     
@@ -895,7 +899,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
         self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
         self.assertIs(s.smart_key_obj, self.default_study.object_id)
-        self.assertIsNone(s.uncompressed_data)
+        self.assert_not_hasattr(s, "uncompressed_data")
         self.assertEqual(self.default_study.encryption_key, s.encryption_key.decode())
         self.assertEqual(self.default_study.object_id, s.get_path_prefix)
     
@@ -904,7 +908,7 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s.s3_path_zst, self.valid_study_path + ".zst")
         self.assertEqual(s.s3_path_uncompressed, self.valid_study_path)
         self.assertIs(s.smart_key_obj, self.default_study)
-        self.assertIsNone(s.uncompressed_data)
+        self.assert_not_hasattr(s, "uncompressed_data")
         self.assertEqual(self.default_study.encryption_key, s.encryption_key.decode())
         self.assertEqual(self.default_study.object_id, s.get_path_prefix)
     
@@ -950,9 +954,8 @@ class TestS3Storage(CommonTestCase):
     
     def test_set_pop_uncompressed_file_contents(self):
         s = self.default_s3storage_with_prefix
-        self.assert_hasattr(s, "uncompressed_data")
+        self.assert_not_hasattr(s, "uncompressed_data")
         self.assert_not_hasattr(s, "compressed_data")
-        self.assertIsNone(s.uncompressed_data)
         self.assertRaises(TypeError, s.set_file_content_uncompressed, "content")
         s.set_file_content_uncompressed(b"content")
         self.assertEqual(s.pop_uncompressed_file_content(), b"content")
@@ -972,7 +975,7 @@ class TestS3Storage(CommonTestCase):
     def test_set_pop_file_content_compressed(self):
         s = self.default_s3storage_with_prefix
         self.assert_not_hasattr(s, "compressed_data")
-        self.assertIsNone(s.uncompressed_data)
+        self.assert_not_hasattr(s, "uncompressed_data")
         s.set_file_content_compressed(self.COMPRESSED_SLUG)
         self.assert_not_hasattr(s, "uncompressed_data")
         self.assert_hasattr(s, "compressed_data")
@@ -1025,19 +1028,24 @@ class TestS3Storage(CommonTestCase):
     
     def test_compress_data_and_clear_uncompressed_without_data(self):
         s = self.default_s3storage_with_prefix
-        e = self.assertRaises(AssertionError, s.compress_data_and_clear_uncompressed)
+        e = self.assertRaisesRegex(
+            AssertionError,
+            UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
+            s.compress_data_and_clear_uncompressed,
+            
+        )
     
     def test_compress_and_push_to_storage_and_clear_memory_without_data(self):
         s = self.default_s3storage_without_prefix
         self.assertRaisesRegex(
             AssertionError,
-            COMPRESSION__UNCOMPRESSED_DATA_NONE,
+            UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
             s.compress_and_push_to_storage_and_clear_memory,
         )
-        del s.uncompressed_data
+        s.set_file_content_compressed(self.COMPRESSED_SLUG)
         self.assertRaisesRegex(
             AssertionError,
-            COMPRESSION__UNCOMPRESSED_DATA_NOT_SET,
+            UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
             s.compress_and_push_to_storage_and_clear_memory,
         )
     
@@ -1045,9 +1053,114 @@ class TestS3Storage(CommonTestCase):
         s = self.default_s3storage_with_prefix
         s.set_file_content_compressed(self.COMPRESSED_SLUG)
         self.assertFalse(S3File.objects.exists())
-        self.assertRaises(
+        self.assertRaisesRegex(
             AssertionError,
+            UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
             s.compress_and_push_to_storage_and_clear_memory,
+        )
+        self.assertRaisesRegex(
+            AssertionError,
+            COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+            s.set_file_content_uncompressed,
+            self.COMPRESSED_SLUG
+        )
+        s.pop_compressed_file_content()
+        s.set_file_content_uncompressed(self.COMPRESSED_SLUG)
+        s.compress_and_push_to_storage_and_clear_memory()
+    
+    def test_COMPRESSED_DATA_PRESENT_AT_COMPRESSION(self):
+        s = self.default_s3storage_with_prefix
+        s.set_file_content_compressed(self.COMPRESSED_SLUG)
+        s.uncompressed_data = b"fake"
+        self.assertRaisesRegex(
+            AssertionError,
+            COMPRESSED_DATA_PRESENT_AT_COMPRESSION,
+            s.compress_data_and_clear_uncompressed,
+        )
+    
+    def test_UNCOMPRESSED_DATA_MISSING_ON_POP(self):
+        s = self.default_s3storage_with_prefix
+        self.assertRaisesRegex(
+            AssertionError,
+            UNCOMPRESSED_DATA_MISSING_ON_POP,
+            s.pop_uncompressed_file_content,
+        )
+    
+    def test_COMPRESSED_DATA_MISSING_ON_POP(self):
+        s = self.default_s3storage_with_prefix
+        self.assertRaisesRegex(
+            AssertionError,
+            COMPRESSED_DATA_MISSING_ON_POP,
+            s.pop_compressed_file_content,
+        )
+    
+    def test_COMPRESSED_DATA_MISSING_AT_UPLOAD(self):
+        s = self.default_s3storage_with_prefix
+        self.assertRaisesRegex(
+            AssertionError,
+            COMPRESSED_DATA_MISSING_AT_UPLOAD,
+            s.push_to_storage_already_compressed_and_clear_memory,
+        )
+    
+    def test_UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD(self):
+        s = self.default_s3storage_with_prefix
+        s.set_file_content_compressed(self.COMPRESSED_SLUG)
+        s.uncompressed_data = b"fake, illegal"
+        self.assertRaisesRegex(
+            AssertionError,
+            UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD.replace("(", r"\(").replace(")", r"\)"),  # has
+            s.push_to_storage_already_compressed_and_clear_memory,
+        )
+    
+    @patch("libs.s3.conn")
+    def test_UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD(self, conn=MagicMock()):
+        conn.get_object = do_retrieve = Mock()
+        do_retrieve.side_effect = [
+            {"Body": BytesIO(self.COMPRESSED_ENCRYPTED_SLUG)},
+            # self.hack_s3_error("waka waka 2"),
+        ]
+        s = self.default_s3storage_with_prefix
+        s.set_file_content_uncompressed(b"content")
+        self.assertRaisesRegex(
+            AssertionError,
+            UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD.replace("(", r"\(").replace(")", r"\)"),  # has
+            s.download_no_decompress,
+        )
+        self.assertRaisesRegex(
+            AssertionError,
+            UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD.replace("(", r"\(").replace(")", r"\)"),  # has
+            s.download
+        )
+    
+    @patch("libs.s3.conn")
+    def test_COMPRESSED_DATA_PRESENT_ON_DOWNLOAD(self, conn=MagicMock()):
+        conn.get_object = do_retrieve = Mock()
+        do_retrieve.side_effect = [
+            {"Body": BytesIO(self.COMPRESSED_ENCRYPTED_SLUG)},
+            # self.hack_s3_error("waka waka 2"),
+        ]
+        s = self.default_s3storage_with_prefix
+        s.set_file_content_compressed(self.COMPRESSED_SLUG)
+        # s.uncompressed_data = b"fake, illegal"
+        self.assertRaisesRegex(
+            AssertionError,
+            COMPRESSED_DATA_PRESENT_ON_DOWNLOAD.replace("(", r"\(").replace(")", r"\)"),  # has
+            s.download_no_decompress,
+        )
+        self.assertRaisesRegex(
+            AssertionError,
+            COMPRESSED_DATA_PRESENT_ON_DOWNLOAD.replace("(", r"\(").replace(")", r"\)"),  # has
+            s.download
+        )
+    
+    def test_UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT(self):
+        s = self.default_s3storage_with_prefix
+        s.set_file_content_uncompressed(b"content")
+        self.assertRaisesRegex(
+            AssertionError,
+            UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+            s.set_file_content_compressed,
+            self.COMPRESSED_SLUG
         )
     
     @patch("libs.s3.conn")
@@ -1250,6 +1363,7 @@ class TestS3Storage(CommonTestCase):
         self.assertIsNone(s3_file.download_time_ns)
         self.assertIsNone(s3_file.sha1)
         self.assertIsNone(s3_file.size_uncompressed)
+
 
 class TestCeleryAtLeastImports(CommonTestCase):
     

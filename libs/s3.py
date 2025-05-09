@@ -18,15 +18,13 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
     ENABLE_IOS_FILE_RECOVERY, S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
-from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException,
+from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, BadS3PathException,
     COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
-    COMPRESSED_DATA_NONE_AT_UPLOAD, COMPRESSED_DATA_NONE_ON_POP,
-    COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, COMPRESSION__UNCOMPRESSED_DATA_NONE,
-    COMPRESSION__UNCOMPRESSED_DATA_NOT_SET, IOSDataRecoveryDisabledException, MetaDotDict,
-    MUST_BE_ZSTD_FORMAT, NoSuchKeyException, S3DeletionException, SMART_GET_ERROR,
-    UNCOMPRESSED_DATA_MISSING_ON_ASSIGNMENT, UNCOMPRESSED_DATA_MISSING_ON_POP,
-    UNCOMPRESSED_DATA_NONE_ON_POP, UNCOMPRESSED_DATA_NOT_NONE_ON_ASSIGNMENT,
-    UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD)
+    COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
+    IOSDataRecoveryDisabledException, MetaDotDict, MUST_BE_ZSTD_FORMAT, NoSuchKeyException,
+    S3DeletionException, SMART_GET_ERROR, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+    UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
+    UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
 
@@ -102,7 +100,7 @@ class S3Storage:
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
         
-        self.uncompressed_data = None  # DON'T ADD AS CONSTRUCTOR PARAMETER; FORCE MEMORY MANAGEMENT.
+        # self.uncompressed_data = None  # DON'T ADD AS CONSTRUCTOR PARAMETER; FORCE MEMORY MANAGEMENT.
         self.metadata = MetaDotDict()
         
         # DB fields
@@ -144,13 +142,17 @@ class S3Storage:
     ## File State Tracking
     
     def set_file_content_uncompressed(self, file_content: bytes):
+        # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
+        # misuse
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         self.uncompressed_data = file_content
         return self
     
     def set_file_content_compressed(self, file_content: bytes):
-        # validate
+        # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
         # zstd format check
@@ -159,9 +161,7 @@ class S3Storage:
         
         # missuse cases
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
-        assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_ON_ASSIGNMENT
-        assert self.uncompressed_data is None, UNCOMPRESSED_DATA_NOT_NONE_ON_ASSIGNMENT
-        del self.uncompressed_data  # clear it
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         
         self.compressed_data = file_content  # TLDR - only compressed_data should now be set
         self.metadata.size_compressed = len(self.compressed_data)
@@ -169,14 +169,12 @@ class S3Storage:
     
     def pop_uncompressed_file_content(self):
         assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_ON_POP
-        assert self.uncompressed_data is not None, UNCOMPRESSED_DATA_NONE_ON_POP
         uncompressed_data = self.uncompressed_data
         del self.uncompressed_data
         return uncompressed_data
     
     def pop_compressed_file_content(self):
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_ON_POP
-        assert self.compressed_data is not None, COMPRESSED_DATA_NONE_ON_POP
         compressed_data = self.compressed_data
         del self.compressed_data
         return compressed_data
@@ -195,7 +193,7 @@ class S3Storage:
     def push_to_storage_already_compressed_and_clear_memory(self):
         # when you have populated compressed_data in memory and want to push to s3
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_AT_UPLOAD
-        assert self.compressed_data is not None, COMPRESSED_DATA_NONE_AT_UPLOAD
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD
         self._s3_upload_zst_and_profile()
         del self.compressed_data
         self.update_s3_table()
@@ -209,8 +207,8 @@ class S3Storage:
     
     def _compress_data_and_profile(self):
         # it is important that this only occur once, and that all compression go through this function
-        assert hasattr(self, "uncompressed_data"), COMPRESSION__UNCOMPRESSED_DATA_NOT_SET
-        assert self.uncompressed_data is not None, COMPRESSION__UNCOMPRESSED_DATA_NONE
+        assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_AT_COMPRESSION
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         
         # sha1 is twice as fast as md5, it is 20 bytes, we care about speed here.
@@ -235,6 +233,8 @@ class S3Storage:
     ## Download
     
     def download(self):
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_DOWNLOAD
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         try:
             self._download_decompress_and_profile_clearing_compressed()
         except NoSuchKeyException:
@@ -242,7 +242,8 @@ class S3Storage:
         return self
     
     def download_no_decompress(self):
-        assert self.compressed_data is None, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_DOWNLOAD
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         try:
             self.compressed_data = self._s3_retrieve_zst_and_profile()
         except NoSuchKeyException:
