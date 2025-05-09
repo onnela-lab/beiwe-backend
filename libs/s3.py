@@ -18,10 +18,13 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
     ENABLE_IOS_FILE_RECOVERY, S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
-from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException,
-    COMPRESSION__COMPRESSED_DATA_NONE, COMPRESSION__COMPRESSED_DATA_NOT_SET,
-    IOSDataRecoveryDisabledException, MetaDotDict, NoSuchKeyException, S3DeletionException,
-    SMART_GET_ERROR, UNCOMPRESSED_DATA_MISSING, UNCOMPRESSED_DATA_NONE_ON_POP)
+from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, BadS3PathException,
+    COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
+    COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
+    IOSDataRecoveryDisabledException, MetaDotDict, MUST_BE_ZSTD_FORMAT, NoSuchKeyException,
+    S3DeletionException, SMART_GET_ERROR, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+    UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
+    UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
 
@@ -97,7 +100,7 @@ class S3Storage:
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
         
-        self.uncompressed_data = None  # DON'T ADD AS CONSTRUCTOR PARAMETER; FORCE MEMORY MANAGEMENT.
+        # self.uncompressed_data = None  # DON'T ADD AS CONSTRUCTOR PARAMETER; FORCE MEMORY MANAGEMENT.
         self.metadata = MetaDotDict()
         
         # DB fields
@@ -138,42 +141,74 @@ class S3Storage:
     
     ## File State Tracking
     
-    def set_file_content(self, file_content: bytes):
+    def set_file_content_uncompressed(self, file_content: bytes):
+        # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
+        # misuse
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         self.uncompressed_data = file_content
         return self
     
-    # this code is correct but we aren't building the uncompressed upload function unless we need to.
-    # there is a test, "test_set_compressed_data"
-    # def set_file_content_compressed(self, file_content: bytes):
-    #     if not isinstance(file_content, bytes):
-    #         raise TypeError(f"file_content must be bytes, received {type(file_content)}")
-    #     if not file_content.startswith(b'(\xb5/\xfd'):
-    #         raise ValueError(MUST_BE_ZSTD_FORMAT.format(file_content=file_content[:10].decode()))
-    #     self.compressed_data = file_content
-    #     return self
+    def set_file_content_compressed(self, file_content: bytes):
+        # validate - handles None case
+        if not isinstance(file_content, bytes):
+            raise TypeError(f"file_content must be bytes, received {type(file_content)}")
+        # zstd format check
+        if not file_content.startswith(b'(\xb5/\xfd'):
+            raise ValueError(MUST_BE_ZSTD_FORMAT(file_content=file_content[:10].decode()))
+        
+        # missuse cases
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
+        
+        self.compressed_data = file_content  # TLDR - only compressed_data should now be set
+        self.metadata.size_compressed = len(self.compressed_data)
+        return self
     
-    def pop_file_content(self):
-        assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING
-        assert self.uncompressed_data is not None, UNCOMPRESSED_DATA_NONE_ON_POP
+    def pop_uncompressed_file_content(self):
+        assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_ON_POP
         uncompressed_data = self.uncompressed_data
         del self.uncompressed_data
         return uncompressed_data
     
-    # Upload
+    def pop_compressed_file_content(self):
+        assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_ON_POP
+        compressed_data = self.compressed_data
+        del self.compressed_data
+        return compressed_data
     
-    def compress_and_push_to_storage_and_clear_everything(self):
+    # Upload API
+    
+    def compress_and_push_to_storage_and_clear_memory(self):
+        self.compress_and_push_to_storage_retaining_compressed()
+        del self.compressed_data
+    
+    def compress_and_push_to_storage_retaining_compressed(self):
         self.compress_data_and_clear_uncompressed()
-        self._s3_upload_zst()
+        self._s3_upload_zst_and_profile()
+        self.update_s3_table()
+    
+    def push_to_storage_already_compressed_and_clear_memory(self):
+        # when you have populated compressed_data in memory and want to push to s3
+        assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_AT_UPLOAD
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD
+        self._s3_upload_zst_and_profile()
+        del self.compressed_data
         self.update_s3_table()
     
     ## Compression
     
     def compress_data_and_clear_uncompressed(self):
+        # when compressing data in real code, use this function.
+        self._compress_data_and_profile()
+        del self.uncompressed_data  # removes the uncompressed data from memory
+    
+    def _compress_data_and_profile(self):
         # it is important that this only occur once, and that all compression go through this function
-        assert hasattr(self, "uncompressed_data"), COMPRESSION__COMPRESSED_DATA_NOT_SET
-        assert self.uncompressed_data is not None, COMPRESSION__COMPRESSED_DATA_NONE
+        assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_AT_COMPRESSION
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         
         # sha1 is twice as fast as md5, it is 20 bytes, we care about speed here.
@@ -183,39 +218,57 @@ class S3Storage:
         self.compressed_data = compress(self.uncompressed_data)
         t_compress = perf_counter_ns() - t_compress
         self.metadata.compression_time_ns = t_compress
-        
-        del self.uncompressed_data  # removes the uncompressed data from memory
         self.metadata.size_compressed = len(self.compressed_data)
+    
+    ## Decompress
+    
+    def _decompress_and_profile(self):
+        # data as optional because sometimes we want to avoid storing compressed data on the S3Storage object
+        t_decompress = perf_counter_ns()
+        self.uncompressed_data = decompress(self.compressed_data)
+        t_decompress = perf_counter_ns() - t_decompress
+        self.metadata.decompression_time_ns = t_decompress
+        self.metadata.size_uncompressed = len(self.uncompressed_data)
     
     ## Download
     
     def download(self):
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_DOWNLOAD
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         try:
-            self._download_as_compressed()
+            self._download_decompress_and_profile_clearing_compressed()
         except NoSuchKeyException:
-            self._download_and_rewrite_s3_as_compressed()
+            self._download_and_rewrite_s3_as_compressed_retaining_uncompressed()
         return self
     
-    def _download_as_compressed(self):
+    def download_no_decompress(self):
+        assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_DOWNLOAD
+        assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD
+        try:
+            self.compressed_data = self._s3_retrieve_zst_and_profile()
+        except NoSuchKeyException:
+            # drop the uncompressed copy, even though we did the full loop
+            self._download_and_rewrite_s3_retaining_compressed()
+        return self
+    
+    def _download_decompress_and_profile_clearing_compressed(self):
         # This line should be the error on when there is no compressed copy
-        data = self._s3_retrieve_zst()
-        t_decompress = perf_counter_ns()
-        self.uncompressed_data = decompress(data)
-        t_decompress = perf_counter_ns() - t_decompress
-        self.metadata.decompression_time_ns = t_decompress
-        self.metadata.size_uncompressed = len(self.uncompressed_data)
-        
-        del data  # early cleanup? sure.
+        self.compressed_data = self._s3_retrieve_zst_and_profile()
+        self._decompress_and_profile()
+        del self.compressed_data
         self.update_s3_table()
     
-    def _download_and_rewrite_s3_as_compressed(self):
+    ## Download-Rewrite
+    
+    def _download_and_rewrite_s3_as_compressed_retaining_uncompressed(self):
+        self.uncompressed_data = self._download_and_rewrite_s3_retaining_compressed()
+    
+    def _download_and_rewrite_s3_retaining_compressed(self) -> bytes:
         raw_data = self._s3_retrieve_uncompressed()
-        
-        self.uncompressed_data = raw_data  # needs to be set for rewrite
-        self.compress_and_push_to_storage_and_clear_everything()
+        self.uncompressed_data = raw_data  # must be set for rewrite, gets cleared
+        self.compress_and_push_to_storage_retaining_compressed()  # clears uncompressed
         self._s3_delete_uncompressed()
-        
-        self.uncompressed_data = raw_data  # reattach the uncompressed data
+        return raw_data
     
     #
     ## DB ops
@@ -266,13 +319,12 @@ class S3Storage:
     
     ## Upload
     
-    def _s3_upload_zst(self):
+    def _s3_upload_zst_and_profile(self):
         """ Manually manage these memory/reference count operations.  It matters.
         This is a critical performance path. DO NOT separate into further functions calls without
         profiling memory usage. """
         
         compressed_data = self.compressed_data  # 1x memory
-        del self.compressed_data
         
         t_encrypt = perf_counter_ns()
         encrypted_compressed_data = encrypt_for_server(compressed_data, self.encryption_key)
@@ -292,15 +344,14 @@ class S3Storage:
     ## Retrieve
     
     def _s3_retrieve_uncompressed(self):
-        return decrypt_server(self._s3_retrieve(self.s3_path_uncompressed), self.encryption_key)
+        return decrypt_server(self._raw_s3_retrieve(self.s3_path_uncompressed), self.encryption_key)
     
-    def _s3_retrieve_zst(self):
+    def _s3_retrieve_zst_and_profile(self):
         key = self.encryption_key  # may have network/db op
         
         t_download = perf_counter_ns()
-        
         try:
-            data = self._s3_retrieve(self.s3_path_zst)
+            data = self._raw_s3_retrieve(self.s3_path_zst)
         except NoSuchKeyException:
             # if it doesn't exist, delete the entry in the database
             self.delete_s3_table_entry_zst()
@@ -319,7 +370,7 @@ class S3Storage:
         
         return ret
     
-    def _s3_retrieve(self, path: str) -> bytes:
+    def _raw_s3_retrieve(self, path: str) -> bytes:
         return _do_retrieve(path)['Body'].read()
 
 
@@ -348,8 +399,8 @@ def s3_upload(
 ) -> None:
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
-    storage = S3Storage(key_path, obj, raw_path).set_file_content(data_string)
-    storage.compress_and_push_to_storage_and_clear_everything()
+    storage = S3Storage(key_path, obj, raw_path).set_file_content_uncompressed(data_string)
+    storage.compress_and_push_to_storage_and_clear_memory()
 
 
 def s3_upload_plaintext(upload_path: str, data_string: bytes) -> None:
@@ -377,7 +428,7 @@ def s3_retrieve(key_path: str, obj: StrPartStudy, raw_path: bool = False, number
     which defaults to false.  When set to false the path is prepended to place the file in the
     appropriate study_id folder. """
     # This reference pattern clears internal references before the return statement.
-    return S3Storage(key_path, obj, raw_path).download().pop_file_content()
+    return S3Storage(key_path, obj, raw_path).download().pop_uncompressed_file_content()
 
 
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:

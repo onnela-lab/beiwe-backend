@@ -84,7 +84,8 @@ alias processing-stop="killall supervisord > /dev/null 2>&1"
 alias processing-restart="pkill -HUP supervisord 2> /dev/null"
 
 #Watch Logs Live
-alias log='tail -f /home/ubuntu/celery*.log /home/ubuntu/supervisord.log'
+alias log='sudo tail -f /home/ubuntu/celery*.log /home/ubuntu/supervisord.log /var/log/rabbitmq/*.log'
+alias logr='sudo tail -f /var/log/rabbitmq/*.log' 
 alias logs='logs'
 alias logd='tail -f /home/ubuntu/supervisor.log'
 

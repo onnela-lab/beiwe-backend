@@ -9,7 +9,8 @@ from constants.url_constants import (IGNORE, LOGIN_REDIRECT_IGNORE, LOGIN_REDIRE
     urlpatterns)
 from endpoints import (data_api_endpoints, data_page_endpoints, forest_endpoints, login_endpoints,
     manage_researcher_endpoints, manage_study_endpoints, misc_download_endpoints, mobile_endpoints,
-    participant_endpoints, raw_data_api, study_endpoints, survey_endpoints, system_admin_endpoints)
+    participant_endpoints, raw_data_api_endpoints, study_endpoints, survey_endpoints,
+    system_admin_endpoints)
 
 
 def path(
@@ -212,7 +213,7 @@ path(
 )
 
 # data access api and other researcher apis
-path("get-data/v1", raw_data_api.get_data)
+path("get-data/v1", raw_data_api_endpoints.get_data)
 path("get-studies/v1", data_api_endpoints.get_studies)
 path("get-users/v1", data_api_endpoints.get_participant_ids_in_study)  # deprecated June 2024
 path("get-study-settings/v1", data_api_endpoints.get_study_settings_file)

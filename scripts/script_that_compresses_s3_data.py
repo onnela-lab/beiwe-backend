@@ -5,10 +5,11 @@ import orjson
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, LOGS_FOLDER,
     PROBLEM_UPLOADS)
 from database.models import S3File, Study
-from libs.s3 import (BadS3PathException, S3Storage, s3_delete, s3_list_files, s3_retrieve,
-    s3_retrieve_plaintext, s3_upload_plaintext)
+from libs.s3 import (BadS3PathException, s3_delete, s3_list_files, s3_retrieve_plaintext,
+    s3_upload_plaintext, S3Storage)
 from libs.utils.compression import compress
 from libs.utils.http_utils import numformat
+
 
 #
 ## If you need to restart the full script add a parameter here.  Provide a file path that is printed
@@ -67,8 +68,8 @@ def compress_file(path_study):
     try:
         # if we do S3Storage._download_and_rewrite_s3_as_compressed it doesn't it skips an S3 query
         s = S3Storage(path, study, bypass_study_folder=True)
-        s._download_and_rewrite_s3_as_compressed()
-        s.pop_file_content()  # manual memory management to maybe reduce cycles in gc?
+        s._download_and_rewrite_s3_as_compressed_retaining_uncompressed()
+        s.pop_uncompressed_file_content()  # manual memory management to maybe reduce cycles in gc?
         stats.number_files_compressed += 1
     except BadS3PathException as e:
         print("bad s3 path:", e)

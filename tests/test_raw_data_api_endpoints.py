@@ -30,59 +30,42 @@ class TestGetData(DataApiTest):
         Otherwise s3_retrieve will fail due to the patch is tests.common.
     """
     
-    ENDPOINT_NAME = "raw_data_api.get_data"
+    ENDPOINT_NAME = "raw_data_api_endpoints.get_data"
     REGISTRY_HASH = "registry_hash"
     
     # retain and usethis structure in order to force a test addition on a new file type.
     # "particip" is the DEFAULT_PARTICIPANT_NAME
     # 'u1Z3SH7l2xNsw72hN3LnYi96' is the  DEFAULT_SURVEY_OBJECT_ID
     PATIENT_NAME = CommonTestCase.DEFAULT_PARTICIPANT_NAME
-    # D = CommonTestCase.DEFAULT_STUDY_OBJECT_ID
-    FILE_NAMES = {                                        # ↓ that Z makes it a timzone'd datetime
-        "accelerometer": ("something.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/accelerometer/2020-10-05 02_00_00+00_00.csv"),
-        "ambient_audio": ("something.mp4", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/ambient_audio/2020-10-05 02_00_00+00_00.mp4"),
-        "app_log": ("app_log.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/app_log/2020-10-05 02_00_00+00_00.csv"),
-        "bluetooth": ("bluetooth.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/bluetooth/2020-10-05 02_00_00+00_00.csv"),
-        "calls": ("calls.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/calls/2020-10-05 02_00_00+00_00.csv"),
-        "devicemotion": ("devicemotion.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/devicemotion/2020-10-05 02_00_00+00_00.csv"),
-        "gps": ("gps.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/gps/2020-10-05 02_00_00+00_00.csv"),
-        "gyro": ("gyro.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/gyro/2020-10-05 02_00_00+00_00.csv"),
-        "identifiers": ("identifiers.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/identifiers/2020-10-05 02_00_00+00_00.csv"),
-        "ios_log": ("ios_log.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/ios_log/2020-10-05 02_00_00+00_00.csv"),
-        "magnetometer": ("magnetometer.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/magnetometer/2020-10-05 02_00_00+00_00.csv"),
-        "power_state": ("power_state.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/power_state/2020-10-05 02_00_00+00_00.csv"),
-        "proximity": ("proximity.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/proximity/2020-10-05 02_00_00+00_00.csv"),
-        "reachability": ("reachability.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/reachability/2020-10-05 02_00_00+00_00.csv"),
-        "survey_answers": ("survey_obj_id/123456789012345678901234/something3.csv", "2020-10-05 02:00Z",
-                          # expecting: patient_id/data_type/survey_id/time.csv
-                         f"{PATIENT_NAME}/survey_answers/123456789012345678901234/2020-10-05 02_00_00+00_00.csv"),
-        "survey_timings": ("something1/123456789012345678901234/something3/something4/something5.csv", "2020-10-05 02:00Z",
-                          # expecting: patient_id/data_type/survey_id/time.csv
-                          f"{PATIENT_NAME}/survey_timings/u1Z3SH7l2xNsw72hN3LnYi96/2020-10-05 02_00_00+00_00.csv"),
-        "texts": ("texts.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/texts/2020-10-05 02_00_00+00_00.csv"),
-        "audio_recordings": (
-            f"{PATIENT_NAME}/voiceRecording/587442edf7321c14da193487/1524857988384.wav",  #the timecode is ignored I copy pasted its fine
-            "2020-10-05 02:00Z",
-            f"{PATIENT_NAME}/audio_recordings/587442edf7321c14da193487/2020-10-05 02_00_00+00_00.wav"
-        ),
-        "wifi": ("wifi.csv", "2020-10-05 02:00Z",
-                         f"{PATIENT_NAME}/wifi/2020-10-05 02_00_00+00_00.csv"),
-        }
+    SURV_ID = CommonTestCase.DEFAULT_SURVEY_OBJECT_ID
+    
+    FILE_NAMES = {
+        # with surveys
+        "audio_recordings": ("2020-10-05 02:00Z", f"{PATIENT_NAME}/audio_recordings/{SURV_ID}/2020-10-05 02_00_00+00_00.wav"),
+        "survey_answers":   ("2020-10-05 02:00Z", f"{PATIENT_NAME}/survey_answers/{SURV_ID}/2020-10-05 02_00_00+00_00.csv"),
+        "survey_timings":   ("2020-10-05 02:00Z", f"{PATIENT_NAME}/survey_timings/{SURV_ID}/2020-10-05 02_00_00+00_00.csv"),
+        # without_surveys
+        "accelerometer":    ("2020-10-05 02:00Z", f"{PATIENT_NAME}/accelerometer/2020-10-05 02_00_00+00_00.csv"),
+        "ambient_audio":    ("2020-10-05 02:00Z", f"{PATIENT_NAME}/ambient_audio/2020-10-05 02_00_00+00_00.mp4"),
+        "app_log":          ("2020-10-05 02:00Z", f"{PATIENT_NAME}/app_log/2020-10-05 02_00_00+00_00.csv"),
+        "bluetooth":        ("2020-10-05 02:00Z", f"{PATIENT_NAME}/bluetooth/2020-10-05 02_00_00+00_00.csv"),
+        "calls":            ("2020-10-05 02:00Z", f"{PATIENT_NAME}/calls/2020-10-05 02_00_00+00_00.csv"),
+        "devicemotion":     ("2020-10-05 02:00Z", f"{PATIENT_NAME}/devicemotion/2020-10-05 02_00_00+00_00.csv"),
+        "gps":              ("2020-10-05 02:00Z", f"{PATIENT_NAME}/gps/2020-10-05 02_00_00+00_00.csv"),
+        "gyro":             ("2020-10-05 02:00Z", f"{PATIENT_NAME}/gyro/2020-10-05 02_00_00+00_00.csv"),
+        "identifiers":      ("2020-10-05 02:00Z", f"{PATIENT_NAME}/identifiers/2020-10-05 02_00_00+00_00.csv"),
+        "ios_log":          ("2020-10-05 02:00Z", f"{PATIENT_NAME}/ios_log/2020-10-05 02_00_00+00_00.csv"),
+        "magnetometer":     ("2020-10-05 02:00Z", f"{PATIENT_NAME}/magnetometer/2020-10-05 02_00_00+00_00.csv"),
+        "power_state":      ("2020-10-05 02:00Z", f"{PATIENT_NAME}/power_state/2020-10-05 02_00_00+00_00.csv"),
+        "proximity":        ("2020-10-05 02:00Z", f"{PATIENT_NAME}/proximity/2020-10-05 02_00_00+00_00.csv"),
+        "reachability":     ("2020-10-05 02:00Z", f"{PATIENT_NAME}/reachability/2020-10-05 02_00_00+00_00.csv"),
+        "texts":            ("2020-10-05 02:00Z", f"{PATIENT_NAME}/texts/2020-10-05 02_00_00+00_00.csv"),
+        "wifi":             ("2020-10-05 02:00Z", f"{PATIENT_NAME}/wifi/2020-10-05 02_00_00+00_00.csv"),
+    }
+    
+    @property
+    def FULLY_VALID_FILE_PATH(self):
+        return f"{self.DEFAULT_STUDY_OBJECT_ID}/{self.PATIENT_NAME}/accelerometer/2020-10-05 02_00_00+00_00.csv"
     
     # setting the threadpool needs to apply to each test, following this pattern because its easy.
     @patch("libs.streaming_zip.ThreadPool")
@@ -144,13 +127,14 @@ class TestGetData(DataApiTest):
                 )
     
     def _test_basics(self, as_site_admin: bool):
+        file_bytes, i, i2 = None, None, None
         if as_site_admin:
             self.session_researcher.update(site_admin=True)
         else:
             self.set_session_study_relation(ResearcherRole.researcher)
-        resp: FileResponse = self.smart_post(study_pk=self.session_study.id, web_form="anything")
+        resp: FileResponse = self.smart_post(study_pk=self.session_study.id, web_form="anything")  # type: ignore
         self.assertEqual(resp.status_code, 200)
-        for i, file_bytes in enumerate(resp.streaming_content, start=1):
+        for i, file_bytes in enumerate(resp.streaming_content, start=1):  # type: ignore
             pass
         self.assertEqual(i, 1)
         # this is an empty zip file as output by the api.  PK\x05\x06 is zip-speak for an empty
@@ -158,10 +142,10 @@ class TestGetData(DataApiTest):
         self.assertEqual(file_bytes, EMPTY_ZIP)
         
         # test without web_form, which will create the registry file (which is empty)
-        resp2: FileResponse = self.smart_post(study_pk=self.session_study.id)
+        resp2: FileResponse = self.smart_post(study_pk=self.session_study.id)  # type: ignore
         self.assertEqual(resp2.status_code, 200)
         file_content = b""
-        for i2, file_bytes2 in enumerate(resp2.streaming_content, start=1):
+        for i2, file_bytes2 in enumerate(resp2.streaming_content, start=1):  # type: ignore
             file_content = file_content + file_bytes2
         self.assertEqual(i2, 2)
         self.assert_present(b"registry{}", file_content)
@@ -174,10 +158,12 @@ class TestGetData(DataApiTest):
         
         # need to test all data types
         for data_type in ALL_DATA_STREAMS:
-            path, time_bin, output_name = self.FILE_NAMES[data_type]
-            file_contents = self.generate_chunkregistry_and_download(data_type, path, time_bin)
+            time_bin, path = self.FILE_NAMES[data_type]
+            full_path = f"{self.DEFAULT_STUDY_OBJECT_ID}/{path}"
+            file_contents = self.generate_chunkregistry_and_download(data_type, full_path, time_bin)
             # this is an 'in' test because the file name is part of the zip file, as cleartext
-            self.assertIn(output_name.encode(), file_contents)
+            self.assertIn(path.encode(), file_contents)
+            self.assertNotIn(full_path.encode(), file_contents)
             self.assertIn(s3_retrieve.return_value, file_contents)
     
     @patch("libs.streaming_zip.s3_retrieve")
@@ -185,7 +171,7 @@ class TestGetData(DataApiTest):
         # basics
         s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
         self.set_session_study_relation(ResearcherRole.researcher)
-        file_path = "some_file_path.csv"
+        file_path = self.FULLY_VALID_FILE_PATH
         basic_args = ("accelerometer", file_path, "2020-10-05 02:00Z")
         
         # assert normal args actually work
@@ -219,7 +205,7 @@ class TestGetData(DataApiTest):
         # basics
         s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
         self.set_session_study_relation(ResearcherRole.researcher)
-        file_path = "some_file_path.csv"
+        file_path = self.FULLY_VALID_FILE_PATH
         basic_args = ("accelerometer", file_path, "2020-10-05 02:00Z")
         
         # assert normal args actually work
@@ -257,7 +243,7 @@ class TestGetData(DataApiTest):
         # basics
         s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
         self.set_session_study_relation(ResearcherRole.researcher)
-        basic_args = ("accelerometer", "some_file_path.csv", "2020-10-05 02:00Z")
+        basic_args = ("accelerometer", self.FULLY_VALID_FILE_PATH, "2020-10-05 02:00Z")
         
         # generic request should succeed
         file_contents = self.generate_chunkregistry_and_download(*basic_args)
@@ -335,7 +321,7 @@ class TestGetData(DataApiTest):
         # basics
         s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
         self.set_session_study_relation(ResearcherRole.researcher)
-        basic_args = ("accelerometer", "some_file_path.csv", "2020-10-05 02:00Z")
+        basic_args = ("accelerometer", self.FULLY_VALID_FILE_PATH, "2020-10-05 02:00Z")
         
         # generic request should succeed
         file_contents = self.generate_chunkregistry_and_download(*basic_args)

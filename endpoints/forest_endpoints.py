@@ -348,7 +348,13 @@ def download_task_data(request: ResearcherRequest, study_id: int, forest_task_ex
         ]) + ".zip"
     
     f = FileResponse(
-        ZipGenerator(chunks, False),
+        ZipGenerator(
+            study=forest_task.participant.study,
+            files_list=chunks,
+            construct_registry=False,
+            threads=5,
+            as_compressed=False
+        ),
         content_type="zip",
         as_attachment=True,
         filename=filename,

@@ -32,7 +32,7 @@ from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.intervention_utils import intervention_survey_data
 from libs.s3 import s3_retrieve
 from libs.sentry import make_error_sentry, SentryTypes
-from libs.streaming_zip import determine_file_name
+from libs.streaming_zip import determine_base_file_name
 from libs.utils.date_utils import get_timezone_shortcode, legible_time
 from libs.utils.forest_utils import (save_all_bv_set_bytes, save_all_memory_dict_bytes,
     save_output_file)
@@ -372,7 +372,7 @@ def batch_create_file(task_and_chunk_tuple: tuple[ForestTask, dict]):
     forest_task, chunk = task_and_chunk_tuple
     contents = s3_retrieve(chunk["chunk_path"], chunk["study__object_id"], raw_path=True)
     # file ops, sometimes we have to add folder structure (surveys)
-    file_name = path_join(forest_task.data_input_path, determine_file_name(chunk))
+    file_name = path_join(forest_task.data_input_path, determine_base_file_name(chunk))
     makedirs(dirname(file_name), exist_ok=True)
     
     try:

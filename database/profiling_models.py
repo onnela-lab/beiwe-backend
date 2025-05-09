@@ -538,7 +538,7 @@ class S3File(TimestampedModel):
                 print(sha1.hex(), "-", count, "-", f.get_data_stream())
                 print()
                 s = f.storage()
-                print(s.download().pop_file_content())
+                print(s.download().pop_uncompressed_file_content())
                 print()
         
         # go through 5-million items, get counts, print stats, then reset the counter so we don't oom
