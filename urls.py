@@ -33,19 +33,15 @@ def path(
     
     route_with_slash = route if route.endswith("/") else route + "/"
     route_without_slash = route if not route.endswith("/") else route.rstrip("/")
-    
     url_with_slash = simplepath(route_with_slash, view, name=name, kwargs=kwargs)
     url_without_slash = simplepath(route_without_slash, view, name=name, kwargs=kwargs)
     
-    urlpatterns.append(url_with_slash)
-    urlpatterns.append(url_without_slash)
+    urlpatterns.extend([url_with_slash, url_without_slash])
     
     if login_redirect == IGNORE:
-        LOGIN_REDIRECT_IGNORE.append(url_with_slash)
-        LOGIN_REDIRECT_IGNORE.append(url_without_slash)
+        LOGIN_REDIRECT_IGNORE.extend([url_with_slash, url_without_slash])
     elif login_redirect == SAFE:
-        LOGIN_REDIRECT_SAFE.append(url_with_slash)
-        LOGIN_REDIRECT_SAFE.append(url_without_slash)
+        LOGIN_REDIRECT_SAFE.extend([url_with_slash, url_without_slash])
     elif login_redirect is not None:
         raise ImproperlyConfigured(f"Invalid login_redirect value: {login_redirect}")
 
@@ -229,23 +225,17 @@ path("get-summary-statistics/v1", data_api_endpoints.get_summary_statistics)
 path("get-participant-device-status-history/v1", data_api_endpoints.get_participant_device_status_report_history)
 path("get-participant-notification-history/v1", data_api_endpoints.get_participant_notification_history)
 
-# tableau
-path(
-    "api/v0/studies/<str:study_object_id>/summary-statistics/daily",
-    data_api_endpoints.get_tableau_summary_statistics
-)
-path(
-    "api/v0/studies/<str:study_object_id>/participant-table/",
-    data_api_endpoints.get_tableau_participant_table_data
-)
-path(
-    'api/v0/studies/<str:study_object_id>/summary-statistics/daily/wdc',
-    data_api_endpoints.web_data_connector_summary_statistics
-)
-path(
-    'api/v0/studies/<str:study_object_id>/participant-table/wdc',
-    data_api_endpoints.web_data_connector_participant_table
-)
+# tableau - legacy endpaints - these were UNFATHOMABLY poorly constructed, can't get rid of them
+# deprecating may 2025, wait... 3 years? to remove, there's at least one long-term study using them.
+path("api/v0/studies/<str:study_object_id>/summary-statistics/daily", data_api_endpoints.get_tableau_summary_statistics, name="data_api_endpoints.get_tableau_summary_statistics-legacy")
+path('api/v0/studies/<str:study_object_id>/summary-statistics/daily/wdc', data_api_endpoints.web_data_connector_summary_statistics, name="data_api_endpoints.web_data_connector_summary_statistics-legacy")
+path("api/v0/studies/<str:study_object_id>/participant-table/", data_api_endpoints.get_tableau_participant_table_data, name="data_api_endpoints.get_tableau_participant_table_data-legacy")
+path('api/v0/studies/<str:study_object_id>/participant-table/wdc', data_api_endpoints.web_data_connector_participant_table, name="data_api_endpoints.web_data_connector_participant_table-legacy")
+# tableau but well-named
+path("tableau/summary-statistics/v1/<str:study_object_id>", data_api_endpoints.get_tableau_summary_statistics)
+path("tableau/summary-statistics-wdc/v1/<str:study_object_id>", data_api_endpoints.web_data_connector_summary_statistics)
+path("tableau/participant-table/v1/<str:study_object_id>", data_api_endpoints.get_tableau_participant_table_data)
+path("tableau/participant-table-wdc/v1/<str:study_object_id>", data_api_endpoints.web_data_connector_participant_table)
 
 # forest pages
 path('studies/<str:study_id>/forest/tasks/create', forest_endpoints.create_tasks)
