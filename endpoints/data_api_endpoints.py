@@ -1,4 +1,5 @@
 import csv
+from datetime import datetime
 from io import StringIO
 
 import bleach
@@ -158,10 +159,28 @@ def get_tableau_participant_table_data(request: TableauRequest, study_object_id:
     table_data = common_data_extraction_for_apis(study, for_json=True)
     # Tableau requires keys to be alphanumerics and _
     column_names = [n.lower().replace(" ", "_") for n in get_table_columns(study, frontend=False)]
+    
+    ## Tableau and datetimes (and timezones)
+    # Tableau does not like timezone-aware datetimes despite osjson being incredibly pedantic
+    # about how it formats them to align with Javascript expectations.  These incoming datetimes
+    # are in the study timezone, we remove the timezone and LEAVE IT NUMERICALLY INTACT.
+    # Tableau (desktop) consumes the datetime and *does nothing* with it whether it has timezone
+    # information or not.  Tableau explicitly does not support timezone-aware datetimes, or at least
+    # we could not find a format it supported _generally_. IT DOES support 00:00Z style timezone,\
+    # or at least it does puke like it does with 00:00+00:00 style timezonses, but doesn't do
+    # anything with that information (as far as we can tell).  There is an app-global setting to 
+    # set your timezone, but we don't want to interact with that because we want these to _be in
+    # the study timezone_ -- So, we remove the timezone information and leave it as numeric.
+    for i, row in enumerate(table_data):
+        table_data[i] = [
+            (x if not isinstance(x, datetime) else x.replace(tzinfo=None)) for x in row 
+        ]
+    
     datums = [dict(zip(column_names, row)) for row in table_data]
     
+    # also we absolutely do not need any sub-minute precision so we will drop at least microseconds
     return HttpResponse(
-        orjson.dumps(datums, option=orjson.OPT_OMIT_MICROSECONDS|orjson.OPT_UTC_Z),
+        orjson.dumps(datums, option=orjson.OPT_OMIT_MICROSECONDS),
         content_type="application/json",
     )
 

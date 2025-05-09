@@ -676,7 +676,7 @@ class TestDownloadParticipantTableDataTableau(TableauAPITest, ParticipantTableHe
         self.default_participant_field_value
         self.default_populated_intervention_date
         now = timezone.now()
-        now_str = "2020-01-01T07:00:00-05:00"
+        now_str = "2020-01-01T07:00:00"  # no timezone info, but in study timezone time
         self.default_participant.update(
             created_on=now,
             first_register_user=now,
