@@ -406,31 +406,31 @@ class TestEditStudyField(ResearcherSessionTest):
 class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperMixin):
     ENDPOINT_NAME = "manage_study_endpoints.download_participants_csv"
     JAN_1_2020 = datetime(2020, 1, 1, 12, tzinfo=timezone.utc)
-    ELEVEN_NONES_STRING = ",None" * 11  # One none for each field in EXTRA_TABLE_FIELDS
+    END_STRING = ",None" * 2 + ",America/New_York" + ",None" * 9  # One none for each field in EXTRA_TABLE_FIELDS
     
     @property
     def response_basic(self) -> bytes:
-        return (self.header() + f"2020-01-01,patient1,Inactive,ANDROID{self.ELEVEN_NONES_STRING}\r\n" +
-                                f"2020-01-01,patient2,Inactive,ANDROID{self.ELEVEN_NONES_STRING}\r\n")
+        return (self.header() + f"2020-01-01,patient1,Inactive,ANDROID{self.END_STRING}\r\n" +
+                                f"2020-01-01,patient2,Inactive,ANDROID{self.END_STRING}\r\n")
     
     @property
     def response_with_intervention(self) -> bytes:
         return (self.header(intervention=True) +
-                f"2020-01-01,patient1,Inactive,ANDROID,2020-01-01{self.ELEVEN_NONES_STRING}\r\n" +
-                f"2020-01-01,patient2,Inactive,ANDROID,2020-01-01{self.ELEVEN_NONES_STRING}\r\n")
+                f"2020-01-01,patient1,Inactive,ANDROID,2020-01-01{self.END_STRING}\r\n" +
+                f"2020-01-01,patient2,Inactive,ANDROID,2020-01-01{self.END_STRING}\r\n")
     
     @property
     def response_with_custom_field(self) -> bytes:
         return (self.header(custom_field=True) +
-                f"2020-01-01,patient1,Inactive,ANDROID,default_study_field_value{self.ELEVEN_NONES_STRING}\r\n" +
-                f"2020-01-01,patient2,Inactive,ANDROID,default_study_field_value{self.ELEVEN_NONES_STRING}\r\n")
+                f"2020-01-01,patient1,Inactive,ANDROID,default_study_field_value{self.END_STRING}\r\n" +
+                f"2020-01-01,patient2,Inactive,ANDROID,default_study_field_value{self.END_STRING}\r\n")
     
     @property
     def response_with_intervention_and_custom_field(self) -> bytes:
         return (
             self.header(intervention=True, custom_field=True) +
-            f"2020-01-01,patient1,Inactive,ANDROID,2020-01-01,default_study_field_value{self.ELEVEN_NONES_STRING}\r\n" +
-            f"2020-01-01,patient2,Inactive,ANDROID,2020-01-01,default_study_field_value{self.ELEVEN_NONES_STRING}\r\n"
+            f"2020-01-01,patient1,Inactive,ANDROID,2020-01-01,default_study_field_value{self.END_STRING}\r\n" +
+            f"2020-01-01,patient2,Inactive,ANDROID,2020-01-01,default_study_field_value{self.END_STRING}\r\n"
         )
     
     @property

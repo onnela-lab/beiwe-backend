@@ -68,7 +68,7 @@ class Participant(AbstractPasswordUser):
     study: Study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name='participants', null=False)  # type: ignore
     
     # see timezone property
-    timezone_name = models.CharField(  # Warning: this is not used yet.
+    timezone_name = models.CharField(
         max_length=256, default="America/New_York", null=False, blank=False
     )
     unknown_timezone = models.BooleanField(default=True)  # flag for using participant's timezone.

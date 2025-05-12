@@ -1,4 +1,5 @@
-# trunk-ignore-all(bandit/B404,bandit/B105,ruff/B018)
+# trunk-ignore-all(bandit/B404,bandit/B105,ruff/B018,bandit/B101)
+
 import subprocess
 import uuid
 from datetime import date, datetime, timedelta, tzinfo
@@ -1009,10 +1010,12 @@ def compare_dictionaries(first, second, ignore=None):
 class ParticipantTableHelperMixin:
     """ We have 2 instances of tests needing this, purpose is as a hardcoded clone that of the
     output of the participant_table_data.get_table_columns function. """
-    
+    from constants.user_constants import EXTRA_TABLE_FIELDS
+    EXTRA_TABLE_FIELDS = EXTRA_TABLE_FIELDS
     API_COLUMNS = [
         "First Registration Date",
         "Last Registration",
+        "Last Timezone",
         "Last Upload",
         "Last Survey Download",
         "Last Set Password",
@@ -1023,11 +1026,18 @@ class ParticipantTableHelperMixin:
         "App Version Name",
         "Last Heartbeat",
     ]
+    
     REGULAR_COLUMNS = ("Created On", "Patient ID", "Status", "OS Type")
     
     HEADER_1 = ",".join(REGULAR_COLUMNS) + ","  # trailing comma
     HEADER_2 = ",".join((API_COLUMNS)) + "\r\n"
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.assertEqual(
+            list(self.EXTRA_TABLE_FIELDS.keys()), self.API_COLUMNS,
+            "I know it is stupid but you need to update this list to match exactly because otherwise it is not a test."
+        )
     def header(self, intervention: bool = False, custom_field: bool = False) -> str:
         ret = self.HEADER_1
         

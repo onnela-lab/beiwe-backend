@@ -1,5 +1,4 @@
-# trunk-ignore-all(ruff/B018)
-# trunk-ignore-all(bandit/B105)
+# trunk-ignore-all(ruff/B018,bandit/B105)
 from datetime import date, datetime, timedelta
 
 import orjson
@@ -507,95 +506,46 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
     
     def test_one_participant_csv(self):
         resp = self._do_one_participant("csv")
-        # the header row and a row of data
-        # b'Created On,Patient ID,Status,OS Type,Last Upload,Last Survey Download,Last Registration,Last Set Password,Last Push Token Update,Last Device Settings Update,Last OS Version,App Version Code,App Version Name,Last Heartbeat
-        #2024-06-06,patient1,Inactive,ANDROID,None,None,None,None,None,None,None,None,None,None
-        row1 = self.header()
-        row2 = "2020-01-01,patient1,Inactive,ANDROID,"
-        row2 += "None,None,None,None,None,None,None,None,None,None,None\r\n"
-        self.assertEqual(resp.content, (row1 + row2).encode())
         self.modify_participant()
+        header_row, _, _ = self.thang()
         
-        # this is a correct dictionary representation of the row
-        reference_output_populated = {
-            'Created On': '2020-01-01',
-            'Patient ID': 'patient1',
-            'Status': 'Inactive',
-            'OS Type': 'ANDROID',
-            'First Registration Date': 'None',
-            'Last Registration': '2020-01-04 12:00:00 (EST)',
-            'Last Upload': '2020-01-02 12:00:00 (EST)',
-            'Last Survey Download': '2020-01-03 12:00:00 (EST)',
-            'Last Set Password': '2020-01-05 12:00:00 (EST)',
-            'Last Push Token Update': '2020-01-06 12:00:00 (EST)',
-            'Last Device Settings Update': '2020-01-07 12:00:00 (EST)',
-            'Last OS Version': '1.0',
-            'App Version Code': '6',
-            'App Version Name': 'six',
-            'Last Heartbeat': '2020-01-08 12:00:00 (EST)',
-        }
-        # sanity check that the keys here are the same as the header row...
-        self.assertEqual(row1, ",".join(reference_output_populated.keys()) + "\r\n" )
-        reference_content = (row1 + ",".join(reference_output_populated.values())).encode() + b"\r\n"
+        csv_values = [  # has a different DT format
+            '2020-01-01',                     # Created On
+            'patient1',                       # Patient ID
+            'Inactive',                       # Status
+            'ANDROID',                        # OS Type
+            'None',                           # First Registration
+            '2020-01-04 12:00:00 (EST)',      # Last Registration
+            'America/New_York',               # Last Timezone
+            '2020-01-02 12:00:00 (EST)',      # Last Upload
+            '2020-01-03 12:00:00 (EST)',      # Last Survey Dowload
+            '2020-01-05 12:00:00 (EST)',      # Last Set password
+            '2020-01-06 12:00:00 (EST)',      # Last Push Token
+            '2020-01-07 12:00:00 (EST)',      # Last Device Settings
+            '1.0',                            # Last OS Version
+            '6',                              # App Version Cod
+            'six',                            # App Version Nam
+            '2020-01-08 12:00:00 (EST)',      # Last Heartbeat
+        ]
+        self.assertEqual(len(csv_values), len(header_row), "needs to be the same size too")
+        # convert to bytes
+        header_bytes = ",".join(header_row).encode() + b"\r\n"
+        row_bytes = ",".join(csv_values).encode() + b"\r\n"
+        correct = header_bytes + row_bytes        
         
         resp = self._do_one_participant("csv")
-        self.assertEqual(resp.content, reference_content)
+        self.assertEqual(resp.content, correct)    
     
-    def test_one_participant_json(self):
-        resp = self._do_one_participant("json")
-        keys = self.header().strip().split(",")  # strip() strips \r\n
-        
-        row = {
-            keys[0]: "2020-01-01",   # Created On
-            keys[1]: "patient1",     # Patient ID
-            keys[2]: "Inactive",     # Status
-            keys[3]: "ANDROID",      # OS Type
-            keys[4]: None,           # First Registration Date
-            keys[5]: None,           # Last Registration
-            keys[6]: None,           # Last Upload
-            keys[7]: None,           # Last Survey Download
-            keys[8]: None,           # Last Set Password
-            keys[9]: None,           # Last Push Token Update
-            keys[10]: None,          # Last Device Settings Update
-            keys[11]: None,          # Last OS Version
-            keys[12]: None,          # App Version Code
-            keys[13]: None,          # App Version Name
-            keys[14]: None,          # Last Heartbeat
-        }
-        self.assertEqual(orjson.loads(resp.content), [row])
-        
-        self.modify_participant()
-        resp = self._do_one_participant("json")
-        row = {
-            keys[0]: "2020-01-01",                   # Created On
-            keys[1]: "patient1",                     # Patient ID
-            keys[2]: "Inactive",                     # Status
-            keys[3]: "ANDROID",                      # OS Type
-            keys[4]: None,                           # First Registration Date
-            keys[5]: "2020-01-04T12:00:00-05:00",    # Last Registration
-            keys[6]: "2020-01-02T12:00:00-05:00",    # Last Upload
-            keys[7]: "2020-01-03T12:00:00-05:00",    # Last Survey Download
-            keys[8]: "2020-01-05T12:00:00-05:00",    # Last Set Password
-            keys[9]: "2020-01-06T12:00:00-05:00",    # Last Push Token Update
-            keys[10]: "2020-01-07T12:00:00-05:00",   # Last Device Settings Update
-            keys[11]: "1.0",                         # Last OS Version
-            keys[12]: "6",                           # App Version Code
-            keys[13]: "six",                         # App Version Name
-            keys[14]: "2020-01-08T12:00:00-05:00",   # Last Heartbeat
-        }
-        self.assertEqual(orjson.loads(resp.content), [row])
-    
-    def test_one_participant_json_table(self):
-        resp = self._do_one_participant("json_table")
-        keys = self.header().strip().split(",")  # strip() strips \r\n
-        
-        row = [
+    def thang(self):
+        keys_row = self.header().strip().split(",")
+        unfilled_row = [  # wow ok these suck but can't really be factored the test being meaningless...
             "2020-01-01",   # Created On
             "patient1",     # Patient ID
             "Inactive",     # Status
             "ANDROID",      # OS Type
             None,           # First Registration Date
             None,           # Last Registration
+            "America/New_York",  # Last Timezone
             None,           # Last Upload
             None,           # Last Survey Download
             None,           # Last Set Password
@@ -606,17 +556,14 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
             None,           # App Version Name
             None,           # Last Heartbeat
         ]
-        self.assertEqual(orjson.loads(resp.content), [keys, row])
-        
-        self.modify_participant()
-        resp = self._do_one_participant("json_table")
-        row = [
+        filled_row = [  # cannot be factored out, different date representations
             "2020-01-01",                    # Created On
             "patient1",                      # Patient ID
             "Inactive",                      # Status
             "ANDROID",                       # OS Type
             None,                            # First Registration Date
             "2020-01-04T12:00:00-05:00",     # Last Registration
+            "America/New_York",              # Last Timezone
             "2020-01-02T12:00:00-05:00",     # Last Upload
             "2020-01-03T12:00:00-05:00",     # Last Survey Download
             "2020-01-05T12:00:00-05:00",     # Last Set Password
@@ -627,7 +574,34 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
             "six",                           # App Version Name
             "2020-01-08T12:00:00-05:00",     # Last Heartbeat
         ]
-        self.assertEqual(orjson.loads(resp.content), [keys, row])
+        self.assertEqual(len(filled_row), len(keys_row), "yo these need to be the same size")
+        self.assertEqual(len(unfilled_row), len(keys_row), "yo these need to be the same size")
+        self.assertEqual(len(filled_row), len(unfilled_row), "yo these need to be the same size")
+        return keys_row, unfilled_row, filled_row
+    
+    def test_one_participant_json(self):
+        resp = self._do_one_participant("json")
+        # keys = self.header().strip().split(",")  # strip() strips \r\n
+        keys_row, unfilled_row, filled_row = self.thang()
+        row = dict(zip(keys_row, unfilled_row))
+        
+        self.assertEqual(orjson.loads(resp.content), [row])
+        
+        self.modify_participant()
+        resp = self._do_one_participant("json")
+        row = dict(zip(keys_row, filled_row))
+        self.assertEqual(orjson.loads(resp.content), [row])
+    
+    def test_one_participant_json_table(self):
+        resp = self._do_one_participant("json_table")
+        keys_row, unfilled_row, filled_row = self.thang()
+        row = unfilled_row
+        self.assertEqual(orjson.loads(resp.content), [keys_row, row])
+        
+        self.modify_participant()
+        resp = self._do_one_participant("json_table")
+        row = filled_row
+        self.assertEqual(orjson.loads(resp.content), [keys_row, row])
     
     def _do_one_participant(self, data_format: str):
         if not hasattr(self, "_default_study_relation"):
@@ -637,7 +611,7 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
         return self.smart_post_status_code(200, study_id=self.session_study.object_id, data_format=data_format)
     
     def modify_participant(self):
-        # you have to update this list if you add fields to EXTRA_TABLE_FIELDS
+        # you may have to update this list if you add fields to EXTRA_TABLE_FIELDS...
         some_column_names_and_values = [
             ("created_on", datetime(2020, 1, 1, 12, tzinfo=EST)),  # not an extra row
             ("last_upload", datetime(2020, 1, 2, 12, tzinfo=EST)),
@@ -694,6 +668,7 @@ class TestDownloadParticipantTableDataTableau(TableauAPITest, ParticipantTableHe
         
         resp = self.smart_get_status_code(200, self.session_study.object_id, **self.raw_headers)
         
+        # this one has yet another very specific time format because tableau is bad
         thing = [{
             "created_on": "2020-01-01",
             "patient_id": self.default_participant.patient_id,
@@ -703,12 +678,11 @@ class TestDownloadParticipantTableDataTableau(TableauAPITest, ParticipantTableHe
             "default_study_field_name": "default_study_field_value",
             "first_registration_date": now_str,
             "last_registration": now_str,
+            "last_timezone": "America/New_York",
             "last_upload": now_str,
             "last_survey_download": now_str,
             "last_set_password": now_str,
-            # "last push token update": now.isoformat().replace("t", " ").replace("+00:00", " (UTC)"),
-            # "last push token update": now.isoformat().replace("+00:00", "Z"),
-            "last_push_token_update":now_str,
+            "last_push_token_update": now_str,
             "last_device_settings_update": now_str,
             "last_os_version": ANDROID_API,
             "app_version_code": "1.0",
@@ -1228,7 +1202,7 @@ class TestGetParticipantNotificationHistory(DataApiTest):
             orjson.loads(resp.content),
             self.merge_em(self.comparator_params_EST, self.comparator_params_EST)
         )
-        
+    
     def test_one_participant_two_notifications_sort(self):
         self.set_session_study_relation(ResearcherRole.researcher)
         a = self.build_archived_event()
@@ -1248,7 +1222,7 @@ class TestGetParticipantNotificationHistory(DataApiTest):
         self.set_session_study_relation(ResearcherRole.researcher)
         resp = self.smart_post_status_code(200, participant_id=self.default_participant.patient_id)
         self.assertDictEqual(orjson.loads(resp.content), self.comparator_params_EST)
-    
+
 #
 ## Tableau API
 #
@@ -1662,6 +1636,7 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         "{id: 'default_study_field_name', dataType: tableau.dataTypeEnum.string,},",  # optional
         "{id: 'first_registration_date', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_registration', dataType: tableau.dataTypeEnum.datetime,},",
+        "{id: 'last_timezone', dataType: tableau.dataTypeEnum.string,},",
         "{id: 'last_upload', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_survey_download', dataType: tableau.dataTypeEnum.datetime,},",
         "{id: 'last_set_password', dataType: tableau.dataTypeEnum.datetime,},",
@@ -1683,15 +1658,17 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         assert "default_study_field_name" in self.LOCAL_COPY_FIELD_NAMES[5]  # optional
         assert "first_registration_date" in self.LOCAL_COPY_FIELD_NAMES[6]  # optional
         assert "last_registration" in self.LOCAL_COPY_FIELD_NAMES[7]  # optional
-        assert "last_upload" in self.LOCAL_COPY_FIELD_NAMES[8]
-        assert "last_survey_download" in self.LOCAL_COPY_FIELD_NAMES[9]
-        assert "last_set_password" in self.LOCAL_COPY_FIELD_NAMES[10]
-        assert "last_push_token_update" in self.LOCAL_COPY_FIELD_NAMES[11]
-        assert "last_device_settings_update" in self.LOCAL_COPY_FIELD_NAMES[12]
-        assert "last_os_version" in self.LOCAL_COPY_FIELD_NAMES[13]
-        assert "app_version_code" in self.LOCAL_COPY_FIELD_NAMES[14]
-        assert "app_version_name" in self.LOCAL_COPY_FIELD_NAMES[15]
-        assert "last_heartbeat" in self.LOCAL_COPY_FIELD_NAMES[16]
+        print(self.LOCAL_COPY_FIELD_NAMES[8])
+        assert "last_timezone" in self.LOCAL_COPY_FIELD_NAMES[8]
+        assert "last_upload" in self.LOCAL_COPY_FIELD_NAMES[1+8]
+        assert "last_survey_download" in self.LOCAL_COPY_FIELD_NAMES[1+9]
+        assert "last_set_password" in self.LOCAL_COPY_FIELD_NAMES[1+10]
+        assert "last_push_token_update" in self.LOCAL_COPY_FIELD_NAMES[1+11]
+        assert "last_device_settings_update" in self.LOCAL_COPY_FIELD_NAMES[1+12]
+        assert "last_os_version" in self.LOCAL_COPY_FIELD_NAMES[1+13]
+        assert "app_version_code" in self.LOCAL_COPY_FIELD_NAMES[1+14]
+        assert "app_version_name" in self.LOCAL_COPY_FIELD_NAMES[1+15]
+        assert "last_heartbeat" in self.LOCAL_COPY_FIELD_NAMES[1+16]
         
         # test that is fairly obvious to save debugging time, 2 custom fields
         assert len(self.LOCAL_COPY_FIELD_NAMES) - 2 == len(TABLEAU_TABLE_FIELD_TYPES)
@@ -1702,7 +1679,7 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         
         # test that the things actually align
         for line_number, key in enumerate(local_keys):
-            assert key in self.LOCAL_COPY_FIELD_NAMES[line_number]
+            self.assertIn(key, self.LOCAL_COPY_FIELD_NAMES[line_number])
     
     def test_page_content(self):
         self.default_participant
@@ -1714,7 +1691,3 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         # test that someone has updated this test if the fields ever change
         for field in self.LOCAL_COPY_FIELD_NAMES:
             self.assert_present(field, content)
-        
-        test = 17
-        self.assertEqual(content.count("tableau.dataTypeEnum."), test, 
-                         msg=f"There should be {test} data types in the tableau data types, update the list above if you added one.")

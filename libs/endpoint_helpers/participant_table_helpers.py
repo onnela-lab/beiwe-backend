@@ -233,7 +233,7 @@ def get_values_for_participants_table(
     ) in query.values_list(*PARTICIPANT_STATUS_QUERY_FIELDS):
         participant_values = [to_date_tz_str(created_on, tz), patient_id, registered, os_type]
         
-        if frontend:  # webpage gets first_register inserted second; it's an extra field in the csv.
+        if frontend:  # webpage gets first_register inserted second; it's an extra field otherwise.
             participant_values.insert(1, "" if f_register is None else to_date_tz_str(f_register, tz))
         
         # We can't trivially optimize this out because we need to be able to sort across all study

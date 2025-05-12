@@ -59,6 +59,7 @@ BASE_TABLE_FIELD_NAMES = {
 EXTRA_TABLE_FIELDS = {
     "first_register_user": "First Registration Date",
     "last_register_user": "Last Registration",
+    "timezone_name": "Last Timezone",
     "last_upload": "Last Upload",
     "last_get_latest_surveys": "Last Survey Download",
     "last_set_password": "Last Set Password",
@@ -71,6 +72,7 @@ EXTRA_TABLE_FIELDS = {
 }
 
 
+
 TABLEAU_TABLE_FIELD_TYPES = {
     "created_on": "tableau.dataTypeEnum.date",
     "patient_id": 'tableau.dataTypeEnum.string',
@@ -78,6 +80,7 @@ TABLEAU_TABLE_FIELD_TYPES = {
     "os_type": 'tableau.dataTypeEnum.string',
     "first_registration_date": "tableau.dataTypeEnum.datetime",
     "last_registration":  "tableau.dataTypeEnum.datetime",
+    "last_timezone": "tableau.dataTypeEnum.string",
     "last_upload":  "tableau.dataTypeEnum.datetime",
     "last_survey_download":  "tableau.dataTypeEnum.datetime",
     "last_set_password":  "tableau.dataTypeEnum.datetime",
