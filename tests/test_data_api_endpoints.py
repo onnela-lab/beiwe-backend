@@ -16,6 +16,7 @@ from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MES
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST
 from constants.user_constants import ANDROID_API, ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
+from database.forest_models import SummaryStatisticDaily
 from database.models import ArchivedEvent
 from database.profiling_models import UploadTracking
 from database.security_models import ApiKey
@@ -1246,7 +1247,7 @@ class TestGetTableauDaily(TableauAPITest):
     
     @property
     def full_response_dict(self):
-        defaults = self.default_summary_statistic_daily_cheatsheet()
+        defaults = SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet()
         defaults["date"] = date.today().isoformat()
         defaults["participant_id"] = self.default_participant.patient_id
         defaults["study_id"] = self.session_study.object_id
@@ -1317,7 +1318,7 @@ class TestGetTableauDaily(TableauAPITest):
     def test_summary_statistics_daily_all_fields_one_at_a_time(self):
         today = date.today()
         self.generate_summary_statistic_daily()
-        cheat_sheet = self.default_summary_statistic_daily_cheatsheet()
+        cheat_sheet = SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet()
         cheat_sheet["date"] = today.isoformat()
         cheat_sheet["participant_id"] = self.default_participant.patient_id
         cheat_sheet["study_id"] = self.session_study.object_id
@@ -1558,7 +1559,6 @@ class TestWebDataConnectorSummaryStatistics(SmartRequestsTestCase):
         "jasmine_flight_distance_stddev",
         "jasmine_flight_duration_average",
         "jasmine_flight_duration_stddev",
-        "jasmine_gps_data_missing_duration",
         "jasmine_home_duration",
         "jasmine_gyration_radius",
         "jasmine_significant_location_count",

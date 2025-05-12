@@ -6,7 +6,8 @@ from datetime import timedelta
 from os.path import join as path_join
 
 from django.db import models
-from django.db.models import Manager
+from django.db.models import (AutoField, CharField, DateField, FloatField, ForeignKey, IntegerField,
+    Manager, TextField)
 
 from config.settings import DOMAIN_NAME
 from constants.celery_constants import ForestTaskStatus
@@ -283,6 +284,24 @@ class SummaryStatisticDaily(TimestampedModel):
     date = models.DateField(db_index=True)
     timezone = models.CharField(max_length=10, null=False, blank=False)  # abbreviated time zone names are max 4 chars.
     
+    @classmethod
+    def default_summary_statistic_daily_cheatsheet(cls) -> dict:
+        # this is used to populate default values in a SummaryStatisticDaily in a way that creates
+        # legible output when something goes wrong in a test.
+        field_dict = {}
+        for i, field in enumerate(cls._meta.fields):
+            if isinstance(field, (ForeignKey, DateField, AutoField)):
+                continue
+            elif isinstance(field, IntegerField):
+                field_dict[field.name] = i
+            elif isinstance(field, FloatField):
+                field_dict[field.name] = float(i)
+            elif isinstance(field, (TextField, CharField)):
+                field_dict[field.name] = str(i)
+            else:
+                raise TypeError(f"encountered unhandled SummaryStatisticDaily type: {type(field)}")
+        return field_dict
+    
     # Beiwe data quantities
     beiwe_accelerometer_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_ambient_audio_bytes = models.PositiveBigIntegerField(null=True, blank=True)
@@ -312,7 +331,6 @@ class SummaryStatisticDaily(TimestampedModel):
     jasmine_flight_distance_stddev = models.FloatField(null=True, blank=True)
     jasmine_flight_duration_average = models.FloatField(null=True, blank=True)
     jasmine_flight_duration_stddev = models.FloatField(null=True, blank=True)
-    jasmine_gps_data_missing_duration = models.IntegerField(null=True, blank=True)
     jasmine_home_duration = models.FloatField(null=True, blank=True)
     jasmine_gyration_radius = models.FloatField(null=True, blank=True)
     jasmine_significant_location_count = models.IntegerField(null=True, blank=True)

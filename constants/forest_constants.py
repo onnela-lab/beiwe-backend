@@ -92,6 +92,14 @@ DEFAULT_FOREST_PARAMETERS = {
 }
 
 
+TREE_TO_TASK_NAME = {
+    ForestTree.jasmine: "jasmine_task",
+    ForestTree.oak: "oak_task",
+    ForestTree.sycamore: "sycamore_task",
+    ForestTree.willow: "willow_task",
+}
+
+
 # special tree parameters
 PARAMETER_ALL_BV_SET = "all_bv_set"
 PARAMETER_ALL_MEMORY_DICT = "all_memory_dict"
@@ -133,7 +141,6 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     "sd_flight_length": "jasmine_flight_distance_stddev",
     "av_flight_duration": "jasmine_flight_duration_average",
     "sd_flight_duration": "jasmine_flight_duration_stddev",
-    "missing_time": "jasmine_gps_data_missing_duration",
     "home_time": "jasmine_home_duration",
     "radius": "jasmine_gyration_radius",
     "num_sig_places": "jasmine_significant_location_count",
@@ -235,7 +242,6 @@ JASMINE_FIELDS = [
     "jasmine_flight_distance_stddev",
     "jasmine_flight_duration_average",
     "jasmine_flight_duration_stddev",
-    "jasmine_gps_data_missing_duration",
     "jasmine_home_duration",
     "jasmine_gyration_radius",
     "jasmine_significant_location_count",

@@ -120,7 +120,7 @@ class TestDashboardStream(ResearcherSessionTest):
         number_days = ((end - start).days + 1) if start and end else 1
         
         # we need to know the byte count we are injecting for each data stream
-        byte_count_match_by_field_name = self.default_summary_statistic_daily_cheatsheet()
+        byte_count_match_by_field_name = SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet()
         
         for data_stream in DASHBOARD_DATA_STREAMS:
             # technically the endpoint accepts post and get

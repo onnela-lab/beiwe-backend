@@ -51,7 +51,7 @@ class TestFileConsumption(CommonTestCase):
             "sd_flight_length": 0.0,     # FloatField
             "av_flight_duration": 0.0,   # FloatField
             "sd_flight_duration": 0.0,   # FloatField
-            "missing_time": 0,           # IntegerField
+            # "missing_time": 0,           # IntegerField  removed 2025-05-12
             "home_time": 0.0,            # FloatField
             "radius": 0.0,               # FloatField
             "num_sig_places": 0,         # IntegerField
