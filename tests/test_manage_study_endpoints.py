@@ -437,8 +437,8 @@ class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperM
     def setup_two_base_participants(self) -> tuple[Participant, Participant]:
         p1 = self.generate_participant(self.session_study, "patient1")
         p2 = self.generate_participant(self.session_study, "patient2")
-        p1.update_only(created_on=self.JAN_1_2020)
-        p2.update_only(created_on=self.JAN_1_2020)
+        p1.update_only(created_on=self.JAN_1_2020, unknown_timezone=False)
+        p2.update_only(created_on=self.JAN_1_2020, unknown_timezone=False)
         return p1, p2
     
     def test_study_admin(self):
@@ -500,7 +500,7 @@ class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperM
     def test_single_base_participant(self):
         self.set_session_study_relation(ResearcherRole.researcher)
         p1 = self.generate_participant(self.session_study, "patient1")
-        p1.update_only(created_on=self.JAN_1_2020)
+        p1.update_only(created_on=self.JAN_1_2020, unknown_timezone=False)
         resp = self.smart_get(self.session_study.id)
         # I don't know why there is a trailing newline, but it is there.
         ref = "\r\n".join(self.response_basic.splitlines()[:-1]) + "\r\n"

@@ -104,13 +104,13 @@ def determine_registered_status(
     now: datetime,
     registered: bool,
     permanently_retired: bool,
-    last_upload: datetime | None,
-    last_get_latest_surveys: datetime | None,
-    last_set_password: datetime | None,
-    last_set_fcm_token: datetime | None,
-    last_get_latest_device_settings: datetime | None,
-    last_register_user: datetime | None,
-    last_heartbeat_checkin: datetime | None,
+    last_upload: datetime|None,
+    last_get_latest_surveys: datetime|None,
+    last_set_password: datetime|None,
+    last_set_fcm_token: datetime|None,
+    last_get_latest_device_settings: datetime|None,
+    last_register_user: datetime|None,
+    last_heartbeat_checkin: datetime|None,
 ) -> str:
     """ Provides a very simple string for whether this participant is active or inactive. """
     # p.registered is a boolean, it is only present when there is no device id attached to the
@@ -181,7 +181,7 @@ def get_interventions_and_fields(q: dbt.ParticipantQS) -> tuple[dict[int, dict[s
 def filtered_participants(study: Study, contains_string: str):
     """ Searches for participants with lowercase matches on os_type and patient_id, excludes deleted participants. """
     return Participant.objects.filter(study_id=study.id) \
-            .filter(Q(patient_id__icontains=contains_string) | Q(os_type__icontains=contains_string)) \
+            .filter(Q(patient_id__icontains=contains_string)|Q(os_type__icontains=contains_string)) \
             .exclude(deleted=True)
 
 
@@ -267,33 +267,40 @@ def get_values_for_participants_table(
 
 
 def zip_extra_fields_into_participant_table_data(
-    table_data: list[list[str | datetime | None]], study: Study, for_json: bool
+    table_data: list[list[str|datetime|None]], study: Study, for_json: bool
 ) -> None:
     """ Grabs the extra fields for the participants and adds them to the table. Zip like the Python
     builtin function.  """
-    extra_fields: list[tuple [ datetime | None]]
-    new_fields: list[str | datetime | None]
-    field_values: tuple[str | datetime | None]
+    extra_field_data: list[tuple[datetime|None]]
+    new_fields: list[str|datetime|None]
+    field_values: tuple[str|datetime|None]
     patient_ids: list[str]
+    
+    extra_field_names = list(EXTRA_TABLE_FIELDS.keys())
+    extra_field_names.append("unknown_timezone")  # not present in output
+    
     # for safety: by strictly filtering the on the patient ids in case someone changes something in
     # the table logic. This Almost Definitely slows down the query by forcing a potentially huge
     # blob into the query but not a performance critical endpoint
     tz = study.timezone
+    
+    json_none_slug = None if for_json else "None"
+    
     # the second column of a participant table is the patient id (e.g. frontend = False)
     patient_ids = [row[1] for row in table_data]  # type: ignore[assignment]
-    extra_fields = list(
+    
+    extra_field_data = list(
         Participant.objects.filter(study_id=study.id, patient_id__in=patient_ids)
             .order_by(Lower('patient_id'))  # standard ordering for this "page"
-            .values_list(*EXTRA_TABLE_FIELDS.keys())  # at least we have SOME knowable order...
+            .values_list(*extra_field_names)  # at least we have SOME knowable order...
     )
     
     # Yuck we need to convert the nested datetime objects to strings, and None to "None".
-    # I threw in a bool and None.
     # The values here are the database fields from EXTRA_TABLE_FIELDS (duh)
-    for row_number, field_values in enumerate(extra_fields):
+    for row_number, field_values in enumerate(extra_field_data):
         # this is too hard to debug or read if we try to compact this into a list comprehension
         new_fields = []
-        for i, some_value in enumerate(field_values):
+        for i, some_value in enumerate(field_values[:-1]):
             
             if isinstance(some_value, str):  # Bool and st are easy
                 new_fields.append(some_value)
@@ -301,10 +308,7 @@ def zip_extra_fields_into_participant_table_data(
                 new_fields.append("True" if some_value else "False")
             
             elif some_value is None:  # None just has to be null for json
-                if for_json:
-                    new_fields.append(None)
-                else:
-                    new_fields.append("None")
+                new_fields.append(json_none_slug)
             
             # datetime needs to be a datetime for orjson, stringified for the frontend and csv
             elif isinstance(some_value, datetime):
@@ -321,6 +325,8 @@ def zip_extra_fields_into_participant_table_data(
             else:
                 raise TypeError(f"Date, datetime, string, bool, or None are supported, found {type(some_value)}.")
         
-        # print("\n", extra_fields_strings, "\n")
-        # the table data is exactly the length and order of the participant extra fields.
+        # the last field is the unknown timezone flag, which if true means we clear the value.
+        if field_values[-1]:
+            new_fields[2] = json_none_slug
+            
         table_data[row_number].extend(new_fields)

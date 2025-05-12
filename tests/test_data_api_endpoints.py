@@ -504,39 +504,7 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
         row = ('[["' + '","'.join(self.header().strip().split(",")) + '"]]').encode()
         self.assertEqual(resp.content, row)
     
-    def test_one_participant_csv(self):
-        resp = self._do_one_participant("csv")
-        self.modify_participant()
-        header_row, _, _ = self.thang()
-        
-        csv_values = [  # has a different DT format
-            '2020-01-01',                     # Created On
-            'patient1',                       # Patient ID
-            'Inactive',                       # Status
-            'ANDROID',                        # OS Type
-            'None',                           # First Registration
-            '2020-01-04 12:00:00 (EST)',      # Last Registration
-            'America/New_York',               # Last Timezone
-            '2020-01-02 12:00:00 (EST)',      # Last Upload
-            '2020-01-03 12:00:00 (EST)',      # Last Survey Dowload
-            '2020-01-05 12:00:00 (EST)',      # Last Set password
-            '2020-01-06 12:00:00 (EST)',      # Last Push Token
-            '2020-01-07 12:00:00 (EST)',      # Last Device Settings
-            '1.0',                            # Last OS Version
-            '6',                              # App Version Cod
-            'six',                            # App Version Nam
-            '2020-01-08 12:00:00 (EST)',      # Last Heartbeat
-        ]
-        self.assertEqual(len(csv_values), len(header_row), "needs to be the same size too")
-        # convert to bytes
-        header_bytes = ",".join(header_row).encode() + b"\r\n"
-        row_bytes = ",".join(csv_values).encode() + b"\r\n"
-        correct = header_bytes + row_bytes        
-        
-        resp = self._do_one_participant("csv")
-        self.assertEqual(resp.content, correct)    
-    
-    def thang(self):
+    def data(self) -> tuple[list[str], list[str|None], list[str|None]]:
         keys_row = self.header().strip().split(",")
         unfilled_row = [  # wow ok these suck but can't really be factored the test being meaningless...
             "2020-01-01",   # Created On
@@ -545,7 +513,7 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
             "ANDROID",      # OS Type
             None,           # First Registration Date
             None,           # Last Registration
-            "America/New_York",  # Last Timezone
+            None,           # Last Timezone
             None,           # Last Upload
             None,           # Last Survey Download
             None,           # Last Set Password
@@ -579,12 +547,44 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
         self.assertEqual(len(filled_row), len(unfilled_row), "yo these need to be the same size")
         return keys_row, unfilled_row, filled_row
     
+    def test_one_participant_csv(self):
+        resp = self._do_one_participant("csv")
+        self.modify_participant()
+        header_row, _, _ = self.data()
+        
+        csv_values = [  # has a different DT format
+            '2020-01-01',                     # Created On
+            'patient1',                       # Patient ID
+            'Inactive',                       # Status
+            'ANDROID',                        # OS Type
+            'None',                           # First Registration
+            '2020-01-04 12:00:00 (EST)',      # Last Registration
+            'America/New_York',               # Last Timezone
+            '2020-01-02 12:00:00 (EST)',      # Last Upload
+            '2020-01-03 12:00:00 (EST)',      # Last Survey Dowload
+            '2020-01-05 12:00:00 (EST)',      # Last Set password
+            '2020-01-06 12:00:00 (EST)',      # Last Push Token
+            '2020-01-07 12:00:00 (EST)',      # Last Device Settings
+            '1.0',                            # Last OS Version
+            '6',                              # App Version Cod
+            'six',                            # App Version Nam
+            '2020-01-08 12:00:00 (EST)',      # Last Heartbeat
+        ]
+        self.assertEqual(len(csv_values), len(header_row), "needs to be the same size too")
+        # convert to bytes
+        header_bytes = ",".join(header_row).encode() + b"\r\n"
+        row_bytes = ",".join(csv_values).encode() + b"\r\n"
+        correct = header_bytes + row_bytes        
+        
+        resp = self._do_one_participant("csv")
+        self.assertEqual(resp.content, correct)    
+    
     def test_one_participant_json(self):
+        self.default_participant.update_only(unknown_timezone=True)
         resp = self._do_one_participant("json")
         # keys = self.header().strip().split(",")  # strip() strips \r\n
-        keys_row, unfilled_row, filled_row = self.thang()
+        keys_row, unfilled_row, filled_row = self.data()
         row = dict(zip(keys_row, unfilled_row))
-        
         self.assertEqual(orjson.loads(resp.content), [row])
         
         self.modify_participant()
@@ -593,15 +593,14 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
         self.assertEqual(orjson.loads(resp.content), [row])
     
     def test_one_participant_json_table(self):
+        self.default_participant.update_only(unknown_timezone=True)
         resp = self._do_one_participant("json_table")
-        keys_row, unfilled_row, filled_row = self.thang()
-        row = unfilled_row
-        self.assertEqual(orjson.loads(resp.content), [keys_row, row])
+        keys_row, unfilled_row, filled_row = self.data()
+        self.assertEqual(orjson.loads(resp.content), [keys_row, unfilled_row])
         
         self.modify_participant()
         resp = self._do_one_participant("json_table")
-        row = filled_row
-        self.assertEqual(orjson.loads(resp.content), [keys_row, row])
+        self.assertEqual(orjson.loads(resp.content), [keys_row, filled_row])
     
     def _do_one_participant(self, data_format: str):
         if not hasattr(self, "_default_study_relation"):
@@ -624,6 +623,7 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
             ("last_version_code", "6"),
             ("last_version_name", "six"),
             ("last_heartbeat_checkin", datetime(2020, 1, 8, 12, tzinfo=EST)),
+            ("unknown_timezone", False),
         ]
         for name, value in some_column_names_and_values:
             setattr(self.default_participant, name, value)
@@ -1658,7 +1658,6 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         assert "default_study_field_name" in self.LOCAL_COPY_FIELD_NAMES[5]  # optional
         assert "first_registration_date" in self.LOCAL_COPY_FIELD_NAMES[6]  # optional
         assert "last_registration" in self.LOCAL_COPY_FIELD_NAMES[7]  # optional
-        print(self.LOCAL_COPY_FIELD_NAMES[8])
         assert "last_timezone" in self.LOCAL_COPY_FIELD_NAMES[8]
         assert "last_upload" in self.LOCAL_COPY_FIELD_NAMES[1+8]
         assert "last_survey_download" in self.LOCAL_COPY_FIELD_NAMES[1+9]
