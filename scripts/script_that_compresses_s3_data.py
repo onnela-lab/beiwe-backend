@@ -255,7 +255,8 @@ def compress_logs():
 
 def compress_s3_logging_logs():
     """ Compresses files in the "logs/" folder that is created by the s3 access logging setting.
-    todo: call this in a periodic task on th data processing. Server. 
+    
+    On the Onnela Lab production at time of development we generated just under 500k per day.
     
     This batches together 10,000 files at a time, and then uploads them to the logs/compressed.
     achieves ~14x compression on the logs. You probably have millions of these files if you have any
@@ -288,10 +289,8 @@ def compress_s3_logging_logs():
     
     
     # go through paths, skip obviously wrong files, create a list, dispatch to compress
-    for number_paths_total, path in enumerate(s3_list_files("logs/", as_generator=True)):
-        
-        if path.startswith("logs/compressed/") or path.endswith(".zst"):
-            continue
+    # logs have a name starting with the isodate, a prefix of logs/2 skips compressed files.
+    for number_paths_total, path in enumerate(s3_list_files("logs/2", as_generator=True)):
         
         paths.append(path)
         if len(paths) >= 10_000:

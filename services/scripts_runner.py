@@ -1,6 +1,7 @@
 from libs.celery_control import CeleryScriptTask, DAILY, HOURLY, SIX_MINUTELY
 from scripts import (purge_participant_data, repopulate_push_notifications,
-    script_that_removes_data_from_invalid_time_sources, update_forest_version, upload_logs)
+    script_that_compresses_s3_data, script_that_removes_data_from_invalid_time_sources,
+    update_forest_version, upload_logs)
 
 
 """
@@ -53,6 +54,14 @@ def daily_upload_logs():
 @CeleryScriptTask()
 def daily_purge_invalid_time_data():
     script_that_removes_data_from_invalid_time_sources.main()
+
+#
+## Compress the S3 bucket access logs - these files are only present if a bucket policy is in place
+## to log access.  It creates a LOT of files, so we compress them daily.  
+#
+@CeleryScriptTask()
+def daily_compress_bucket_access_logs():
+    script_that_compresses_s3_data.compress_s3_logging_logs()
 
 
 ####################################################################################################

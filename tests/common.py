@@ -72,9 +72,9 @@ StrOrBytes = str|bytes
 
 # This parameter sets the password iteration count, which directly adds to the runtime of ALL user
 # tests. If we use the default value it is 1000s of times slower and tests take forever.
-Researcher.DESIRED_ITERATIONS = 2
-Participant.DESIRED_ITERATIONS = 2
-ApiKey.DESIRED_ITERATIONS = 2
+Researcher.DESIRED_ITERATIONS = 2  # type: ignore[assignment]
+Participant.DESIRED_ITERATIONS = 2  # type: ignore[assignment]
+ApiKey.DESIRED_ITERATIONS = 2  # type: ignore[assignment]
 
 
 class CommonTestCase(TestCase, DatabaseHelperMixin):
