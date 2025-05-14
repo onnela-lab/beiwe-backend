@@ -30,7 +30,7 @@ class TestGetData(DataApiTest):
         Otherwise s3_retrieve will fail due to the patch is tests.common.
     """
     
-    ENDPOINT_NAME = "raw_data_api_endpoints.get_data"
+    ENDPOINT_NAME = "raw_data_api_endpoints.get_data_v1"
     REGISTRY_HASH = "registry_hash"
     
     # retain and usethis structure in order to force a test addition on a new file type.

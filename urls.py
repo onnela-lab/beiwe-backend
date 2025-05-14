@@ -209,7 +209,8 @@ path(
 )
 
 # data access api and other researcher apis
-path("get-data/v1", raw_data_api_endpoints.get_data)
+path("get-data/v1", raw_data_api_endpoints.get_data_v1)
+path("get-data/v2", raw_data_api_endpoints.get_data_v2_compressed)
 path("get-studies/v1", data_api_endpoints.get_studies)
 path("get-users/v1", data_api_endpoints.get_participant_ids_in_study)  # deprecated June 2024
 path("get-study-settings/v1", data_api_endpoints.get_study_settings_file)

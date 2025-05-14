@@ -431,6 +431,10 @@ def s3_retrieve(key_path: str, obj: StrPartStudy, raw_path: bool = False, number
     return S3Storage(key_path, obj, raw_path).download().pop_uncompressed_file_content()
 
 
+def s3_retrieve_no_decompress(key_path: str, obj: StrPartStudy, raw_path: bool = False) -> bytes:
+    """ As s3_retrieve, but does not decompress the file. """
+    return S3Storage(key_path, obj, raw_path).download_no_decompress().pop_compressed_file_content()
+
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
     """ Retrieves a file as-is as bytes. """
     return _do_retrieve(key_path, number_retries=number_retries)['Body'].read()
