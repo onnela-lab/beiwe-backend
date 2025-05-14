@@ -11,6 +11,7 @@ from constants.user_constants import ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
 from database.profiling_models import EncryptionErrorMetadata, LineEncryptionError
 from database.user_models_participant import Participant
+from libs.sentry import send_sentry_warning
 from libs.utils.base64_utils import (Base64LengthException, decode_base64, encode_base64,
     PaddingException)
 
@@ -23,7 +24,7 @@ class UnHandledError(Exception): pass  # for debugging
 class InvalidIV(Exception): pass
 class InvalidData(Exception): pass
 class DefinitelyInvalidFile(Exception): pass
-class UncatchableError(BaseException): pass
+class DoNotCatchThisErrorType(BaseException): pass
 
 # TODO: there is a circular import due to the database imports in this file and this file being
 # imported in s3, forcing local s3 imports in various files.  Refactor and fix.
@@ -92,9 +93,9 @@ class DeviceDataDecryptor():
         self.decrypted_file = b"\n".join(self.good_lines)
     
     def do_decryption_with_key_checking(self):
-        """ iOS can upload identically named files that were split in half (or more)? due to a bug
-        (the iOS app is bad.) We stash keys of all uploaded ios data, and use them to decrypt these
-        "duplicate" files. """
+        """ Old iOS app versions (before Jan 2024) can upload identically named files that were
+        split in half (or more)? due to a bug (the iOS app is bad.) We stash keys of all uploaded
+        ios data, and use them to decrypt these "duplicate" files. """
         try:
             self.aes_decryption_key = self.extract_aes_key()
         except DecryptionKeyInvalidError:
@@ -109,7 +110,7 @@ class DeviceDataDecryptor():
     
     def get_backup_encryption_key(self):
         if self.ignore_existing_keys:
-            raise UncatchableError(" get_backup_encryption_key should not have been called with ignore_existing_keys==True")
+            raise DoNotCatchThisErrorType(" get_backup_encryption_key should not have been called with ignore_existing_keys==True")
         try:
             decryption_key = IOSDecryptionKey.objects.get(file_name=self.file_name)
         except IOSDecryptionKey.DoesNotExist:
@@ -129,6 +130,8 @@ class DeviceDataDecryptor():
     
     def decrypt_device_file(self) -> bytes:
         """ Runs the line-by-line decryption of a file encrypted by a device. """
+        self.basic_file_validation()  # ok but first blow up if this happens.
+        
         # we need to skip the first line (the decryption key), but need real index values
         lines = enumerate(self.file_lines)
         next(lines)
@@ -145,6 +148,20 @@ class DeviceDataDecryptor():
             except Exception as error_orig:
                 self.handle_line_error(line, error_orig)
         self.create_metadata_error()
+    
+    def basic_file_validation(self):
+        # Test for all null bytes. Very occasionally this occurs as the result of unknown data
+        # corruption sources that are probably the result of real-world data corruption, not code
+        # bugs. Data is _base64 encoded_, there should be no null bytes, all null bytes is worse.
+        if self.original_data.count(b"\00") == len(self.original_data):
+            send_sentry_warning(
+                self.participant.os_type + " file was all null bytes.",
+                file_name=self.file_name,
+                participant_id=self.participant.id,
+                participant_os=self.participant.os_type,
+                byte_count=len(self.original_data),
+            )
+            raise RemoteDeleteFileScenario("The file was null bytes.")
     
     def extract_aes_key(self) -> bytes:
         """ The following code is a bit dumb. The decryption key is encoded as base64 twice,

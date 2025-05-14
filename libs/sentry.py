@@ -38,6 +38,7 @@ class SentryTypes:
     }
     
     # Error Sentry context managers
+    # wrap a block with a context manager to send any errors to sentry
     @classmethod
     def error_handler_data_processing(cls, null_error_handler=False, **tags):
         return make_error_sentry(cls.data_processing, null_error_handler, **tags)
@@ -55,6 +56,7 @@ class SentryTypes:
         return make_error_sentry(cls.script_runner, null_error_handler, **tags)
     
     # as decorators
+    # wrap a function with a decorator to send any errors to sentry
     @classmethod
     def error_decor_data_processing(cls, null_error_handler=False, **tags):
         return SentryDecorator(cls.data_processing, null_error_handler, **tags)
@@ -72,6 +74,7 @@ class SentryTypes:
         return SentryDecorator(cls.script_runner, null_error_handler, **tags)
     
     # Timer Warnings Decorators
+    # wrap a function with a timer that sends a warning to sentry if the function takes too long
     @classmethod
     def timer_warning_data_processing(cls, message: str, seconds: int, **tags):
         return SentryTimerWarning(cls.data_processing, message, seconds, **tags)
@@ -133,6 +136,12 @@ def make_error_sentry(sentry_type: str, force_null_error_handler=False, **tags) 
         sentry_client_kwargs={'transport': HttpTransport},
         sentry_report_limit=10
     )
+
+
+def send_sentry_warning(message: str, **tags):
+    for tagk, tagv in tags.items():
+        set_tag(tagk, str(tagv))
+    capture_message(message, level="warning")
 
 
 ####################################################################################################
