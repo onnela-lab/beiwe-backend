@@ -497,8 +497,9 @@ def _do_list_files_generator(page_iterator: Paginator.PAGE_ITERATOR_CLS) -> Gene
             for item in page['Contents']:
                 yield item['Key'].strip("/")
         except KeyError as e:
-            assert str(e) == 'Contents'
-            return
+            if 'Contents' not in page:
+                return
+            raise KeyError("Unknown KeyError in _do_list_files_generator") from e
 
 
 def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None]]:

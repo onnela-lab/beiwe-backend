@@ -1,6 +1,7 @@
 from multiprocessing.pool import ThreadPool
 
 import orjson
+from traceback import print_exc
 
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, LOGS_FOLDER,
     PROBLEM_UPLOADS)
@@ -148,6 +149,7 @@ def batch_unencrypted_compress_S3File(path: str):
         )
     except Exception as e:
         print(f"uhoh, encountered an `{e}` on `{path}`.")
+        print_exc()
         stats.number_files_failed_with_error += 1
 
 
