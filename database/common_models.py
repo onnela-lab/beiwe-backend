@@ -19,6 +19,7 @@ from django.utils.timezone import localtime
 
 from constants.common_constants import DEV_TIME_FORMAT3, DT_24HR_W_TZ_W_SEC_N_PAREN, EASTERN
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
+from libs.utils.http_utils import numformat
 
 
 class ObjectIdError(Exception): pass
@@ -131,9 +132,9 @@ class UtilityModel(models.Model):
     @classmethod
     def nice_count(cls):
         t1 = datetime.now()
-        print(f"{count:= cls.objects.count():,}")
+        count = cls.objects.count()
         t2 = datetime.now()
-        print("this query took", (t2 - t1).total_seconds(), "seconds.")
+        print(numformat(count), "- this query took", (t2 - t1).total_seconds(), "seconds.")
         return count
     
     @property
