@@ -199,3 +199,7 @@ ERR_ANDROID_REFERENCE_VERSION_CODE_NULL = "Android reference_version_code cannot
 
 # obscure side effect warning
 DEVICE_SETTINGS_RESEND_FROM_0 = "Warning: the survey notification resend period was updated from a value of 0 to {} minutes. This scenario could cause all historically tracked and missed survey notifications to be immediately resent. In order to avoid this, automatic resends have been disabled for all survey schedules on this study that occurred in the past. Automatic resend logic will only be enabled for schedules that have not yet been sent. "
+
+
+# Download data page
+DATA_DOWNLOAD_NO_CREDS = "You need to generate an Access Key and a Secret Key before you can download data. Click the Manage Credentials button above."

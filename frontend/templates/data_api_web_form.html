@@ -8,12 +8,15 @@
   <script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
   <script type="text/javascript" src="/static/javascript/libraries/transition.js"></script>
   <script type="text/javascript" src="/static/javascript/libraries/collapse.js"></script>
-  <script type="text/javascript" src="/static/javascript/data_download_page.js"></script>
   <script>
     var allowedStudies = {{ allowed_studies|tojson }};
     var participantsByStudy = {{ users_by_study|tojson }};
   </script>
   <script src="/static/javascript/app/survey-builder/controllers/data-access-web-form-controller.js"></script>
+  
+  <script>
+  {% include "data_download_page.js" %}
+  </script>
 {% endblock %}
 
 {% block content %}
@@ -102,17 +105,44 @@
 
         {# Hidden Input to tell Data Download API that this request came from the web form (not from the command-line) #}
         <input type="hidden" name="web_form" value="true">
-        <div class="col-xs-2">
-          <input type="submit" class="btn btn-success" value="Download Data" id="download_submit_button" ng-disabled="!selectedStudyId" />
+        
+        <div class="col-xs-2 h2-margins-vertical" id="submit_button_div">
+          <input type="submit" class="btn btn-success" value="Download Data" id="download_submit_button"
+          ng-disabled="!selectedStudyId"/>
         </div>
-        <div class="col-sm-10">
-          <p id="explanation_paragraph" hidden><b>
-            It may take several minutes to compile your data and download it as a .zip file. Do not click "Reload" or "Back" until your data finishes downloading. Once your data file downloads, you must reload this page before you can download another datafile.
-          </b></p>
+        
+        <div class="col-xs-2 h2-margins-vertical" id="download_ready_button" hidden>
+          <button type="submit" class="btn btn-warning text-smaller" onmousedown="enable_submit_button()">
+           Ready to Download More Data </button>
+        </div>
+        
+        {# a checkbox for data compression #}
+        <div class="col-xs-3 h3-margins-vertical" >
+          <div class="checkbox" onmousedown="toggle_compress()">
+            <label>
+              <input type="checkbox" name="compress" id="compress"> Download Compressed Data
+            </label>
+          </div>
+        </div>
+        
+        {# a checkbox for data compression #}
+        <div class="col-xs-7 h3-margins-vertical text-small" id="compress_info" hidden>
+          <i>
+            When downloading compressed data the file structure is unchanged, but each file is compressed using zstd ("z-standard") compression in a .zst wrapper. Compressed data takes up 5-10x less space, but will require a separate tool to decompress it. <a href="https://github.com/onnela-lab/beiwe-backend/wiki/Managing-ZSTD%E2%80%90Compressed-Data-From-The-Beiwe-Platform"> We have some recommendations on the wiki. </a>
+          </i>
+        </div>
+        
+        <div class="col-sm-7 h2-margins-vertical" id="explanation_paragraph" hidden>
+          <p>
+          <b> It may take quite some time to stream all your data. </b> <br>
+          It uses server resources to download, so please check that your download has finished before starting another one.
         </div>
       
       </div>  {# ng-controller #}
     </form>
   </div>
 </div>
+
+{# set to false on page load because checkboxes are weird and save their state on reload #}
+<script>document.getElementById("compress").checked = false;</script>
 {% endblock %}

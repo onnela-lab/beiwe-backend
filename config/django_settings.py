@@ -149,6 +149,7 @@ TEMPLATES = [
         'APP_DIRS': False,
         'DIRS': [
             "frontend/templates/",
+            "frontend/static/javascript",
         ],
         'OPTIONS': {
             'autoescape': True,

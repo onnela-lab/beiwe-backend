@@ -1,13 +1,13 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_http_methods
-from markupsafe import Markup
 
 from authentication.admin_authentication import (authenticate_researcher_login,
     authenticate_researcher_study_access, get_researcher_allowed_studies_as_query_set,
     ResearcherRequest)
 from constants.data_stream_constants import (ALL_DATA_STREAMS, COMPLETE_DATA_STREAM_DICT,
     DASHBOARD_DATA_STREAMS)
+from constants.message_strings import DATA_DOWNLOAD_NO_CREDS
 from database.study_models import Study
 from database.user_models_participant import Participant
 from libs.endpoint_helpers.dashboard_helpers import (create_next_past_urls, dashboard_data_query,
@@ -21,10 +21,7 @@ from libs.endpoint_helpers.study_helpers import conditionally_display_study_stat
 def data_api_web_form_page(request: ResearcherRequest):
     
     if not request.session_researcher.api_keys.filter(is_active=True).exists():
-        msg = """You need to generate an <b>Access Key</b> and a <b>Secret Key </b> before you
-        can download data. Go to <a href='/manage_credentials'> Manage Credentials</a> and create
-        some access keys. """
-        messages.warning(request, Markup(msg))
+        messages.warning(request, DATA_DOWNLOAD_NO_CREDS)
     
     participants_by_study = {
         study.pk: list(study.participants.order_by("patient_id").values_list("patient_id", flat=True))
