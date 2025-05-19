@@ -69,7 +69,6 @@ logging.getLogger("django.request").setLevel(logging.ERROR)
 
 
 class MisconfiguredTestException(Exception): pass
-StrOrBytes = str|bytes
 
 
 # This parameter sets the password iteration count, which directly adds to the runtime of ALL user
@@ -142,17 +141,17 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         msg = f"urls do not point to the same function:\n a - {a}, {resolve_a}\nb - {b}, {resolve_b}"
         return self.assertIs(resolve(a).func, resolve(b).func, msg)
     
-    def assert_not_present(self, test_str: StrOrBytes, corpus: StrOrBytes):
+    def assert_not_present(self, test_str: str|bytes, corpus: str|bytes):
         """ Tests "in" and also handles the type coersion for bytes and strings, and suppresses 
         excessively long output that can occur when testing for presence of substrings in html."""
         return self._assert_present(False, test_str, corpus)
     
-    def assert_present(self, test_str: StrOrBytes, corpus: StrOrBytes):
+    def assert_present(self, test_str: str|bytes, corpus: str|bytes):
         """ Tests "not in" and also handles the type coersion for bytes and strings, and suppresses 
         excessively long output that can occur when testing for presence of substrings in html."""
         return self._assert_present(True, test_str, corpus)
     
-    def _assert_present(self, the_test: bool, test_str: StrOrBytes, corpus: StrOrBytes):
+    def _assert_present(self, the_test: bool, test_str: str|bytes, corpus: str|bytes):
         t_test = type(test_str)
         t_corpus = type(corpus)
         test_str = test_str.encode() if t_test == str and t_corpus == bytes else test_str
