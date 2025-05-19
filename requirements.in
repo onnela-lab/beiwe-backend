@@ -10,7 +10,7 @@ django-stubs[1.15.0]
 pyzstd
 
 # django-extensions for some really nice management commands and terminal helpers.
-django-extensions==3.2.3
+django-extensions
 
 python-dateutil
 
@@ -26,7 +26,7 @@ pypng
 pyotp
 
 # This version of pycryptodome results in "from Cryptodome import ..." imports.
-pycryptodomex==3.21.0  # locked version, only update this manuallly, has had breaking changes in the past
+pycryptodomex==3.23.0
 
 # error reporting
 cronutils==0.4.2
