@@ -13,9 +13,14 @@ from libs.utils.http_utils import numformat
 
 
 #
-## If you need to restart the full script add a parameter here.  Provide a file path that is printed
-## in the output and the compression of all files will restart from there. (it takes on the order of
-## 100ms to query-and-receive a single page of 1,000 files, plus substantial execution time.)
+# If you need to restart the full script you can update START_GLOBAL_FILE_SEARCH_HERE.
+#
+# Provide a file path that was printed in the output of a previous run of the script, and the
+# compression of all files will restart from there. (It takes ~100ms to get a single page of 1,000
+# file names, Beiwe has so many files that just running through them to find the next uncompressed
+# file from the top cat take substantial time.)
+#
+# Note: the sorting on s3 is case-sensitive, uppercase letters come before lowercase.
 #
 START_GLOBAL_FILE_SEARCH_HERE = None
 
