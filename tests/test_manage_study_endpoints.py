@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import orjson
 from django.utils import timezone
 
-from constants.common_constants import API_DATE_FORMAT
+from constants.common_constants import API_DATE_FORMAT, UTC
 from constants.user_constants import ResearcherRole
 from database.schedule_models import Intervention
 from database.study_models import StudyField
@@ -405,7 +405,7 @@ class TestEditStudyField(ResearcherSessionTest):
 # test download_participants_csv
 class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperMixin):
     ENDPOINT_NAME = "manage_study_endpoints.download_participants_csv"
-    JAN_1_2020 = datetime(2020, 1, 1, 12, tzinfo=timezone.utc)
+    JAN_1_2020 = datetime(2020, 1, 1, 12, tzinfo=UTC)
     END_STRING = ",None" * 2 + ",America/New_York" + ",None" * 9  # One none for each field in EXTRA_TABLE_FIELDS
     
     @property

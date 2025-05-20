@@ -558,14 +558,14 @@ class TestSelfManageCredentials(ResearcherSessionTest):
         self.session_researcher.reset_mfa()
         # use the alt text to test for presence of the qr code
         self.assert_not_present('alt="MFA QR Code"', self.smart_get_status_code(200).content)
-        session[MFA_CREATED] = timezone.now() - timedelta(seconds=60)
+        session[MFA_CREATED] = (timezone.now() - timedelta(seconds=60)).isoformat()
         session.save()
         self.assert_not_present('alt="MFA QR Code"', self.smart_get_status_code(200).content)
     
     def test_mfa_visible_session_manip(self):
         session = self.client.session  # this creates a new object
         self.session_researcher.reset_mfa()
-        session[MFA_CREATED] = timezone.now()
+        session[MFA_CREATED] = timezone.now().isoformat()
         session.save()  # save the session because this isn't inside the request/response cycle
         self.assert_present('alt="MFA QR Code"', self.smart_get_status_code(200).content)
     

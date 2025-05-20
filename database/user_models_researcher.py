@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from datetime import datetime
 
 from django.contrib.sessions.backends.db import SessionStore as DBStore
 from django.contrib.sessions.base_session import AbstractBaseSession
@@ -270,6 +271,12 @@ class SessionStore(DBStore):
     
     def create_model_instance(self, data: dict):
         """ Using the session, grab the researcher and create a (now queryable!) database session """
+        
+        # May 2025: converting to json serializer for session is causing an expiry instance in
+        # virtually all tests to contain a datetime object and I cannot find it in our code....
+        if "expiry" in data and isinstance((dt_expiry:= data["expiry"]), datetime):
+            data["expiry"] = dt_expiry.isoformat()
+        
         quick_session: ResearcherSession = super().create_model_instance(data)
         try:
             # this value is the session key from a cookie.  Get the researcher attached to the session

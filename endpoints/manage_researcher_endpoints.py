@@ -291,6 +291,9 @@ def self_manage_credentials_page(request: ResearcherRequest):
     has_mfa = request.session_researcher.mfa_token is not None
     mfa_created = request.session.get(MFA_CREATED, False)
     
+    # May 2025: converting session to use json serializer.
+    mfa_created = datetime.fromisoformat(mfa_created) if isinstance(mfa_created, str) else mfa_created
+    
     # check whether mfa_created occurred in the last 60 seconds, otherwise clear it.
     if isinstance(mfa_created, datetime) and (timezone.now() - mfa_created).total_seconds() > 60:
         del request.session[MFA_CREATED]
@@ -344,7 +347,7 @@ def self_reset_mfa(request: ResearcherRequest):
         request.session_researcher.clear_mfa()
     else:
         messages.warning(request, MFA_SELF_SUCCESS)
-        request.session[MFA_CREATED] = timezone.now()
+        request.session[MFA_CREATED] = timezone.now().isoformat()
         request.session_researcher.reset_mfa()
     return redirect(easy_url("manage_researcher_endpoints.self_manage_credentials_page"))
 

@@ -173,7 +173,7 @@ TEMPLATES = [
 
 # json serializer crashes with module object does not have attribute .dumps
 # or it cannot serialize a datetime object.
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
 SESSION_ENGINE = "database.user_models_researcher"
 
 # https-only

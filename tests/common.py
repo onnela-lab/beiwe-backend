@@ -14,7 +14,7 @@ from deepdiff import DeepDiff
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Model
-from django.http import HttpResponseRedirect, StreamingHttpResponse
+from django.http import HttpResponseRedirect
 from django.test import TestCase
 from django.urls import reverse
 from django.urls.base import resolve
@@ -27,7 +27,8 @@ from database.study_models import Study
 from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import Researcher, StudyRelation
 from libs.django_typing import (FileResponse as _FileResponse, HttpResponse as _HttpResponse,
-    HttpResponseBase as _HttpResponseBase, StreamingHttpResponse as _StreamingHttpResponse)
+    HttpResponseBase as _HttpResponseBase, HttpResponseRedirect as _HttpResponseRedirect,
+    StreamingHttpResponse as _StreamingHttpResponse)
 from libs.shell_support import tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
@@ -35,12 +36,13 @@ from urls import urlpatterns
 
 
 # we need to do some magic to make these fake typing classes not break due to MRO issues
-# TLDR we have magic return types that we don't want a thousand type errors on when accessing
+# TLDR we have magic return types so that we don't want a thousand type errors on when accessing
 # the streaming_countent or status_code properties.
 class a(_HttpResponse): pass
 class b(a, _StreamingHttpResponse): pass
 class c(b, _HttpResponseBase): pass
-class HttpResponse2(c, _FileResponse): pass
+class d(c, _HttpResponseRedirect): pass
+class HttpResponse2(d, _FileResponse): pass
 
 
 
@@ -359,6 +361,10 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
 class BasicSessionTestCase(CommonTestCase):
     """ This class has the basics needed to do login operations, but runs no extra setup before each
     test.  This class is probably only useful to test the login pages. """
+    
+    def client_get(self, path, data=None, follow=False, secure=False, *, headers=None, **extra) -> HttpResponse2:
+        # function purely exists to get around typing errors in uses of client.get
+        return self.client.get(path, data=None, follow=False, secure=False, headers=None, **extra)
     
     def do_default_login(self, **post_params: dict[str, str]) -> HttpResponse2:
         # logs in the default researcher user, assumes it has been instantiated.

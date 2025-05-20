@@ -76,7 +76,7 @@ def logout_researcher(request: HttpRequest):
 def log_in_researcher(request: ResearcherRequest, username: str):
     """ Populate session for a researcher - should only be called from  validate_login endpoint. """
     request.session[SESSION_UUID] = generate_easy_alphanumeric_string()
-    request.session[EXPIRY_NAME] = timezone.now() + timedelta(hours=SESSION_TIMEOUT_HOURS)
+    request.session[EXPIRY_NAME] = ((timezone.now() + timedelta(hours=SESSION_TIMEOUT_HOURS))).isoformat()
     request.session[SESSION_NAME] = username
     Researcher.objects.filter(username=username).update(last_login_time=timezone.now())
 
@@ -106,7 +106,15 @@ def check_is_logged_in(request: ResearcherRequest):
 def handle_session_expiry(request: ResearcherRequest):
     # Sometimes the datetime is naive, probably a development environment bug? We force a timezone
     # in updating the expiry later, this is a safety check.
-    expiry_time: datetime = request.session[EXPIRY_NAME]
+    expiry_time_str: str = request.session[EXPIRY_NAME]
+    try:
+        expiry_time: datetime = datetime.fromisoformat(expiry_time_str)
+    except ValueError:
+        # this is a safety check, we should never hit this.
+        logout_researcher(request)
+        log("session expiry time was not a valid isoformat string, logging out researcher")
+        return False
+    
     now = datetime.now() if is_naive(expiry_time) else timezone.now()
     
     # session has expired, do not refresh - the returned-to code will call logout_researcher.
