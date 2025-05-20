@@ -116,7 +116,7 @@ class HttpResponseBase:
     def getvalue(self) -> bytes: ...
 
 class HttpResponse(HttpResponseBase, Iterable[bytes]):
-    content = bytes
+    content: bytes
     csrf_cookie_set: bool
     sameorigin: bool
     test_server_port: str
