@@ -219,8 +219,10 @@ protobuf==5.29.4
     #   googleapis-common-protos
     #   grpcio-status
     #   proto-plus
-psycopg==3.2.9
+psycopg[pool]==3.2.9
     # via -r requirements.in
+psycopg-pool==3.2.6
+    # via psycopg
 ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.3
@@ -318,6 +320,7 @@ typing-extensions==4.13.2
     #   librosa
     #   mypy
     #   psycopg
+    #   psycopg-pool
     #   pyzstd
 tzdata==2025.2
     # via
