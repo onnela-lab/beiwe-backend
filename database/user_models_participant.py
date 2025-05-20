@@ -146,7 +146,6 @@ class Participant(AbstractPasswordUser):
     encryptionerrormetadata_set: dbt.EncryptionErrorMetadatums
     foresttask_set: dbt.ForestTasks
     iosdecryptionkey_set: dbt.IOSDecryptionKeys
-    lineencryptionerror_set: dbt.LineEncryptionErrors
     pushnotificationdisabledevent_set: dbt.PushNotificationDisabledEvents
     summarystatisticdaily_set: dbt.SummaryStatisticsDaily
     

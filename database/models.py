@@ -50,7 +50,6 @@ class dbt:
     ForestTasks = Manager[ForestTask]
     InterventionDates = Manager[InterventionDate]
     IOSDecryptionKeys = Manager[IOSDecryptionKey]
-    LineEncryptionErrors = Manager[LineEncryptionError]
     ParticipantActionLogs = Manager[ParticipantActionLog]
     ParticipantDeletionEvents = Manager[ParticipantDeletionEvent]
     ParticipantFCMHistories = Manager[ParticipantFCMHistory]

@@ -144,12 +144,6 @@ DATA_DELETION_USERTYPE: str = getenv('DATA_DELETION_USERTYPE', 'study_researcher
 # Developer options
 #
 
-# Developer debugging settings for working on decryption issues, which are particularly difficult to
-# manage and may require storing [substantially] more data than there is in a Sentry error report.
-#   Expects (case-insensitive) "true" to enable, otherwise it is disabled.
-# todo: remove this setting.
-STORE_DECRYPTION_LINE_ERRORS: bool = getenv('STORE_DECRYPTION_LINE_ERRORS', 'false').lower() == 'true'
-
 # upload logging is literally the logging of details of file uploads from mobile devices.
 # (This setting exists because this variable has to be imported in multiple locations)
 # (This will eventually be replaced with better logging controls.)

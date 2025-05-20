@@ -27,7 +27,7 @@ from constants.s3_constants import (COMPRESSED_DATA_MISSING_AT_UPLOAD,
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
 from database.models import ArchivedEvent, S3File, ScheduledEvent
-from database.profiling_models import EncryptionErrorMetadata, LineEncryptionError, UploadTracking
+from database.profiling_models import EncryptionErrorMetadata, UploadTracking
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
     PushNotificationDisabledEvent, SurveyNotificationReport)
@@ -253,17 +253,6 @@ class TestParticipantDataDeletion(CommonTestCase):
     @data_purge_mock_s3_calls
     def test_confirm_SummaryStatisticDaily(self):
         self.default_summary_statistic_daily
-        self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
-        confirm_deleted(self.default_participant_deletion_event)
-    
-    @data_purge_mock_s3_calls
-    def test_confirm_LineEncryptionError(self):
-        LineEncryptionError.objects.create(
-            base64_decryption_key="abc123",
-            participant=self.default_participant,
-            type=LineEncryptionError.PADDING_ERROR
-        )
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)

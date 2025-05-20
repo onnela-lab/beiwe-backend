@@ -30,39 +30,6 @@ class EncryptionErrorMetadata(TimestampedModel):
     participant: Participant = models.ForeignKey(Participant, on_delete=models.PROTECT, null=True)
 
 
-class LineEncryptionError(TimestampedModel):
-    AES_KEY_BAD_LENGTH = "AES_KEY_BAD_LENGTH"
-    EMPTY_KEY = "EMPTY_KEY"
-    INVALID_LENGTH = "INVALID_LENGTH"
-    IV_BAD_LENGTH = "IV_BAD_LENGTH"
-    IV_MISSING = "IV_MISSING"
-    LINE_EMPTY = "LINE_EMPTY"
-    LINE_IS_NONE = "LINE_IS_NONE"
-    MALFORMED_CONFIG = "MALFORMED_CONFIG"
-    MP4_PADDING = "MP4_PADDING"
-    PADDING_ERROR = "PADDING_ERROR"
-    
-    ERROR_TYPE_CHOICES = (
-        (AES_KEY_BAD_LENGTH, AES_KEY_BAD_LENGTH),
-        (EMPTY_KEY, EMPTY_KEY),
-        (INVALID_LENGTH, INVALID_LENGTH),
-        (IV_BAD_LENGTH, IV_BAD_LENGTH),
-        (IV_MISSING, IV_MISSING),
-        (LINE_EMPTY, LINE_EMPTY),
-        (LINE_IS_NONE, LINE_IS_NONE),
-        (MP4_PADDING, MP4_PADDING),
-        (MALFORMED_CONFIG, MALFORMED_CONFIG),
-        (PADDING_ERROR, PADDING_ERROR),
-    )
-    
-    type = models.CharField(max_length=32, choices=ERROR_TYPE_CHOICES)
-    line = models.TextField(blank=True)
-    base64_decryption_key = models.TextField()
-    prev_line = models.TextField(blank=True)
-    next_line = models.TextField(blank=True)
-    participant: Participant = models.ForeignKey(Participant, null=True, on_delete=models.PROTECT)
-
-
 # WARNING: this table is huge. Several-to-many multiples of ChunkRegistry, though it is not as
 # complex and rows are individually less bulky. Never pull this table into memory, always use
 # .iterator() in combination with .values() or .values_list() and test your query on your largest
