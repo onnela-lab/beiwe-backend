@@ -174,6 +174,29 @@ class DeviceDataDecryptor():
                 byte_count=len(self.original_data),
             )
             raise RemoteDeleteFileScenario("The file was null bytes.")
+        
+        if null_count > 0:
+            print("debugging null bytes start")
+            
+            print("file name:", self.file_name)
+            print(f"there were {null_count} null bytes in the file out of {len(self.original_data)} bytes total.")
+            
+            no_nulls = self.original_data.replace(b"\00", b"")
+            print("breakdown:", Counter(no_nulls))
+            
+            print("debugging null bytes end")
+            
+            # print(self.original_data)
+            
+            """
+            after 24 hours
+            May 15 18:33:23: there were 3350 null bytes in the file out of 157195 bytes total.
+            May 15 18:33:23: there were 17018 null bytes in the file out of 785789 bytes total.
+            May 16 05:40:41: there were 90 null bytes in the file out of 2229 bytes total.
+            May 16 05:56:54: there were 90 null bytes in the file out of 2217 bytes total.
+            May 16 05:59:07: there were 3752 null bytes in the file out of 133879 bytes total.
+            May 16 06:01:53: there were 40200 null bytes in the file out of 924479 bytes total.
+            """
     
     def extract_aes_key(self) -> bytes:
         """ The following code is a bit dumb. The decryption key is encoded as base64 twice,
