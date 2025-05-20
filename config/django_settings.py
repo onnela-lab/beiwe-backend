@@ -83,7 +83,6 @@ INSTALLED_APPS = [
     'database.apps.DatabaseConfig',
     'django.contrib.sessions',
     'django_extensions',
-    'timezone_field',
     'django.contrib.staticfiles'
     # 'static_files',
 ]

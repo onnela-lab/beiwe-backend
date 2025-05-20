@@ -45,10 +45,6 @@ gunicorn
 # Keep these dependencies up to date
 boto3
 
-# Ug due to pytz.timezone("America/New_York") being off by 4 minutes (aka ... wrong) we had to abandon
-# this library. but we can't remove it because it is used in migrations. That was probably an old pytz bug.
-django-timezone-field==4.1.1
-
 # we actually had a requirements conflict _involving pip-tools_ so we are removing it from the requirements...
 # pip-tools>=7.3.0
 

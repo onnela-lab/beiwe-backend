@@ -67,15 +67,12 @@ django==5.1.9
     #   django-extensions
     #   django-stubs
     #   django-stubs-ext
-    #   django-timezone-field
 django-extensions==4.1
     # via -r requirements.in
 django-stubs[1-15-0,1.15.0]==5.2.0
     # via -r requirements.in
 django-stubs-ext==5.2.0
     # via django-stubs
-django-timezone-field==4.1.1
-    # via -r requirements.in
 executing==2.2.0
     # via stack-data
 firebase-admin==5.4.0
@@ -263,7 +260,6 @@ python-dateutil==2.9.0.post0
 pytz==2025.2
     # via
     #   beiwe-forest
-    #   django-timezone-field
     #   pandas
 pyzstd==0.17.0
     # via -r requirements.in
