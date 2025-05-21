@@ -1,5 +1,6 @@
 import functools
 import json
+from typing import Callable
 
 from django import forms
 from django.http.request import HttpRequest
@@ -39,7 +40,7 @@ def log(*args, **kwargs):
         print(*args, **kwargs)
 
 
-def authenticate_tableau(some_function):
+def authenticate_tableau(some_function: Callable) -> Callable:
     @functools.wraps(some_function)
     def authenticate_and_call(*args, **kwargs):
         request: TableauRequest = args[0]
@@ -64,7 +65,7 @@ def authenticate_tableau(some_function):
     return authenticate_and_call
 
 
-def check_tableau_permissions(request: HttpRequest, study_object_id=None):
+def check_tableau_permissions(request: HttpRequest, study_object_id:str|None=None):
     """ Authenticate API key and check permissions for access to a study/participant data. """
     authorization_form = TableauAuthenticationForm(request.headers)
     

@@ -11,6 +11,7 @@ from pprint import pprint
 from statistics import mean, stdev
 from time import perf_counter
 from types import FunctionType, MethodType
+from typing import Callable
 
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 
@@ -56,7 +57,7 @@ class TxtClr:
             cls.CYAN = "\x1b[96m"
 
 
-def disambiguate_participant_survey(func):
+def disambiguate_participant_survey(func: Callable) -> Callable:
     """ This wrapper allows a function to take any combination of (participant, survey)
     Mostly used in debugging push notifications. """
     

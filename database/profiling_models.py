@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 from django.db import models
 from django.db.models import Count, Q, QuerySet, Sum
@@ -16,10 +17,9 @@ from libs.efficient_paginator import EfficientQueryPaginator
 from libs.utils.http_utils import numformat
 
 
-try:
-    from database.study_models import Study  # Used in a type hint
-except ImportError:
-    pass
+if TYPE_CHECKING:
+    from database.study_models import Study
+
 
 class EncryptionErrorMetadata(TimestampedModel):
     file_name = models.CharField(max_length=256)

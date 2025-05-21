@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from constants.study_constants import (COMPARATORS, FREE_RESPONSE, FREE_RESPONSE_NUMERIC,
     NUMERIC_COMPARATORS, NUMERIC_QUESTIONS)
@@ -34,7 +35,7 @@ def validate_survey_from_db(survey: Survey):
     return do_validate_survey(survey['content'])
 
 
-def do_validate_survey(questions):
+def do_validate_survey(questions: list[Any]) -> dict[str, list[Any]]:
     # The existence of this key is used to distinguish validation errors from other errors
     errors = {"duplicate_uuids": []}
     

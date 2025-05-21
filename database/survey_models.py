@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from django.db import models
 from django.db.models import Manager, QuerySet
@@ -10,12 +11,9 @@ from database.common_models import JSONTextField, ObjectIDModel, TimestampedMode
 from database.validators import LengthValidator
 
 
-# this is an import hack to improve IDE assistance
-try:
+if TYPE_CHECKING:
     from database.models import (AbsoluteSchedule, ArchivedEvent, ChunkRegistry, RelativeSchedule,
         ScheduledEvent, Study, WeeklySchedule)
-except ImportError:
-    pass
 
 
 class SurveyBase(TimestampedModel, ObjectIDModel):

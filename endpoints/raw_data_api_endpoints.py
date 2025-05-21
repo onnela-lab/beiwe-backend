@@ -110,7 +110,7 @@ def _get_data(request: ApiStudyResearcherRequest, as_compressed: bool):
         record.update_only(time_end=timezone.now(), bytes=streaming_zip_file.total_bytes)
 
 
-def parse_registry(request: ApiStudyResearcherRequest):
+def parse_registry(request: ApiStudyResearcherRequest) -> dict[str, str]:
     """ Parses the provided registry.dat file and returns a dictionary of chunk file names and hashes.
     (The registry file is just a json dictionary containing a list of file names and hashes.) """
     registry = request.POST.get("registry", None)
@@ -131,7 +131,7 @@ def parse_registry(request: ApiStudyResearcherRequest):
     return ret
 
 
-def str_to_datetime(time_string):
+def str_to_datetime(time_string: str) -> datetime:
     """ Translates a time string to a datetime object, raises a 400 if the format is wrong."""
     try:
         return make_aware(datetime.strptime(time_string, API_TIME_FORMAT), tz.UTC)

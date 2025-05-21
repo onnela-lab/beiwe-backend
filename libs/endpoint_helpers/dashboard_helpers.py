@@ -143,7 +143,7 @@ def create_next_past_urls(
     return next_url, past_url
 
 
-def get_bytes_data_stream_match(chunks: list[dict[str, datetime]], a_date: date, stream: str):
+def get_bytes_data_stream_match(chunks: list[dict[str, datetime]], a_date: date, stream: str) -> int:
     """ Returns byte value for correct chunk based on data stream and type comparisons. """
     # these time_bin datetime objects should be in the appropriate timezone
     return sum(

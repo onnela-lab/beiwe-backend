@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, UTC
+from typing import TYPE_CHECKING
 
 from django.db import models
 from django.db.models import QuerySet
@@ -18,11 +19,8 @@ from database.user_models_participant import Participant
 from libs.utils.security_utils import chunk_hash
 
 
-# this is an import hack to improve IDE assistance
-try:
+if TYPE_CHECKING:
     from database.models import Study, Survey
-except ImportError:
-    pass
 
 
 class UnchunkableDataTypeError(Exception): pass

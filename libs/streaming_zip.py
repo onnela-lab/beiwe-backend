@@ -15,7 +15,7 @@ from libs.streaming_io import StreamingBytesIO
 class DummyError(Exception): pass
 
 
-def get_survey_id(chunk: dict):
+def get_survey_id(chunk: dict) -> str:
     survey_id = chunk.get("survey__object_id")
     if not survey_id:
         # example real path as it should come in: 5873fe38644ad7557b168e43/q41aozrx/voiceRecording/587442edf7321c14da193487/1524857988384.wav
@@ -25,7 +25,7 @@ def get_survey_id(chunk: dict):
     return survey_id
 
 
-def determine_base_file_name(chunk: dict):
+def determine_base_file_name(chunk: dict) -> str:
     """ Generates the correct file name to provide the file with in the zip file.
         (This also includes the folder location files in the zip.) """
     # extension = chunk["chunk_path"][-3:]  # get 3 letter file extension from the source...

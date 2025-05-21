@@ -4,6 +4,7 @@ import hashlib
 from collections.abc import Generator
 from os.path import join as path_join
 from time import perf_counter_ns
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import boto3
@@ -18,12 +19,13 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
     ENABLE_IOS_FILE_RECOVERY, S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
-from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, BadS3PathException,
+from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException,
     COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
-    COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
-    IOSDataRecoveryDisabledException, MetaDotDict, MUST_BE_ZSTD_FORMAT, NoSuchKeyException,
-    S3DeletionException, SMART_GET_ERROR, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
-    UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
+    COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+    COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, IOSDataRecoveryDisabledException, MetaDotDict,
+    MUST_BE_ZSTD_FORMAT, NoSuchKeyException, S3DeletionException, SMART_GET_ERROR,
+    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION, UNCOMPRESSED_DATA_MISSING_ON_POP,
+    UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
     UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
@@ -31,11 +33,9 @@ from libs.utils.compression import compress, decompress
 
 ## This file must be near-globally importable, including inside db models; so these imports fail.
 # If you need to use a model you must to use a local import.
-try:
+if TYPE_CHECKING:
     from database.models import Participant, Study
     StrPartStudy = str | Participant | Study
-except ImportError:
-    pass
 
 
 ## Global S3 Connection
@@ -141,7 +141,7 @@ class S3Storage:
     
     ## File State Tracking
     
-    def set_file_content_uncompressed(self, file_content: bytes):
+    def set_file_content_uncompressed(self, file_content: bytes) -> S3Storage:
         # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
@@ -151,7 +151,7 @@ class S3Storage:
         self.uncompressed_data = file_content
         return self
     
-    def set_file_content_compressed(self, file_content: bytes):
+    def set_file_content_compressed(self, file_content: bytes) -> S3Storage:
         # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
@@ -167,13 +167,13 @@ class S3Storage:
         self.metadata.size_compressed = len(self.compressed_data)
         return self
     
-    def pop_uncompressed_file_content(self):
+    def pop_uncompressed_file_content(self) -> bytes:
         assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_ON_POP
         uncompressed_data = self.uncompressed_data
         del self.uncompressed_data
         return uncompressed_data
     
-    def pop_compressed_file_content(self):
+    def pop_compressed_file_content(self) -> bytes:
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_ON_POP
         compressed_data = self.compressed_data
         del self.compressed_data
@@ -232,7 +232,7 @@ class S3Storage:
     
     ## Download
     
-    def download(self):
+    def download(self) -> S3Storage:
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         try:
@@ -291,14 +291,14 @@ class S3Storage:
     # Todo: cache for real? do we want to cache the encryption keys globally?
     
     @property
-    def encryption_key(self):
+    def encryption_key(self) -> bytes:
         if hasattr(self, "_encryption_key"):
             return self._encryption_key
         self._encryption_key = smart_get_study_encryption_key(self.smart_key_obj)
         return self._encryption_key
     
     @property
-    def get_path_prefix(self):
+    def get_path_prefix(self) -> str:
         if hasattr(self, "_the_path_prefix"):
             return self._the_path_prefix
         self._the_path_prefix = get_just_prefix(self.smart_key_obj)
@@ -343,10 +343,10 @@ class S3Storage:
     
     ## Retrieve
     
-    def _s3_retrieve_uncompressed(self):
+    def _s3_retrieve_uncompressed(self) -> bytes:
         return decrypt_server(self._raw_s3_retrieve(self.s3_path_uncompressed), self.encryption_key)
     
-    def _s3_retrieve_zst_and_profile(self):
+    def _s3_retrieve_zst_and_profile(self) -> bytes:
         key = self.encryption_key  # may have network/db op
         
         t_download = perf_counter_ns()

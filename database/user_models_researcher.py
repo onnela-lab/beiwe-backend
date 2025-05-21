@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 from datetime import datetime
+from typing import Type, TYPE_CHECKING
 
 from django.contrib.sessions.backends.db import SessionStore as DBStore
 from django.contrib.sessions.base_session import AbstractBaseSession
@@ -23,11 +24,8 @@ from libs.utils.security_utils import (BadDjangoKeyFormatting, compare_password,
     to_django_password_components)
 
 
-# This is an import hack to improve IDE assistance.
-try:
+if TYPE_CHECKING:
     from database.models import ApiKey, DataAccessRecord
-except ImportError:
-    pass
 
 
 class Researcher(AbstractPasswordUser):
@@ -61,7 +59,7 @@ class Researcher(AbstractPasswordUser):
     
     ## User Creation and Authentication
     @classmethod
-    def create_with_password(cls, username, password, **kwargs) -> Researcher:
+    def create_with_password(cls, username: str, password: str, **kwargs) -> Researcher:
         """ Creates a new Researcher with provided username and password. They will initially
         not be associated with any Study. """
         researcher = cls(username=username, **kwargs)
@@ -116,7 +114,7 @@ class Researcher(AbstractPasswordUser):
         return self.mfa_token
     
     @property
-    def _mfa_now(self):
+    def _mfa_now(self) -> str:
         """ Returns the current MFA code for this user, for debugging. """
         return get_current_mfa_code(self.mfa_token)
     
@@ -266,10 +264,10 @@ class ResearcherSession(AbstractBaseSession):
 class SessionStore(DBStore):
     
     @classmethod
-    def get_model_class(cls):
+    def get_model_class(cls) -> Type[ResearcherSession]:
         return ResearcherSession
     
-    def create_model_instance(self, data: dict):
+    def create_model_instance(self, data: dict) -> ResearcherSession:
         """ Using the session, grab the researcher and create a (now queryable!) database session """
         
         # May 2025: converting to json serializer for session is causing an expiry instance in

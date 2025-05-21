@@ -143,7 +143,7 @@ ANDROID_CERT = """{
 }"""
 
 
-def MIDNIGHT_EVERY_DAY_OF_WEEK():
+def MIDNIGHT_EVERY_DAY_OF_WEEK() -> list[list[int]]:
     return [[0], [0], [0], [0], [0], [0], [0]]
 
 
