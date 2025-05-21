@@ -494,7 +494,6 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
             "data_page_endpoints.get_data_for_dashboard_datastream_display",
             "data_page_endpoints.dashboard_participant_page",
             "data_page_endpoints.data_api_web_form_page",
-            "forest_endpoints.forest_tasks_progress",
             "forest_endpoints.task_log",
             "participant_endpoints.notification_history",
             "participant_endpoints.participant_page",
@@ -512,7 +511,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
     }
     
     @property
-    def urls(self):
+    def urls(self) -> list[str]:
         # a list of ~valid test urls for every single url in LOGIN_REDIRECT_SAFE.
         # (these urls must start with a slash, ending slash shouldn't matter)
         return [
@@ -537,7 +536,6 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
             f"/view_study/{self.session_study.id}",
             f'/view_study/{self.session_study.id}/participant/{self.default_participant.id}',
             f'/view_study/{self.session_study.id}/participant/{self.default_participant.id}/notification_history',
-            f'/studies/{self.session_study.id}/forest/progress/',
             f'/studies/{self.session_study.id}/forest/tasks/',
             f'/view_study/{self.session_study.id}/participant/{self.default_participant.id}/experiments',
         ]

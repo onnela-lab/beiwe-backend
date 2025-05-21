@@ -21,20 +21,6 @@ from tests.helpers import CURRENT_TEST_DATE_BYTES, DummyThreadPool
 #
 
 
-# FIXME: This endpoint is unusable, it is not a viable way to look at forest stuff.
-class TestForestAnalysisProgress(ResearcherSessionTest):
-    ENDPOINT_NAME = "forest_endpoints.forest_tasks_progress"
-    
-    def test(self):
-        # hey it loads...
-        self.set_session_study_relation(ResearcherRole.researcher)
-        for _ in range(10):
-            self.generate_participant(self.session_study)
-        # print(Participant.objects.count())
-        self.smart_get(self.session_study.id)
-
-
-
 # class TestForestCreateTasks(ResearcherSessionTest):
 #     ENDPOINT_NAME = "forest_endpoints.create_tasks"
 #     def test(self):

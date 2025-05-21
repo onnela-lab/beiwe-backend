@@ -241,7 +241,6 @@ path("tableau/participant-table-wdc/v1/<str:study_object_id>", data_api_endpoint
 # forest pages
 path('studies/<str:study_id>/forest/tasks/create', forest_endpoints.create_tasks)
 path('studies/<str:study_id>/forest/tasks/copy', forest_endpoints.copy_forest_task)
-path('studies/<str:study_id>/forest/progress', forest_endpoints.forest_tasks_progress, login_redirect=SAFE)
 path("studies/<str:study_id>/forest/tasks/<str:forest_task_external_id>/cancel", forest_endpoints.cancel_task)
 path('studies/<str:study_id>/forest/tasks', forest_endpoints.task_log, login_redirect=SAFE)
 path('studies/<str:study_id>/forest/tasks/download', forest_endpoints.download_task_log)
