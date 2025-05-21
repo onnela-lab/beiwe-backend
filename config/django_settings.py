@@ -24,11 +24,11 @@ DATABASES = {
         'CONN_MAX_AGE': 0,
         'OPTIONS': {
             'sslmode': 'require',
-            "pool": {
-                "min_size": 5,
-                "max_size": 20,
-                "timeout": 10,
-            },
+            # "pool": {
+            #     "min_size": 5,
+            #     "max_size": 20,
+            #     "timeout": 10,
+            # },
         },
         "ATOMIC_REQUESTS": True,  # default is True, just being explicit
         'TEST': {
@@ -42,8 +42,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 DEBUG = 'localhost' in DOMAIN_NAME or '127.0.0.1' in DOMAIN_NAME or '::1' in DOMAIN_NAME
 
-if DEBUG:
-    DATABASES['default']['OPTIONS']['pool']['min_size'] = 1
+# if DEBUG:
+#     DATABASES['default']['OPTIONS']['pool']['min_size'] = 1
 
 SECURE_SSL_REDIRECT = not DEBUG
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
