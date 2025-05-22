@@ -150,6 +150,7 @@ TEMPLATES = [
         'DIRS': [
             "frontend/templates/",
             "frontend/static/javascript",
+            "frontend/static/css",
         ],
         'OPTIONS': {
             'autoescape': True,

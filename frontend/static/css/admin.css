@@ -185,6 +185,10 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .text-bold {
     font-weight: bold;
 }
+.text-black {
+    color: black;
+}
+
 
 
 .table.table-notifications td {
@@ -506,4 +510,26 @@ td.custom-field-value:hover span.custom-field-edit-link {
 }
 .text-wrap-stable {
     text-wrap: stable;
+}
+
+
+.dropdown-translucent {
+    background-color: rgb(255, 255, 255, 0.9);
+    backdrop-filter: blur(1.5px)
+}
+
+/* animations */
+.hover-pulse {
+  :hover {
+    animation: pulse 2s infinite;
+  }
+}
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.noanimation {
+    animation: none !important;
 }
