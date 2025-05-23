@@ -14,3 +14,10 @@ th, td {
 	margin-top: 1px;
 	margin-bottom: 2px;
 }
+@media (min-width: 768px) {
+  .modal-dialog {
+    width: 80%;
+  }
+}.faded {
+  opacity: 0.3;
+}
