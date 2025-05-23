@@ -3,212 +3,328 @@
 {% block title %}Edit Survey{% endblock %}
 
 {% block head %}
-  {{ super() }}
-  <link rel="stylesheet" href="/static/css/survey_builder.css"  type="text/css"/>
-  <style>
-    @media (min-width: 768px) {
-      .modal-dialog {
-        width: 80%;
-      }
-    }
-    .faded {
-      opacity: 0.3;
-    }
-  </style>
+{{ super() }}
+<style>{% include "/survey_builder.css" %}</style>
 {% endblock %}
 
 {% block body_attributes %}ng-controller="SurveyBuilderCtrl as surveyBuilder"{% endblock %}
 
 {% block javascript %}
-  <script type="text/javascript">
-      var questions = {{ survey.content|tojson }};
-      var survey_id = '{{ survey.id }}';
-      var study_id = '{{ study.id }}';
-      var weekly_times = {{ weekly_timings|tojson }};
-      var relative_times = {{ relative_timings|tojson }};
-      var absolute_times = {{ absolute_timings|tojson }};
-      var settings = {{ survey.settings|tojson }};
-      var interventions = {{ interventions_dict|tojson }};
-      var randomize = settings.randomize || false;
-      var randomizeWithMemory = settings.randomize_with_memory || false;
-      var numberOfRandomQuestions = settings.number_of_random_questions || null;
-      var trackingSurvey = ('{{ survey.survey_type }}' == "tracking_survey");
-      var audioSurvey = ('{{ survey.survey_type }}' == "audio_survey");
-      var always_available = settings.always_available || false;
-  </script>
-  <script src="/static/javascript/survey-editor/schedule.js"></script>
-  <script src="/static/javascript/survey-editor/survey-editor.js"></script>
-  <script src="/static/javascript/app/survey-builder/constants.js"></script>
-  <script src="/static/javascript/app/survey-builder/services.js"></script>
-  <script src="/static/javascript/app/survey-builder/directives/tooltip/tooltip.js"></script>
-  <script src="/static/javascript/app/survey-builder/directives/add-logic-buttons/add-logic-buttons.js"></script>
-  <script src="/static/javascript/app/survey-builder/directives/conditional-block/conditional-block.js"></script>
-  <script src="/static/javascript/app/survey-builder/directives/logical-block/logical-block.js"></script>
-  <script src="/static/javascript/app/survey-builder/directives/edit-question/edit-question.js"></script>
-  <script src="/static/javascript/app/survey-builder/directives/question-summary/question-summary.js"></script>
-  <script src="/static/javascript/app/survey-builder/controllers/survey-builder-controller.js"></script>
+<script type="text/javascript">
+  var questions = {{ survey.content|tojson }};
+  var survey_id = '{{ survey.id }}';
+  var study_id = '{{ study.id }}';
+  var weekly_times = {{ weekly_timings|tojson }};
+  var relative_times = {{ relative_timings|tojson }};
+  var absolute_times = {{ absolute_timings|tojson }};
+  var settings = {{ survey.settings|tojson }};
+  var interventions = {{ interventions_dict|tojson }};
+  var randomize = settings.randomize || false;
+  var randomizeWithMemory = settings.randomize_with_memory || false;
+  var numberOfRandomQuestions = settings.number_of_random_questions || null;
+  var trackingSurvey = ('{{ survey.survey_type }}' == "tracking_survey");
+  var audioSurvey = ('{{ survey.survey_type }}' == "audio_survey");
+  var always_available = settings.always_available || false;
+</script>
+<script src="/static/javascript/survey-editor/schedule.js"></script>
+<script src="/static/javascript/survey-editor/survey-editor.js"></script>
+<script src="/static/javascript/app/survey-builder/constants.js"></script>
+<script src="/static/javascript/app/survey-builder/services.js"></script>
+<script src="/static/javascript/app/survey-builder/directives/tooltip/tooltip.js"></script>
+<script src="/static/javascript/app/survey-builder/directives/add-logic-buttons/add-logic-buttons.js"></script>
+<script src="/static/javascript/app/survey-builder/directives/conditional-block/conditional-block.js"></script>
+<script src="/static/javascript/app/survey-builder/directives/logical-block/logical-block.js"></script>
+<script src="/static/javascript/app/survey-builder/directives/edit-question/edit-question.js"></script>
+<script src="/static/javascript/app/survey-builder/directives/question-summary/question-summary.js"></script>
+<script src="/static/javascript/app/survey-builder/controllers/survey-builder-controller.js"></script>
 {% endblock %}
 
 {% block content %}
 
-  <ol class="breadcrumb">
-    <li>
-      <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
-    </li>
-    <li class="active">
-      {{ "Audio" if survey.survey_type == 'audio_survey' }} Survey ID #{{ survey.object_id }}
-    </li>
-  </ol>
+<ol class="breadcrumb">
+  <li>
+    <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
+  </li>
+  <li class="active">
+    {{ "Audio" if survey.survey_type == 'audio_survey' }} Survey ID #{{ survey.object_id }}
+  </li>
+</ol>
 
-  <div class="container">
-    <div class="">
-      <h2>Edit Survey</h2>
-    </div>
-    
-    <div class="well well-sm col-xs-12">
-      <div class="col-xs-12 margin-bottom-1">
-        {% if not survey.name %}
-          <h3 style="color: gray"> Unnamed Survey </h3>
-        {% else %}
-          <h3> {{ survey.name }} </h3>
-        {% endif %}
-      </div>
+<div class="container">
+  <div class="">
+    <h2>Edit Survey</h2>
+  </div>
 
-      <form action="/rename_survey/{{ study.id }}/{{ survey.id }}" method="post">
-        <div class="col-lg-10 col-xs-12">
-          <input type="text" name="survey_name" value="{{ survey.name }}" class="form-control">
-        </div>
-        <div class="col-lg-2 col-xs-12">
-          <button class="btn btn-warning" type="submit">Update Survey Name</button>
-        </div>
-      </form>
-      <div class="text-center col-xs-12 margin-top-0-5">
-        <i> This survey name <b>is visible </b> to the study participant.</i>
-      </div>
-    </div>
- 
-    <hr>
-    {% include 'survey_schedule.html' %}
-    <div id="surveySchedule"></div>
-    <hr>
-    
-    {# Tracking surveys #}
-    {% if survey.survey_type == "tracking_survey" %}
-      <div class="row">
-
-        <div class="col-xs-2 margin-bottom-2">
-          <h3>Questions</h3>
-        </div>
-          <div class="col-xs-8 h3-margins text-right margin-top-2">
-            Your changes will not be saved until you click "Save and Deploy."
-          </div>
-          <div class="col-xs-2 margin-left-3 margin-top-1">
-            <button type="submit" class="btn btn-success btn-lg" onclick="end('{{ domain_name }}'); return false;">
-              <span class="glyphicon glyphicon-upload"></span> Save & Deploy
-            </button>
-          </div>
-        </div>
-
-        <question-summary></question-summary>
-        <br>
-        
-        <button type="button" class="btn btn-info btn-lg" ng-click="surveyBuilder.resetQuestionModal();">
-          <span class="glyphicon glyphicon-plus"></span> Add Question
-        </button>
-        <br>
-        <br>
-        <div class="checkbox">
-          <label>
-            <input type="checkbox" name="randomize" id="randomize" ng-model="surveyBuilder.randomize">
-            <b>Randomize</b> which questions are displayed each time the participant takes a survey. This also randomizes the order in which the questions are displayed. It also causes the survey to ignore all question display logic so that all questions have an equal chance of appearing.
-          </label>
-        </div>
-
-        <div ng-if="surveyBuilder.randomize">
-          <div class="checkbox">
-            <label>
-              <input type="checkbox" name="randomize_with_memory" id="randomize_with_memory"
-                     ng-model="surveyBuilder.randomizeWithMemory">
-              <b>Randomize without replacement</b>, i.e., on each survey, only display questions that haven't appeared
-                yet on a previous survey, until all questions have appeared in a survey, and then start over
-            </label>
-          </div>
-          <div class="form-group form-inline">
-            <input type="number" name="number_of_random_questions" id="number_of_random_questions" class="form-control" ng-model="surveyBuilder.numberOfRandomQuestions">
-            <b>How many questions</b> are displayed in each survey, out of the <b>{% raw %}{{ surveyBuilder.questions.length }}{% endraw %} questions currently</b> in the question bank for this survey
-          </div>
-        </div>
-      </div>
-      {#   add ability to make the tracking surveys always accessible    #}
-      <input {% if survey.settings['always_available'] %} checked {% endif %}
-             type="checkbox" name="always_available" id="always_available">
-        <label for="always_available"><b> Make tracking survey always available</b></label>
-        if checked, the survey will be available to the participants at all times regardless of schedule
-        <br>
-      {# Audio Survey #}
-      {% elif survey.survey_type == "audio_survey" %}
-        <div class="">
-          <h3>Voice Recording Prompt</h3>
-          {# this is dumb, but don't refactor this line into multiple lines, it will result inserting new line/whitespace characters onto the text (could fix in code) #}
-          <textarea id="voice_recording_prompt_text_input" class="form-control" type="textarea" style="resize: both;" rows="5">{% if survey.content[0] %}{{survey.content[0]['prompt']}}{% endif %}</textarea>
-        </div>
-        <hr>
-        <div class="">
-          <h3>Technical Settings</h3>
-          <div class="well well-sm">
-            <p>Audio recordings contain a single channel and are made using the active microphone on the device, which may may be on a connected headset.  Older versions of the Beiwe App will make compressed recordings at 64Kbps.</p>
-
-            <p><b>Compressed</b> audio files use AAC compression. 64Kbps should be sufficient for a vocal recording under nearly all situations, and produces roughly <b>one half of a megabyte </b> of data for each minute of audio. The sample rate of a compressed recording is always 44,100Hz. </p>
-
-            <p><b>Uncompressed</b> audio recordings produce wav files. A wav file with a sample rate of 44,100 ("CD quality") has a bit rate equivalence of 706Kbps, or roughly <b>five megabytes</b> of data for each minute of audio.</p>
-          </div>
-
-          <input type="radio" name="audio_survey_type" id="radio_compressed" value="compressed"
-                 onclick="audioSurveyTypeChange('compressed')" {{ 'checked' if survey.settings.audio_survey_type == 'compressed' }}>
-          <label for="radio_compressed"> Compressed audio&nbsp;&nbsp;&nbsp; </label>
-
-          <input type="radio" name="audio_survey_type" value="raw" id="radio_uncompressed"
-                 onclick="audioSurveyTypeChange('raw')"  {{ 'checked' if survey.settings.audio_survey_type == 'raw' }} >
-          <label for="radio_uncompressed"> Uncompressed audio&nbsp;&nbsp;&nbsp; </label>
-
-          <select id="compressed_options" name="bit_rate" >
-            <option value="32000" {{ 'selected' if survey.settings.bit_rate == 32000 }}>32Kbps</option>
-            <option value="64000" {{ 'selected' if survey.settings.bit_rate == 64000 or not survey.settings.bit_rate }}>64Kbps</option>
-            <option value="96000" {{ 'selected' if survey.settings.bit_rate == 96000 }}>96Kbps</option>
-            <option value="128000" {{ 'selected' if survey.settings.bit_rate == 128000 }}>128Kbps</option>
-          </select>
-
-          <select id="raw_options" name="sample_rate" >
-            <option value="16000" {{ 'selected' if survey.settings['sample_rate'] == 16000 }}>16,000Hz</option>
-            <option value="22050" {{ 'selected' if survey.settings['sample_rate'] == 22050 }}>22,050Hz</option>
-            <option value="44100" {{ 'selected' if survey.settings['sample_rate'] == 44100 or not survey.settings['sample_rate'] }}>44,100Hz</option>
-          </select>
-        </div>
-        {#    add ability to make the audio surveys always accessible    #}
-        <input type="checkbox" name="always_available" id="always_available"
-            {% if survey.settings['always_available'] %} checked {% endif %}>
-        <label for="always_available"><b> Make audio survey always available</b> </label> if checked, the survey will be available to the participants at all times regardless of schedule <br>
+  <div class="well well-sm col-xs-12">
+    <div class="col-xs-12 margin-bottom-1">
+      {% if not survey.name %}
+      <h3 style="color: gray"> Unnamed Survey </h3>
+      {% else %}
+      <h3> {{ survey.name }} </h3>
       {% endif %}
+    </div>
 
-      <hr><br>
+    <form
+      action="/rename_survey/{{ study.id }}/{{ survey.id }}"
+      method="post"
+    >
+      <div class="col-lg-10 col-xs-12">
 
-      <div class="">
-        <button type="submit" class="btn btn-success btn-lg" onclick="end('{{ domain_name }}'); return false;">
-          <span class="glyphicon glyphicon-upload"></span> Save & Deploy
-        </button>
-        <a class="btn btn-lg btn-danger pull-right" href="/delete_survey/{{ study.id }}/{{ survey.id }}" onclick="return confirm('Are you sure you want to delete this survey? The survey questions will be lost forever, and if you want them back, you will have to re-create the survey from scratch. Also, people in the study will no longer get notifications for this survey or be able to answer it.')">
-          <span class="glyphicon glyphicon-trash"></span> Delete survey</a>
+        <input
+          type="text"
+          name="survey_name"
+          value="{{ survey.name }}"
+          class="form-control"
+        >
       </div>
-      <br>
-      <div ng-if="surveyBuilder.errors" class="alert alert-danger">
-        <h4>Errors:</h4>
-        <ul>
-          <li ng-repeat="error in surveyBuilder.formatErrors(surveyBuilder.errors)">
-            {% raw %}{{ error }}{% endraw %}
-          </li>
-        </ul>
+      <div class="col-lg-2 col-xs-12">
+
+        <button
+          class="btn btn-warning"
+          type="submit"
+        >Update Survey Name</button>
       </div>
 
+    </form>
+    <div class="text-center col-xs-12 margin-top-0-5">
+      <i> This survey name <b>is visible </b> to the study participant.</i>
     </div>
   </div>
+
+  <hr>
+  {% include 'survey_schedule.html' %}
+  <div id="surveySchedule"></div>
+  <hr>
+
+  {# Tracking surveys #}
+  {% if survey.survey_type == "tracking_survey" %}
+  <div class="row">
+
+    <div class="col-xs-2 margin-bottom-2">
+      <h3>Questions</h3>
+    </div>
+    <div class="col-xs-8 h3-margins text-right margin-top-2">
+      Your changes will not be saved until you click "Save and Deploy."
+    </div>
+    <div class="col-xs-2 margin-left-3 margin-top-1">
+
+      <button
+        type="submit"
+        class="btn btn-success btn-lg"
+        onclick="end('{{ domain_name }}'); return false;"
+      >
+        <span class="glyphicon glyphicon-upload"></span> Save & Deploy
+      </button>
+    </div>
+  </div>
+
+  <question-summary></question-summary>
+  <br>
+
+  <button
+    type="button"
+    class="btn btn-info btn-lg"
+    ng-click="surveyBuilder.resetQuestionModal();"
+  >
+    <span class="glyphicon glyphicon-plus"></span> Add Question
+  </button>
+  <br><br>
+  <div class="checkbox">
+
+    <label>
+
+      <input
+        type="checkbox"
+        name="randomize"
+        id="randomize"
+        ng-model="surveyBuilder.randomize"
+      >
+      <b>Randomize</b> which questions are displayed each time the participant takes a survey. This also randomizes the
+      order in which the questions are displayed. It also causes the survey to ignore all question display logic so that
+      all questions have an equal chance of appearing.
+    </label>
+  </div>
+
+  <div ng-if="surveyBuilder.randomize">
+    <div class="checkbox">
+
+      <label>
+
+        <input
+          type="checkbox"
+          name="randomize_with_memory"
+          id="randomize_with_memory"
+          ng-model="surveyBuilder.randomizeWithMemory"
+        >
+        <b>Randomize without replacement</b>, i.e., on each survey, only display questions that haven't appeared
+        yet on a previous survey, until all questions have appeared in a survey, and then start over
+      </label>
+    </div>
+    <div class="form-group form-inline">
+
+      <input
+        type="number"
+        name="number_of_random_questions"
+        id="number_of_random_questions"
+        class="form-control"
+        ng-model="surveyBuilder.numberOfRandomQuestions"
+      >
+      <b>How many questions</b> are displayed in each survey, out of the
+      <b>{% raw %}{{ surveyBuilder.questions.length }}{% endraw %} questions currently</b> in the question bank for this
+      survey
+    </div>
+  </div>
+</div>
+{#   add ability to make the tracking surveys always accessible    #}
+
+<input
+  {% if survey.settings['always_available'] %}
+  checked
+  {% endif %}
+  type="checkbox"
+  name="always_available"
+  id="always_available"
+>
+
+<label for="always_available"><b> Make tracking survey always available</b></label>
+if checked, the survey will be available to the participants at all times regardless of schedule
+<br>
+{# Audio Survey #}
+{% elif survey.survey_type == "audio_survey" %}
+<div class="">
+  <h3>Voice Recording Prompt</h3>
+  {# this is dumb, but don't refactor this line into multiple lines, it will result inserting new line/whitespace characters onto the text (could fix in code) #}
+  <textarea
+    id="voice_recording_prompt_text_input"
+    class="form-control"
+    type="textarea"
+    style="resize: both;"
+    rows="5"
+  >{% if survey.content[0] %}{{survey.content[0]['prompt']}}{% endif %}</textarea>
+</div>
+<hr>
+<div class="">
+  <h3>Technical Settings</h3>
+  <div class="well well-sm">
+    <p>Audio recordings contain a single channel and are made using the active microphone on the device, which may may
+      be on a connected headset. Older versions of the Beiwe App will make compressed recordings at 64Kbps.</p>
+
+    <p><b>Compressed</b> audio files use AAC compression. 64Kbps should be sufficient for a vocal recording under nearly
+      all situations, and produces roughly <b>one half of a megabyte </b> of data for each minute of audio. The sample
+      rate of a compressed recording is always 44,100Hz. </p>
+
+    <p><b>Uncompressed</b> audio recordings produce wav files. A wav file with a sample rate of 44,100 ("CD quality")
+      has a bit rate equivalence of 706Kbps, or roughly <b>five megabytes</b> of data for each minute of audio.</p>
+  </div>
+
+  <input
+    type="radio"
+    name="audio_survey_type"
+    id="radio_compressed"
+    value="compressed"
+    onclick="audioSurveyTypeChange('compressed')"
+    {{ 'checked' if survey.settings.audio_survey_type == 'compressed' }}
+  >
+
+  <label for="radio_compressed"> Compressed audio&nbsp;&nbsp;&nbsp; </label>
+
+  <input
+    type="radio"
+    name="audio_survey_type"
+    value="raw"
+    id="radio_uncompressed"
+    onclick="audioSurveyTypeChange('raw')"
+    {{ 'checked' if survey.settings.audio_survey_type == 'raw' }}
+  >
+
+  <label for="radio_uncompressed"> Uncompressed audio&nbsp;&nbsp;&nbsp; </label>
+
+  <select
+    id="compressed_options"
+    name="bit_rate"
+  >
+    <option
+      value="32000"
+      {{ 'selected' if survey.settings.bit_rate == 32000 }}
+    >32Kbps</option>
+    <option
+      value="64000"
+      {{ 'selected' if survey.settings.bit_rate == 64000 or not survey.settings.bit_rate }}
+    >64Kbps</option>
+    <option
+      value="96000"
+      {{ 'selected' if survey.settings.bit_rate == 96000 }}
+    >96Kbps</option>
+    <option
+      value="128000"
+      {{ 'selected' if survey.settings.bit_rate == 128000 }}
+    >128Kbps</option>
+  </select>
+
+  <select
+    id="raw_options"
+    name="sample_rate"
+  >
+    <option
+      value="16000"
+      {{ 'selected' if survey.settings['sample_rate'] == 16000 }}
+    >16,000Hz</option>
+    <option
+      value="22050"
+      {{ 'selected' if survey.settings['sample_rate'] == 22050 }}
+    >22,050Hz</option>
+    <option
+      value="44100"
+      {{ 'selected' if survey.settings['sample_rate'] == 44100 or not survey.settings['sample_rate'] }}
+    >44,100Hz</option>
+  </select>
+</div>
+{#    add ability to make the audio surveys always accessible    #}
+
+<input
+  type="checkbox"
+  name="always_available"
+  id="always_available"
+  {% if survey.settings['always_available'] %}
+  checked
+  {% endif %}
+>
+
+<label for="always_available"><b> Make audio survey always available</b> </label> if checked, the survey will be
+available to the participants at all times regardless of schedule <br>
+{% endif %}
+
+<hr><br>
+
+<div class="">
+
+  <button
+    type="submit"
+    class="btn btn-success btn-lg"
+    onclick="end('{{ domain_name }}'); return false;"
+  >
+    <span class="glyphicon glyphicon-upload"></span> Save & Deploy
+  </button>
+  <a
+    class="btn btn-lg btn-danger pull-right"
+    href="/delete_survey/{{ study.id }}/{{ survey.id }}"
+    onclick="return confirm('Are you sure you want to delete this survey? The survey questions will be lost forever, and if you want them back, you will have to re-create the survey from scratch. Also, people in the study will no longer get notifications for this survey or be able to answer it.')"
+  >
+    <span class="glyphicon glyphicon-trash"></span> Delete survey</a>
+</div>
+<br>
+<div
+  ng-if="surveyBuilder.errors"
+  class="alert alert-danger"
+>
+  <h4>Errors:</h4>
+  <ul>
+    <li ng-repeat="error in surveyBuilder.formatErrors(surveyBuilder.errors)">
+      {% raw %}{{ error }}{% endraw %}
+    </li>
+  </ul>
+</div>
+
+{# </div> #}
+{# </div> #}
 {% endblock %}
