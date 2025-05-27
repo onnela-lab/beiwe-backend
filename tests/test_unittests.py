@@ -34,7 +34,8 @@ from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
 from libs.aes import encrypt_for_server
 from libs.celery_control import DebugCeleryApp
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
-from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
+from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
+    convert_unix_to_human_readable_timestamps)
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
 from libs.s3 import BadS3PathException, decrypt_server, NoSuchKeyException, S3Storage
@@ -1521,3 +1522,18 @@ class TestDetermineFileName(CommonTestCase):
             determine_base_file_name(d),
             "steve/survey_timings/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.csv"
         )
+
+
+class TestFileProcessingUnittests(CommonTestCase):
+    
+    def test_convert_unix_to_human_readable_timestamps(self):
+        rows = [
+            [b"1", b"content"],
+            [b"2", b"more content"],
+        ]
+        header = convert_unix_to_human_readable_timestamps(b"something,anything", rows)
+        self.assertEqual(header, b"something,UTC time,anything")
+        self.assertEqual(rows, [
+            [b"1", b"1970-01-01T00:00:00.001", b"content"],
+            [b"2", b"1970-01-01T00:00:00.002", b"more content"],
+        ])

@@ -324,14 +324,10 @@ class S3Storage:
         This is a critical performance path. DO NOT separate into further functions calls without
         profiling memory usage. """
         
-        compressed_data = self.compressed_data  # 1x memory
-        
         t_encrypt = perf_counter_ns()
-        encrypted_compressed_data = encrypt_for_server(compressed_data, self.encryption_key)
+        encrypted_compressed_data = encrypt_for_server(self.compressed_data, self.encryption_key)
         t_encrypt = perf_counter_ns() - t_encrypt
         self.metadata.encryption_time_ns = t_encrypt
-        
-        del compressed_data
         
         t_upload = perf_counter_ns()
         _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
@@ -395,12 +391,19 @@ def s3_get_size(key_path: str):
 
 
 def s3_upload(
-        key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
+    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
 ) -> None:
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
     storage = S3Storage(key_path, obj, raw_path).set_file_content_uncompressed(data_string)
     storage.compress_and_push_to_storage_and_clear_memory()
+
+
+def s3_upload_no_compression(
+    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
+):
+    storage = S3Storage(key_path, obj, raw_path).set_file_content_compressed(data_string)
+    storage.push_to_storage_already_compressed_and_clear_memory()
 
 
 def s3_upload_plaintext(upload_path: str, data_string: bytes) -> None:
@@ -434,6 +437,7 @@ def s3_retrieve(key_path: str, obj: StrPartStudy, raw_path: bool = False, number
 def s3_retrieve_no_decompress(key_path: str, obj: StrPartStudy, raw_path: bool = False) -> bytes:
     """ As s3_retrieve, but does not decompress the file. """
     return S3Storage(key_path, obj, raw_path).download_no_decompress().pop_compressed_file_content()
+
 
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
     """ Retrieves a file as-is as bytes. """

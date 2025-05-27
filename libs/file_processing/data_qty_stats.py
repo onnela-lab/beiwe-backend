@@ -55,9 +55,9 @@ def populate_data_quantity(
 
 
 def calculate_data_quantity_stats(
-        participant: Participant,
-        earliest_time_bin_number: int = None,
-        latest_time_bin_number: int = None,
+    participant: Participant,
+    earliest_time_bin_number: int = None,
+    latest_time_bin_number: int = None,
 ):
     """ Update the SummaryStatisticDaily  stats for a participant, using ChunkRegistry data
     earliest_time_bin_number -- expressed in hours since 1/1/1970

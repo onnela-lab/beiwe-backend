@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import time
 from collections import defaultdict
 from collections.abc import Generator
 from datetime import timedelta
-from typing import DefaultDict
 
 from cronutils.error_handler import ErrorHandler
 from django.core.exceptions import ValidationError
@@ -10,16 +11,22 @@ from django.utils import timezone
 
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants import common_constants
+from constants.data_processing_constants import AllBinifiedData, CHUNK_EXISTS_CASE, SurveyIDHash
 from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry, FileToProcess
+from database.models import Study
 from database.user_models_participant import Participant
-from libs.file_processing.batched_network_operations import batch_upload
 from libs.file_processing.csv_merger import CsvMerger
 from libs.file_processing.data_qty_stats import calculate_data_quantity_stats
 from libs.file_processing.file_for_processing import FileForProcessing
 from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
     clean_java_timecode, resolve_survey_id_from_file_name)
+from libs.s3 import s3_upload_no_compression
 from libs.sentry import make_error_sentry, SentryTypes
+from libs.utils.security_utils import chunk_hash
+
+
+FileToProcessPK = int
 
 
 def easy_run(participant: Participant):
@@ -28,7 +35,7 @@ def easy_run(participant: Participant):
     print(f"processing files for {participant.patient_id}")
     processor = FileProcessingTracker(participant)
     processor.process_user_file_chunks()
-    
+
 
 """########################## Hourly Update Tasks ###########################"""
 
@@ -39,15 +46,14 @@ class FileProcessingTracker():
     def __init__(
         self, participant: Participant, page_size: int = FILE_PROCESS_PAGE_SIZE,
     ) -> None:
-        # swap comments to debug without sentry
         self.error_handler: ErrorHandler = make_error_sentry(
             sentry_type=SentryTypes.data_processing, tags={'patient_id': participant.patient_id}
         )
-        # self.error_handler = null_error_handler
         
         self.participant = participant
-        self.study_id = participant.study.object_id
-        self.patient_id = participant.patient_id
+        self.study: Study = participant.study
+        self.study_object_id: str = participant.study.object_id
+        self.patient_id: str = participant.patient_id
         
         # we operate on a page of files at a time, this is the size of the page.
         self.page_size = page_size
@@ -58,14 +64,13 @@ class FileProcessingTracker():
             int(time.mktime((timezone.now() + timedelta(days=90)).timetuple()))
         
         # a defaultdict of a tuple of 2 lists - this stores the data that is being processed.
-        self.all_binified_data: dict[int, tuple[list[bytes], list[bytes]]] = defaultdict(lambda: ([], []))
+        self.all_binified_data: AllBinifiedData = defaultdict(lambda: ([], []))
         
         # a dict to store the survey id from the file name, this is a very old design decision and
         # it is bad.
-        self.survey_id_dict = {}
+        self.survey_id_dict: dict[SurveyIDHash, str] = {}
         
-        # we don't actually use this...
-        self.buggy_files = set()
+        self.buggy_files = set[FileToProcessPK]()  # only used in logging
     
     #
     ## Outer Loop
@@ -99,7 +104,7 @@ class FileProcessingTracker():
         for pk in pks:
             ret.append(pk)
             if len(ret) == self.page_size:
-                yield ret  
+                yield ret
                 ret = []
         yield ret
     
@@ -109,7 +114,7 @@ class FileProcessingTracker():
         
         # we have dropped multithreading to reduce memory load.
         # Instantiating a FileForProcessing object queries S3 for the File's data. (network request)
-        files_for_processing: list[FileForProcessing] = map(FileForProcessing, files_to_process)
+        files_for_processing: map[FileForProcessing] = map(FileForProcessing, files_to_process)
         
         for file_for_processing in files_for_processing:
             with self.error_handler:
@@ -123,11 +128,13 @@ class FileProcessingTracker():
         
         # Update the data quantity stats (if it actually processed any files)
         if len(files_to_process) > 0:
+            assert earliest_time_bin is not None, "earliest_time_bin should not be None"
+            assert latest_time_bin is not None, "latest_time_bin should not be None"
             calculate_data_quantity_stats(self.participant, earliest_time_bin, latest_time_bin)
         
         # Actually delete the processed FTPs from the database now that we are done.
         FileToProcess.objects.filter(pk__in=ftps_to_remove).delete()
-        
+    
     def process_one_file(self, file_for_processing: FileForProcessing):
         """ Dispatches a file to the correct processing logic. """
         if file_for_processing.exception:
@@ -140,7 +147,7 @@ class FileProcessingTracker():
         else:
             self.process_unchunkable_file(file_for_processing)
     
-    def upload_binified_data(self) -> tuple[set[int], list[int], int, int]:
+    def upload_binified_data(self) -> tuple[set[FileToProcessPK], set[FileToProcessPK], int|None, int|None]:
         """ Takes in binified csv data and handles uploading/downloading+updating
             older data to/from S3 for each chunk.
             
@@ -152,8 +159,7 @@ class FileProcessingTracker():
             self.all_binified_data, self.error_handler, self.survey_id_dict, self.participant
         )
         
-        # todo: get the files that are failing to upload and remove them from retired files?
-        #       That seems super hard.
+        # a failed upload will require the user gets rerun entirely.
         self.do_uploads(merged_data)
         return merged_data.get_retirees()
     
@@ -161,11 +167,33 @@ class FileProcessingTracker():
         # upload handler - used to be multithreaded, not doing that anymore for memory reasons.
         while True:
             try:
-                upload_params_tuple = merged_data.upload_these.pop(-1)
+                chunk, chunk_path, new_contents = merged_data.upload_these.pop(-1)
             except IndexError:
                 break
             # if the upload fails we simply error out and try again later. Failure is an option.
-            batch_upload(upload_params_tuple)
+            self.do_upload(chunk, chunk_path, new_contents)
+    
+    def do_upload(self, chunk: str|dict, chunk_path: str, compressed_file: bytes):
+        
+        # safety check on a bug that can occur very easily due to poor design...
+        if "b'" in chunk_path:
+            raise Exception(chunk_path)
+        
+        # self.study saves a query for the encryption key
+        s3_upload_no_compression(chunk_path, compressed_file, self.study, raw_path=True)
+        
+        # if the chunk object is a chunk registry then we are updating an old one,
+        # otherwise we are creating a new one.
+        if chunk == CHUNK_EXISTS_CASE:
+            # If the contents are being appended to an existing ChunkRegistry object
+            ChunkRegistry.objects.filter(chunk_path=chunk_path).update(
+                file_size=len(compressed_file),
+                chunk_hash=chunk_hash(compressed_file).decode(),
+                last_updated=timezone.now()
+            )
+        else:
+            assert isinstance(chunk, dict), "chunk must be a dict or CHUNK_EXISTS_CASE"
+            ChunkRegistry.register_chunked_data(**chunk, file_contents=compressed_file)
     
     #
     ## Chunkable File Processing
@@ -189,17 +217,18 @@ class FileProcessingTracker():
             file_for_processing.file_to_process.delete()
     
     def append_binified_csvs(
-            self,
-            new_binified_rows: DefaultDict[tuple, list],
-            file_for_processing:  FileToProcess
-        ):
+        self, new_binified_rows: BinifyDict, file_for_processing: FileToProcess
+    ):
         """ Appends new binified rows to existing binified row data structure, in-place. """
+        # data_bin: BinifyKey = study_object_id, patient_id, data_type, timecode int, header bytes
         for data_bin, rows in new_binified_rows.items():
             self.all_binified_data[data_bin][0].extend(rows)  # Add data rows
             self.all_binified_data[data_bin][1].append(file_for_processing.pk)  # Add ftp
         return
     
-    def process_csv_data(self, file_for_processing: FileForProcessing) -> tuple[DefaultDict[tuple, list], tuple[str, str, str, bytes]]:
+    def process_csv_data(
+        self, file_for_processing: FileForProcessing
+    ) -> tuple[BinifyDict, SurveyIDHash] | tuple[None, None]:
         """ Constructs a binified dict of a given list of a csv rows, catches csv files with known
             problems and runs the correct logic. Returns None If the csv has no data in it. """
         # long running function. decomposes the file into a list of rows and a header, applies data
@@ -208,36 +237,36 @@ class FileProcessingTracker():
         # get the header and rows from the file, tell it to clear references to the file contents
         csv_rows_list = file_for_processing.file_lines
         header = file_for_processing.header
-        file_for_processing.clear_file_lines()
         
-        # shove csv rows into their respective time bins
-        # upon returning from this function there should only be the binified data representation in memory
-        if csv_rows_list:
+        file_for_processing.clear_file_lines()  # the source file contents can now be GC'd (I think this is already not a thing)
+        
+        # shove csv rows into their respective time bins. upon returning from this function there
+        # should only be the binified data representation in memory
+        if csv_rows_list and header:
             return (
                 # return item 1: the data as a defaultdict
                 self.binify_csv_rows(csv_rows_list, file_for_processing.data_type, header),
                 # return item 2: the tuple that we use as a key for the defaultdict
-                (self.study_id, self.patient_id, file_for_processing.data_type, header)
+                (self.study_object_id, self.patient_id, file_for_processing.data_type, header)
             )
         else:
             return None, None
     
-    def binify_csv_rows(self, rows_list: list, data_type: str, header: bytes) -> DefaultDict[tuple, list]:
+    def binify_csv_rows(self, rows_list: list[list[bytes]], data_type: str, header: bytes) -> BinifyDict:
         """ Assumes a clean csv with element 0 in the row's column as a unix(ish) timestamp.
             Sorts data points into the appropriate bin based on the rounded down hour
             value of the entry's unix(ish) timestamp. (based CHUNK_TIMESLICE_QUANTUM)
             Returns a dict of form {(study_id, patient_id, data_type, time_bin, header):rows_lists}. """
-        ret = defaultdict(list)
+        ret: BinifyDict = defaultdict(list)
         for row in rows_list:
-            # discovered August 7 2017, looks like there was an empty line at the end
-            # of a file? row was a [''].
+            # August 7 2017, looks like there was an empty line at the end of a file? row was a ['']
             if row and row[0]:
                 # this is the first thing that will hit corrupted timecode values errors (origin of which is unknown).
                 try:
                     timecode = binify_from_timecode(row[0])
                 except BadTimecodeError:
                     continue
-                ret[(self.study_id, self.patient_id, data_type, timecode, header)].append(row)
+                ret[(self.study_object_id, self.patient_id, data_type, timecode, header)].append(row)  
         return ret
     
     #

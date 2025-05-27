@@ -62,7 +62,7 @@ def ensure_sorted_by_timestamp(l: list):
         l.sort(key=lambda x: int(x[0]))
 
 
-def convert_unix_to_human_readable_timestamps(header: bytes, rows: list[list[bytes]]) -> list[bytes]:
+def convert_unix_to_human_readable_timestamps(header: bytes, rows: list[list[bytes]]) -> bytes:
     """ Adds a new column to the end which is the unix time represented in
     a human readable time format.  Returns an appropriately modified header. """
     for row in rows:
@@ -71,9 +71,10 @@ def convert_unix_to_human_readable_timestamps(header: bytes, rows: list[list[byt
         # this line 0-pads millisecond values that have leading 0s.
         time_string += b".%03d" % (unix_millisecond % 1000)
         row.insert(1, time_string)
-    header: list[bytes] = header.split(b",")
-    header.insert(1, b"UTC time")
-    return b",".join(header)
+    
+    split_header: list[bytes] = header.split(b",")
+    split_header.insert(1, b"UTC time")
+    return b",".join(split_header)
 
 
 def binify_from_timecode(unix_ish_time_code_string: bytes) -> int:

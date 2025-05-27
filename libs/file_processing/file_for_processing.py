@@ -52,7 +52,7 @@ class FileForProcessing():
         self.header = None
     
     def download_file_contents(self) -> None:
-        """ Handles network errors and updates state accordingly """
+        """ Handles network errors and updates state accordingly. """
         # blow up if misused
         if self.file_lines is not None:
             raise Exception("file_contents was already deleted.")
@@ -67,13 +67,14 @@ class FileForProcessing():
             )
         except Exception as e:
             traceback.print_exc()  # for debugging
-            self.traceback = sys.exc_info()
+            self.traceback = sys.exc_info() # type: ignore[assignment]
             self.exception = e
             raise SomeException(e)
     
     def raw_csv_to_line_list(self):
         """ Grab a list elements from of every line in the csv, strips off trailing whitespace. dumps
         them into a new list (of lists), and returns the header line along with the list of rows. """
+        assert self.file_contents is not None, "file_contents was not populated. (1)"
         
         # case: the file coming in is just a single line, e.g. the header.
         # Need to provide the header and an empty iterator.
@@ -96,8 +97,11 @@ class FileForProcessing():
         else:
             HEADER_DEDUPLICATOR[self.header] = self.header
     
-    def prepare_data(self) -> tuple[bytes, list[list[bytes]]]:
+    def prepare_data(self):
         """ We need to apply fixes (in the correct order), and get the list of csv lines."""
+        assert self.file_contents is not None, "file_contents was not populated (2)."
+        assert self.file_lines is not None, "file_lines was not populated."
+        
         # the android log file is weird, it is almost not a csv, more of a time enumerated list of
         # events. we need to fix it to be a csv.
         if self.file_to_process.os_type == ANDROID_API and self.data_type == ANDROID_LOG_FILE:
@@ -108,6 +112,7 @@ class FileForProcessing():
         # convert the file to a list of lines and columns
         self.raw_csv_to_line_list()
         
+        assert self.header is not None, "header was not populated (1)."
         if self.file_to_process.os_type == ANDROID_API:
             # two android fixes require the data immediately, so we convert the generator to a list.
             if self.data_type == CALL_LOG:
@@ -128,12 +133,15 @@ class FileForProcessing():
         """ If we encountered any errors in retrieving the files for processing, they have been
         lumped together into data['exception']. Raise them here to the error handler and move to the
         next file. """
+        
         print("\n" + self.file_to_process.s3_file_path)
         print(self.traceback)
         #########################################################
         # YOU ARE SEEING THIS EXCEPTION WITHOUT A STACK TRACE   #
         # BECAUSE IT OCCURRED INSIDE POOL.MAP ON ANOTHER THREAD #
         #########################################################
+        if self.exception is None:
+            raise Exception("FileForProcessing.exception was not populated.")
         raise self.exception
 
 
@@ -173,6 +181,7 @@ def is_version_greater_ios(proposed_version: str, reference_version: str) -> boo
         return True
     return False
 
+
 def is_version_greater_android(proposed_version: str, reference_version: int) -> bool:
     """ Returns True if the proposed version is greater than the reference version.  Reference 
     MUST be a valid version code. Function should handle weird proposed versions. """
@@ -180,5 +189,5 @@ def is_version_greater_android(proposed_version: str, reference_version: int) ->
     if proposed_version == "" or proposed_version is None:
         return False
     
-    proposed_version = int(proposed_version)  # if it errors... we error.
-    return proposed_version > reference_version
+    proposed_version_calculate = int(proposed_version)  # if it errors... we error.
+    return proposed_version_calculate > reference_version
