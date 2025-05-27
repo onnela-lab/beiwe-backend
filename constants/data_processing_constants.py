@@ -16,6 +16,10 @@ AllBinifiedData = DefaultDict[BinifyKey, tuple[list[list[bytes]], list[FileToPro
 SurveyIDHash = tuple[str, str, str, bytes]
 
 
+DEBUG_FILE_PROCESSING = True
+
+
+# leave this as 1 hour (its period measured in seconds)
 CHUNK_TIMESLICE_QUANTUM = 3600
 
 # These reference dicts contain the output headers that should exist for each data stream, per-os.

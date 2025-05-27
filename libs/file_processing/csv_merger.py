@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from time import perf_counter
+
 from botocore.exceptions import ReadTimeoutError
 from cronutils import ErrorHandler
 
 from constants.common_constants import CHUNKS_FOLDER, RUNNING_TEST_OR_FROM_A_SHELL
 from constants.data_processing_constants import (AllBinifiedData, BinifyKey, CHUNK_EXISTS_CASE,
-    CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS, SurveyIDHash)
+    CHUNK_TIMESLICE_QUANTUM, DEBUG_FILE_PROCESSING, REFERENCE_CHUNKREGISTRY_HEADERS, SurveyIDHash)
 from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry
 from database.survey_models import Survey
@@ -22,6 +24,12 @@ from libs.utils.compression import compress
 class ChunkFailedToExist(Exception): pass
 
 FileToProcessPK = int
+
+
+def log(*args, **kwargs):
+    """ A simple wrapper around print to make it easier to change logging later. """
+    if DEBUG_FILE_PROCESSING:
+        print(*args, **kwargs)
 
 
 class CsvMerger:
@@ -62,13 +70,14 @@ class CsvMerger:
         # this is the core loop. Iterate over all binified data and merge it into chunks, then handle
         # ChunkRegistry parameter setup for the next stage of processing.
         ftp_list: list[int]
+        data_bin: BinifyKey
         while True:
             # this construction consumes elements from the dictionary as we iterate over them,
             # it saves memory because we are building up large byte arrays as we go from
             # the data we are pulling out of the dictionary.
             try:
-                #
                 data_bin, (data_rows_list, ftp_list) = self.binified_data.popitem()
+            
             except KeyError:
                 break
             with self.error_handler:
@@ -93,12 +102,15 @@ class CsvMerger:
             updated_header = convert_unix_to_human_readable_timestamps(original_header, data_rows_list)
             chunk_path = construct_s3_chunk_path(study_object_id, patient_id, data_stream, time_bin)
             
+            
             # two core cases
             if ChunkRegistry.objects.filter(chunk_path=chunk_path).exists():
+                log(f"CsvMerger: processing {chunk_path[44:]}, which already exists.")
                 self.chunk_exists_case(
                     chunk_path, study_object_id, updated_header, data_rows_list, data_stream
                 )
             else:
+                log(f"CsvMerger: processing {chunk_path[44:]}, which is new.")
                 self.chunk_not_exists_case(
                     chunk_path, study_object_id, updated_header, patient_id, data_stream,
                     original_header, time_bin, data_rows_list
@@ -132,14 +144,15 @@ class CsvMerger:
     ):
         ensure_sorted_by_timestamp(rows)
         final_header = self.validate_one_header(updated_header, data_stream)
+        t1 = perf_counter()
         new_contents = construct_csv_string(final_header, rows)
+        t2 = perf_counter()
+        log(f"CsvMerger: constructed new data for {chunk_path[44:]} in {t2 - t1:.2f} seconds.")
         
         if data_stream in SURVEY_DATA_FILES:
             # We need to keep a mapping of files to survey ids, that is handled here.
-            survey_id_hash = study_object_id, patient_id, data_stream, original_header
-            survey_id = Survey.objects.filter(
-                object_id=self.survey_id_dict[survey_id_hash]
-            ).values_list("pk", flat=True).get()
+            survey_id_hash: SurveyIDHash = study_object_id, patient_id, data_stream, original_header
+            survey_id = Survey.fltr(object_id=self.survey_id_dict[survey_id_hash]).values_list("pk", flat=True).get()
         else:
             survey_id = None
         
@@ -163,6 +176,7 @@ class CsvMerger:
         new_rows: list[list[bytes]],
         data_stream: str,
     ):
+        t1 = perf_counter()
         try:
             old_s3_file_data = s3_retrieve(chunk_path, study_object_id, raw_path=True)
         except ReadTimeoutError as e:
@@ -179,8 +193,11 @@ class CsvMerger:
                     % chunk_path
                 )
             raise  # Raise original error
+        t2 = perf_counter()
+        log(f"CsvMerger: retrieved existing data for {chunk_path[44:]} in {t2 - t1:.2f} seconds.")
         
         # get the existing data from the s3 file, merge it with the new data from the binified data
+        t1 = perf_counter()
         s3_header, output_rows = csv_to_list_of_list_of_bytes(old_s3_file_data)
         del old_s3_file_data  # (large)
         
@@ -189,11 +206,15 @@ class CsvMerger:
         # merge data together with a sort and a deduplicate
         output_rows.extend(new_rows)
         ensure_sorted_by_timestamp(output_rows)
-        
+        t2 = perf_counter()
+        log(f"CsvMerger: merged data for {chunk_path[44:]} in {t2 - t1:.2f} seconds.")
         # this construction ensures there is no reference to the output of construct_csv_string
         # in memory after this line.  Hopefully the gc is deterministic enough to benefit from that.
         # Construct csv string also deduplicates rows.
+        t1 = perf_counter()
         new_contents = compress(construct_csv_string(final_header, output_rows))
+        t2 = perf_counter()
+        log(f"CsvMerger: compressed new data for {chunk_path[44:]} in {t2 - t1:.2f} seconds.")
         self.upload_these.append((CHUNK_EXISTS_CASE, chunk_path, new_contents))
     
     def validate_one_header(self, header: bytes, data_stream: str) -> bytes:

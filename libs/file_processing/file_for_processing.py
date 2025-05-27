@@ -1,6 +1,7 @@
 import sys
 import traceback
 
+from constants.data_processing_constants import DEBUG_FILE_PROCESSING
 from constants.data_stream_constants import (ANDROID_LOG_FILE, CALL_LOG, CHUNKABLE_FILES,
     IDENTIFIERS, SURVEY_TIMINGS, WIFI)
 from constants.user_constants import ANDROID_API
@@ -13,6 +14,12 @@ from libs.s3 import s3_retrieve
 
 class SomeException(Exception): pass
 class SomeException2(Exception): pass
+
+
+def log(*args, **kwargs):
+    """ A simple wrapper around print to make it easier to change logging later. """
+    if DEBUG_FILE_PROCESSING:
+        print(*args, **kwargs)
 
 
 # This file contains the class and necessary functions for the general data container
@@ -39,23 +46,20 @@ class FileForProcessing():
         self.download_file_contents()
     
     def clear_file_content(self):
-        if self.file_contents is None:
-            raise Exception("misuse, file_contents was already deleted.")
+        assert self.file_contents is not None, "misuse, file_contents was already deleted."
         self.file_contents = None
     
     def clear_file_lines(self):
-        if self.file_contents is not None:
-            raise Exception("misuse, file_contents was not deleted.")
-        if self.file_lines is None:
-            raise Exception("misuse, file_lines was already deleted.")
+        assert self.file_contents is None, "misuse, file_contents was not deleted."
+        assert self.file_lines is not None, "misuse, file_lines was already deleted."
         self.file_lines = None
         self.header = None
+        log(f"FileForProcessing: cleared file lines for {self.file_to_process.s3_file_path}")
     
     def download_file_contents(self) -> None:
         """ Handles network errors and updates state accordingly. """
         # blow up if misused
-        if self.file_lines is not None:
-            raise Exception("file_contents was already deleted.")
+        assert self.file_lines is not None, "file_contents was already deleted."
         
         # Try to retrieve the file contents. If any errors are raised, store them to be reraised by
         # the parent function
@@ -65,6 +69,7 @@ class FileForProcessing():
                 self.file_to_process.study.object_id,
                 raw_path=True
             )
+            log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path}")
         except Exception as e:
             traceback.print_exc()  # for debugging
             self.traceback = sys.exc_info() # type: ignore[assignment]
@@ -79,6 +84,7 @@ class FileForProcessing():
         # case: the file coming in is just a single line, e.g. the header.
         # Need to provide the header and an empty iterator.
         if b"\n" not in self.file_contents:
+            log(f"FileForProcessing: file {self.file_to_process.s3_file_path} is a single line file.")
             self.header = self.file_contents
             self.file_lines = []
             self.clear_file_content()
@@ -128,6 +134,7 @@ class FileForProcessing():
         
         # sometimes there is whitespace in the header? clean it.
         self.header = b",".join(tuple(column_name.strip() for column_name in self.header.split(b",")))
+        log(f"FileForProcessing: prepared data for {self.file_to_process.s3_file_path}")
     
     def raise_data_processing_error(self):
         """ If we encountered any errors in retrieving the files for processing, they have been

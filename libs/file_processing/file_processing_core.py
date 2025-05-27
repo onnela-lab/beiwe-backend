@@ -4,6 +4,7 @@ import time
 from collections import defaultdict
 from collections.abc import Generator
 from datetime import timedelta
+from time import perf_counter
 
 from cronutils.error_handler import ErrorHandler
 from django.core.exceptions import ValidationError
@@ -11,7 +12,8 @@ from django.utils import timezone
 
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants import common_constants
-from constants.data_processing_constants import AllBinifiedData, CHUNK_EXISTS_CASE, SurveyIDHash
+from constants.data_processing_constants import (AllBinifiedData, CHUNK_EXISTS_CASE,
+    DEBUG_FILE_PROCESSING, SurveyIDHash)
 from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry, FileToProcess
 from database.models import Study
@@ -27,6 +29,12 @@ from libs.utils.security_utils import chunk_hash
 
 
 FileToProcessPK = int
+
+
+def log(*args, **kwargs):
+    """ A simple wrapper around print to make it easier to change logging later. """
+    if DEBUG_FILE_PROCESSING:
+        print(*args, **kwargs)
 
 
 def easy_run(participant: Participant):
@@ -143,9 +151,15 @@ class FileProcessingTracker():
         # there are two cases: chunkable data that can be stuck into "time bins" for each hour, and
         # files that do not need to be "binified" and pretty much just go into the ChunkRegistry unmodified.
         if file_for_processing.chunkable:
+            t1 = perf_counter()
             self.process_chunkable_file(file_for_processing)
+            t2 = perf_counter()
+            print(f"FileProcessingCore: process_chunkable_file took {t2 - t1:.2f} seconds")
         else:
+            t1 = perf_counter()
             self.process_unchunkable_file(file_for_processing)
+            t2 = perf_counter()
+            print(f"FileProcessingCore: process_unchunkable_file took {t2 - t1:.2f} seconds")
     
     def upload_binified_data(self) -> tuple[set[FileToProcessPK], set[FileToProcessPK], int|None, int|None]:
         """ Takes in binified csv data and handles uploading/downloading+updating
@@ -158,9 +172,11 @@ class FileProcessingTracker():
         merged_data = CsvMerger(
             self.all_binified_data, self.error_handler, self.survey_id_dict, self.participant
         )
-        
+        t1 = perf_counter()
         # a failed upload will require the user gets rerun entirely.
         self.do_uploads(merged_data)
+        t2 = perf_counter()
+        print(f"FileProcessingCore: do_uploads took {t2 - t1:.2f} seconds")
         return merged_data.get_retirees()
     
     def do_uploads(self, merged_data: CsvMerger):
