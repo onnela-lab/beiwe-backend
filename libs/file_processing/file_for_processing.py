@@ -71,7 +71,7 @@ class FileForProcessing():
             )
             t2 = perf_counter()
             
-            log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}, {len(self.file_contents)} bytes in {t2 - t1:.4f} seconds.")
+            # log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}, {len(self.file_contents)} bytes in {t2 - t1:.4f} seconds.")
         except Exception as e:
             traceback.print_exc()  # for debugging
             self.traceback = sys.exc_info() # type: ignore[assignment]
@@ -110,7 +110,6 @@ class FileForProcessing():
         """ We need to apply fixes (in the correct order), and get the list of csv lines."""
         assert self.file_contents is not None, "file_contents was not populated (2)."
         
-        
         # the android log file is weird, it is almost not a csv, more of a time enumerated list of
         # events. we need to fix it to be a csv.
         if self.file_to_process.os_type == ANDROID_API and self.data_type == ANDROID_LOG_FILE:
@@ -138,7 +137,7 @@ class FileForProcessing():
         
         # sometimes there is whitespace in the header? clean it.
         self.header = b",".join(tuple(column_name.strip() for column_name in self.header.split(b",")))
-        log(f"FileForProcessing: prepared data for {self.file_to_process.s3_file_path[25:]}")
+        # log(f"FileForProcessing: prepared data for {self.file_to_process.s3_file_path[25:]}")
     
     def raise_data_processing_error(self):
         """ If we encountered any errors in retrieving the files for processing, they have been

@@ -125,9 +125,11 @@ class FileProcessingTracker():
         files_for_processing: map[FileForProcessing] = map(FileForProcessing, files_to_process)
         
         for file_for_processing in files_for_processing:
-            log(f"NEW FILE\nFileProcessingCore: {file_for_processing.file_to_process.s3_file_path[25:]}")
+            t1 = perf_counter()
             with self.error_handler:
                 self.process_one_file(file_for_processing)
+            t2 = perf_counter()
+            log(f"FILE - FileProcessingCore: {file_for_processing.file_to_process.s3_file_path[25:]} took {t2 - t1:.4f} seconds to download and process.")
         
         # there are several failure modes and success modes, information for what to do with different
         # files percolates back to here.  Delete various database objects accordingly.
@@ -153,15 +155,9 @@ class FileProcessingTracker():
         # there are two cases: chunkable data that can be stuck into "time bins" for each hour, and
         # files that do not need to be "binified" and pretty much just go into the ChunkRegistry unmodified.
         if file_for_processing.chunkable:
-            t1 = perf_counter()
             self.process_chunkable_file(file_for_processing)
-            t2 = perf_counter()
-            print(f"FileProcessingCore: process_chunkable_file took {t2 - t1:.4f} seconds")
         else:
-            t1 = perf_counter()
             self.process_unchunkable_file(file_for_processing)
-            t2 = perf_counter()
-            print(f"FileProcessingCore: process_unchunkable_file took {t2 - t1:.4f} seconds")
     
     def upload_binified_data(self) -> tuple[set[FileToProcessPK], set[FileToProcessPK], int|None, int|None]:
         """ Takes in binified csv data and handles uploading/downloading+updating
@@ -174,15 +170,17 @@ class FileProcessingTracker():
         merged_data = CsvMerger(
             self.all_binified_data, self.error_handler, self.survey_id_dict, self.participant
         )
-        t1 = perf_counter()
         # a failed upload will require the user gets rerun entirely.
+        len_merged_data = len(merged_data.upload_these)
+        t1 = perf_counter()
         self.do_uploads(merged_data)
         t2 = perf_counter()
-        print(f"FileProcessingCore: do_uploads took {t2 - t1:.4f} seconds")
+        log(f"FileProcessingCore: do_uploads took {t2 - t1:.4f} seconds for {len_merged_data} files")
         return merged_data.get_retirees()
     
     def do_uploads(self, merged_data: CsvMerger):
         # upload handler - used to be multithreaded, not doing that anymore for memory reasons.
+        
         while True:
             try:
                 chunk, chunk_path, new_contents = merged_data.upload_these.pop(-1)
