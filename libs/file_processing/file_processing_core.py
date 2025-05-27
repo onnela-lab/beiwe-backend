@@ -13,7 +13,7 @@ from django.utils import timezone
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants import common_constants
 from constants.data_processing_constants import (AllBinifiedData, CHUNK_EXISTS_CASE,
-    DEBUG_FILE_PROCESSING, SurveyIDHash)
+    DEBUG_FILE_PROCESSING, BinifyDict, SurveyIDHash)
 from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry, FileToProcess
 from database.models import Study
@@ -125,6 +125,7 @@ class FileProcessingTracker():
         files_for_processing: map[FileForProcessing] = map(FileForProcessing, files_to_process)
         
         for file_for_processing in files_for_processing:
+            log(f"Processing core: {file_for_processing.file_to_process.s3_file_path[44:]}")
             with self.error_handler:
                 self.process_one_file(file_for_processing)
         
@@ -154,12 +155,12 @@ class FileProcessingTracker():
             t1 = perf_counter()
             self.process_chunkable_file(file_for_processing)
             t2 = perf_counter()
-            print(f"FileProcessingCore: process_chunkable_file took {t2 - t1:.2f} seconds")
+            print(f"FileProcessingCore: process_chunkable_file took {t2 - t1:.4f} seconds")
         else:
             t1 = perf_counter()
             self.process_unchunkable_file(file_for_processing)
             t2 = perf_counter()
-            print(f"FileProcessingCore: process_unchunkable_file took {t2 - t1:.2f} seconds")
+            print(f"FileProcessingCore: process_unchunkable_file took {t2 - t1:.4f} seconds")
     
     def upload_binified_data(self) -> tuple[set[FileToProcessPK], set[FileToProcessPK], int|None, int|None]:
         """ Takes in binified csv data and handles uploading/downloading+updating
@@ -176,7 +177,7 @@ class FileProcessingTracker():
         # a failed upload will require the user gets rerun entirely.
         self.do_uploads(merged_data)
         t2 = perf_counter()
-        print(f"FileProcessingCore: do_uploads took {t2 - t1:.2f} seconds")
+        print(f"FileProcessingCore: do_uploads took {t2 - t1:.4f} seconds")
         return merged_data.get_retirees()
     
     def do_uploads(self, merged_data: CsvMerger):

@@ -147,7 +147,7 @@ class CsvMerger:
         t1 = perf_counter()
         new_contents = construct_csv_string(final_header, rows)
         t2 = perf_counter()
-        log(f"CsvMerger: constructed new data for {chunk_path[44:]} in {t2 - t1:.2f} seconds.")
+        log(f"CsvMerger: constructed new data for {chunk_path[44:]} in {t2 - t1:.4f} seconds.")
         
         if data_stream in SURVEY_DATA_FILES:
             # We need to keep a mapping of files to survey ids, that is handled here.
@@ -194,7 +194,7 @@ class CsvMerger:
                 )
             raise  # Raise original error
         t2 = perf_counter()
-        log(f"CsvMerger: retrieved existing data for {chunk_path[44:]} in {t2 - t1:.2f} seconds.")
+        log(f"CsvMerger: retrieved existing data for {chunk_path[44:]} in {t2 - t1:.4f} seconds.")
         
         # get the existing data from the s3 file, merge it with the new data from the binified data
         t1 = perf_counter()
@@ -207,14 +207,14 @@ class CsvMerger:
         output_rows.extend(new_rows)
         ensure_sorted_by_timestamp(output_rows)
         t2 = perf_counter()
-        log(f"CsvMerger: merged data for {chunk_path[44:]} in {t2 - t1:.2f} seconds.")
+        log(f"CsvMerger: merged data for {chunk_path[44:]} in {t2 - t1:.4f} seconds.")
         # this construction ensures there is no reference to the output of construct_csv_string
         # in memory after this line.  Hopefully the gc is deterministic enough to benefit from that.
         # Construct csv string also deduplicates rows.
         t1 = perf_counter()
         new_contents = compress(construct_csv_string(final_header, output_rows))
         t2 = perf_counter()
-        log(f"CsvMerger: compressed new data for {chunk_path[44:]} in {t2 - t1:.2f} seconds.")
+        log(f"CsvMerger: compressed new data for {chunk_path[44:]} in {t2 - t1:.4f} seconds.")
         self.upload_these.append((CHUNK_EXISTS_CASE, chunk_path, new_contents))
     
     def validate_one_header(self, header: bytes, data_stream: str) -> bytes:

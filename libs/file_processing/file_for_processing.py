@@ -58,8 +58,7 @@ class FileForProcessing():
     
     def download_file_contents(self) -> None:
         """ Handles network errors and updates state accordingly. """
-        # blow up if misused
-        assert self.file_lines is not None, "file_contents was already deleted."
+        assert self.file_lines is None, "file_lines was not deleted."
         
         # Try to retrieve the file contents. If any errors are raised, store them to be reraised by
         # the parent function
@@ -106,7 +105,7 @@ class FileForProcessing():
     def prepare_data(self):
         """ We need to apply fixes (in the correct order), and get the list of csv lines."""
         assert self.file_contents is not None, "file_contents was not populated (2)."
-        assert self.file_lines is not None, "file_lines was not populated."
+        
         
         # the android log file is weird, it is almost not a csv, more of a time enumerated list of
         # events. we need to fix it to be a csv.
@@ -117,8 +116,9 @@ class FileForProcessing():
         
         # convert the file to a list of lines and columns
         self.raw_csv_to_line_list()
-        
+        assert self.file_lines is not None, "file_lines was not populated."
         assert self.header is not None, "header was not populated (1)."
+        
         if self.file_to_process.os_type == ANDROID_API:
             # two android fixes require the data immediately, so we convert the generator to a list.
             if self.data_type == CALL_LOG:
