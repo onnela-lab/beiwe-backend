@@ -1,4 +1,5 @@
 import sys
+from time import perf_counter
 import traceback
 
 from constants.data_processing_constants import DEBUG_FILE_PROCESSING
@@ -63,12 +64,15 @@ class FileForProcessing():
         # Try to retrieve the file contents. If any errors are raised, store them to be reraised by
         # the parent function
         try:
+            t1 = perf_counter()
             self.file_contents = s3_retrieve(
                 self.file_to_process.s3_file_path,
                 self.file_to_process.study.object_id,
                 raw_path=True
             )
-            log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}")
+            t2 = perf_counter()
+            
+            log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}, {len(self.file_contents)} bytes in {t2 - t1:.4f} seconds.")
         except Exception as e:
             traceback.print_exc()  # for debugging
             self.traceback = sys.exc_info() # type: ignore[assignment]
@@ -83,8 +87,8 @@ class FileForProcessing():
         # case: the file coming in is just a single line, e.g. the header.
         # Need to provide the header and an empty iterator.
         if b"\n" not in self.file_contents:
-            log(f"\tFileForProcessing: file {self.file_to_process.s3_file_path} is a single line file.")
-            log(f"\t{self.file_contents}")
+            # log(f"\tFileForProcessing: file {self.file_to_process.s3_file_path} is a single line file.")
+            # log(f"\t{self.file_contents}")
             self.header = self.file_contents
             self.file_lines = []
             self.clear_file_content()

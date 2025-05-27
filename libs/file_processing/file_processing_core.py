@@ -125,7 +125,7 @@ class FileProcessingTracker():
         files_for_processing: map[FileForProcessing] = map(FileForProcessing, files_to_process)
         
         for file_for_processing in files_for_processing:
-            log(f"FileProcessingCore: {file_for_processing.file_to_process.s3_file_path[25:]}")
+            log(f"NEW FILE\nFileProcessingCore: {file_for_processing.file_to_process.s3_file_path[25:]}")
             with self.error_handler:
                 self.process_one_file(file_for_processing)
         
@@ -137,8 +137,6 @@ class FileProcessingTracker():
         
         # Update the data quantity stats (if it actually processed any files)
         if len(files_to_process) > 0:
-            assert earliest_time_bin is not None, "earliest_time_bin should not be None"
-            assert latest_time_bin is not None, "latest_time_bin should not be None"
             calculate_data_quantity_stats(self.participant, earliest_time_bin, latest_time_bin)
         
         # Actually delete the processed FTPs from the database now that we are done.
