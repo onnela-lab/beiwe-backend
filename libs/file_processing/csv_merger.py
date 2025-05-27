@@ -105,12 +105,10 @@ class CsvMerger:
             
             # two core cases
             if ChunkRegistry.objects.filter(chunk_path=chunk_path).exists():
-                log(f"CsvMerger: processing {chunk_path[38:]}, which already exists.")
                 self.chunk_exists_case(
                     chunk_path, study_object_id, updated_header, data_rows_list, data_stream
                 )
             else:
-                log(f"CsvMerger: processing {chunk_path[38:]}, which is new.")
                 self.chunk_not_exists_case(
                     chunk_path, study_object_id, updated_header, patient_id, data_stream,
                     original_header, time_bin, data_rows_list
