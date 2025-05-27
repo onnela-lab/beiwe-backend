@@ -54,7 +54,7 @@ class FileForProcessing():
         assert self.file_lines is not None, "misuse, file_lines was already deleted."
         self.file_lines = None
         self.header = None
-        log(f"FileForProcessing: cleared file lines for {self.file_to_process.s3_file_path}")
+        log(f"FileForProcessing: cleared file lines for {self.file_to_process.s3_file_path[25:]}")
     
     def download_file_contents(self) -> None:
         """ Handles network errors and updates state accordingly. """
@@ -68,7 +68,7 @@ class FileForProcessing():
                 self.file_to_process.study.object_id,
                 raw_path=True
             )
-            log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path}")
+            log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}")
         except Exception as e:
             traceback.print_exc()  # for debugging
             self.traceback = sys.exc_info() # type: ignore[assignment]
@@ -83,7 +83,8 @@ class FileForProcessing():
         # case: the file coming in is just a single line, e.g. the header.
         # Need to provide the header and an empty iterator.
         if b"\n" not in self.file_contents:
-            log(f"FileForProcessing: file {self.file_to_process.s3_file_path} is a single line file.")
+            log(f"\tFileForProcessing: file {self.file_to_process.s3_file_path} is a single line file.")
+            log(f"\t{self.file_contents}")
             self.header = self.file_contents
             self.file_lines = []
             self.clear_file_content()
@@ -134,7 +135,7 @@ class FileForProcessing():
         
         # sometimes there is whitespace in the header? clean it.
         self.header = b",".join(tuple(column_name.strip() for column_name in self.header.split(b",")))
-        log(f"FileForProcessing: prepared data for {self.file_to_process.s3_file_path}")
+        log(f"FileForProcessing: prepared data for {self.file_to_process.s3_file_path[25:]}")
     
     def raise_data_processing_error(self):
         """ If we encountered any errors in retrieving the files for processing, they have been

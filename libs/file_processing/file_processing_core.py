@@ -125,7 +125,7 @@ class FileProcessingTracker():
         files_for_processing: map[FileForProcessing] = map(FileForProcessing, files_to_process)
         
         for file_for_processing in files_for_processing:
-            log(f"Processing core: {file_for_processing.file_to_process.s3_file_path[44:]}")
+            log(f"FileProcessingCore: {file_for_processing.file_to_process.s3_file_path[25:]}")
             with self.error_handler:
                 self.process_one_file(file_for_processing)
         
