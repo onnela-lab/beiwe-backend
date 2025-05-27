@@ -63,27 +63,27 @@ def calculate_data_quantity_stats(
     earliest_time_bin_number -- expressed in hours since 1/1/1970
     latest_time_bin_number -- expressed in hours since 1/1/1970 """
     
+    # they can be equal, but they have to be populated or else the query is unbounded
+    if earliest_time_bin_number is None or latest_time_bin_number is None:
+        return
+    
     # (related model, study, is cached)
     study_timezone: tzinfo = participant.study.timezone
     query = ChunkRegistry.objects.filter(participant=participant)
     
     # Filter by date range
-    if earliest_time_bin_number is not None:
-        query = query.filter(
-            time_bin__gte=timeslice_to_start_of_day(earliest_time_bin_number, study_timezone)
-        )
-    if latest_time_bin_number is not None:
-        query = query.filter(  # lte vs lt is irrelevant
-            time_bin__lt=timeslice_to_end_of_day(latest_time_bin_number, study_timezone)
-        )
+    query = query.filter(
+        time_bin__gte=timeslice_to_start_of_day(earliest_time_bin_number, study_timezone),
+        time_bin__lt=timeslice_to_end_of_day(latest_time_bin_number, study_timezone)
+    )
     
     # For each date, create a DataQuantity object
     for day, day_data in populate_data_quantity(query, study_timezone).items():
         data_quantity = {
-            "participant": participant,
+            "participant_id": participant.pk,
             "date": day,
             "defaults": {
-                "timezone": get_timezone_shortcode(day, participant.study.timezone)
+                "timezone": get_timezone_shortcode(day, study_timezone)
             }
         }
         for data_type, total_bytes in day_data.items():

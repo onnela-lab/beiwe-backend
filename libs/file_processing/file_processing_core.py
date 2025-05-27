@@ -137,7 +137,10 @@ class FileProcessingTracker():
         
         # Update the data quantity stats (if it actually processed any files)
         if len(files_to_process) > 0:
+            t1 = perf_counter()
             calculate_data_quantity_stats(self.participant, earliest_time_bin, latest_time_bin)
+            t2 = perf_counter()
+            print(f"FileProcessingCore: calculate_data_quantity_stats took {t2 - t1:.4f} seconds")
         
         # Actually delete the processed FTPs from the database now that we are done.
         FileToProcess.objects.filter(pk__in=ftps_to_remove).delete()

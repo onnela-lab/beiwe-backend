@@ -55,7 +55,6 @@ class FileForProcessing():
         assert self.file_lines is not None, "misuse, file_lines was already deleted."
         self.file_lines = None
         self.header = None
-        log(f"FileForProcessing: cleared file lines for {self.file_to_process.s3_file_path[25:]}")
     
     def download_file_contents(self) -> None:
         """ Handles network errors and updates state accordingly. """
