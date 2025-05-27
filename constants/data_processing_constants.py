@@ -16,7 +16,7 @@ AllBinifiedData = DefaultDict[BinifyKey, tuple[list[list[bytes]], list[FileToPro
 SurveyIDHash = tuple[str, str, str, bytes]
 
 
-DEBUG_FILE_PROCESSING = True
+DEBUG_FILE_PROCESSING = False
 
 
 # leave this as 1 hour (its period measured in seconds)
