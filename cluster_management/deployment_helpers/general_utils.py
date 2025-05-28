@@ -6,8 +6,10 @@ import shutil
 import string
 import traceback
 import zipfile
+
 from datetime import datetime
 from os.path import join as path_join, split as path_split
+from pprint import pformat
 from time import sleep
 
 import botocore.exceptions as botoexceptions
@@ -53,9 +55,25 @@ def retry(func, *args, **kwargs):
         try:
             return func(*args, **kwargs)
         except (NetworkError, botoexceptions.ClientError, botoexceptions.WaiterError) as e:
-            log.error('Encountered error of type %s with error message "%s"\nRetrying with attempt %s.'
-                      % (type(e).__name__, e, i+1) )
+            log.error(f'Encountered `{pformat(e)}`, \nRetrying with attempt {i+1} of 100.')
             sleep(3)
+
+
+def retry_with_backoff(func):
+    """ Decorator to retry a function up to 100 times on NetworkError, ClientError, or WaiterError. """
+    def wrapped(*args, **kwargs):
+        for i in range(1, 6):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                error = e
+                log.error(f"Encountered error `{pformat(e)}`. Waiting {i} second(s) and retrying...")
+                sleep(i)
+        
+        formatted_args = pformat({"args": args, 'kwargs': kwargs, 'the_error': error})
+        log.error(f"`{func.__name__}` failed after 5 tries with these parameters:\n{formatted_args}")
+        exit(1)
+    return wrapped
 
 
 ALPHANUMERICS = string.ascii_letters + string.digits
