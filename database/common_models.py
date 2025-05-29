@@ -10,7 +10,7 @@ from random import choice as random_choice
 from typing import Any, Self
 
 from django.db import models
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import RelatedField
 from django.db.models.manager import BaseManager
@@ -134,10 +134,23 @@ class UtilityModel(models.Model):
     ################################## Show nice information #######################################
     
     @classmethod
-    def nice_count(cls):
-        t1 = datetime.now()
-        count = cls.objects.count()
+    def nice_count(cls) -> int:
+        # .objects.count() is slow on large tables. This raw query is only only about 2x faster.
+        #     f'select count(*) from "{cls._meta.db_table}"'
+        #
+        # So let's cheat. If we use .explain() on this random query, it sources a value is from some
+        # inner metadata on the database and is instantaneous. The value updates every few seconds.
+        # The explain string looks like this (Also, this appears to be a Postgres problem.)
+        #
+        # GroupAggregate (cost=0.57..32464536.21 rows=244141235 width=12) ... there's more; don't care.
+        #                                         ^^^^^^^^^^^^^^
+        
+        t1 =  datetime.now()
+        a_column_name = cls._meta.fields[0].column
+        explained = cls.objects.annotate(_=Count(a_column_name)).values("_").explain()
+        count = int(explained.split("rows=")[1].split(" width=")[0])
         t2 = datetime.now()
+        
         print(numformat(count), "- this query took", (t2 - t1).total_seconds(), "seconds.")
         return count
     

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from django.db import models
@@ -19,6 +20,7 @@ from libs.utils.http_utils import numformat
 
 if TYPE_CHECKING:
     from database.study_models import Study
+    from libs.s3 import S3Storage
 
 
 class EncryptionErrorMetadata(TimestampedModel):
@@ -70,7 +72,7 @@ class UploadTracking(UtilityModel):
             "file_path", "participant__study__object_id", "participant__study_id", "participant_id"
         )
         participant: Participant
-        participant_cache: dict[Participant] = {}  # cache participants
+        participant_cache: dict[int, Participant] = {}  # cache participants
         file_paths = set(FileToProcess.objects.values_list("s3_file_path", flat=True)) # cache file paths
         
         new_ftps: list[FileToProcess] = []
@@ -291,7 +293,9 @@ class S3File(TimestampedModel):
     # TODO: add this field maybe?
     # glacier = models.BooleanField(default=False)
     
-    object_ids = {}  # for caching study object id lookups
+    study_id: int
+    participant_id: int
+    study_object_ids = {}  # for caching study object id lookups
     
     # This is a mapping of data streams to strings found in their paths. it is based off real
     # values in the s3 bucket, which is a mess for historical reasons.
@@ -307,16 +311,17 @@ class S3File(TimestampedModel):
 
         # first go through the object_ids cache, then study_id if present, then participant
         # study, populating the cache if we need to.
-        self.study_id: int
-        self.participant_id: int
         
-        # if not self.study_id:
-        #     if self.participant_id:
-        #         Participant.value_get("study__object_id", pk=self.participant_id)
-        #         self.study_id = self.participant.study_id
-        #     else:
-        #         return None
-        object_ids = self.__class__.object_ids
+        if not self.study_id and not self.participant_id:
+            return None
+        
+        if not self.study_id:
+            if self.participant_id:
+                self.study_id = self.participant.study_id  # ehhhhh could speed up
+            else:
+                return None
+        
+        object_ids = self.__class__.study_object_ids
         if self.study_id in object_ids:
             return object_ids[self.study_id]
         
@@ -330,19 +335,19 @@ class S3File(TimestampedModel):
         return self._get_data_stream(self.path)
     
     @property
-    def object_id(self):
+    def object_id(self) -> str:
         if self.path.startswith("CHUNKED_DATA/"):
             return  self.path.split("/", 2)[1]
         
         return self.path.split("/", 1)[0]
     
-    def storage(self):
+    def storage(self) -> S3Storage:
         from libs.s3 import S3Storage
         path = self.path.rsplit(".zst", 1)[0]  # remove the zst extension if present
         return S3Storage(path, self.object_id, bypass_study_folder=True)
     
     @classmethod
-    def _get_data_stream(cls, path):
+    def _get_data_stream(cls, path) -> str|None:
         """ Determines a data stream or file type based purely off the path. """
         
         determination = None
@@ -482,17 +487,29 @@ class S3File(TimestampedModel):
             if count_raw or count_chunked:
                 print()
     
-    #TODO: implement
-    # def get_compression_time_stats(self):
-    
     @classmethod
     def find_duplicates(cls):
-        # interesting, it looks like the wifilog can create duplicates because it doesn't have an internal timestamp.
-        # EfficientQueryPaginator to reduce memory overhead via django cache.
-        # we don't care about chunked data
-        query = cls.objects.exclude(Q(path__startswith=CHUNKS_FOLDER)|Q(path__contains="/wifi"))
-        query = query.order_by()
-        nator = EfficientQueryPaginator(query, page_size=50_000, values_list=["sha1"], verbose=True)
+        # the wifilog can create duplicates because it doesn't have an internal timestamp.
+        
+        def pager():
+            
+            q = cls.fltr(size_uncompressed__lt=500)
+            q = q.exclude(Q(path__startswith=CHUNKS_FOLDER)|Q(path__contains="/wifi"))
+            q = q.order_by().values_list("sha1", flat=True).iterator(chunk_size=10_000)
+            ret = []
+            
+            t1 = perf_counter()
+            for i, sha in enumerate(q):
+                if len(ret) >= 10_000:
+                    t2 = perf_counter()
+                    print(f"processed {i} items in {t2-t1:.2f} seconds")
+                    t1 = perf_counter()
+                    yield ret
+                    ret = []
+                ret.append(sha)
+            
+            if ret:
+                yield ret
         
         outer_counter = defaultdict(int)
         
@@ -501,15 +518,15 @@ class S3File(TimestampedModel):
             for sha1, count in outer_counter.items():
                 if count <= 1:
                     continue
-                f: S3File = S3File.fltr(sha1=sha1).order_by().first()
-                print(sha1.hex(), "-", count, "-", f.get_data_stream())
-                print()
+                
+                f: S3File = S3File.fltr(sha1=sha1)[:1][0]
+                print(sha1.hex(), "-", count, "-", f.get_data_stream(), end=" - ")
                 s = f.storage()
                 print(s.download().pop_uncompressed_file_content())
                 print()
         
         # go through 5-million items, get counts, print stats, then reset the counter so we don't oom
-        for i, page in enumerate(nator.paginate()):
+        for i, page in enumerate(pager()):
             if i % 10 == 0:  # 50_000 * 100 = 5 million
                 prant()
                 c = Counter()
