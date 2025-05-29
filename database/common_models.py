@@ -112,7 +112,7 @@ class UtilityModel(models.Model):
         return cls.objects.values_list(*args, **{"flat": True, **kwargs} if len(args) == 1 else kwargs)
     
     @classmethod
-    def vdict(cls, *args, **kwargs) -> QuerySet[dict]:
+    def vdict(cls, *args, **kwargs) -> QuerySet[Self, dict[str, Any]]:
         return cls.objects.values(*args, **kwargs)
     
     @classmethod
@@ -126,6 +126,10 @@ class UtilityModel(models.Model):
     @classmethod
     def flat(cls, field_name: str, **filter_kwargs) -> QuerySet[Any]:
         return cls.objects.filter(**filter_kwargs).values_list(field_name, flat=True)
+    
+    @classmethod
+    def rdrby(cls, *args, **kwargs) -> QuerySet[Self]:
+        return cls.objects.order_by(*args, **kwargs)
     
     ################################## Show nice information #######################################
     
@@ -463,6 +467,7 @@ def _xcld(self, *args, **kwargs) -> QuerySet[Self]:  # type: ignore
 
 def _flat(self, field_name: str, **filter_kwargs) -> QuerySet[Any]:
     return self.filter(**filter_kwargs).values_list(field_name, flat=True)
+
 
 # and this is where we assign them - there's a bunch of typing errors, they are wrong. XD
 for _T in (QuerySet, BaseIterable, BaseManager, ValuesIterable, ValuesListIterable):
