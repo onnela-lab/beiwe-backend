@@ -15,7 +15,7 @@
     </div>
 
     <div id="main-navbar-menu" ng-controller="NavBarStudyController" class="collapse navbar-collapse" style="background-color: transparent;" max-width="10px">
-      <ul class="nav navbar-nav navbar-left">
+      <ul class="nav navbar-nav navbar-left margin-left-neg-2">
         {# If the current admin is authorized to view more than one study, give them a drop-down menu to switch studies #}
         <li ng-if="navBarStudies.length > 1" class="dropdown pulse-text-hover" role="presentation">
           <a class="dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
@@ -120,7 +120,7 @@
             </a></li>
         {% endif %}
         
-        <li role="presentation" class="pulse-text-hover">
+        <li role="presentation" class="pulse-text-hover margin-right-neg-1">
           <a href="{{ easy_url("login_endpoints.logout_page") }}" class="" style="font-size: medium; margin-top: 0.6em;">
             Log Out
           </a></li>
