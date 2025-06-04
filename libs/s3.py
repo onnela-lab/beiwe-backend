@@ -46,7 +46,11 @@ conn: BaseClient = boto3.client(
     aws_secret_access_key=BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     region_name=S3_REGION_NAME,
     endpoint_url=S3_ENDPOINT,
-    config=botocore.config.Config(max_pool_connections=100),  # type: ignore
+    config=botocore.config.Config(
+        max_pool_connections=100,
+        tcp_keepalive=True,
+        disable_request_compression=True,  # we compress AND encrypt...
+    ),
 )
 
 if RUNNING_TESTS:                       # This lets us cut out some boilerplate in tests

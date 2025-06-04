@@ -36,8 +36,9 @@ T_24HR_W_TZ_W_SEC_N_PAREN = "%H:%M:%S %Z"
 DT_12HR_N_TZ_N_SEC_N_PAREN = "%Y-%m-%d %-I:%M %p"
 DT_24HR_N_TZ_N_SEC_N_PAREN = "%Y-%m-%d %H:%M"
 
-DT_12HR_N_TZ_N_SEC_W_PAREN = "%Y-%m-%d %-I:%M%p (%Z)"
-DT_24HR_N_TZ_N_SEC_W_PAREN = "%Y-%m-%d %H:%M %Z"
+DT_12HR_W_TZ_N_SEC_W_PAREN = "%Y-%m-%d %-I:%M%p (%Z)"
+DT_12HR_W_TZ_N_SEC_N_PAREN = "%Y-%m-%d %-I:%M%p %Z"
+DT_24HR_W_TZ_N_SEC_N_PAREN = "%Y-%m-%d %H:%M %Z"
 
 DT_24HR_N_TZ_W_SEC_N_PAREN = "%Y-%m-%d %H:%M:%S %Z"
 

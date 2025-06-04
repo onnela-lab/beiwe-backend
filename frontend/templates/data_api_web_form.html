@@ -58,7 +58,7 @@
         <div class="col-sm-4">
           <div class="form-group">
             <label for="patient_selector">Patients</label>
-            <select id="patient_selector" ng-model="selectedPatient" ng-options="participant for participant in participantsByStudy[selectedStudyId] track by participant" name="user_ids" class="form-control" size=12 multiple></select>
+            <select id="patient_selector" ng-model="selectedPatient" ng-options="participant for participant in participantsByStudy[selectedStudyId] track by participant" name="user_ids" class="form-control" size=12 style="height: 20em"  multiple></select>
           </div>
         </div>
 
@@ -66,7 +66,7 @@
         <div class="col-sm-4">
           <div class="form-group">
             <label for="data_stream_selector">Data Types</label>
-            <select class="form-control" name="data_streams" id="data_stream_selector" size=12 multiple>
+            <select class="form-control" name="data_streams" id="data_stream_selector" style="height: 20em" size=12 multiple>
               {% for data_stream in ALL_DATA_STREAMS | sort %}
                 <option>{{ data_stream }}</option>
               {% endfor %}

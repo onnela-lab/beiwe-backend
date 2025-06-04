@@ -6,7 +6,7 @@ from dateutil.tz import gettz  # type: ignore
 from django.http.request import HttpRequest
 from django.urls.base import reverse
 
-from constants.common_constants import (API_TIME_FORMAT_WITH_TZ, DT_24HR_N_TZ_N_SEC_W_PAREN,
+from constants.common_constants import (API_TIME_FORMAT_WITH_TZ, DT_24HR_W_TZ_N_SEC_N_PAREN,
     DT_24HR_W_TZ_W_SEC_N_PAREN, DT_24HR_W_TZ_W_SEC_N_PAREN_WITH_LINE_BREAK,
     DT_WDL_12HR_W_TZ_N_SEC_W_PAREN, DT_WDL_12HR_W_TZ_W_SEC_W_PAREN, DT_WDS_12HR_N_TZ_N_SEC_N_PAREN,
     DT_WDS_12HR_W_TZ_N_SEC_W_PAREN)
@@ -50,7 +50,7 @@ def more_compact_iso_time_format(dt: datetime, timezone: tzinfo|str) -> str:
     if dt is None:
         return ""
     timezone = gettz(timezone) if isinstance(timezone, str) else timezone
-    return dt.astimezone(timezone).strftime(DT_24HR_N_TZ_N_SEC_W_PAREN)
+    return dt.astimezone(timezone).strftime(DT_24HR_W_TZ_N_SEC_N_PAREN)
 
 
 def compact_iso_time_format(dt: datetime, timezone: tzinfo|str) -> str:

@@ -35,7 +35,9 @@
       <div class="choose-stream">
         <div class="dropdown">
           <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
-            {{ data_stream }} <span class="caret"></span>
+            <div class="margin-top-neg-4pt">
+              {{ data_stream }} <span class="caret"></span>
+            </div>
           </button>
           <ul class="dropdown-menu">
             {% for stream in data_stream_dict.keys()|sort if data_stream_dict[stream] != data_stream %}

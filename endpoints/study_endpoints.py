@@ -13,7 +13,7 @@ from markupsafe import escape
 from authentication.admin_authentication import (abort, assert_admin, assert_site_admin,
     authenticate_admin, authenticate_researcher_login, authenticate_researcher_study_access,
     get_researcher_allowed_studies_as_query_set, ResearcherRequest)
-from constants.common_constants import DT_12HR_N_TZ_N_SEC_W_PAREN, RUNNING_TEST_OR_FROM_A_SHELL
+from constants.common_constants import DT_12HR_W_TZ_N_SEC_N_PAREN, RUNNING_TEST_OR_FROM_A_SHELL
 from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
 from constants.user_constants import ResearcherRole
@@ -87,15 +87,19 @@ def manage_studies_page(request: ResearcherRequest):
 def view_study_page(request: ResearcherRequest, study_id=None):
     """ The main view page for a study. """
     study: Study = Study.objects.get(pk=study_id)
-    
+    tz = study.timezone
     def get_survey_info(survey_type: str):
         survey_info = list(
             study.surveys.filter(survey_type=survey_type, deleted=False)
-            .values('id', 'object_id', 'name', "last_updated")
+            .values('id', 'object_id', 'name', "last_updated", "created_on")
         )
         for info in survey_info:
+            created = info.pop('created_on').astimezone(tz).strftime(DT_12HR_W_TZ_N_SEC_N_PAREN)
             info["last_updated"] = \
-                 info["last_updated"].astimezone(study.timezone).strftime(DT_12HR_N_TZ_N_SEC_W_PAREN)
+                info["last_updated"].astimezone(tz).strftime(DT_12HR_W_TZ_N_SEC_N_PAREN)
+            if not info["name"]:
+                info["name"] = f"(Unnamed Survey created {created}"
+        print(survey_info)
         return survey_info
     
     # unavoidable query, used to populate the edit study button

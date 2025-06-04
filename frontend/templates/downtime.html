@@ -4,7 +4,10 @@
   {% block head %}
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no, width=device-width" />
-    <link rel="stylesheet" href="{{ BOOTSTRAP_CSS }}" media="all" type="text/css" integrity="{{ BOOTSTRAP_CSS_INTEGRITY }}" crossorigin="anonymous">
+    
+    <style> {% include "libraries/bootstrap-darkly.css" %} </style>
+    {# <style> {% include "libraries/bootstrap-darkly.min.css" %} </style> #}
+
     <link rel="icon" href="/static/images/favicon-32x32.png" sizes="32x32">
     <link rel="icon" href="/static/images/favicon-192x192.png" sizes="192x192">
     <title>Beiwe (is down)</title>

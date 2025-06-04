@@ -41,7 +41,7 @@
       <tbody>
         <tr ng-repeat="study in filterableObjects | filter:{search_text: studyFilterText}">
           <td>
-            <a class="bold text-blackish link-fill" href="/view_study/{% raw %}{{ study.id }}{% endraw %}" >
+            <a class="bold link-fill" href="/view_study/{% raw %}{{ study.id }}{% endraw %}" >
             {% raw %}
             {{ study.name }}
             
