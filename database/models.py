@@ -15,10 +15,12 @@ from .system_models import *
 from .forest_models import *
 from .security_models import *
 
+
 from django.core.validators import ProhibitNullCharactersValidator
+from django.db.models import fields, Manager, QuerySet
 from django.db.models.base import ModelBase
-from django.db.models import fields
-from django.db.models import Manager, QuerySet
+from django.db.models.sql.query import Query
+
 
 # dynamically inject the ProhibitNullCharactersValidator validator on all char and text fields.
 # This takes about 1 millisecond (yuck, it changes size on iteration)
@@ -60,3 +62,14 @@ class dbt:
     SummaryStatisticsDaily = Manager[SummaryStatisticDaily]
     SurveyNotificationReports = Manager[SurveyNotificationReport]
     UploadTrackings = Manager[UploadTracking]
+
+
+#
+## monkeypatch django.db.models.sql.query.Query so it has a repr that shows the query
+#
+
+def query_repr(self: Query) -> str:
+    """ This is a hack to make the QuerySet look nice in the terminal. """
+    return f"```\n{self}\n```"
+
+Query.__repr__ = query_repr
