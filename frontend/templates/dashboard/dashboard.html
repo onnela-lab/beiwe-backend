@@ -23,20 +23,20 @@
   <p> Choose a participant or data stream to view the Dashboard. </p>
 
   <div class="dashboard-options">
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item h5">Participant Data</li>
+    <ul class="list-group well">
+      <li class="list-group-item margin-top-1 bold text-center force-gray-bg">Select Participant</li>
       {% for i in range(participants|length) %}
-        <li class="list-group-item">
+        <li class="list-group-item dashboard-list-margins">
           <a class="link-fill" href={{ easy_url("data_page_endpoints.dashboard_participant_page", study_id, participants[i]) }}>
           {{participants[i]}}
           </a>
         </li>
       {%  endfor %}
     </ul>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item h5">Data Stream</li>
+    <ul class="list-group well">
+      <li class="list-group-item margin-top-1 bold text-center force-gray-bg">Select Data Stream</li>
       {% for stream in data_stream_dict.keys()|sort() %}
-        <li class="list-group-item">
+        <li class="list-group-item dashboard-list-margins">
           <a class="link-fill" href={{ easy_url("data_page_endpoints.get_data_for_dashboard_datastream_display", study_id, stream) }}>
           {{data_stream_dict[stream]}}
           </a>
