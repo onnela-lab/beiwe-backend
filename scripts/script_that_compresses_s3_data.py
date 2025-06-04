@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from multiprocessing.pool import ThreadPool
+from traceback import print_exc
+from typing import Any, Generator
 
 import orjson
-from traceback import print_exc
 
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, LOGS_FOLDER,
     PROBLEM_UPLOADS)
@@ -12,7 +15,6 @@ from libs.utils.compression import compress
 from libs.utils.http_utils import numformat
 
 
-#
 # If you need to restart the full script you can update START_GLOBAL_FILE_SEARCH_HERE.
 #
 # Provide a file path that was printed in the output of a previous run of the script, and the
@@ -44,6 +46,13 @@ VALID_JUNK_FOLDERS = (LOGS_FOLDER, PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX, "log
 
 THREAD_POOL_SIZE = 50
 
+
+def main():
+    """ This is called when run through the run_script.sh script. """
+    # go through every study file (encrypted file) in the s3 bucket and compress it.
+    compress_study_files_matching_prefix("", START_GLOBAL_FILE_SEARCH_HERE)
+
+
 #
 ## logging sorta-kinda
 #
@@ -68,6 +77,13 @@ class stats:
         print()
 
 
+class big:
+    big_prev = 0
+    biggest_file_size = 0
+    biggest_file_name = ""
+
+# compression bits
+
 def compress_file(path_study):
     # download forcing compression
     path, study = path_study
@@ -88,15 +104,6 @@ def compress_file(path_study):
 # we can bypass a whole database query by having the study to hand
 ALL_STUDIES = {}
 NOT_A_STUDY = set()
-
-#
-##  High level .... stuff
-#
-
-def main():
-    """ This is called when run through the run_script.sh script. """
-    # go through every study file (encrypted file) in the s3 bucket and compress it.
-    compress_study_files_matching_prefix("", START_GLOBAL_FILE_SEARCH_HERE)
 
 
 def compress_a_study(study_object_id_or_study: str|Study):
@@ -131,10 +138,6 @@ def get_update_study(study_object_id: str) -> Study|None:
             NOT_A_STUDY.add(study_object_id)  # it doesn't exist
             return None
     return study
-
-
-def retrieve_s3_log_file(path: str) -> tuple[str,str]:
-    return path, s3_retrieve_plaintext(path).decode()
 
 
 def batch_unencrypted_compress_S3File(path: str):
@@ -260,6 +263,26 @@ def compress_logs():
     pool.terminate()
 
 
+def drain_list_or_dict(list_or_dict: list|dict) -> Generator[tuple[Any, Any]] | Generator[Any]:
+    # this function drains elements out of a list or a dict.
+    
+    if isinstance(list_or_dict, dict):
+        # can't mutate it while we drain it
+        for key in drain_list_or_dict(list(list_or_dict.keys())):
+            yield key, list_or_dict.pop(key)
+    
+    if isinstance(list_or_dict, list):
+        while list_or_dict:
+            yield list_or_dict.pop(-1)
+
+
+def retrieve_s3_log_file(path: str) -> tuple[str,bytes]:
+    """ Weird.  In investigating the memory leak I found that it grows towards its maximum
+    much faster if I run s3_retrieve_plaintext(path.encode().decode()) to make every 
+    path string that gets passed in to s3_retrieve_plaintext a new string. """
+    return path, s3_retrieve_plaintext(path)
+
+
 def compress_s3_logging_logs():
     """ Compresses files in the "logs/" folder that is created by the s3 access logging setting.
     
@@ -268,46 +291,77 @@ def compress_s3_logging_logs():
     This batches together 10,000 files at a time, and then uploads them to the logs/compressed.
     achieves ~14x compression on the logs. You probably have millions of these files if you have any
     at all.  These files are generated automatically by the s3 bucket settings, they are not enabled
-    by default. """
+    by default.
     
+    There's a memory leak.
+    
+    """
+    
+    big.big_prev = 0
+    big.biggest_file_size = 0
+    big.biggest_file_name = ""
+    
+    pool = ThreadPool(50)
     paths = list[str]()
-    pool = ThreadPool(THREAD_POOL_SIZE)
-    
-    def concatenate_s3_log_files():
-        # Concatenates the log files into a json dict, compress, upload, then delete the originals.
-        # names in this folder contain some date information, they will look like:
-        # logs/compressed/logs/2016-09-27-23-34-26-69B50546FD03CF06-logs/2016-09-29-01-40-59-409F9A199BFDBAEC.zst
-        #    aaaaand just realized that has extra / in it well ... it doesn't matter nobady cares...
-        
-        start, end = paths[0], paths[-1]
-        print("downloading")
-        data = dict(pool.imap_unordered(retrieve_s3_log_file, paths, chunksize=1))
-        json_repr = orjson.dumps(data)
-        name = f"logs/compressed/{start}-{end}.zst"
-        print("uploading", name)
-        s3_upload_plaintext(name, compress(json_repr, level=4))
-        print("deleting")
-        
-        # TODO: this can be changed to the versioned delete-many boto3 api outside the thread pool,
-        #  but that is.... hard to debug because it requires the version id and I needed a way to
-        #  distinguish already deleted files and can't be bothered to work that out right now.
-        list(pool.imap_unordered(s3_delete, paths, chunksize=1))
-        print("done deleting\n")
-    
     
     # go through paths, skip obviously wrong files, create a list, dispatch to compress
     # logs have a name starting with the isodate, a prefix of logs/2 skips compressed files.
-    for number_paths_total, path in enumerate(s3_list_files("logs/2", as_generator=True)):
+    try:
+        for total, path in enumerate(s3_list_files("logs/2", as_generator=True)):
+            paths.append(path)
+            if len(paths) >= 1_000:
+                print("number_paths_total:", numformat(total + 1))
+                concatenate_s3_log_files(paths, pool)
+                paths.clear()
         
-        paths.append(path)
-        if len(paths) >= 10_000:
-            print("number_paths_total:", numformat(number_paths_total))
-            concatenate_s3_log_files()
-            paths = []
+        if paths:
+            concatenate_s3_log_files(paths, pool)
+        paths.clear()
+    finally:
+        pool.close()
+        pool.terminate()
+
+
+def concatenate_s3_log_files(paths: list[str], pool: ThreadPool):
+    # Concatenates the log files into a json dict, compress, upload, then delete the originals.
+    # names in this folder contain some date information, they will look like:
+    # logs/compressed/logs/2016-09-27-23-34-26-69B50546FD03CF06-logs/2016-09-29-01-40-59-409F9A199BFDBAEC.zst
+    #    aaaaand just realized that has extra / in it well ... it doesn't matter nobady cares...
+    big_start = big.biggest_file_size
+    name = f"logs/compressed/{paths[0]}-{paths[-1]}.zst"
     
-    if paths:
-        concatenate_s3_log_files()
-        paths = []  # reset
+    print("downloading")
     
-    pool.close()
-    pool.terminate()
+    data: dict[str, str | bytes] = dict(pool.imap_unordered(retrieve_s3_log_file, paths))
+    
+    print("packaging and uploading")
+    
+    for k, v in data.items():
+        data[k] = v.decode()
+        if len(v) > big.biggest_file_size:
+            big.biggest_file_size = len(v)
+            big.biggest_file_name = k
+        del k, v
+    
+    if big.biggest_file_size != big_start:
+        print(f"biggest file: {big.biggest_file_name} ({numformat(big.biggest_file_size)})")
+        big.big_prev = big.biggest_file_size
+    
+    uncompressed = orjson.dumps(data)
+    data.clear()
+    del data
+    
+    compressed = compress(uncompressed, level=4)
+    del uncompressed
+    
+    # print("uploading", name)
+    s3_upload_plaintext(name, compress(compressed, level=4))
+    
+    # TODO: this can be changed to the versioned delete-many boto3 api outside the thread pool,
+    #  but that is.... hard to debug because it requires the version id and I needed a way to
+    #  distinguish already deleted files and can't be bothered to work that out right now.
+    print("deleting")
+    for _ in pool.imap_unordered(s3_delete, paths):
+        pass
+    
+    paths.clear()
