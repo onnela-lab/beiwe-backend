@@ -49,6 +49,9 @@ boto3
 # pip-tools>=7.3.0
 
 # this target points at what is currently the "beiwe-taskrunner" branch of the forest repo.
-git+https://git@github.com/onnela-lab/forest@dc4191eeab1ca8ef383ba2eb08272385f7ca67c2
+git+https://git@github.com/onnela-lab/forest@dcb3a1954f18ce93f1a4a7c6270f8aa80609cb32
 
 celery==5.4.0
+
+
+css-html-js-minify
