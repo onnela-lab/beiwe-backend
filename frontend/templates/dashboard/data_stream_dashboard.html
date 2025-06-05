@@ -3,14 +3,13 @@
 
 {% block head %}
   {{ super() }}
-  <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
-  <link rel="stylesheet" type="text/css" href="{{ ASSETS.DATATABLES_CSS }}">
-  <link rel="stylesheet" href="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER_CSS }}" type="text/css"/>
-  <script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
+  <style> {% include LocalAssets.DATATABLES_CSS %} </style>
+  <style> {% include LocalAssets.DASHBOARD_CSS %} </style>
   <script type="text/javascript" charset="utf8" src="{{ ASSETS.DATATABLES }}"></script>
-  <script type="text/javascript" src="/static/javascript/libraries/transition.js"></script>
-  <script type="text/javascript" src="/static/javascript/libraries/collapse.js"></script>
-  <script src="/static/javascript/dashboard_features.js"></script>
+  <script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
+  <script> {% include LocalAssets.TRANSITION_JS %} </script>
+  <script> {% include LocalAssets.COLLAPSE_JS %} </script>
+  <script> {% include LocalAssets.PATIENT_DASHBOARD_FEATURES_JS %} </script>
   {% include 'dashboard/dashboard_stream_javascript.html' %}
 {% endblock %}
 
@@ -70,7 +69,7 @@
             Click to Configure Gradients and Flags <span class="caret"></span>
           <div class="btn-toolbar flag-toolbar" role="toolbar">
             <div class="btn-group" role="group" ng-if="show_color">
-              <button type="button" class="btn filter-bar color-grad">
+              <button  class="btn filter-bar color-grad">
                 Color Gradient:
                 <span class="gradient">{% raw %}{{ current_gradient[0] }} {% endraw %} - {% raw %}{{ current_gradient[1] }}{% endraw %}</span>
               </button>
@@ -78,7 +77,7 @@
             </div>
 
             <div class="btn-group filter-flag-item" role="group" ng-repeat="flag in all_flags_list">
-              <button type="button" class="btn filter-bar flag-filter">
+              <button  class="btn filter-bar flag-filter">
                 Flag Values: {% raw %}{{ flag[0] }} {{ flag[1] }}{% endraw %}
               </button>
               <input type="button" ng-click="removeFlag(flag)" value="x" class="btn btn-primary">

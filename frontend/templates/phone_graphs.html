@@ -21,7 +21,7 @@
         {% for i in range ( responses|length ) %}
           <!-- creates a button, each button contains title, [coordinates].
           note: null answers are ignored by stepping over it on the X axis, if all values are null the graph works but has no data points. -->
-          <button type="button" onClick="replot_user_results({{ responses[i][0] }} , {{ [responses[i][1]] }})">Question {{i + 1}}</button>
+          <button  onClick="replot_user_results({{ responses[i][0] }} , {{ [responses[i][1]] }})">Question {{i + 1}}</button>
           {% if ((i + 1) is divisibleby 3) %} <br> {% endif %}
         {% endfor %}
       {% endfor %}

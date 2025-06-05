@@ -39,14 +39,14 @@
             {{ intervention.name }}
           </td>
           <td>
-            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#interventionModal{{ intervention.id }}">
+            <button  class="btn btn-primary" data-toggle="modal" data-target="#interventionModal{{ intervention.id }}">
               Edit Intervention
             </button>
             <div class="modal fade" id="interventionModal{{ intervention.id }}" tabindex="-1" role="dialog">
               <div class="modal-dialog" role="document">
                 <div class="modal-content">
                   <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <button  class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                     <h4 class="modal-title">Edit Intervention</h4>
                   </div>
                   <div class="modal-body">
@@ -55,8 +55,8 @@
                       <input type="text" class="form-control" name="edit_intervention" value="{{ intervention.name }}"/>
                       <input type="hidden" name="intervention_id" value="{{ intervention.id }}"/>
                       <br>
-                      <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                      <button type="submit" class="btn btn-primary">Save changes</button>
+                      <button  class="btn btn-default" data-dismiss="modal">Close</button>
+                      <button  class="btn btn-primary">Save changes</button>
                     </form>
                   </div>
                 </div><!-- /.modal-content -->
@@ -89,7 +89,7 @@
         </div>
       </div>
       <br>
-      <button type="submit" class="btn btn-success"><span class="glyphicon glyphicon-plus"></span> Add New Intervention</button>
+      <button  class="btn btn-success"><span class="glyphicon glyphicon-plus"></span> Add New Intervention</button>
     </form>
   </div>
 

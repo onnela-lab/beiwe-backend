@@ -4,19 +4,15 @@
 
 {% block head %}
   {{ super() }}
-  <link rel="stylesheet" href="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER_CSS }}" type="text/css"/>
   <script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
-  <script type="text/javascript" src="/static/javascript/libraries/transition.js"></script>
-  <script type="text/javascript" src="/static/javascript/libraries/collapse.js"></script>
   <script>
     var allowedStudies = {{ allowed_studies|tojson }};
     var participantsByStudy = {{ users_by_study|tojson }};
   </script>
-  <script src="/static/javascript/app/survey-builder/controllers/data-access-web-form-controller.js"></script>
-  
-  <script>
-  {% include "data_download_page.js" %}
-  </script>
+  <script> {% include LocalAssets.TRANSITION_JS %} </script>
+  <script> {% include LocalAssets.COLLAPSE_JS %} </script>
+  <script> {% include LocalAssets.DATA_ACCESS_WEB_FORM_CONTROLLER %} </script>
+  <script> {% include LocalAssets.DATA_DOWNLOAD_PAGE %} </script>
 {% endblock %}
 
 {% block content %}
@@ -112,7 +108,7 @@
         </div>
         
         <div class="col-xs-2 h2-margins-vertical" id="download_ready_button" hidden>
-          <button type="submit" class="btn btn-warning text-smaller" onmousedown="enable_submit_button()">
+          <button  class="btn btn-warning text-smaller" onmousedown="enable_submit_button()">
            Ready to Download More Data </button>
         </div>
         
