@@ -2,69 +2,87 @@
 <html lang="en">
 <head>
   {% block head %}
-    <meta charset="utf-8">
-    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no, width=device-width" />
-    {# Javascript #}
-    {# bootstrap needs jquery #}
-    <script src="{{ ASSETS.JQUERY }}" integrity="{{ ASSETS.JQUERY_INTEGRITY }}" crossorigin="anonymous"></script>
-    <script src="{{ ASSETS.ANGULARJS }}" type="text/javascript"></script>
-    <script src="{{ ASSETS.BOOTSTRAP }}" integrity="{{ ASSETS.BOOTSTRAP_INTEGRITY }}" crossorigin="anonymous"></script>
-    <script src="{{ ASSETS.BOOTSTRAP_TIMEPICKER }}" type="text/javascript"></script>
-    <script src="{{ ASSETS.HANDLEBARS }}" type="text/javascript"></script>    
-    <script src="{{ ASSETS.LODASH }}" type="text/javascript"></script>
-    <script src="{{ ASSETS.MOMENTJS }}" type="text/javascript"></script>
-    
-    <style> {% include "libraries/bootstrap-darkly.css" %} </style>
-    {# <style> {% include "libraries/bootstrap-darkly.min.css" %} </style> #}
-    
-    <link rel="stylesheet" src="{{ ASSETS.BOOTSTRAP_TIMEPICKER_CSS }}" type="text/css">
-    <style> {% include "admin.css" %} </style>
-    
-    <!-- Sentry Configuration -->
-    {% if SENTRY_JAVASCRIPT_DSN and SENTRY_JAVASCRIPT_DSN != 'USE_EMAIL_FALLBACK' %}
-      <script src="https://cdn.ravenjs.com/3.25.2/angular/raven.min.js" crossorigin="anonymous"></script>
-      <script>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no, width=device-width"
+  />
+  {# Javascript #}
+  {# bootstrap needs jquery #}
+  <script src="{{ ASSETS.JQUERY }}" integrity="{{ ASSETS.JQUERY_INTEGRITY }}" crossorigin="anonymous"></script>
+  <script src="{{ ASSETS.ANGULARJS }}" type="text/javascript"></script>
+  <script src="{{ ASSETS.BOOTSTRAP }}" integrity="{{ ASSETS.BOOTSTRAP_INTEGRITY }}" crossorigin="anonymous"></script>
+  <script src="{{ ASSETS.BOOTSTRAP_TIMEPICKER }}" type="text/javascript"></script>
+  <script src="{{ ASSETS.HANDLEBARS }}" type="text/javascript"></script>
+  <script src="{{ ASSETS.LODASH }}" type="text/javascript"></script>
+  <script src="{{ ASSETS.MOMENTJS }}" type="text/javascript"></script>
+
+  <style> {% include "libraries/bootstrap-darkly.css" %} </style>
+  {# <style> {% include "libraries/bootstrap-darkly.min.css" %} </style> #}
+
+  <link
+    rel="stylesheet"
+    src="{{ ASSETS.BOOTSTRAP_TIMEPICKER_CSS }}"
+    type="text/css"
+  >
+  <style> {% include "admin.css" %} </style>
+
+  <!-- Sentry Configuration -->
+  {% if SENTRY_JAVASCRIPT_DSN and SENTRY_JAVASCRIPT_DSN != 'USE_EMAIL_FALLBACK' %}
+  <script src="https://cdn.ravenjs.com/3.25.2/angular/raven.min.js" crossorigin="anonymous"></script>
+  <script>
         Raven.config('{{ SENTRY_JAVASCRIPT_DSN }}', {
           debug:true
         }).install();
       </script>
-    {% endif %}
-    
-    <!-- Load Angular -->
-    <script src="/static/javascript/app/app.module.js"></script>
-    
-    <link rel="icon" href="/static/images/favicon-32x32.png" sizes="32x32">
-    <link rel="icon" href="/static/images/favicon-192x192.png" sizes="192x192">
-    <title>Beiwe | {% block title %}{% endblock %}</title>
+  {% endif %}
+
+  <!-- Load Angular -->
+  <script src="/static/javascript/app/app.module.js"></script>
+
+  <link
+    rel="icon"
+    href="/static/images/favicon-32x32.png"
+    sizes="32x32"
+  >
+  <link
+    rel="icon"
+    href="/static/images/favicon-192x192.png"
+    sizes="192x192"
+  >
+  <title>Beiwe | {% block title %}{% endblock %}</title>
   {% endblock %}
 </head>
 
-<body ng-app="surveyBuilder" {% block body_attributes %}{% endblock %}>
+<body
+  ng-app="surveyBuilder"
+  {% block body_attributes %}{% endblock %}
+>
   <div>
     {% block navbar %}
-      {% include 'navbar.html' %}
+    {% include 'navbar.html' %}
     {% endblock %}
   </div>
-  
+
   <div class="container">
     <div class="row">
       {% block notifications %}
-        {% include 'notifications.html' %}
+      {% include 'notifications.html' %}
       {% endblock %}
     </div>
-    
+
     <div id="content">
       {% block content %}
       {% endblock %}
     </div>
-    
+
     <div id="footer">
       {% block footer %}
-        {% include 'footer.html' %}
+      {% include 'footer.html' %}
       {% endblock %}
     </div>
   </div>
-  
+
   {% block javascript %}
   {% endblock %}
 </body>
