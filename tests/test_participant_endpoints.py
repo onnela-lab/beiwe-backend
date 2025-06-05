@@ -536,7 +536,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
             survey_id=self.default_survey.pk
         )
     
-    def test_bad_fcm_token(self):  # check_firebase_instance: MagicMock):
+    def test_bad_fcm_token(self):
         self.set_session_study_relation(ResearcherRole.researcher)
         token = self.generate_fcm_token(self.default_participant)
         token.update(unregistered=timezone.now())
@@ -547,7 +547,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.assertEqual(archived_event.status, DEVICE_HAS_NO_REGISTERED_TOKEN)
         self.validate_manual_push_archived_event(archived_event)
     
-    def test_no_fcm_token(self):  # check_firebase_instance: MagicMock):
+    def test_no_fcm_token(self):
         self.set_session_study_relation(ResearcherRole.researcher)
         self.assertEqual(self.default_participant.fcm_tokens.count(), 0)
         self.do_post()
@@ -556,7 +556,7 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.assertEqual(archived_event.status, DEVICE_HAS_NO_REGISTERED_TOKEN)
         self.validate_manual_push_archived_event(archived_event)
     
-    def test_no_firebase_creds(self):  # check_firebase_instance: MagicMock):
+    def test_no_firebase_creds(self):
         self.set_session_study_relation(ResearcherRole.researcher)
         self.generate_fcm_token(self.default_participant)
         self.do_post()
@@ -571,12 +571,12 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.smart_post_status_code(400, self.session_study.pk, self.default_participant.patient_id)
     
     @patch("endpoints.participant_endpoints.send_push_notification")
-    @patch("endpoints.participant_endpoints.check_firebase_instance")
+    @patch("libs.firebase_config.AndroidFirebaseAppState")
     def test_mocked_firebase_valueerror_error_1(
-        self, check_firebase_instance: MagicMock, send_push_notification: MagicMock
+        self, AndroidFirebaseAppState: MagicMock, send_push_notification: MagicMock
     ):
         # manually invoke some other ValueError to validate that dumb logic.
-        check_firebase_instance.return_value = True
+        AndroidFirebaseAppState.check = lambda: True
         send_push_notification.side_effect = ValueError('something exploded')
         self.set_session_study_relation(ResearcherRole.researcher)
         self.generate_fcm_token(self.default_participant)
@@ -585,11 +585,11 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.assertIn(MESSAGE_SEND_FAILED_UNKNOWN, archived_event.status)
         self.validate_manual_push_archived_event(archived_event)
     
-    @patch("endpoints.participant_endpoints.check_firebase_instance")
-    def test_mocked_firebase_valueerror_2(self, check_firebase_instance: MagicMock):
+    @patch("libs.firebase_config.AndroidFirebaseAppState")
+    def test_mocked_firebase_valueerror_2(self, AndroidFirebaseAppState: MagicMock):
         # by failing to patch messages.send we trigger a valueerror because firebase creds aren't
         #  present is not configured, it is passed to the weird firebase clause
-        check_firebase_instance.return_value = True
+        AndroidFirebaseAppState.check = lambda: True
         self.set_session_study_relation(ResearcherRole.researcher)
         self.generate_fcm_token(self.default_participant)
         self.do_post()
@@ -599,12 +599,12 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.validate_manual_push_archived_event(archived_event)
     
     @patch("endpoints.participant_endpoints.send_push_notification")
-    @patch("endpoints.participant_endpoints.check_firebase_instance")
+    @patch("libs.firebase_config.AndroidFirebaseAppState")
     def test_mocked_firebase_unregistered_error(
-        self, check_firebase_instance: MagicMock, send_push_notification: MagicMock
+        self, AndroidFirebaseAppState: MagicMock, send_push_notification: MagicMock
     ):
         # manually invoke some other ValueError to validate that dumb logic.
-        check_firebase_instance.return_value = True
+        AndroidFirebaseAppState.check = lambda: True
         from firebase_admin.messaging import UnregisteredError
         err_msg = 'UnregisteredError occurred'
         send_push_notification.side_effect = UnregisteredError(err_msg)
@@ -617,12 +617,12 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.validate_manual_push_archived_event(archived_event)
     
     @patch("endpoints.participant_endpoints.send_push_notification")
-    @patch("endpoints.participant_endpoints.check_firebase_instance")
+    @patch("libs.firebase_config.AndroidFirebaseAppState")
     def test_mocked_generic_error(
-        self, check_firebase_instance: MagicMock, send_push_notification: MagicMock
+        self, AndroidFirebaseAppState: MagicMock, send_push_notification: MagicMock
     ):
         # mock generic error on sending the notification
-        check_firebase_instance.return_value = True
+        AndroidFirebaseAppState.check = lambda: True
         send_push_notification.side_effect = Exception('something exploded')
         self.set_session_study_relation(ResearcherRole.researcher)
         self.generate_fcm_token(self.default_participant)
@@ -631,10 +631,10 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.assertEqual(MESSAGE_SEND_FAILED_UNKNOWN, archived_event.status)
         self.validate_manual_push_archived_event(archived_event)
     
-    @patch("endpoints.participant_endpoints.check_firebase_instance")
+    @patch("libs.firebase_config.AndroidFirebaseAppState")
     @patch("endpoints.participant_endpoints.send_push_notification")
-    def test_mocked_success(self, check_firebase_instance: MagicMock, messaging: MagicMock):
-        check_firebase_instance.return_value = True
+    def test_mocked_success(self, AndroidFirebaseAppState: MagicMock, messaging: MagicMock):
+        AndroidFirebaseAppState.check = lambda: True
         self.set_session_study_relation(ResearcherRole.researcher)
         self.generate_fcm_token(self.default_participant)
         self.do_post()
@@ -642,10 +642,10 @@ class TestResendPushNotifications(ResearcherSessionTest):
         self.assertIn(MESSAGE_SEND_SUCCESS, archived_event.status)
         self.validate_manual_push_archived_event(archived_event)
     
-    @patch("endpoints.participant_endpoints.check_firebase_instance")
+    @patch("libs.firebase_config.IosFirebaseAppState")
     @patch("endpoints.participant_endpoints.send_push_notification")
-    def test_mocked_success_ios(self, check_firebase_instance: MagicMock, messaging: MagicMock):
-        check_firebase_instance.return_value = True
+    def test_mocked_success_ios(self, IosFirebaseAppState: MagicMock, messaging: MagicMock):
+        IosFirebaseAppState.check = lambda: True
         self.default_participant.update(os_type=IOS_API)  # the default os type is android
         self.set_session_study_relation(ResearcherRole.researcher)
         self.generate_fcm_token(self.default_participant)

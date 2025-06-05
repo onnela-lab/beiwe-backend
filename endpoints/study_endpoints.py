@@ -30,7 +30,7 @@ from libs.endpoint_helpers.researcher_helpers import get_administerable_research
 from libs.endpoint_helpers.study_helpers import (conditionally_display_study_status_warnings,
     get_administerable_studies_by_name, notify_changes, trim_whitespace, try_update_device_settings,
     unflatten_consent_sections)
-from libs.firebase_config import check_firebase_instance
+from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
 from libs.sentry import make_error_sentry, SentryTypes
 from libs.timezone_dropdown import ALL_TIMEZONES_DROPDOWN
 from libs.utils.http_utils import (easy_url, list_of_checkbox_strings_to_booleans,
@@ -119,8 +119,7 @@ def view_study_page(request: ResearcherRequest, study_id=None):
             page_location='view_study',
             study_id=study_id,
             is_study_admin=is_study_admin_on_this_study,
-            push_notifications_enabled=check_firebase_instance(require_android=True) or
-                                       check_firebase_instance(require_ios=True),
+            push_notifications_enabled=AndroidFirebaseAppState.check() or IosFirebaseAppState.check()
         )
     )
 

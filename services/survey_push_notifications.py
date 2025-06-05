@@ -23,7 +23,7 @@ from database.schedule_models import ScheduledEvent
 from database.survey_models import Survey
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     PushNotificationDisabledEvent)
-from libs.firebase_config import check_firebase_instance
+from libs.firebase_config import BackendFirebaseAppState
 from libs.push_notification_helpers import slowly_get_stopped_study_ids
 from libs.sentry import SentryTypes
 from services.resend_push_notifications import (
@@ -191,7 +191,7 @@ def send_scheduled_event_survey_push_notification_logic(
         .values_list("participant__patient_id", flat=True).get()
     
     with error_handler:
-        if not check_firebase_instance():
+        if not BackendFirebaseAppState.check():
             loge("Surveys - Firebase credentials are not configured.")
             return
         

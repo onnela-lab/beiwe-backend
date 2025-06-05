@@ -158,10 +158,11 @@ def debug_send_valid_survey_push_notification(participant: Participant, now: dat
     """ Runs the REAL LOGIC for sending push notifications based on the time passed in, but without
     the ErrorSentry. """
     
-    from services.celery_push_notifications import (check_firebase_instance,
-        get_surveys_and_schedules, send_scheduled_event_survey_push_notification_logic)
+    from libs.firebase_config import BackendFirebaseAppState
+    from services.celery_push_notifications import (get_surveys_and_schedules,
+        send_scheduled_event_survey_push_notification_logic)
     
-    if not now:
+    if now is None:
         now = timezone.now()
     # get_surveys_and_schedules for one participant, extra args are query filters on ScheduledEvents.
     surveys, schedules, _ = get_surveys_and_schedules(now, participant=participant)
@@ -179,7 +180,7 @@ def debug_send_valid_survey_push_notification(participant: Participant, now: dat
     for survey in Survey.objects.filter(object_id__in=survey_object_ids):
         print(f"Sending notification for survey '{survey.name if survey.name else survey.object_id}'")
     
-    if not check_firebase_instance():
+    if not BackendFirebaseAppState.check():
         print("Firebase is not configured, cannot queue notifications.")
         return
     

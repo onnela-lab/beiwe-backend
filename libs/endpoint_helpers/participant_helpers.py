@@ -19,7 +19,7 @@ from database.models import dbt
 from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.user_models_participant import Participant, ParticipantActionLog
-from libs.firebase_config import check_firebase_instance
+from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
 from libs.utils.http_utils import (compact_iso_time_format, more_compact_iso_time_format,
     niceish_iso_time_format, null_time_format)
 
@@ -74,7 +74,7 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
     relation = request.session_researcher.get_study_relation(study.id)
     can_delete = request.session_researcher.site_admin or relation in DATA_DELETION_ALLOWED_RELATIONS
     
-    enable_interventions = check_firebase_instance(require_ios=True) or check_firebase_instance(require_android=True)
+    enable_interventions = IosFirebaseAppState.check() or AndroidFirebaseAppState.check()
     return render(
         request,
         "participant.html",

@@ -6,7 +6,7 @@ from django.utils import timezone
 from constants.celery_constants import PUSH_NOTIFICATION_SEND_QUEUE
 from constants.common_constants import RUNNING_TESTS, UTC
 from libs.celery_control import push_send_celery_app, safe_apply_async
-from libs.firebase_config import check_firebase_instance
+from libs.firebase_config import BackendFirebaseAppState
 from libs.sentry import make_error_sentry, SentryTypes
 from services.heartbeat_push_notifications import (celery_heartbeat_send_push_notification_task,
     heartbeat_query)
@@ -49,7 +49,7 @@ def create_survey_push_notification_tasks():
     log("Patient_ids:", patient_ids)
     
     with make_error_sentry(sentry_type=SentryTypes.data_processing):
-        if not check_firebase_instance():
+        if not BackendFirebaseAppState.check():
             loge("Firebase is not configured, cannot queue notifications.")
             return
         
@@ -87,7 +87,7 @@ def celery_send_survey_push_notification(
 
 
 def create_heartbeat_tasks():
-    if not check_firebase_instance():
+    if not BackendFirebaseAppState.check():
         loge("Heartbeat - Firebase credentials are not configured.")
         return
     

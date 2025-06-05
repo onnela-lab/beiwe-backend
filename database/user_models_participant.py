@@ -215,11 +215,12 @@ class Participant(AbstractPasswordUser):
     def participant_push_enabled(self) -> bool:
         # this import causes a super stupid import triangle over in celery push notifications
         # after a refactor that literally just separated code into multiple files. Obviously.
-        from libs.firebase_config import check_firebase_instance
-        return (
-            self.os_type == ANDROID_API and check_firebase_instance(require_android=True) or
-            self.os_type == IOS_API and check_firebase_instance(require_ios=True)
-        )
+        from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
+        if self.os_type == ANDROID_API:
+            return AndroidFirebaseAppState.check()
+        elif self.os_type == IOS_API:
+            return IosFirebaseAppState.check()
+        return False
     
     ################################################################################################
     ###################################### History I Guess #########################################

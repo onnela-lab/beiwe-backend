@@ -6,7 +6,7 @@ from django.utils import timezone
 from constants import action_log_messages
 from constants.common_constants import RUNNING_TESTS
 from database.user_models_participant import Participant, ParticipantActionLog
-from libs.firebase_config import check_firebase_instance
+from libs.firebase_config import BackendFirebaseAppState
 from libs.push_notification_helpers import (fcm_for_pushable_participants,
     send_custom_notification_safely)
 from libs.sentry import make_error_sentry, SentryTypes
@@ -96,7 +96,7 @@ def celery_heartbeat_send_push_notification_task(
 ):
     with make_error_sentry(sentry_type=SentryTypes.data_processing):
         now = timezone.now()
-        if not check_firebase_instance():
+        if not BackendFirebaseAppState.check():
             loge("Heartbeat - Firebase credentials are not configured.")
             return
         

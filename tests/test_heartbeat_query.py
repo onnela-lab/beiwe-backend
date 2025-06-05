@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 
 from django.utils import timezone
 from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
@@ -225,42 +225,47 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertListEqual(thing_to_test, correct)
     
     @patch("services.heartbeat_push_notifications.celery_heartbeat_send_push_notification_task")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.celery_push_notifications.BackendFirebaseAppState")
     def test_heartbeat_notification_no_participants(
-        self, check_firebase_instance: MagicMock, celery_heartbeat_send_push_notification_task: MagicMock,
+        self, firebase_checker: MagicMock, celery_heartbeat_send_push_notification_task: MagicMock,
     ):
-        check_firebase_instance.return_value = True
+        firebase_checker.check = propcheck = PropertyMock()
+        propcheck.return_value = True
         create_heartbeat_tasks()
-        check_firebase_instance.assert_called_once()  # don't create heartbeat tasks without firebase
+        propcheck.assert_called_once()  # don't create heartbeat tasks without firebase
         celery_heartbeat_send_push_notification_task.assert_not_called()
         self.default_participant.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
     
     @patch("libs.push_notification_helpers.send_notification")
-    @patch("services.heartbeat_push_notifications.check_firebase_instance")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.heartbeat_push_notifications.BackendFirebaseAppState")
+    @patch("services.celery_push_notifications.BackendFirebaseAppState")
     def test_heartbeat_notification_one_participant(
-        self, check_firebase_instance: MagicMock, check_firebase_instance2: MagicMock, send_notification: MagicMock,
+        self, firebase_checker: MagicMock, firebase_checker2: MagicMock, send_notification: MagicMock,
     ):
-        check_firebase_instance.return_value = True
-        check_firebase_instance2.return_value = True
+        firebase_checker.check = propcheck = PropertyMock()
+        propcheck.return_value = True
+        firebase_checker2.check = propcheck2 = PropertyMock()
+        propcheck2.return_value = True
         self.set_working_heartbeat_notification_fully_valid
         create_heartbeat_tasks()
         send_notification.assert_called_once()
-        check_firebase_instance.assert_called()
-        check_firebase_instance2.assert_called()
+        propcheck.assert_called()
+        propcheck2.assert_called()
         self.default_participant.refresh_from_db()
         self.assertIsNotNone(self.default_participant.last_heartbeat_notification)
         self.assertIsInstance(self.default_participant.last_heartbeat_notification, datetime)
     
     @patch("libs.push_notification_helpers.send_notification")
-    @patch("services.heartbeat_push_notifications.check_firebase_instance")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.heartbeat_push_notifications.BackendFirebaseAppState")
+    @patch("services.celery_push_notifications.BackendFirebaseAppState")
     def test_heartbeat_notification_two_participants(
-        self, check_firebase_instance: MagicMock, check_firebase_instance2: MagicMock, send_notification: MagicMock,
+        self, firebase_checker: MagicMock, firebase_checker2: MagicMock, send_notification: MagicMock,
     ):
-        check_firebase_instance.return_value = True
-        check_firebase_instance2.return_value = True
+        firebase_checker.check = propcheck = PropertyMock()
+        propcheck.return_value = True
+        firebase_checker2.check = propcheck2 = PropertyMock()
+        propcheck2.return_value = True
         self.set_working_heartbeat_notification_fully_valid
         p2 = self.generate_participant(self.default_study)
         self.generate_fcm_token(p2, None)
@@ -270,8 +275,8 @@ class TestHeartbeatQuery(CommonTestCase):
         
         create_heartbeat_tasks()
         send_notification.assert_called()
-        check_firebase_instance.assert_called()
-        check_firebase_instance2.assert_called()
+        propcheck.assert_called()
+        propcheck2.assert_called()
         self.default_participant.refresh_from_db()
         p2.refresh_from_db()
         self.assertIsNotNone(self.default_participant.last_heartbeat_notification)
@@ -280,13 +285,15 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsInstance(p2.last_heartbeat_notification, datetime)
     
     @patch("libs.push_notification_helpers.send_notification")
-    @patch("services.heartbeat_push_notifications.check_firebase_instance")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.heartbeat_push_notifications.BackendFirebaseAppState")
+    @patch("services.celery_push_notifications.BackendFirebaseAppState")
     def test_heartbeat_notification_two_participants_one_failure(
-        self, check_firebase_instance: MagicMock, check_firebase_instance2: MagicMock, send_notification: MagicMock,
+        self, firebase_checker: MagicMock, firebase_checker2: MagicMock, send_notification: MagicMock,
     ):
-        check_firebase_instance.return_value = True
-        check_firebase_instance2.return_value = True
+        firebase_checker.check = propcheck = PropertyMock()
+        propcheck.return_value = True
+        firebase_checker2.check = propcheck2 = PropertyMock()
+        propcheck2.return_value = True
         p2 = self.generate_participant(self.default_study)
         self.generate_fcm_token(p2, None)
         p2.update(
@@ -297,8 +304,8 @@ class TestHeartbeatQuery(CommonTestCase):
         
         create_heartbeat_tasks()
         send_notification.assert_called()  # each called twice
-        check_firebase_instance.assert_called()
-        check_firebase_instance2.assert_called()
+        propcheck.assert_called()
+        propcheck2.assert_called()
         self.default_participant.refresh_from_db()
         p2.refresh_from_db()
         self.assertIsNone(self.default_participant.last_heartbeat_notification)
@@ -306,13 +313,15 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsInstance(p2.last_heartbeat_notification, datetime)
     
     @patch("libs.push_notification_helpers.send_custom_notification_raw")
-    @patch("services.heartbeat_push_notifications.check_firebase_instance")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.heartbeat_push_notifications.BackendFirebaseAppState")
+    @patch("services.celery_push_notifications.BackendFirebaseAppState")
     def test_heartbeat_notification_errors(
-        self, check_firebase_instance: MagicMock, check_firebase_instance2: MagicMock, send_custom_notification_raw: MagicMock,
+        self, firebase_checker: MagicMock, firebase_checker2: MagicMock, send_custom_notification_raw: MagicMock,
     ):
-        check_firebase_instance.return_value = True
-        check_firebase_instance2.return_value = True
+        firebase_checker.check = propcheck = PropertyMock()
+        propcheck.return_value = True
+        firebase_checker2.check = propcheck2 = PropertyMock()
+        propcheck2.return_value = True
         self.set_working_heartbeat_notification_fully_valid
         
         send_custom_notification_raw.side_effect = ValueError("test")
@@ -328,13 +337,15 @@ class TestHeartbeatQuery(CommonTestCase):
         self.assertIsNone(self.default_participant.fcm_tokens.first().unregistered)
     
     @patch("libs.push_notification_helpers.send_custom_notification_raw")
-    @patch("services.heartbeat_push_notifications.check_firebase_instance")
-    @patch("services.celery_push_notifications.check_firebase_instance")
+    @patch("services.heartbeat_push_notifications.BackendFirebaseAppState")
+    @patch("services.celery_push_notifications.BackendFirebaseAppState")
     def test_heartbeat_notification_errors_swallowed(
-        self, check_firebase_instance: MagicMock, check_firebase_instance2: MagicMock, send_custom_notification_raw: MagicMock,
+        self, firebase_checker: MagicMock, firebase_checker2: MagicMock, send_custom_notification_raw: MagicMock,
     ):
-        check_firebase_instance.return_value = True
-        check_firebase_instance2.return_value = True
+        firebase_checker.check = propcheck = PropertyMock()
+        propcheck.return_value = True
+        firebase_checker2.check = propcheck2 = PropertyMock()
+        propcheck2.return_value = True
         self.set_working_heartbeat_notification_fully_valid
         
         # but these don't actually raise the error

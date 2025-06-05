@@ -66,21 +66,21 @@ class TestViewStudy(ResearcherSessionTest):
         self.set_session_study_relation(ResearcherRole.study_admin)
         self.smart_get_status_code(200, self.session_study.id)
     
-    @patch('endpoints.study_endpoints.check_firebase_instance')
-    def test_view_study_site_admin(self, check_firebase_instance: MagicMock):
+    @patch('endpoints.study_endpoints.AndroidFirebaseAppState')
+    def test_view_study_site_admin(self, AndroidFirebaseAppState: MagicMock):
         study = self.session_study
         self.set_session_study_relation(ResearcherRole.site_admin)
     
         # test rendering with several specific values set to observe the rendering changes
         study.update(forest_enabled=False)
-        check_firebase_instance.return_value = False
+        AndroidFirebaseAppState.check = lambda: False
         response = self.smart_get_status_code(200, study.id)
         self.assertNotIn(
             b"Configure Interventions for use with Relative survey schedules", response.content
         )
         self.assertNotIn(b"View Forest Task Log", response.content)
     
-        check_firebase_instance.return_value = True
+        AndroidFirebaseAppState.check = lambda: True
         study.update(forest_enabled=True)
         response = self.smart_get_status_code(200, study.id)
         self.assertIn(
