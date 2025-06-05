@@ -23,7 +23,7 @@ class FirebaseAppState:
     def __init__(self, require_android:bool, require_ios:bool):
         self._class_lock = Lock()
         self._status_ok = False
-        self._timer = 0
+        self._timer = -5  # start with a negative timer so the first check always runs
         self.kwargs = {"require_android": require_android, "require_ios": require_ios}
     
     def check(self) -> bool:

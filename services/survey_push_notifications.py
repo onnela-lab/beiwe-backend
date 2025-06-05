@@ -3,6 +3,8 @@ import random
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
+from threading import Lock
+from time import perf_counter
 
 import orjson
 from cronutils.error_handler import ErrorSentry
@@ -177,6 +179,41 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> tuple[SurveyRet
     return  dict(surveys), dict(schedules), patient_ids
 
 
+class ParticipantCache:
+    fcm_to_participant_id: dict[str, int] = {}
+    participant_id_to_participant: dict[int, Participant] = {}
+    lock_timer = -10*60  # -10 minutes, so that we populate on first call.
+    lock = Lock()
+    
+    @classmethod
+    def populate(cls):
+        print("yo locking")
+        # lock, check if still need to populate after lock finishes, if not return early.
+        # otherwise populate, reset lock timer, and return.
+        with cls.lock:
+            if (perf_counter() - cls.lock_timer) <= 10*60:
+                print("did not need to populate")
+                return
+            print("yo populating")
+            cls.participant_id_to_participant = {p.pk: p for p in Participant.fltr()}
+            cls.fcm_to_participant_id = ParticipantFCMHistory.make_lookup_dict("token", "participant_id")
+            cls.lock_timer = perf_counter()
+    
+    @classmethod
+    def get_participant_by_fcm(cls, token: str) -> Participant:
+        # if not cls._populated:
+        print("yo checking if we need to populate")
+        if (perf_counter() - cls.lock_timer) > 10*60:  # now minus then, 1 hour
+            cls.populate()
+        
+        if token not in cls.fcm_to_participant_id:
+            p = Participant.obj_get(fcm_tokens__token=token)
+            cls.participant_id_to_participant[p.pk] = p
+            cls.fcm_to_participant_id[token] = p.pk
+        
+        return cls.participant_id_to_participant[cls.fcm_to_participant_id[token]]
+
+
 def send_scheduled_event_survey_push_notification_logic(
     fcm_token: str,
     survey_obj_ids: list[str],
@@ -187,17 +224,18 @@ def send_scheduled_event_survey_push_notification_logic(
     """ Sends push notifications. Note that this list of pks may contain duplicates. """
     
     # We need the patient_id is so that we can debug anything on Sentry. Worth a database call?
-    patient_id = ParticipantFCMHistory.objects.filter(token=fcm_token) \
-        .values_list("participant__patient_id", flat=True).get()
+    # patient_id = ParticipantFCMHistory.objects.filter(token=fcm_token) \
+    #     .values_list("participant__patient_id", flat=True).get()
+    
+    participant = ParticipantCache.get_participant_by_fcm(fcm_token)
     
     with error_handler:
         if not BackendFirebaseAppState.check():
             loge("Surveys - Firebase credentials are not configured.")
             return
         
-        participant = Participant.objects.get(patient_id=patient_id)
         survey_obj_ids = list(set(survey_obj_ids))  # Dedupe-dedupe
-        log(f"Sending push notification to {patient_id} for {survey_obj_ids}...")
+        log(f"Sending push notification to {participant.patient_id} for {survey_obj_ids}...")
         
         # we need to mock the reference_schedule object in debug mode... it is stupid.
         scheduled_events = get_or_mock_schedules(schedule_pks, debug)
@@ -314,8 +352,7 @@ def success_send_survey_handler(participant: Participant, fcm_token: str, events
         fcm_hist.unregistered = None
         fcm_hist.save()
     
-    participant.push_notification_unreachable_count = 0
-    participant.save()
+    participant.update_only(push_notification_unreachable_count=0)
     
     create_archived_events(events, participant, status=MESSAGE_SEND_SUCCESS)
 
@@ -344,8 +381,9 @@ def failed_send_survey_handler(
         error_message = ACCOUNT_NOT_FOUND
     
     if participant.push_notification_unreachable_count >= PUSH_NOTIFICATION_ATTEMPT_COUNT:
+        # disable the credential
         now = timezone.now()
-        fcm_hist: ParticipantFCMHistory = ParticipantFCMHistory.objects.get(token=fcm_token)
+        fcm_hist = ParticipantFCMHistory.objects.get(token=fcm_token)
         fcm_hist.unregistered = now
         fcm_hist.save()
         
@@ -354,17 +392,13 @@ def failed_send_survey_handler(
             count=participant.push_notification_unreachable_count
         ).save()
         
-        # disable the credential
-        participant.push_notification_unreachable_count = 0
-        participant.save()
-        
         logd(f"Participant {participant.patient_id} has had push notifications "
               f"disabled after {PUSH_NOTIFICATION_ATTEMPT_COUNT} failed attempts to send.")
     
     else:
-        now = None
-        participant.save()
-        participant.push_notification_unreachable_count += 1
+        participant.update_only(
+            push_notification_unreachable_count=participant.push_notification_unreachable_count + 1
+        )
         logd(f"Participant {participant.patient_id} has had push notifications failures "
               f"incremented to {participant.push_notification_unreachable_count}.")
     
