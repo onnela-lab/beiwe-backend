@@ -99,7 +99,6 @@ def view_study_page(request: ResearcherRequest, study_id=None):
                 info["last_updated"].astimezone(tz).strftime(DT_12HR_W_TZ_N_SEC_N_PAREN)
             if not info["name"]:
                 info["name"] = f"(Unnamed Survey created {created}"
-        print(survey_info)
         return survey_info
     
     # unavoidable query, used to populate the edit study button

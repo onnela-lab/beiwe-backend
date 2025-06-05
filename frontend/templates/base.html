@@ -16,29 +16,35 @@
   <script src="{{ ASSETS.HANDLEBARS }}" type="text/javascript"></script>
   <script src="{{ ASSETS.LODASH }}" type="text/javascript"></script>
   <script src="{{ ASSETS.MOMENTJS }}" type="text/javascript"></script>
-
-  <style> {% include "libraries/bootstrap-darkly.css" %} </style>
-  {# <style> {% include "libraries/bootstrap-darkly.min.css" %} </style> #}
-
-  <link
-    rel="stylesheet"
-    src="{{ ASSETS.BOOTSTRAP_TIMEPICKER_CSS }}"
-    type="text/css"
-  >
-  <style> {% include "admin.css" %} </style>
-
-  <!-- Sentry Configuration -->
-  {% if SENTRY_JAVASCRIPT_DSN and SENTRY_JAVASCRIPT_DSN != 'USE_EMAIL_FALLBACK' %}
-  <script src="https://cdn.ravenjs.com/3.25.2/angular/raven.min.js" crossorigin="anonymous"></script>
-  <script>
-        Raven.config('{{ SENTRY_JAVASCRIPT_DSN }}', {
-          debug:true
-        }).install();
-      </script>
-  {% endif %}
+  
+  
+  {# the halfling fonds get screwed up urls inside css files because they will be dispatch to #}
+  {# current_page_as_the_root/staticfonts/etc....woff ; it is weird   #}
+  <style>
+  @font-face {
+  font-family: "Glyphicons Halflings";
+  src: url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.eot");
+  src: url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.eot?#iefix") format("embedded-opentype"), url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.woff2") format("woff2"), url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.woff") format("woff"), url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.ttf") format("truetype"), url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.svg#glyphicons_halflingsregular") format("svg");
+}
+  </style>
+  <style> {% include LocalAssets.DARKLY %} </style>
+  <style> {% include LocalAssets.BOOTSTRAP_TIMEPICKER_CSS %} </style>
+  <style> {% include LocalAssets.BOOTSTRAP_DATETIMEPICKER_CSS %} </style>
+  <style> {% include LocalAssets.ADMIN %} </style>
+  <script> {% include LocalAssets.ANGULAR_APP_JS %} </script>
+  
+  {# <!-- Sentry Configuration --> #}
+  {# {% if SENTRY_JAVASCRIPT_DSN and SENTRY_JAVASCRIPT_DSN != 'USE_EMAIL_FALLBACK' %} #}
+  {# <script src="https://cdn.ravenjs.com/3.25.2/angular/raven.min.js" crossorigin="anonymous"></script> #}
+  {# <script> #}
+        {# Raven.config('{{ SENTRY_JAVASCRIPT_DSN }}', { #}
+          {# debug:true #}
+        {# }).install(); #}
+      {# </script> #}
+  {# {% endif %} #}
 
   <!-- Load Angular -->
-  <script src="/static/javascript/app/app.module.js"></script>
+  
 
   <link
     rel="icon"

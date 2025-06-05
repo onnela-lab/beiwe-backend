@@ -1,12 +1,12 @@
 <script>navBarStudies = {{ allowed_studies|tojson }}</script>
-<script src="/static/javascript/app/survey-builder/controllers/nav-bar-study-controller.js"></script>
+<script>{% include LocalAssets.NAVBAR_JS %}</script>
 
 <nav class="navbar navbar-inverse">
   <div class="container-fluid">
 
     {# This "Open the navbar menu" toggle appears on narrow (mobile) screens when the rest of the navbar is hidden #}
     <div class="navbar-header">
-      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#main-navbar-menu" aria-expanded="false">
+      <button  class="navbar-toggle collapsed" data-toggle="collapse" data-target="#main-navbar-menu" aria-expanded="false">
         <span class="sr-only">Toggle navigation</span>
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>

@@ -239,12 +239,6 @@ th {
     border: 1px solid #ddd !important;
   }
 }
-
- @font-face {
-  font-family: "Glyphicons Halflings";
-  src: url("static/fonts/glyphicons-halflings-regular.eot");
-  src: url("static/fonts/glyphicons-halflings-regular.eot?#iefix") format("embedded-opentype"), url("static/fonts/glyphicons-halflings-regular.woff2") format("woff2"), url("static/fonts/glyphicons-halflings-regular.woff") format("woff"), url("static/fonts/glyphicons-halflings-regular.ttf") format("truetype"), url("static/fonts/glyphicons-halflings-regular.svg#glyphicons_halflingsregular") format("svg");
-}
 .glyphicon {
   position: relative;
   top: 1px;
@@ -1541,7 +1535,7 @@ output {
   font-size: 15px;
   line-height: 1.42857143;
   color: #464545;
-  background-color: var(--Bwhite)
+  background-color: var(--Bwhite);
   background-image: none;
   border: 1px solid #f1f1f1;
   border-radius: 4px;
@@ -1808,7 +1802,7 @@ select[multiple].input-lg {
   color: var(--Bwhite);
 }
 .has-success .form-control {
-  border-color: var(--Bwhite)
+  border-color: var(--Bwhite);
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
 }
 .has-success .form-control:focus {
@@ -1836,7 +1830,7 @@ select[multiple].input-lg {
   color: var(--Bwhite);
 }
 .has-warning .form-control {
-  border-color: var(--Bwhite)
+  border-color: var(--Bwhite);
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
 }
 .has-warning .form-control:focus {
@@ -1864,7 +1858,7 @@ select[multiple].input-lg {
   color: var(--Bwhite);
 }
 .has-error .form-control {
-  border-color: var(--Bwhite)
+  border-color: var(--Bwhite);
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
 }
 .has-error .form-control:focus {
@@ -2147,21 +2141,21 @@ fieldset[disabled] .btn-primary.focus {
 .btn-success:focus,
 .btn-success.focus {
   color: var(--Bwhite);
-  background-color: #008966;
-  border-color: #003d2d;
+  background-color: var(--Baqua-bright);
+  border-color: var(--Baqua-bright);
 }
 .btn-success:hover {
   color: var(--Bwhite);
-  background-color: #008966;
-  border-color: #007f5e;
+  background-color: var(--Baqua-bright);;
+  border-color: var(--Baqua-bright);
 }
 .btn-success:active,
 .btn-success.active,
 .open > .dropdown-toggle.btn-success {
   color: var(--Bwhite);
-  background-color: #008966;
   background-image: none;
-  border-color: #007f5e;
+  background-color: var(--Baqua-bright);
+  border-color: var(--Baqua-bright);
 }
 .btn-success:active:hover,
 .btn-success.active:hover,
@@ -2184,10 +2178,7 @@ fieldset[disabled] .btn-success:hover,
 fieldset[disabled] .btn-success:focus,
 .btn-success.disabled.focus,
 .btn-success[disabled].focus,
-fieldset[disabled] .btn-success.focus {
-  background-color: var(--Baqua);
-  border-color: var(--Baqua);
-}
+fieldset[disabled] .btn-success.focus,
 .btn-success .badge {
   color: var(--Baqua);
   background-color: var(--Bwhite)
@@ -3981,6 +3972,7 @@ a.thumbnail.active {
 }
 .alert > p + p {
   margin-top: 5px;
+  font-size: larger;
 }
 .alert-dismissable,
 .alert-dismissible {
@@ -3994,7 +3986,7 @@ a.thumbnail.active {
   color: inherit;
 }
 .alert-success {
-  color: var(--Bwhite);
+  color: #fff;  /* has to be full white */
   background-color: var(--Baqua-lt1);
   border-color: var(--Baqua);
 }
@@ -4016,9 +4008,10 @@ a.thumbnail.active {
   color: #e6e6e6;
 }
 .alert-warning {
-  color: var(--text-on-yellow);
+  color: var(--text-on-yellow) !important;
   background-color: var(--Byellow);
   border-color: var(--Byellow);
+  font-style: bold
 }
 .alert-warning hr {
   border-top-color: var(--Byellow-dark);
@@ -4263,8 +4256,8 @@ button.list-group-item-success.active:hover,
 a.list-group-item-success.active:focus,
 button.list-group-item-success.active:focus {
   color: #fff;
-  background-color: var(--Bwhite)
-  border-color: var(--Bwhite)
+  background-color: var(--Bwhite);
+  border-color: var(--Bwhite);
 }
 .list-group-item-info {
   color: var(--Bwhite);
@@ -5301,7 +5294,7 @@ button.close {
   cursor: pointer;
   background-color: var(--Bblack) \9;
   background-color: rgba(0, 0, 0, 0);
-  border: 1px solid var(--Bwhite)
+  border: 1px solid var(--Bwhite);
   border-radius: 10px;
 }
 .carousel-indicators .active {

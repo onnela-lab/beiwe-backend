@@ -158,8 +158,8 @@
         <form action="/toggle_easy_enrollment" method="post">
           <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
           <input type="hidden" name="study_id" value="{{ study.id }}" {% if locked %} disabled {% endif %}>
-          <button type="submit" {% if locked %} disabled {% endif %}
-          class="btn large-font-size {% if participant.easy_enrollment %}btn-warning{% else %}btn-success{% endif %}">
+          <button  {% if locked %} disabled {% endif %}
+          class="btn text-large {% if participant.easy_enrollment %}btn-warning{% else %}btn-success{% endif %}">
           {% if participant.easy_enrollment %}
             Disable Easy Enrollment
           {% else %}
@@ -190,7 +190,7 @@
         <form action="/reset_participant_password" method="post">
           <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
           <input type="hidden" name="study_id" value="{{ study.id }}">
-          <button type="submit" class="btn btn-warning large-font-size"
+          <button  class="btn btn-warning text-large"
             {% if locked %} disabled {% endif %}>
             Generate New Registration Password
           </button>
@@ -212,7 +212,7 @@
         <form action="{{ easy_url('participant_endpoints.clear_device_id') }}" method="post">
           <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
           <input type="hidden" name="study_id" value="{{ study.id }}">
-          <button type="submit" class="btn btn-warning large-font-size"
+          <button  class="btn btn-warning text-large"
             {% if not participant.device_id or locked %} disabled {% endif %}>
             Clear Device Token
           </button>
@@ -237,7 +237,7 @@
         <form action="{{ easy_url('participant_endpoints.retire_participant') }}" method="post">
           <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
           <input type="hidden" name="study_id" value="{{ study.id }}">
-          <button type="submit" class="btn btn-danger large-font-size"
+          <button  class="btn btn-danger text-large"
           onclick="return confirm('Are you sure you want to permanently end data collection from {{ participant.patient_id }}?')" 
             {% if participant.permanently_retired or locked %} disabled {% endif %}>
             Permanantly Retire Participant
@@ -262,7 +262,7 @@
     <div class="col-md-12 well">
       <div class="col-md-5">
         <div class="h2-middle-margins-vertical text-center row">
-          <button type="submit" class="btn btn-danger large-font-size"
+          <button  class="btn btn-danger text-large"
             onclick="confirm_delete_participant('{{ participant.patient_id }}', '{{ study.id }}')"
             {% if locked %} disabled {% endif %}>
             Permanantly Delete All Participant Data
@@ -287,7 +287,7 @@
             <form action="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}/experiments" method="post">
             <input type="hidden" name="patient_id" value="{{ participant.patient_id }}">
             <input type="hidden" name="study_id" value="{{ study.id }}" {% if locked %} disabled {% endif %}>
-            <button type="submit" class="btn large-font-size btn-success">
+            <button  class="btn text-large btn-success">
               View Participant Experiments
             </button>
             </form>
