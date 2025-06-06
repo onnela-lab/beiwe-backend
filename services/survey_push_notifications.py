@@ -3,8 +3,6 @@ import random
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
-from threading import Lock
-from time import perf_counter
 
 import orjson
 from cronutils.error_handler import ErrorSentry
@@ -26,7 +24,7 @@ from database.survey_models import Survey
 from database.user_models_participant import (Participant, ParticipantFCMHistory,
     PushNotificationDisabledEvent)
 from libs.firebase_config import BackendFirebaseAppState
-from libs.push_notification_helpers import slowly_get_stopped_study_ids
+from libs.push_notification_helpers import ParticipantCache, slowly_get_stopped_study_ids
 from libs.sentry import SentryTypes
 from services.resend_push_notifications import (
     get_all_unconfirmed_notification_schedules_for_bundling)
@@ -179,41 +177,6 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> tuple[SurveyRet
     return  dict(surveys), dict(schedules), patient_ids
 
 
-class ParticipantCache:
-    fcm_to_participant_id: dict[str, int] = {}
-    participant_id_to_participant: dict[int, Participant] = {}
-    lock_timer = -10*60  # -10 minutes, so that we populate on first call.
-    lock = Lock()
-    
-    @classmethod
-    def populate(cls):
-        print("yo locking")
-        # lock, check if still need to populate after lock finishes, if not return early.
-        # otherwise populate, reset lock timer, and return.
-        with cls.lock:
-            if (perf_counter() - cls.lock_timer) <= 10*60:
-                print("did not need to populate")
-                return
-            print("yo populating")
-            cls.participant_id_to_participant = {p.pk: p for p in Participant.fltr()}
-            cls.fcm_to_participant_id = ParticipantFCMHistory.make_lookup_dict("token", "participant_id")
-            cls.lock_timer = perf_counter()
-    
-    @classmethod
-    def get_participant_by_fcm(cls, token: str) -> Participant:
-        # if not cls._populated:
-        print("yo checking if we need to populate")
-        if (perf_counter() - cls.lock_timer) > 10*60:  # now minus then, 1 hour
-            cls.populate()
-        
-        if token not in cls.fcm_to_participant_id:
-            p = Participant.obj_get(fcm_tokens__token=token)
-            cls.participant_id_to_participant[p.pk] = p
-            cls.fcm_to_participant_id[token] = p.pk
-        
-        return cls.participant_id_to_participant[cls.fcm_to_participant_id[token]]
-
-
 def send_scheduled_event_survey_push_notification_logic(
     fcm_token: str,
     survey_obj_ids: list[str],
@@ -227,7 +190,7 @@ def send_scheduled_event_survey_push_notification_logic(
     # patient_id = ParticipantFCMHistory.objects.filter(token=fcm_token) \
     #     .values_list("participant__patient_id", flat=True).get()
     
-    participant = ParticipantCache.get_participant_by_fcm(fcm_token)
+    cached_participant = ParticipantCache.get_participant_by_fcm(fcm_token)
     
     with error_handler:
         if not BackendFirebaseAppState.check():
@@ -235,14 +198,14 @@ def send_scheduled_event_survey_push_notification_logic(
             return
         
         survey_obj_ids = list(set(survey_obj_ids))  # Dedupe-dedupe
-        log(f"Sending push notification to {participant.patient_id} for {survey_obj_ids}...")
+        log(f"Sending push notification to {cached_participant.patient_id} for {survey_obj_ids}...")
         
         # we need to mock the reference_schedule object in debug mode... it is stupid.
         scheduled_events = get_or_mock_schedules(schedule_pks, debug)
-        scheduled_events.extend(get_all_unconfirmed_notification_schedules_for_bundling(participant, schedule_pks))
+        scheduled_events.extend(get_all_unconfirmed_notification_schedules_for_bundling(cached_participant, schedule_pks))
         
         try:
-            inner_send_survey_push_notification(participant, scheduled_events, fcm_token)
+            inner_send_survey_push_notification(cached_participant, scheduled_events, fcm_token)
         # error types are documented at firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
         except UnregisteredError:
             log("\nUnregisteredError\n")
@@ -256,14 +219,14 @@ def send_scheduled_event_survey_push_notification_logic(
             # sysadmin attention and probably new development to allow multiple firebase
             # credentials. Read comments in settings.py if toggling.
             if BLOCK_QUOTA_EXCEEDED_ERROR:
-                failed_send_survey_handler(participant, fcm_token, str(e), scheduled_events, debug)
+                failed_send_survey_handler(cached_participant, fcm_token, str(e), scheduled_events, debug)
                 return
             else:
                 raise
         
         except ThirdPartyAuthError as e:
             loge("\nThirdPartyAuthError\n")
-            failed_send_survey_handler(participant, fcm_token, str(e), scheduled_events, debug)
+            failed_send_survey_handler(cached_participant, fcm_token, str(e), scheduled_events, debug)
             # This means the credentials used were wrong for the target app instance.  This can occur
             # both with bad server credentials, and with bad device credentials.
             # We have only seen this error statement, error name is generic so there may be others.
@@ -277,7 +240,7 @@ def send_scheduled_event_survey_push_notification_logic(
             # executes.)
             loge("\nSenderIdMismatchError:\n")
             loge(e)
-            failed_send_survey_handler(participant, fcm_token, str(e), scheduled_events, debug)
+            failed_send_survey_handler(cached_participant, fcm_token, str(e), scheduled_events, debug)
             return
         
         except ValueError as e:
@@ -291,14 +254,14 @@ def send_scheduled_event_survey_push_notification_logic(
                 raise
         
         except Exception as e:
-            failed_send_survey_handler(participant, fcm_token, str(e), scheduled_events, debug)
+            failed_send_survey_handler(cached_participant, fcm_token, str(e), scheduled_events, debug)
             raise
         
-        success_send_survey_handler(participant, fcm_token, scheduled_events)
+        success_send_survey_handler(cached_participant, fcm_token, scheduled_events)
 
 
 def inner_send_survey_push_notification(
-    participant: Participant, scheduled_events: list[ScheduledEvent], fcm_token: str
+    cached_participant: Participant, scheduled_events: list[ScheduledEvent], fcm_token: str
 ):
     # There can be multiple instances of the same survey for which we need to deduplicate object
     #   ids, but appropriately map all object ids to schedule uuids.
@@ -328,7 +291,7 @@ def inner_send_survey_push_notification(
         'survey_uuids_dict': uuids_json_dict_string,
     }
     
-    if participant.os_type == ANDROID_API:
+    if cached_participant.os_type == ANDROID_API:
         message = Message(android=AndroidConfig(data=data_kwargs, priority='high'), token=fcm_token)
     else:
         display_message = \

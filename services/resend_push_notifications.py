@@ -3,24 +3,25 @@ import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
+from django.db.models import QuerySet
 from django.utils import timezone
 
 # do not import from libs.schedules or services.survey_push_natifications !!!
 from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.user_constants import IOS_API, IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION
-from database.common_models import QuerySet
-from database.schedule_models import ArchivedEvent, ScheduledEvent
-from database.study_models import Study
-from database.system_models import GlobalSettings
-from database.user_models_participant import Participant, SurveyNotificationReport
+from database.models import (ArchivedEvent, GlobalSettings, Participant, ScheduledEvent, Study,
+    SurveyNotificationReport)
 from libs.push_notification_helpers import fcm_for_pushable_participants
 from libs.sentry import SentryTypes
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
     VersionError)
 
 
-ParticipantPK, ScheduledEventPK, StudyPK = int, int, int
+ParticipantPK = int
+ScheduledEventPK = int
+StudyPK = int 
+
 from constants.common_constants import DEV_TIME_FORMAT3  # used in log statements
 
 
@@ -168,21 +169,21 @@ def base_resend_logic_participant_query(now: datetime) -> list[ParticipantPK]:
 
 
 def get_all_unconfirmed_notification_schedules_for_bundling(
-    participant: Participant, excluded_pks: list[ScheduledEventPK] = None,
+    cached_participant: Participant, excluded_pks: list[ScheduledEventPK] = None,
 ) -> list[ScheduledEvent]:
     """ We need to send all unconfirmed surveys to along with all other surveys whenever we send a
     notification. We call this "bundling", also "bundled notifications". """
     excluded_pks = excluded_pks or []
     
-    if participant.os_type != IOS_API:
+    if cached_participant.os_type != IOS_API:
         return []
     
     # cribbed from base_resend_logic_participant_query, adapted to participant object,
     try:
         proceed = is_participants_version_gte_target(
-            participant.os_type,
-            participant.last_version_code,
-            participant.last_version_name,
+            cached_participant.os_type,
+            cached_participant.last_version_code,
+            cached_participant.last_version_name,
             IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION,
         )
         if not proceed:
@@ -193,9 +194,9 @@ def get_all_unconfirmed_notification_schedules_for_bundling(
     
     # Exclude should be faster than a python deduplication, because this pulls full model objects,
     # and there will be some participnts with a lot of schedules until they age out.
-    unconfirmed_uuids = get_all_unconfirmed_uuids([participant.pk])
+    unconfirmed_uuids = get_all_unconfirmed_uuids([cached_participant.pk])
     return list(
-        participant.scheduled_events.filter(uuid__in=unconfirmed_uuids).exclude(pk__in=excluded_pks)
+        cached_participant.scheduled_events.filter(uuid__in=unconfirmed_uuids).exclude(pk__in=excluded_pks)
     )
 
 

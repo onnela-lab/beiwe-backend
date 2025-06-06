@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import logging
 import operator
 import random
 from datetime import datetime
 from functools import reduce
+from threading import Lock
+from time import perf_counter
 
-from cronutils import null_error_handler
+from cronutils import ErrorSentry, null_error_handler
 from dateutil.tz import gettz
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -20,6 +24,8 @@ from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.survey_models import Survey
 from database.user_models_participant import Participant, ParticipantFCMHistory
+from libs.celery_control import make_error_sentry
+from libs.sentry import SentryTypes
 
 
 # same logger as in celery_push_notifications
@@ -36,6 +42,76 @@ logd = logger.debug
 
 UTC = gettz("UTC")
 
+
+class ParticipantCache:
+    """ Push notifications can cause a lot of database queries, so we cache the participants. """
+    
+    fcm_to_participant_id: dict[str, int] = {}
+    participant_id_to_participant: dict[int, Participant] = {}
+    lock_time: float | None = None  # None on first call
+    timer_timeout = 10 * 60  # 10 minutes in seconds
+    lock = Lock()
+    
+    @classmethod
+    def check_populate(cls):
+        print("yo checking if we need to populate")
+        print("yo locking")
+        # "now" is a higher number than the lock time, subtraction yields seconds since lock time.
+        # (this check must execute once here and once after the lock)
+        if cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout:
+            pass  # proceed to populate
+        else:
+            print("did not need to populate")
+            return
+        
+        # NOW lock, check if still need to populate again after lock unlocks.
+        with cls.lock:
+            # (this check must occur once here and once within the lock)
+            assert cls.lock_time is not None, "participant cache failed"
+            if (perf_counter() - cls.lock_time) > cls.timer_timeout:
+                print("did not need to populate")
+                return
+            
+            # condition to populate is met, repopulate the cache.
+            print("yo populating")
+            cls.participant_id_to_participant = {p.pk: p for p in Participant.fltr()}
+            cls.fcm_to_participant_id = ParticipantFCMHistory.make_lookup_dict("token", "participant_id")
+            cls.lock_time = perf_counter()
+    
+    @classmethod
+    def get_participant_by_fcm(cls, token: str) -> Participant:
+        cls.check_populate()
+        
+        if token not in cls.fcm_to_participant_id:
+            p = Participant.obj_get(fcm_tokens__token=token)
+            cls.participant_id_to_participant[p.pk] = p
+            cls.fcm_to_participant_id[token] = p.pk
+        
+        return cls.participant_id_to_participant[cls.fcm_to_participant_id[token]]
+
+
+class ErrorSentryCache:
+    """ ErrorSentry objects cause IO on creatiion, so we cache them for 10 minutes. """
+    
+    lock_time: float | None = None  # None on first call
+    timer_timeout = 10 * 60  # 10 minutes in seconds
+    lock = Lock()
+    error_sentry: ErrorSentry|None = None  # None on first call
+    
+    @classmethod
+    def check_populate(cls):
+        # check, lock, check again after unlock, 
+        if cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout:
+            with cls.lock:
+                if cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout:
+                    cls.error_sentry = SentryTypes.error_handler_push_notifications()
+                    cls.lock_time = perf_counter()
+    
+    @classmethod
+    def get_sentry_processing(cls) -> ErrorSentry:
+        cls.check_populate()
+        assert cls.error_sentry is not None, "ErrorSentryCache failed."
+        return cls.error_sentry
 #
 ## Somewhat common code (regular SURVEY notifications have extra logic)
 #

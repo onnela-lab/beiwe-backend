@@ -7,9 +7,8 @@ from constants import action_log_messages
 from constants.common_constants import RUNNING_TESTS
 from database.user_models_participant import Participant, ParticipantActionLog
 from libs.firebase_config import BackendFirebaseAppState
-from libs.push_notification_helpers import (fcm_for_pushable_participants,
+from libs.push_notification_helpers import (ErrorSentryCache, fcm_for_pushable_participants,
     send_custom_notification_safely)
-from libs.sentry import make_error_sentry, SentryTypes
 
 
 logger = logging.getLogger("push_notifications")
@@ -31,6 +30,7 @@ logd = logger.debug
 # to the push notification that this celery task pushes to the app, the other is with respect to
 # the periodic checkin that the app makes to the backend.  The periodic checkin is app-code, it hits
 # the mobile_endpoints.mobile_heartbeat endpoint.
+
 
 def heartbeat_query() -> list[tuple[int, str, str, str]]:
     """ Handles logic of finding all active participants and providing the information required to
@@ -86,7 +86,6 @@ def heartbeat_query() -> list[tuple[int, str, str, str]]:
         # log("point_at_which_to_send_next_notification:", point_at_which_to_send_next_notification)
         if now > point_at_which_to_send_next_notification:
             ret.append((participant_id, token, os_type, message))
-    
     return ret
 
 
@@ -94,7 +93,7 @@ def heartbeat_query() -> list[tuple[int, str, str, str]]:
 def celery_heartbeat_send_push_notification_task(
     participant_id: int, fcm_token: str, os_type: str, message: str
 ):
-    with make_error_sentry(sentry_type=SentryTypes.data_processing):
+    with ErrorSentryCache.get_sentry_processing():
         now = timezone.now()
         if not BackendFirebaseAppState.check():
             loge("Heartbeat - Firebase credentials are not configured.")

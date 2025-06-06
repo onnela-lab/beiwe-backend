@@ -351,7 +351,8 @@ UNIQUENESS_ERROR = lambda self: "This Celery task "\
 
 class AbstractQueueWrapper:
     """
-    IT EVENTUALLY BECAME APPARENT THAT BEING ABLE TO CREATE NEW TASKS VERY EASILY WAS SUPER IMPORTANT.
+    IT EVENTUALLY BECAME APPARENT THAT BEING ABLE TO CREATE NEW TASKS VERY EASILY WAS SUPER IMPORTANT
+    AS A DEVELOPMENT TASK, THIS CRAP LETS YOU DO THAT _SAFELY_.
     
     ALSO, IF THERE IS AN ERROR REALLY EARLY IN A CELERY TASK'S RUNTIME, OR POSSIBLY ANOTHER UNKNOWN
     SCENARIO IT CAN FAIL BEFORE SENDING AN ERROR REPORT, AND/OR CAUSE SOME WEIRD ~SPINLOCK CONDITION
@@ -362,8 +363,6 @@ class AbstractQueueWrapper:
     
     Timeout values are assigned automatically based on the name of the wrapped function.
     """
-    
-    
     
     celery_app: ClassVar[CeleryLike];  queueable_tasks: ClassVar[list[Self]]
     target_queue: ClassVar[str];       ERRORS: ClassVar[dict[str, str]]
@@ -413,10 +412,12 @@ class AbstractQueueWrapper:
              f"  It will be queued in the {self.target_queue} queue.")
     
     def wrap_task_with_sentry_etc(self, *task_args, **task_kwargs):
-        # add an error sentry, print statements, and a post-execution slee, self.original_namep
+        # add an error sentry, print statements, and a post-execution slee, self.original_name
         logi(f"Running {self.original_name} as {self.task_frequency} task.")
+        from libs.push_notification_helpers import ErrorSentryCache
         try:
-            with make_error_sentry(self.sentry_type, tags={"task_name": self.original_name}):
+            # with make_error_sentry(self.sentry_type, tags={"task_name": self.original_name}):
+            with ErrorSentryCache.get_sentry_processing():
                 self.task_function(*task_args, **task_kwargs)
         finally:
             logi(f"Task {self.original_name} is no longer running, pausing for {self.SLEEP_TIME} seconds.")
@@ -452,11 +453,11 @@ class AbstractQueueWrapper:
     @classmethod
     def enqueue_tasks(cls, task_type: str):  # executes at-RUN-time of task queueuing.
         # get the correct tasks and enqueue them
+        from libs.push_notification_helpers import ErrorSentryCache
         for self in (self for self in cls.queueable_tasks if self.task_frequency == task_type):
             logi(f"Enqueueing {self.original_name} as {task_type} task: " + 
                 ", ".join([str(self.task_function), self.task_frequency]))
-            
-            with make_error_sentry(self.sentry_type, task_name=self.original_name):
+            with ErrorSentryCache.get_sentry_processing():
                 cls.enqueue_task(self.celery_task_object, task_type)
     
     @classmethod
