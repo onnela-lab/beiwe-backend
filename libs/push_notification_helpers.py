@@ -54,26 +54,26 @@ class ParticipantCache:
     
     @classmethod
     def check_populate(cls):
+        """ Test the cache once, if it is invalid then lock, after we are passed the lock check
+        again, and if it is still invalid then repopulate the cache. """
+        
         print("yo checking if we need to populate")
-        print("yo locking")
-        # "now" is a higher number than the lock time, subtraction yields seconds since lock time.
-        # (this check must execute once here and once after the lock)
-        if cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout:
-            pass  # proceed to populate
-        else:
-            print("did not need to populate")
+        
+        # "now" is a higher number than the lock time, subtraction yields seconds since lock timeout.
+        cache_invalid = lambda: cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout
+        
+        if not cache_invalid():
+            print("yo participant cache timer valid, no need to populate")
             return
         
-        # NOW lock, check if still need to populate again after lock unlocks.
+        print("yo locking")
         with cls.lock:
-            # (this check must occur once here and once within the lock)
-            assert cls.lock_time is not None, "participant cache failed"
-            if (perf_counter() - cls.lock_time) > cls.timer_timeout:
-                print("did not need to populate")
+            if not cache_invalid():
+                print("yo participant cache lock caught some database contention!")
                 return
             
             # condition to populate is met, repopulate the cache.
-            print("yo populating")
+            print("yo its time to populate the participant cache")
             cls.participant_id_to_participant = {p.pk: p for p in Participant.fltr()}
             cls.fcm_to_participant_id = ParticipantFCMHistory.make_lookup_dict("token", "participant_id")
             cls.lock_time = perf_counter()
@@ -83,11 +83,14 @@ class ParticipantCache:
         cls.check_populate()
         
         if token not in cls.fcm_to_participant_id:
+            print(f"yo participant was not in cache cache for token {token}")
             p = Participant.obj_get(fcm_tokens__token=token)
             cls.participant_id_to_participant[p.pk] = p
             cls.fcm_to_participant_id[token] = p.pk
         
-        return cls.participant_id_to_participant[cls.fcm_to_participant_id[token]]
+        p = cls.participant_id_to_participant[cls.fcm_to_participant_id[token]]
+        print("yo providing a cached participant", p.patient_id)
+        return p
 
 
 class ErrorSentryCache:
@@ -100,17 +103,27 @@ class ErrorSentryCache:
     
     @classmethod
     def check_populate(cls):
+        # "now" is a higher number than the lock time, subtraction yields seconds since lock timeout.
+        cache_invalid = lambda: cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout
+        
         # check, lock, check again after unlock, 
-        if cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout:
+        print("yo error sentry cache check")
+        if cache_invalid():
             with cls.lock:
-                if cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout:
+                if cache_invalid():
                     cls.error_sentry = SentryTypes.error_handler_push_notifications()
                     cls.lock_time = perf_counter()
-    
+                    print("yo error sentry cache populated")
+                else:
+                    print("yo error sentry cache caught some IO contention, not populating")
+        else:
+            print("yo error sentry cache did not need to populate")
+        
     @classmethod
     def get_sentry_processing(cls) -> ErrorSentry:
         cls.check_populate()
         assert cls.error_sentry is not None, "ErrorSentryCache failed."
+        print("yo providing the cached error sentry")
         return cls.error_sentry
 #
 ## Somewhat common code (regular SURVEY notifications have extra logic)

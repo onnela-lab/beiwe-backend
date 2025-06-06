@@ -17,25 +17,33 @@ MANUALLY_DISABLE_FIREBASE = False
 
 class FirebaseMisconfigured(Exception): pass
 
+
 class FirebaseAppState:
     """ A class to hold the state of the firebase app, used to avoid re-initializing it. """
     
     def __init__(self, require_android:bool, require_ios:bool):
-        self._class_lock = Lock()
+        self._lock = Lock()
         self._status_ok = False
-        self._timer = -5  # start with a negative timer so the first check always runs
+        self.timer: float | None = None  # start with a negative timer so the first check always runs
+        self.timer_timeout = 60  # a one minute timeout
         self.kwargs = {"require_android": require_android, "require_ios": require_ios}
     
     def check(self) -> bool:
-        with self._class_lock:
-            # check if it has been more than 5 seconds since the last check
-            if ((now:= perf_counter()) - self._timer) < 5:
-                # if it hasn't just return the last status
-                return self._status_ok
-            # otherwise, reset the timer, check the firebase instance, update state
-            self._timer = now
-            self._status_ok = check_firebase_instance(**self.kwargs)
-            return self._status_ok
+        kwgs = [k for k in self.kwargs if self.kwargs[k]]
+        cache_invalid = lambda: self.timer is None or (perf_counter() - self.timer) > self.timer_timeout
+        
+        # test cache validity, if invalid lock, when past lock check again, repopulate if still invalid
+        if cache_invalid():
+            with self._lock:
+                if cache_invalid():
+                    self._status_ok = check_firebase_instance(**self.kwargs)
+                    self.timer = perf_counter()
+                    print(f"Checking {kwgs} firebase app from DATABASE: {self._status_ok}")
+                    return self._status_ok
+        
+        # if it hasn't just return the last status
+        print(f"Checking {kwgs} firebase app from CACHE: {self._status_ok}")
+        return self._status_ok
 
 
 AndroidFirebaseAppState = FirebaseAppState(require_android=True, require_ios=False)
