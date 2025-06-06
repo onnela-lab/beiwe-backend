@@ -7,8 +7,7 @@
     name="viewport"
     content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no, width=device-width"
   />
-  {# Javascript #}
-  {# bootstrap needs jquery #}
+  {# Javascript bootstrap needs jquery #}
   <script src="{{ ASSETS.JQUERY }}" integrity="{{ ASSETS.JQUERY_INTEGRITY }}" crossorigin="anonymous"></script>
   <script src="{{ ASSETS.ANGULARJS }}" type="text/javascript"></script>
   <script src="{{ ASSETS.BOOTSTRAP }}" integrity="{{ ASSETS.BOOTSTRAP_INTEGRITY }}" crossorigin="anonymous"></script>
@@ -17,16 +16,6 @@
   <script src="{{ ASSETS.LODASH }}" type="text/javascript"></script>
   <script src="{{ ASSETS.MOMENTJS }}" type="text/javascript"></script>
   
-  
-  {# the halfling fonds get screwed up urls inside css files because they will be dispatch to #}
-  {# current_page_as_the_root/staticfonts/etc....woff ; it is weird   #}
-  <style>
-  @font-face {
-  font-family: "Glyphicons Halflings";
-  src: url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.eot");
-  src: url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.eot?#iefix") format("embedded-opentype"), url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.woff2") format("woff2"), url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.woff") format("woff"), url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.ttf") format("truetype"), url("https://{{DOMAIN_NAME}}/static/fonts/glyphicons-halflings-regular.svg#glyphicons_halflingsregular") format("svg");
-}
-  </style>
   <style> {% include LocalAssets.DARKLY %} </style>
   <style> {% include LocalAssets.BOOTSTRAP_TIMEPICKER_CSS %} </style>
   <style> {% include LocalAssets.BOOTSTRAP_DATETIMEPICKER_CSS %} </style>
