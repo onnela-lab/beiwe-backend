@@ -14,7 +14,7 @@
 
 {% block content %}
 
-  <div class="container margin-left-neg-1" style="max-width:1920;">
+  <div class="container marg-l-n-1" style="max-width:1920;">
     
     {% if site_admin or is_study_admin %}
       <div class="col-xs-8"> 
@@ -32,7 +32,7 @@
         <h2>{{ study.name }}</h2>
       </div>   
 
-      <div class="col-xs-3 margin-top-0-5">
+      <div class="col-xs-3 marg-t-0-5">
         <a href="/dashboard/{{ study['id'] }}" class="btn btn-info h3-margins-vertical">
           View the Study Dashboard
         </a>
@@ -40,7 +40,7 @@
     {% endif %}
 
     <div>
-      <h3 class="margin-top-1 margin-bottom-neg-0-5 margin-left-0-5">
+      <h3 class="marg-t-1 marg-b-n-0-5 marg-l-0-5">
         Participants
       </h3>
       <span class="pull-right italic text-mono"> 
@@ -73,14 +73,14 @@
       </table>
 
       <form action={{ easy_url("manage_study_endpoints.download_participants_csv", study_id) }} method="post">
-        <div class="form-inline pull-left h3-margins margin-right-1">
+        <div class="form-inline pull-left h3-margins marg-r-1">
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <button  class="btn btn-primary">Download Participants Table</button>
         </div>
       </form>
 
       <form action="/create_new_participant" method="post">
-        <div class="pull-right h3-margins-vertical margin-left-1">
+        <div class="pull-right h3-margins-vertical marg-l-1">
           <input type="hidden" name="study_id" value="{{ study.id }}">
           <button  class="btn btn-info">Add New <b>Participant</b></button>
         </div>
@@ -96,7 +96,7 @@
       <h3> Edit Surveys </h3>
     </div>
     <div class="col-xs-1"> 
-      <a href="/create_survey/{{ study.id }}/tracking_survey" class="btn btn-info h3-margins pull-right margin-right-neg-1">
+      <a href="/create_survey/{{ study.id }}/tracking_survey" class="btn btn-info h3-margins pull-right marg-r-n-1">
         Create New <b>Survey</b></a>
     </div>
     
@@ -140,7 +140,7 @@
       <h3> Edit Audio Surveys </h3>
     </div>
     <div class="col-xs-1"> 
-      <a href="/create_survey/{{ study.id }}/audio_survey" class="btn btn-info h3-margins pull-right margin-right-neg-1">
+      <a href="/create_survey/{{ study.id }}/audio_survey" class="btn btn-info h3-margins pull-right marg-r-n-1">
         Create New <b>Audio Survey</b></a>
     </div>
     
@@ -185,14 +185,14 @@
       
       <div class="col-xs-12 well">  
         {% if push_notifications_enabled %}
-          <div class="col-xs-6 margin-bottom-2">
+          <div class="col-xs-6 marg-b-2">
             <p><a class="btn btn-success" href={{ easy_url("manage_study_endpoints.interventions_page", study_id=study.id) }}>
               Edit Interventions
             </a></p>
             Configure Interventions for use with Relative survey schedules
           </div>
           
-          <div class="col-xs-6 margin-bottom-2">
+          <div class="col-xs-6 marg-b-2">
             <p><a class="btn btn-info" href={{ easy_url("manage_study_endpoints.download_study_interventions", study_id=study.id) }}>
               Download Interventions
             </a></p>
@@ -200,28 +200,28 @@
           </div>
         {% endif %}
 
-        <div class="col-xs-6 margin-bottom-2">
+        <div class="col-xs-6 marg-b-2">
           <p><a class="btn btn-success" href={{ easy_url('manage_study_endpoints.study_fields', study_id=study.id) }}>
             Edit Custom Fields
           </a></p>
           Edit custom tags for organizing participants in your study.
         </div>
 
-        <div class="col-xs-6 margin-bottom-2">
+        <div class="col-xs-6 marg-b-2">
           <p><a class="btn btn-success" href={{ easy_url('study_endpoints.device_settings', study_id=study.id) }}>
             Edit App Settings
           </a></p>
           Configure types and quantity of the passive data streams this study collects, and the wording that study participants see in the app
         </div>
 
-        <div class="col-xs-6 margin-bottom-2">
+        <div class="col-xs-6 marg-b-2">
           <p><a class="btn btn-info" href={{ easy_url('study_endpoints.export_study_settings_file', study_id=study.id) }}>
           Export Study Settings JSON
           </a></p>
           Download the full JSON configuration for this study.
         </div>
 
-        <div class="col-xs-6 margin-bottom-2">
+        <div class="col-xs-6 marg-b-2">
           <p><a class="btn btn-info" href={{ easy_url('manage_study_endpoints.download_study_survey_history', study_id=study.id) }}>
           Export Survey Edits History JSON
           </a></p>
