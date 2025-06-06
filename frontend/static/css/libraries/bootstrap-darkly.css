@@ -1020,12 +1020,12 @@ th {
 }
 .table-striped > tbody > tr:nth-of-type(odd) {
   background-color: var(--Baqua-dark-partial);
-  color: --var(--Bwhite);
+  color: var(--Bwhite);
   background: 
 }
 .table-striped > tbody > tr:nth-of-type(even) {
   background-color: var(--forest-green-dark);
-  color: --var(--Bwhite);
+  color: var(--Bwhite);
 }
 .table-hover > tbody > tr:hover {
   background-color: var(--Baqua-desat);
@@ -5646,7 +5646,7 @@ a.list-group-item-danger.active {
 }
 a.list-group-item-danger.active:hover,
 a.list-group-item-danger.active:focus {
-  background-color: --var(--beiwe-dark-red);
+  background-color: var(--Bdark-red);
   /* background-color: #e43725; */
 }
 .popover {
