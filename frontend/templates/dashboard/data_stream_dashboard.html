@@ -30,24 +30,22 @@
 
   {#  ################## TOP OF PAGE CONTENT ################# #}
   <div class="title">
-    <h1 class="h3"> {{ data_stream }} Data for {{ study.name }} Study
+    <h3 closs="margin-top-neg-4"> {{ data_stream }} Data for {{ study.name }} Study
       <div class="choose-stream">
         <div class="dropdown">
-          <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
-            <div class="margin-top-neg-4pt">
-              {{ data_stream }} <span class="caret"></span>
-            </div>
+          <button class="btn btn-primary dropdown-toggle margin-top-neg-4" type="button" data-toggle="dropdown">
+            {{ data_stream }} <span class="caret"></span>
           </button>
-          <ul class="dropdown-menu">
+          <ul class="dropdown-menu dropdown-translucent margin-top-neg-1 form-group">
             {% for stream in data_stream_dict.keys()|sort if data_stream_dict[stream] != data_stream %}
-                <li><a href="/dashboard/{{ study_id }}/data_stream/{{ stream }}">
-                  {{   data_stream_dict[stream] }}</a>
+                <li><a class="text-green-hover" href="/dashboard/{{ study_id }}/data_stream/{{ stream }}">
+                  {{ data_stream_dict[stream] }}</a>
                 </li>
             {% endfor %}
           </ul>
         </div>
       </div>
-    </h1>
+    </h3>
   </div>
 
 {#  ----------- ADDING DROP DOWN FILTER BAR HERE ---------------------- #}
@@ -65,8 +63,8 @@
   <div class="content ng-cloak" ng-controller='buttonController' id="bctrl">
     <div class="panel-group" id="accordion" role="tablist">
       <div class="panel panel-default">
-        <div class="btn btn-block btn-warning" style="color: #000" role="tab" data-toggle="collapse" href="#collapseOne">
-            Click to Configure Gradients and Flags <span class="caret"></span>
+        <div class="btn btn-block btn-info" role="tab" data-toggle="collapse" href="#collapseOne">
+          <span class="bold text-center margin-bottom-2"> Click to Configure Gradients and Flags <span class="caret"></span></span>
           <div class="btn-toolbar flag-toolbar" role="toolbar">
             <div class="btn-group" role="group" ng-if="show_color">
               <button  class="btn filter-bar color-grad">
@@ -75,7 +73,7 @@
               </button>
               <input type="button" ng-click="removeColor()" value="x" class="btn btn-primary">
             </div>
-
+            
             <div class="btn-group filter-flag-item" role="group" ng-repeat="flag in all_flags_list">
               <button  class="btn filter-bar flag-filter">
                 Flag Values: {% raw %}{{ flag[0] }} {{ flag[1] }}{% endraw %}
@@ -87,7 +85,7 @@
         <div id="collapseOne" class="panel-collapse collapse" role="tabpanel">
           <div class="panel-body">
             <div class="filters">
-              <div class="well">
+              <div class="col-xs-4 well">
                 <h5 class="h5"> Create Flag: </h5>
                 <br>
                 <div class="radio-buttons">
@@ -130,19 +128,19 @@
                   <p>Invalid Input: Please enter ONLY numerical inputs.</p>
                 </div>
               </div>
-              <div class="well">
-                <h5 class="h5"> Create Gradient: </h5>
+              <div class="col-xs-8 well text-center">
+                <h3> Create Gradient: </h3>
                 <br>
-                <div class="input-group mb-3 color_range_min">
+                <div class="input-group color_range_min">
                   <div class="input-group-addon">
-                    <span class="input-group-number" id="basic-addon1">Minimum</span>
+                    <span style="padding: 10pt" class="input-group-number" id="basic-addon1"> Minimum </span>
                   </div>
                   <input type="number" ng-model="color_low_range" class="form-control"
                          placeholder="Minimum">
                 </div>
                 <div class="input-group mb-3 color_range_max">
                   <div class="input-group-addon">
-                    <span class="input-group-number" id="basic-addon1">Maximum</span>
+                    <span style="padding: 8.6pt" class="input-group-number" id="basic-addon1"> Maximum </span>
                   </div>
                   <input type="number" ng-model="color_high_range" class="form-control"
                        placeholder="Maximum">
@@ -161,17 +159,18 @@
                         ng-click="addGradient()">
                   Add Gradient
                 </button>
-              </div>
-              <form action="#" method="post">
+                <form action="#" method="post">
                 <input name="color_high_range" type="hidden" id="color_high_range" value="{% raw %}{{ getCurrentGradient(current_gradient[1]) }}{% endraw %}"/>
                 <input name="color_low_range" type="hidden" id="color_low_range" value="{% raw %} {{ getCurrentGradient(current_gradient[0]) }}{% endraw %}"/>
                 <input name="all_flags_list" type="hidden" id="all_flags_list" value="{% raw %} {{ all_flags_list }} {% endraw %}"/>
-                <button class="btn btn-primary save_settings margin-top-6 margin-left-5" type="submit">
+                <button class="btn btn-primary pull-right" >
                   Save Current Filter Bar as Default Settings
                 </button>
                 {% comment %} note: can add this command to the save button to have user confirmation that settings are saved
                   - it's a little weird though bc it says saved before it reloads the page.
                   onclick="alert('Default Settings Saved')" {% endcomment %}
+              </div>
+              
               </form>
             </div>
           </div>
@@ -184,7 +183,7 @@
     <div class="date_bar">
       <div>
         {% if base_past_url %}
-          <a ng-click="createNewUrl(base_past_url)" class="btn btn-primary">Older</a>
+          <a ng-click="createNewUrl(base_past_url)" class="btn btn-primary">< Past</a>
         {% endif %}
       </div>
 

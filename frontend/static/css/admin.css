@@ -427,9 +427,10 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .text-condensed { font-stretch: condensed; }
 .text-light { font-weight: lighter; }
 .text-regular { font-weight: normal; }
-.text-bold { font-weight: bold; }
-.text-black { color: black; }
-
+.text-bold { font-weight: bold !important; }
+.text-black { color: black !important; }
+.text-green { color: var(--Baqua-bright) !important; }
+.text-green-hover:hover { color: var(--Baqua-lt1) !important; }
 
 
 .table.table-notifications td {
