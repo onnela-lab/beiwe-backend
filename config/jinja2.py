@@ -131,7 +131,7 @@ class WhiteSpaceCollapser(Extension):
     def preprocess(self, source: str, name: str | None, filename: str = None) -> str:
         
         # do not collapse whitespace in minified javascript files
-        if name and name.endswith(".min.css") or name.endswith(".min.js"):
+        if name and name.endswith(".js"):
             return source
         
         # collapse normal horizontal whitespace at the start and end of lines
