@@ -30,13 +30,13 @@
 
   {#  ################## TOP OF PAGE CONTENT ################# #}
   <div class="title">
-    <h3 closs="margin-top-neg-4"> {{ data_stream }} Data for {{ study.name }} Study
+    <h3 closs="marg-t-n-4"> {{ data_stream }} Data for {{ study.name }} Study
       <div class="choose-stream">
         <div class="dropdown">
-          <button class="btn btn-primary dropdown-toggle margin-top-neg-4" type="button" data-toggle="dropdown">
+          <button class="btn btn-primary dropdown-toggle marg-t-n-4" type="button" data-toggle="dropdown">
             {{ data_stream }} <span class="caret"></span>
           </button>
-          <ul class="dropdown-menu dropdown-translucent margin-top-neg-1 form-group">
+          <ul class="dropdown-menu dropdown-translucent marg-t-n-1 form-group">
             {% for stream in data_stream_dict.keys()|sort if data_stream_dict[stream] != data_stream %}
                 <li><a class="text-green-hover" href="/dashboard/{{ study_id }}/data_stream/{{ stream }}">
                   {{ data_stream_dict[stream] }}</a>
@@ -64,7 +64,7 @@
     <div class="panel-group" id="accordion" role="tablist">
       <div class="panel panel-default">
         <div class="btn btn-block btn-info" role="tab" data-toggle="collapse" href="#collapseOne">
-          <span class="bold text-center margin-bottom-2"> Click to Configure Gradients and Flags <span class="caret"></span></span>
+          <span class="bold text-center marg-b-2"> Click to Configure Gradients and Flags <span class="caret"></span></span>
           <div class="btn-toolbar flag-toolbar" role="toolbar">
             <div class="btn-group" role="group" ng-if="show_color">
               <button  class="btn filter-bar color-grad">

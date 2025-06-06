@@ -15,7 +15,7 @@
     </div>
 
     <div id="main-navbar-menu" ng-controller="NavBarStudyController" class="collapse navbar-collapse" style="background-color: transparent;" max-width="10px">
-      <ul class="nav navbar-nav navbar-left margin-left-neg-2">
+      <ul class="nav navbar-nav navbar-left marg-l-n-2">
         {# If the current admin is authorized to view more than one study, give them a drop-down menu to switch studies #}
         <li ng-if="navBarStudies.length > 1" class="dropdown pulse-text-hover" role="presentation">
           <a class="dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
@@ -91,36 +91,36 @@
 
       <ul class="nav navbar-nav navbar-right text-small text-center" style="margin-bottom: -0.8em; margin-top: -0.8em;">
         <li role="presentation" class="pulse-text-hover">
-          <a href="{{ easy_url("data_page_endpoints.data_api_web_form_page") }}" class="margin-left-neg-1">
+          <a href="{{ easy_url("data_page_endpoints.data_api_web_form_page") }}" class="marg-l-n-1">
             Download <br> Data
           </a></li>
         
         <li role="presentation" class="pulse-text-hover">
-          <a href="{{ easy_url("manage_researcher_endpoints.self_manage_credentials_page") }}" class="margin-left-neg-1">
+          <a href="{{ easy_url("manage_researcher_endpoints.self_manage_credentials_page") }}" class="marg-l-n-1">
             Manage <br> Credentials
           </a></li>
         
         {# Give the System Admin an extra link here to manage researchers #}
         {% if is_admin %}
           <li role="presentation" class="pulse-text-hover">
-            <a href="{{ easy_url("manage_researcher_endpoints.administrator_manage_researchers_page") }}" class="margin-left-neg-1">
+            <a href="{{ easy_url("manage_researcher_endpoints.administrator_manage_researchers_page") }}" class="marg-l-n-1">
               Manage <br> Researchers
             </a></li>
         
           <li role="presentation" class="pulse-text-hover">
-            <a href="{{ easy_url("study_endpoints.manage_studies_page") }}" class="margin-left-neg-1">
+            <a href="{{ easy_url("study_endpoints.manage_studies_page") }}" class="marg-l-n-1">
               Manage <br> Studies
             </a></li>
         {% endif %}
         
         {% if request.session_researcher.site_admin %}
           <li role="presentation" class="pulse-text-hover">
-            <a href="{{ easy_url("system_admin_endpoints.manage_firebase_credentials") }}" class="margin-left-neg-1">
+            <a href="{{ easy_url("system_admin_endpoints.manage_firebase_credentials") }}" class="marg-l-n-1">
             Firebase <br> Credentials
             </a></li>
         {% endif %}
         
-        <li role="presentation" class="pulse-text-hover margin-right-neg-1">
+        <li role="presentation" class="pulse-text-hover marg-r-n-1">
           <a href="{{ easy_url("login_endpoints.logout_page") }}" class="" style="font-size: medium; margin-top: 0.6em;">
             Log Out
           </a></li>

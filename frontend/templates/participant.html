@@ -145,7 +145,7 @@
           Resend as Manual Push Notification
         </button>
 
-        <div class="text-small-italic center-text margin-top-1"> (This action is not yet integrated with survey notification resend logic.) </div>
+        <div class="text-small-italic center-text marg-t-1"> (This action is not yet integrated with survey notification resend logic.) </div>
         {% endif %}
       </form>
     {% endif %}
@@ -306,7 +306,7 @@
   {% if study_interventions_exists %}
     <div class="col-md-6 col-sm-12 well vertical-padding-3 text-center" style="min-height: 15em;">
       {% if enable_interventions %}
-        <h2 class="margin-top-0"> Interventions</h3>
+        <h2 class="marg-t-0"> Interventions</h3>
         {% for intervention_id, intervention_name, intervention_date in intervention_data %}
           <div class="form-group">
             <label class="col-xs-9 h3-margins" for="intervention{{ intervention_id }}" > {{ intervention_name }}</label>
@@ -336,7 +336,7 @@
     {% else %}
       <div class="col-xs-12 well vertical-padding-3">
     {% endif %}
-      <h2 class="margin-top-0">Custom Fields</h3>
+      <h2 class="marg-t-0">Custom Fields</h3>
       {% for field_id, field_name, value in field_values %}
         <div class="form-group">
           <label class="col-sm-5 control-label" for="field{{ field_id }}">{{ field_name }}</label>
