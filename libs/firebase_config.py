@@ -29,7 +29,6 @@ class FirebaseAppState:
         self.kwargs = {"require_android": require_android, "require_ios": require_ios}
     
     def check(self) -> bool:
-        kwgs = [k for k in self.kwargs if self.kwargs[k]]
         cache_invalid = lambda: self.timer is None or (perf_counter() - self.timer) > self.timer_timeout
         
         # test cache validity, if invalid lock, when past lock check again, repopulate if still invalid
@@ -38,12 +37,9 @@ class FirebaseAppState:
                 if cache_invalid():
                     self._status_ok = check_firebase_instance(**self.kwargs)
                     self.timer = perf_counter()
-                    print(f"Checking {kwgs} firebase app from DATABASE: {self._status_ok}")
                     return self._status_ok
         
-        # if it hasn't just return the last status
-        print(f"Checking {kwgs} firebase app from CACHE: {self._status_ok}")
-        return self._status_ok
+        return self._status_ok  # if it hasn't just return the last status
 
 
 AndroidFirebaseAppState = FirebaseAppState(require_android=True, require_ios=False)
