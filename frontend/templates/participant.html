@@ -31,7 +31,7 @@
 
 <div class="container">
 
-  <div class="col-md-6 col-sm-12 well">
+  <div class="col-md-6 col-sm-12 well" style="min-height: 30em;">
     <h3 class="text-center"> <b>Activity Information </b></h3>
     <table class="table table-hover">
       
@@ -96,7 +96,7 @@
     </table>
   </div>
 
-  <div class="col-md-6 col-sm-12 well">
+  <div class="col-md-6 col-sm-12 well" style="min-height: 30em;">
     <h3 class="text-center"> <b>Survey Notifications </b></h3>
     <p class="text-center">
       Total notification attempts: <b>{{ notification_attempts_count }}</b>
@@ -304,9 +304,9 @@
   {% endif %}
   
   {% if study_interventions_exists %}
-    <div class="col-md-6 col-sm-12 well vertical-padding-3">
+    <div class="col-md-6 col-sm-12 well vertical-padding-3 text-center" style="min-height: 15em;">
       {% if enable_interventions %}
-        <h3>Interventions</h3>
+        <h2 class="margin-top-0"> Interventions</h3>
         {% for intervention_id, intervention_name, intervention_date in intervention_data %}
           <div class="form-group">
             <label class="col-xs-9 h3-margins" for="intervention{{ intervention_id }}" > {{ intervention_name }}</label>
@@ -332,11 +332,11 @@
   {% if study_fields_exists %}
     
     {% if study_interventions_exists %}
-      <div class="col-md-6 col-sm-12 well vertical-padding-3">
+      <div class="col-md-6 col-sm-12 well vertical-padding-3 text-center" style="min-height: 15em;">
     {% else %}
       <div class="col-xs-12 well vertical-padding-3">
     {% endif %}
-      <h3>Custom Fields</h3>
+      <h2 class="margin-top-0">Custom Fields</h3>
       {% for field_id, field_name, value in field_values %}
         <div class="form-group">
           <label class="col-sm-5 control-label" for="field{{ field_id }}">{{ field_name }}</label>
