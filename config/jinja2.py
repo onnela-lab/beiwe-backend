@@ -12,6 +12,7 @@ from jinja2 import Environment
 from jinja2.ext import Extension
 
 from config.settings import SENTRY_JAVASCRIPT_DSN
+from constants.common_constants import RUNNING_TEST_OR_FROM_A_SHELL
 from database.common_models import numformat
 from libs.endpoint_helpers.participant_helpers import niceish_iso_time_format
 from libs.utils.dev_utils import p
@@ -93,17 +94,20 @@ class LocalAssets:
 
 
 # until we are reading to use minified assets on production this is debug-only
-# if settings.DEBUG:
-#     for attrname in dir(LocalAssets):
-#         if attrname.startswith("_"):
-#             continue
-#         attr = getattr(LocalAssets, attrname)
-#         if isinstance(attr, str):
-#             if attr.endswith(".css"):
-#                 setattr(LocalAssets, attrname, attr.replace(".css", ".min.css"))
-#             # elif attr.endswith(".js"):
-#             #     setattr(LocalAssets, attrname, attr.replace(".js", ".min.js"))
-
+if not settings.DEBUG or RUNNING_TEST_OR_FROM_A_SHELL:
+    if RUNNING_TEST_OR_FROM_A_SHELL:
+        print("Running in test or shell mode, using empty_css_for_tests.css for all included js and css assets.")
+    for attrname in dir(LocalAssets):
+        if attrname.startswith("_"):
+            continue
+        
+        if isinstance((attr:= getattr(LocalAssets, attrname)), str):
+            if attr.endswith(".css"):
+                setattr(LocalAssets, attrname, attr.replace(".css", ".min.css"))
+            elif attr.endswith(".js"):
+                setattr(LocalAssets, attrname, attr.replace(".js", ".min.js"))
+            if RUNNING_TEST_OR_FROM_A_SHELL:
+                setattr(LocalAssets, attrname, "empty_css_for_tests.css")
 
 class CdnAssets:
     # These are the assets expected to be used in normal runtime, including most development scenarios.

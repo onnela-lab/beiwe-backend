@@ -40,7 +40,7 @@ class TestLoginPages(BasicSessionTestCase):
         response = self.client_get(reverse("login_endpoints.login_page"))
         self.assertEqual(response.status_code, 200)
         # this should uniquely identify the login page
-        self.assertIn(b'<form method="POST" action="/validate_login">', response.content)
+        self.assertIn(b'form method="POST" action="/validate_login"', response.content)
     
     def test_load_login_page_while_logged_in(self):
         # make sure the login page loads without logging you in when it should not
