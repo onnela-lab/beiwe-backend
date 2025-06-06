@@ -87,7 +87,6 @@ RUNNING_SHELL = any(key in _argv for key in ("shell_plus", "--ipython", "ipython
 RUNNING_TESTS = "test" in _argv
 RUNNING_RUNSERVER_CLI = "runserver" in _argv
 RUNNING_TEST_OR_FROM_A_SHELL = RUNNING_SHELL or RUNNING_TESTS or RUNNING_RUNSERVER_CLI
-RUNNING_TESTS = "test" in _argv
 
 # roughly one month before the initial deploy of the first Beiwe instance.
 EARLIEST_POSSIBLE_DATA_DATE = date(2014, 8, 1)
