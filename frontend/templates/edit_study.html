@@ -32,13 +32,13 @@
     </ol>
 
   <div class="col-xs-12 well">
-    <div class="col-xs-3" >
+    <div class="col-xs-4 margin-left-neg-1" >
       <h2>Edit App Settings</h2>
     </div>
-      <div class="col-xs-9 h2-margins-vertical text-center bold" >
+      <div class="col-xs-9 h2-margins-vertical text-center bold margin-left-neg-5 margin-right-neg-1" >
         <h4>
-          <a href="/device_settings/{{ study.id }}"> 
-            Edit the types of data this study collects and the wording that study participants see in the app
+          <a href="/device_settings/{{ study.id }}" class="underline"> 
+            Edit the types of data this study collects, and text that study participants see in the app
           </a>
         </h4>
     </div>
@@ -46,8 +46,8 @@
 
   {# easy enrollment #}
   <div class="col-xs-12 well">
-    <h2 class="pull-left col-xs-3">Easy Enrollment</h2>
-    <div class="col-xs-7 h2-middle-margins-vertical">
+    <h2 class="pull-left col-xs-3 margin-left-neg-0-5 margin-top-1-75">Easy Enrollment</h2>
+    <div class="col-xs-8 h2-middle-margins-vertical margin-left-neg-1 margin-right-neg-1 ">
       When Easy Enrollment is enabled for a study or a participant the Temporary Password that is otherwised required at registration is ignored.  Any value that passes any validation performed by the app is allowed.
       <i>(You will be presented with a list of patient ids where Easy Enrollment is manually enabled whenever you disable a study's Easy Enrollment policy.) </i>
     </div>
@@ -261,22 +261,23 @@
         {% endif %}
       </table>
     </div>
-  </div>
-
-  <div class="col-xs-12 well">
-    <h5 >Authorize an additional researcher on this study:</h5>
-    <form action="/add_researcher_to_study" method="post">
-      <div class="form-inline">
-        <select class="form-control" name="researcher_id">
-          {% for researcher in administerable_researchers %}
-            <option value="{{ researcher.id }}">{{ researcher.username }}</option>
-          {% endfor %}
-        </select>
-        <input type="hidden" name="study_id" value="{{ study.id }}"/>
-        <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-        <button  class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
-      </div>
-    </form>
+    <div class="col-xs-4">
+      <h5 >Authorize an additional researcher on this study: </h5>
+    </div>
+    <div class="col-xs-8">
+      <form action="/add_researcher_to_study" method="post">
+        <div class="form-inline">
+          <select class="form-control" name="researcher_id">
+            {% for researcher in administerable_researchers %}
+              <option value="{{ researcher.id }}">{{ researcher.username }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="study_id" value="{{ study.id }}"/>
+          <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
+          <button  class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
+        </div>
+      </form>
+    </div>
   </div>
 
     <div class="col-xs-12 well well-lcm">
@@ -290,7 +291,7 @@
     <div class="col-md-6">
       <h4>Import another study's App Settings and/or Surveys into {{ study['name'] }}</h4>
       <form action="/import_study_settings_file/{{ study.id }}" method="post" enctype="multipart/form-data">
-        <input class="" type="file" name="upload" id="file_upload_selector">
+        <input class="form-control" type="file" name="upload" id="file_upload_selector">
         <div class="checkbox  ">
           <label>
             <input type="checkbox" name="device_settings" value="true" checked>
@@ -336,11 +337,11 @@
       
     {# delete study, only site admins. Note that this merely marks a study id does not delete data #}
     <div class="col-xs-12 well well-sm">
-      <h2 class="col-xs-4 ">Permanantly Hide Study</h2>
+      <h2 class="col-xs-5 ">Permanantly Hide Study</h2>
       <div class="col-xs-5 h2-margins-vertical">
         The study will be entirely hidden. Only your System Administrator will be able to restore this study. Data will not be deleted. Hiding a study also manually ends the study.
       </div>
-      <div class="col-xs-3">
+      <div class="col-xs-2">
         <a class="btn btn-danger h2-margins-vertical pull-right" 
           onclick="confirm_hide_study('{{ study.name|replace("'", "")|replace('"', "") }}', '{{ study.id }}')">
             Hide Study

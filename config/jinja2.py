@@ -43,7 +43,6 @@ def environment(**options: dict[str, Any]) -> Environment:
             "static": staticfiles_storage.url,
             "url": reverse,
             "easy_url": easy_url,
-            "BASE_URL": settings.BASE_URL,
             "astimezone_with_tz": astimezone_with_tz,
             "time_with_tz": time_with_tz,
             "fancy_dt_format_with_tz": fancy_dt_format_with_tz,

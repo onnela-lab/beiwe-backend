@@ -20,6 +20,7 @@
 @property --Baqua-desat { initial-value: #445C60; syntax: "<color>"; inherits: true;}
 @property --Baqua-dark { initial-value: #005e6f; syntax: "<color>"; inherits: true;}
 @property --Baqua-dark-desat { initial-value: #36494C; syntax: "<color>"; inherits: true;}
+@property --Baqua-dark-partial { initial-value: #005e6f66; syntax: "<color>"; inherits: true;}
 
 @property --Byellow { initial-value: #B5B920; syntax: "<color>"; inherits: true;}
 @property --Byellow-desat { initial-value: #8D8E70; syntax: "<color>"; inherits: true;}
@@ -74,13 +75,11 @@
     /* filter: blur(3pt); */
 }
 
-/* beiwe black with 66 alpha */
 .well {
     background: #005e6f22;
     box-shadow: 0pt 5pt 5pt 5pt #005e6f22;
     border-radius: 10pt;
 }
-
 .breadcrumb {
     background: var(--aqua-dark);
     box-shadow: 0pt 5pt 5pt 5pt var(--aqua-dark);
@@ -99,14 +98,12 @@
     box-shadow: 0pt 5pt 5pt 5pt var(--Bblack-half);
     border-radius: 10pt;
 }
-
 .panel-heading {
     border: 1px solid transparent;
     background: var(--Bblack-half);
     box-shadow: 0pt 5pt 5pt 5pt var(--Bblack-half);
     border-radius: 10pt;
 }
-
 
 .modal-content {
     background: var(--Bblack);
@@ -137,6 +134,15 @@ input[type=mfa_code]:focus-within { outline: solid 2pt var(--Bwhite); border-rad
 input[type=search]:hover { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
 input[type=search]:focus { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
 input[type=search]:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; animation: pulse-outline 3s infinite !important;}
+
+input[type=date] {
+    padding: 0.5em;
+    border-radius: 3px;
+}
+input[type=date]:hover { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
+input[type=date]:focus { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
+input[type=date]:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; animation: pulse-outline 3s infinite !important;}
+
 
 textarea {
     background: #005e6f22 !important;
@@ -170,6 +176,8 @@ textarea:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; an
     background: #004552 !important;
 }
 
+
+
 .fix-forest-dropdown-focus.open {
     background: var(--forest-green-bright) !important;
 }
@@ -180,8 +188,8 @@ textarea:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; an
     border-color: #222;
 }
 .list-group-item:hover {
-    background-color: #333;
-    border-color: #333;
+    background-color: var(--Baqua-less-bright);
+    border-color: var(--Baqua-less-bright);;
 }
 
 /* darkly has weird locations for select */
@@ -212,7 +220,7 @@ select > option:checked {
     border-color: var(--Baqua);
 }
 
-
+hr {border-top: 1px solid var(--forest-green-dark);}
 
 /* btns require some dumb forcing, missing something in original that breaks these */
 /* btn warning, uses yellow (neon) */
@@ -405,6 +413,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 /* Text modifiers */
 .bold { font-weight: bold; }
 .italic { font-style: italic; }
+.underline { text-decoration: underline; }
 .text-blackish{ color: rgb(32, 32, 32); }
 .center-text { text-align: center; }
 .text-center { text-align: center; }
@@ -510,7 +519,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .force-bg-forest-green-dark {
     background-color: var(--forest-green-very-dark);
 }
-.force-gray-bg {
+.force-green-bg {
     background-color: var(--forest-green-bright) !important;
     border-color: var(--forest-green-bright) !important;
 }
@@ -778,131 +787,3 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .padding-bottom-neg-5{padding-bottom:-5em;}
 .padding-bottom-neg-6{padding-bottom:-6em;}
 .padding-bottom-neg-12{padding-bottom:-12em;}
-
-
-
-/* 
-html,
-body,
-  height: 10
-main {
-  --font: "skolar-sans-latin", sans-serif;
-  --really-green: oklch(88.14% 0.203 158.82);
-  --green: oklch(78.59% 0.18 159.1);
-  --black: oklch(22.21% 0 0);
-  --gray: oklch(83.9% 0 0);
-  --speed: 1200ms;
-0%;
-  font-family: var(--font);
-  background-color: var(--black);
-  color: var(--gray);
-
-  & * {
-    font-family: inherit;
-  }
-}
-main {
-  display: grid;
-  place-content: center;
-  place-items: center;
-  text-align: center;
-  gap: 88px;
-
-  & article {
-    display: grid;
-    gap: 52px;
-  }
-
-  & h1 {
-    color: var(--green);
-    font-size: 14vw;
-    font-weight: 900;
-  }
-
-  & h2 {
-    font-size: 4.5vw;
-    text-transform: uppercase;
-    letter-spacing: 0.025ch;
-  }
-}
-
-*[letter-animation="breath"] {
-  & > span {
-    display: inline-block;
-    white-space: break-spaces;
-  }
-
-  & > span {
-    animation: breath calc(var(--speed)) ease calc(var(--index) * 100 * 1ms)
-      infinite alternate;
-  }
-}
-
-section {
-  width: 100%;
-  display: grid;
-  place-content: center;
-  place-items: center;
-
-  & div {
-    width: 50vw;
-
-    & span {
-      text-transform: uppercase;
-      font-weight: bold;
-      letter-spacing: 0.025ch;
-      position: relative;
-      margin-block-end: 8px;
-    }
-
-    & span:first-of-type {
-      float: left;
-      left: -12px;
-    }
-
-    & span:last-of-type {
-      float: right;
-      right: -12px;
-    }
-  }
-
-  & input[type="range"] {
-    width: 100%;
-  }
-}
-
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-input[type="range"]::-webkit-slider-runnable-track {
-  background: var(--green);
-  height: 0.5rem;
-  border-radius: 12px;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; Override default look
-  appearance: none;
-  margin-top: -12px;
-  background-color: oklch(22.21% 0 0);
-  border: 1px solid oklch(38% 0 0);
-  border-radius: 8px;
-  height: 2rem;
-  width: 1.25rem;
-}
-
-@keyframes breath {
-  from {
-    animation-timing-function: ease-out;
-  }
-  to {
-    transform: scale(1.25) translateY(-5px) perspective(1px);
-    text-shadow: 0 0 20px var(--really-green);
-    animation-timing-function: ease-in-out;
-  }
-}
-*/

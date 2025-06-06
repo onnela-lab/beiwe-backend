@@ -32,7 +32,7 @@
         <input id="weekly_time_timepicker" type="text" class="form-control schedule-timepicker">
         <i class="glyphicon glyphicon-time"></i>
         &nbsp;
-        <select id="day_index_select" name="day">
+        <select id="day_index_select" name="day" class="form-control">
           <option value="every_day">EVERY DAY</option>
           <option value=0>Sunday</option>
           <option value=1>Monday</option>
@@ -62,13 +62,13 @@
 
           <input id="num_days_picker" type="number" class="form-control">
           &nbsp;
-          <select id="before_after_select" name="before_after">
+          <select id="before_after_select" name="before_after" class="form-control">
              <option value=1>Days After</option>
             <option value=-1>Days Before</option>
             <option value=0>Day Of</option>
           </select>
 
-          <select id="intervention_select" name="intervention">
+          <select id="intervention_select" name="intervention" class="form-control">
             {% for intervention in study.interventions.all() %}
               <option value="{{ intervention.id }}">{{ intervention.name }}</option>
             {% endfor %}

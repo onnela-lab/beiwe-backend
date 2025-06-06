@@ -300,7 +300,7 @@ img {
   padding: 2px;
   line-height: 1.42857143;
   background-color: #222222;
-  border: 1px solid #464545;
+  border: 1px solid var(--Baqua-desat);
   border-radius: 4px;
   transition: all 0.2s ease-in-out;
   display: inline-block;
@@ -314,7 +314,7 @@ hr {
   margin-top: 21px;
   margin-bottom: 21px;
   border: 0;
-  border-top: 1px solid #464545;
+  border-top: 1px solid var(--Baqua-desat);
 }
 .sr-only {
   position: absolute;
@@ -576,7 +576,7 @@ blockquote {
   padding: 10.5px 21px;
   margin: 0 0 21px;
   font-size: 18.75px;
-  border-left: 5px solid #464545;
+  border-left: 5px solid var(--Baqua-desat);
 }
 blockquote p:last-child,
 blockquote ul:last-child,
@@ -601,7 +601,7 @@ blockquote.pull-right {
   padding-right: 15px;
   padding-left: 0;
   text-align: right;
-  border-right: 5px solid #464545;
+  border-right: 5px solid var(--Baqua-desat);
   border-left: 0;
 }
 .blockquote-reverse footer:before,
@@ -975,11 +975,11 @@ th {
   padding: 8px;
   line-height: 1.42857143;
   vertical-align: top;
-  border-top: 1px solid #464545;
+  border-top: 1px solid var(--Baqua-desat);
 }
 .table > thead > tr > th {
   vertical-align: bottom;
-  border-bottom: 2px solid #464545;
+  border-bottom: 2px solid var(--Baqua-desat);
 }
 .table > caption + thead > tr:first-child > th,
 .table > colgroup + thead > tr:first-child > th,
@@ -990,7 +990,7 @@ th {
   border-top: 0;
 }
 .table > tbody + tbody {
-  border-top: 2px solid #464545;
+  border-top: 2px solid var(--Baqua-desat);
 }
 .table .table {
   background-color: #222222;
@@ -1004,7 +1004,7 @@ th {
   padding: 5px;
 }
 .table-bordered {
-  border: 1px solid #464545;
+  border: 1px solid var(--Baqua-desat);
 }
 .table-bordered > thead > tr > th,
 .table-bordered > tbody > tr > th,
@@ -1012,22 +1012,23 @@ th {
 .table-bordered > thead > tr > td,
 .table-bordered > tbody > tr > td,
 .table-bordered > tfoot > tr > td {
-  border: 1px solid #464545;
+  border: 1px solid var(--Baqua-desat);
 }
 .table-bordered > thead > tr > th,
 .table-bordered > thead > tr > td {
   border-bottom-width: 2px;
 }
 .table-striped > tbody > tr:nth-of-type(odd) {
-  background-color: var(--Baqua-dark);
+  background-color: var(--Baqua-dark-partial);
   color: --var(--Bwhite);
+  background: 
 }
 .table-striped > tbody > tr:nth-of-type(even) {
   background-color: var(--forest-green-dark);
   color: --var(--Bwhite);
 }
 .table-hover > tbody > tr:hover {
-  background-color: #464545;
+  background-color: var(--Baqua-desat);
 }
 .table > thead > tr > td.active,
 .table > tbody > tr > td.active,
@@ -1041,7 +1042,7 @@ th {
 .table > thead > tr.active > th,
 .table > tbody > tr.active > th,
 .table > tfoot > tr.active > th {
-  background-color: #464545;
+  background-color: var(--Baqua-desat);
 }
 .table-hover > tbody > tr > td.active:hover,
 .table-hover > tbody > tr > th.active:hover,
@@ -1145,7 +1146,7 @@ th {
     margin-bottom: 15.75px;
     overflow-y: hidden;
     -ms-overflow-style: -ms-autohiding-scrollbar;
-    border: 1px solid #464545;
+    border: 1px solid var(--Baqua-desat);
   }
   .table-responsive > .table {
     margin-bottom: 0;
@@ -1248,7 +1249,7 @@ output {
   padding-top: 11px;
   font-size: 15px;
   line-height: 1.42857143;
-  color: #464545;
+  color: var(--Baqua-desat);
 }
 
 /* Form Control */
@@ -1260,7 +1261,7 @@ output {
   padding: 10px 15px;
   font-size: 15px;
   line-height: 1.42857143;
-  color: #464545;
+  color: var(--Baqua-desat);
   background-color: var(--Bwhite);
   background-image: none;
   border: 1px solid #f1f1f1;
@@ -1755,8 +1756,8 @@ fieldset[disabled] a.btn {
 }
 .btn-default {
   color: var(--Bwhite);
-  background-color: #464545;
-  border-color: #464545;
+  background-color: var(--Baqua-desat);
+  border-color: var(--Baqua-desat);
 }
 .btn-default:focus,
 .btn-default.focus {
@@ -1799,11 +1800,11 @@ fieldset[disabled] .btn-default:focus,
 .btn-default.disabled.focus,
 .btn-default[disabled].focus,
 fieldset[disabled] .btn-default.focus {
-  background-color: #464545;
-  border-color: #464545;
+  background-color: var(--Baqua-desat);
+  border-color: var(--Baqua-desat);
 }
 .btn-default .badge {
-  color: #464545;
+  color: var(--Baqua-desat);
   background-color: var(--Bwhite)
 }
 .btn-primary {
@@ -2089,9 +2090,13 @@ fieldset[disabled] .btn-link {
 .btn-link:active {
   border-color: transparent;
 }
-.btn-link:hover,
+.btn-link:hover {
+  color: var(--Baqua-bright);
+  text-decoration: underline;
+  background-color: transparent;  
+}
 .btn-link:focus {
-  color: var(--Baqua);
+  color: var(--Baqua-bright);
   text-decoration: underline;
   background-color: transparent;
 }
@@ -2208,7 +2213,7 @@ tbody.collapse.in {
   height: 1px;
   margin: 9.5px 0;
   overflow: hidden;
-  background-color: #464545;
+  background-color: var(--Baqua-desat);
 }
 .dropdown-menu > li > a {
   display: block;
@@ -2559,9 +2564,9 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   font-size: 15px;
   font-weight: 400;
   line-height: 1;
-  color: #464545;
+  color: var(--Baqua-desat);
   text-align: center;
-  background-color: #464545;
+  background-color: var(--Baqua-desat);
   border: 1px solid transparent;
   border-radius: 4px;
 }
@@ -2675,7 +2680,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   max-width: none;
 }
 .nav-tabs {
-  border-bottom: 1px solid #464545;
+  border-bottom: 1px solid var(--Baqua-desat);
 }
 .nav-tabs > li {
   float: left;
@@ -2688,7 +2693,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   border-radius: 4px 4px 0 0;
 }
 .nav-tabs > li > a:hover {
-  border-color: #464545 #464545 #464545;
+  border-color: var(--Baqua-desat) var(--Baqua-desat) var(--Baqua-desat);
 }
 .nav-tabs > li.active > a,
 .nav-tabs > li.active > a:hover,
@@ -2696,7 +2701,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   color: var(--Baqua);
   cursor: default;
   background-color: #222222;
-  border: 1px solid #464545;
+  border: 1px solid var(--Baqua-desat);
   border-bottom-color: transparent;
 }
 .nav-tabs.nav-justified {
@@ -3348,7 +3353,7 @@ fieldset[disabled] .navbar-inverse .btn-link:focus {
   padding: 8px 15px;
   margin-bottom: 21px;
   list-style: none;
-  background-color: #464545;
+  background-color: var(--Baqua-desat);
   border-radius: 4px;
 }
 .breadcrumb > li {
@@ -3523,7 +3528,7 @@ a.label:focus {
   top: -1px;
 }
 .label-default {
-  background-color: #464545;
+  background-color: var(--Baqua-desat);
 }
 .label-default[href]:hover,
 .label-default[href]:focus {
@@ -3577,7 +3582,7 @@ a.label:focus {
   text-align: center;
   white-space: nowrap;
   vertical-align: middle;
-  background-color: #464545;
+  background-color: var(--Baqua-desat);
   border-radius: 10px;
 }
 .badge:empty {
@@ -3661,7 +3666,7 @@ a.badge:focus {
   margin-bottom: 21px;
   line-height: 1.42857143;
   background-color: #222222;
-  border: 1px solid #464545;
+  border: 1px solid var(--Baqua-desat);
   border-radius: 4px;
   transition: border 0.2s ease-in-out;
 }
@@ -3884,7 +3889,7 @@ a.thumbnail.active {
   padding: 10px 15px;
   margin-bottom: -1px;
   background-color: #303030;
-  border: 1px solid #464545;
+  border: 1px solid var(--Baqua-desat);
 }
 .list-group-item:first-child {
   border-top-left-radius: 4px;
@@ -4116,8 +4121,8 @@ button.list-group-item-danger.active:focus {
 }
 .panel-footer {
   padding: 10px 15px;
-  background-color: #464545;
-  border-top: 1px solid #464545;
+  background-color: var(--Baqua-desat);
+  border-top: 1px solid var(--Baqua-desat);
   border-bottom-right-radius: 3px;
   border-bottom-left-radius: 3px;
 }
@@ -4231,7 +4236,7 @@ button.list-group-item-danger.active:focus {
 .panel > .panel-body + .table-responsive,
 .panel > .table + .panel-body,
 .panel > .table-responsive + .panel-body {
-  border-top: 1px solid #464545;
+  border-top: 1px solid var(--Baqua-desat);
 }
 .panel > .table > tbody:first-child > tr:first-child th,
 .panel > .table > tbody:first-child > tr:first-child td {
@@ -4308,31 +4313,31 @@ button.list-group-item-danger.active:focus {
 }
 .panel-group .panel-heading + .panel-collapse > .panel-body,
 .panel-group .panel-heading + .panel-collapse > .list-group {
-  border-top: 1px solid #464545;
+  border-top: 1px solid var(--Baqua-desat);
 }
 .panel-group .panel-footer {
   border-top: 0;
 }
 .panel-group .panel-footer + .panel-collapse .panel-body {
-  border-bottom: 1px solid #464545;
+  border-bottom: 1px solid var(--Baqua-desat);
 }
 .panel-default {
-  border-color: #464545;
+  border-color: var(--Baqua-desat);
 }
 .panel-default > .panel-heading {
   color: var(--Bwhite);
   background-color: #303030;
-  border-color: #464545;
+  border-color: var(--Baqua-desat);
 }
 .panel-default > .panel-heading + .panel-collapse > .panel-body {
-  border-top-color: #464545;
+  border-top-color: var(--Baqua-desat);
 }
 .panel-default > .panel-heading .badge {
   color: #303030;
   background-color: var(--Bwhite)
 }
 .panel-default > .panel-footer + .panel-collapse > .panel-body {
-  border-bottom-color: #464545;
+  border-bottom-color: var(--Baqua-desat);
 }
 .panel-primary {
   border-color: #375a7f;
@@ -4561,7 +4566,7 @@ button.close {
 }
 .modal-header {
   padding: 15px;
-  border-bottom: 1px solid #464545;
+  border-bottom: 1px solid var(--Baqua-desat);
 }
 .modal-header .close {
   margin-top: -2px;
@@ -4577,7 +4582,7 @@ button.close {
 .modal-footer {
   padding: 20px;
   text-align: right;
-  border-top: 1px solid #464545;
+  border-top: 1px solid var(--Baqua-desat);
 }
 .modal-footer .btn + .btn {
   margin-bottom: 0;
@@ -5486,11 +5491,11 @@ table-bordered > tbody > tr > td,
 .table-bordered > tbody > tr > td,
 table-bordered > tfoot > tr > td,
 .table-bordered > tfoot > tr > td {
-  border: 1px solid #464545;
+  border: 1px solid var(--Baqua-desat);
 }
 input,
 textarea {
-  color: #464545;
+  color: var(--Baqua-desat);
   background-color: var(--Bwhite)
 }
 .form-control,
@@ -5505,7 +5510,7 @@ textarea:focus {
   box-shadow: none;
 }
 .form-control-feedback {
-  color: #464545;
+  color: var(--Baqua-desat);
 }
 .has-warning .help-block,
 .has-warning .control-label,
@@ -5573,7 +5578,7 @@ textarea:focus {
 .nav .open > a,
 .nav .open > a:hover,
 .nav .open > a:focus {
-  border-color: #464545;
+  border-color: var(--Baqua-desat);
 }
 .nav-tabs > li > a,
 .nav-pills > li > a {
@@ -5619,7 +5624,7 @@ textarea:focus {
 a.list-group-item.active,
 a.list-group-item.active:hover,
 a.list-group-item.active:focus {
-  border-color: #464545;
+  border-color: var(--Baqua-desat);
 }
 a.list-group-item-success.active {
   background-color: var(--Baqua);
@@ -5648,7 +5653,7 @@ a.list-group-item-danger.active:focus {
   color: var(--Bwhite);
 }
 .panel-default > .panel-heading {
-  background-color: #464545;
+  background-color: var(--Baqua-desat);
 }
 
 /* WOW it was hard to work out what broke these.... solution: source the files at raw EXTERNAL urls manually */
