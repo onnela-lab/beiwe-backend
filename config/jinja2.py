@@ -35,14 +35,15 @@ def environment(**options: dict[str, Any]) -> Environment:
         trim_blocks=True,
         lstrip_blocks=True,
         extensions=[WhiteSpaceCollapser],
-        **options
+        **options,  # type: ignore
     )
     
     env.globals.update(
-        {
+        {   # type: ignore
             "static": staticfiles_storage.url,
             "url": reverse,
             "easy_url": easy_url,
+            "BASE_URL": settings.BASE_URL,
             "astimezone_with_tz": astimezone_with_tz,
             "time_with_tz": time_with_tz,
             "fancy_dt_format_with_tz": fancy_dt_format_with_tz,
@@ -70,6 +71,10 @@ def environment(**options: dict[str, Any]) -> Environment:
 class LocalAssets:
     # These assets will be served from the server directly.
     # Make sure any assets here match the apparent versions
+    
+    # Note: fonts are included in the css files but reference external assets.
+    
+    # CSS
     BOOTSTRAP_TIMEPICKER_CSS = "css/libraries/bootstrap-timepicker.css"
     BOOTSTRAP_DATETIMEPICKER_CSS = "css/libraries/bootstrap-datetimepicker.css"
     DATATABLES_CSS = "css/libraries/datatables.css"
