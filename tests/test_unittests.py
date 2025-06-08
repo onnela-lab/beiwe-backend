@@ -21,9 +21,9 @@ from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS
 from constants.s3_constants import (COMPRESSED_DATA_MISSING_AT_UPLOAD,
     COMPRESSED_DATA_MISSING_ON_POP, COMPRESSED_DATA_PRESENT_AT_COMPRESSION,
     COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
-    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION, UNCOMPRESSED_DATA_MISSING_ON_POP,
-    UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
-    UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
+    IOSDataRecoveryDisabledException, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
+    UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+    UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD, UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
 from database.models import ArchivedEvent, S3File, ScheduledEvent
@@ -909,7 +909,7 @@ class TestS3Storage(CommonTestCase):
             S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=True)
         
         S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=False)
-        with self.assertRaises(BadS3PathException):
+        with self.assertRaises(IOSDataRecoveryDisabledException):
             S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=True)
         
         S3Storage("CUSTOM_ONDEPLOY_SCRIPT/EB/a_path.csv", self.default_participant, bypass_study_folder=False)
