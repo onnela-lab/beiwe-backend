@@ -88,7 +88,8 @@ class LocalAssets:
     DATA_ACCESS_WEB_FORM_CONTROLLER = "javascript/app/survey-builder/controllers/data-access-web-form-controller.js"
     DATA_DOWNLOAD_PAGE = "javascript/data_download_page.js"
     PARTICIPANTS_TABLE_JS = "javascript/participants_table.js"
-    PATIENT_DASHBOARD_FEATURES_JS = "patient_dashboard_features.js"
+    PATIENT_DASHBOARD_FEATURES_JS = "javascript/patient_dashboard_features.js"
+    STREAM_DASHBOARD_FEATURES_JS = "javascript/dashboard_features.js"
     NAVBAR_JS = "javascript/app/survey-builder/controllers/nav-bar-study-controller.js"
 
 
