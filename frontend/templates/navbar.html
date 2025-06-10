@@ -56,15 +56,10 @@
 
           {% if page_location != 'dashboard_landing' %}
             <li role="presentation" class="pulse-text-hover">
-              <a href="{{ easy_url('data_page_endpoints.dashboard_page', study_id=study.id) }}">Dashboard</a>
+              <a href="{{ easy_url('data_page_endpoints.dashboard_page', study_id=study.id) }}">Go To Dashboard</a>
             </li>
           {% endif %}
           
-          {% if page_location == 'dashboard_patient' %}
-            <li class="active" role="presentation"><a href="">{{ patient_id }}</a></li>
-          {% elif page_location == 'dashboard_data' %}
-            <li class="active" role="presentation"><a href="">{{ data_stream }}</a></li>
-          {% endif %}
         {% endif %}
 
         {% if study and study.forest_enabled %}

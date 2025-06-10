@@ -89,6 +89,7 @@
     flex-direction: row;
     justify-content: space-around;
     align-items: flex-end;
+    width: 50%;
     /* margin-bottom: 0px; */
 }
 
@@ -103,4 +104,13 @@
 
 .bytes{
     text-align: right;
+}
+
+.big-button {
+    border-radius: 6px;
+}
+/* otherwise this will blind you */
+.big-button:hover {
+    background-color: var(--Baqua-less-bright-desat) !important;
+}
 }
