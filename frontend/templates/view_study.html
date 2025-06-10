@@ -52,24 +52,26 @@
       <p>Total participants ever registered on this study: 
         {{ "{:,}".format(participants_ever_registered_count) }}</p>
 
-      <table class="table table-hover stripe" id="participantList">
-        <thead>
-        <tr>
-          <th style="text-align: center; width: 80px;">Created</th>
-          <th style="text-align: center; width: 80px; font-size: small">Initial Registration</th>
-          <th style="width: 135px;">Patient ID</th>
-          <th style="width: 140px;">Status</th>
-          <th>Phone OS</th>
-          {% if push_notifications_enabled %}
-            {% for intervention in interventions | sort(case_sensitive=False) %}
-              <th>{{ intervention }}</th>
+      <div class="x-scrollable">
+        <table class="table table-striped table-hover" style="" id="participantList">
+          <thead>
+          <tr>
+            <th style="text-align: center; width: 80px;">Created</th>
+            <th style="text-align: center; width: 80px; font-size: small">Initial Registration</th>
+            <th style="width: 135px;">Patient ID</th>
+            <th style="width: 140px;">Status</th>
+            <th>Phone OS</th>
+            {% if push_notifications_enabled %}
+              {% for intervention in interventions | sort(case_sensitive=False) %}
+                <th>{{ intervention }}</th>
+              {% endfor %}
+            {% endif %}
+            {% for field in study_fields | sort(case_sensitive=False) %}
+              <th>{{ field }}</th>
             {% endfor %}
-          {% endif %}
-          {% for field in study_fields | sort(case_sensitive=False) %}
-            <th>{{ field }}</th>
-          {% endfor %}
-        </tr>
-        </thead>
+          </tr>
+          </thead>
+        </div>
       </table>
 
       <form action={{ easy_url("manage_study_endpoints.download_participants_csv", study_id) }} method="post">

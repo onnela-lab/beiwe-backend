@@ -2,255 +2,465 @@
 {% block title %}Data Stream Dashboard{% endblock %}
 
 {% block head %}
-  {{ super() }}
-  <style> {% include LocalAssets.DATATABLES_CSS %} </style>
-  <style> {% include LocalAssets.DASHBOARD_CSS %} </style>
-  <script type="text/javascript" charset="utf8" src="{{ ASSETS.DATATABLES }}"></script>
-  <script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
-  <script> {% include LocalAssets.TRANSITION_JS %} </script>
-  <script> {% include LocalAssets.COLLAPSE_JS %} </script>
-  <script> {% include LocalAssets.STREAM_DASHBOARD_FEATURES_JS %} </script>
-  {% include 'dashboard/dashboard_stream_javascript.html' %}
+{{ super() }}
+<style> {% include LocalAssets.DATATABLES_CSS %} </style>
+<style> {% include LocalAssets.DASHBOARD_CSS %} </style>
+<script type="text/javascript" charset="utf8" src="{{ ASSETS.DATATABLES }}"></script>
+<script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
+<script> {% include LocalAssets.TRANSITION_JS %} </script>
+<script> {% include LocalAssets.COLLAPSE_JS %} </script>
+<script> {% include LocalAssets.STREAM_DASHBOARD_FEATURES_JS %} </script>
+{% include 'dashboard/dashboard_stream_javascript.html' %}
 {% endblock %}
 
 {% block content %}
-  <ol class="breadcrumb">
-    <li>
-      <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
-    </li>
-    <li class="active">
-      <a href="{{ easy_url("data_page_endpoints.dashboard_page", study_id=study.id) }}">
-        Dashboard
-      </a>
-    </li>
-    <li>
-      {{ data_stream }}
-    </li>
-  </ol>
+<ol class="breadcrumb">
+  <li>
+    <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
+  </li>
+  <li class="active">
+    <a href="{{ easy_url("data_page_endpoints.dashboard_page", study_id=study.id) }}">
+      Dashboard
+    </a>
+  </li>
+  <li>
+    {{ data_stream }}
+  </li>
+</ol>
 
-  {#  ################## TOP OF PAGE CONTENT ################# #}
-  <div class="title">
-    <h3 closs="marg-t-n-4"> {{ data_stream }} Data for {{ study.name }} Study
-      <div class="choose-stream">
-        <div class="dropdown">
-          <button class="btn btn-primary dropdown-toggle marg-t-n-4" type="button" data-toggle="dropdown">
-            {{ data_stream }} <span class="caret"></span>
-          </button>
-          <ul class="dropdown-menu dropdown-translucent marg-t-n-1 form-group">
-            {% for stream in data_stream_dict.keys()|sort if data_stream_dict[stream] != data_stream %}
-                <li><a class="text-green-hover" href="/dashboard/{{ study_id }}/data_stream/{{ stream }}">
-                  {{ data_stream_dict[stream] }}</a>
-                </li>
-            {% endfor %}
-          </ul>
-        </div>
+{#  ################## TOP OF PAGE CONTENT ################# #}
+<div class="title">
+  <h3 closs="marg-t-n-4"> {{ data_stream }} Data for {{ study.name }} Study
+    <div class="choose-stream">
+      <div class="dropdown">
+
+        <button
+          class="btn btn-primary dropdown-toggle marg-t-n-4"
+          type="button"
+          data-toggle="dropdown"
+        >
+          {{ data_stream }} <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu dropdown-translucent marg-t-n-1 form-group">
+          {% for stream in data_stream_dict.keys()|sort if data_stream_dict[stream] != data_stream %}
+          <li><a
+              class="text-green-hover"
+              href="/dashboard/{{ study_id }}/data_stream/{{ stream }}"
+            >
+              {{ data_stream_dict[stream] }}</a>
+          </li>
+          {% endfor %}
+        </ul>
       </div>
-    </h3>
-  </div>
+    </div>
+  </h3>
+</div>
 
 {#  ----------- ADDING DROP DOWN FILTER BAR HERE ---------------------- #}
 {%  if times %}
 
-  <div class="dates">
-    <p>Available Dates: {{ first_day.strftime('%m/%d/%Y') }}
-      - {{ last_day.strftime('%m/%d/%Y') }}
+<div class="dates">
+  <p>Available Dates: {{ first_day.strftime('%m/%d/%Y') }}
+    - {{ last_day.strftime('%m/%d/%Y') }}
     <span class="pull-right">
       Timezone: {{ study.timezone_name }}
     </span>
-    </p>
-  </div>
+  </p>
+</div>
 
-  <div class="content ng-cloak" ng-controller='buttonController' id="bctrl">
-    <div class="panel-group" id="accordion" role="tablist">
-      <div class="panel panel-default">
-        <div class="btn btn-block btn-info" role="tab" data-toggle="collapse" href="#collapseOne">
-          <span class="bold text-center marg-b-2"> Click to Configure Gradients and Flags <span class="caret"></span></span>
-          <div class="btn-toolbar flag-toolbar" role="toolbar">
-            <div class="btn-group" role="group" ng-if="show_color">
-              <button  class="btn filter-bar color-grad">
-                Color Gradient:
-                <span class="gradient">{% raw %}{{ current_gradient[0] }} {% endraw %} - {% raw %}{{ current_gradient[1] }}{% endraw %}</span>
-              </button>
-              <input type="button" ng-click="removeColor()" value="x" class="btn btn-primary">
-            </div>
-            
-            <div class="btn-group filter-flag-item" role="group" ng-repeat="flag in all_flags_list">
-              <button  class="btn filter-bar flag-filter">
-                Flag Values: {% raw %}{{ flag[0] }} {{ flag[1] }}{% endraw %}
-              </button>
-              <input type="button" ng-click="removeFlag(flag)" value="x" class="btn btn-primary">
-            </div>
+<div
+  class="content ng-cloak"
+  ng-controller='buttonController'
+  id="bctrl"
+>
+  <div
+    class="panel-group"
+    id="accordion"
+    role="tablist"
+  >
+    <div class="panel panel-default">
+      <div
+        class="btn btn-block btn-info big-button"
+        role="tab"
+        data-toggle="collapse"
+        href="#collapseOne"
+      >
+        <span class="bold text-center marg-b-2 "> 
+        Click to Configure Gradients and Flags <span class="caret"></span></span>
+        <div
+          class="btn-toolbar flag-toolbar"
+          role="toolbar"
+        >
+          <div
+            class="btn-group"
+            role="group"
+            ng-if="show_color"
+          >
+
+            <button class="btn filter-bar color-grad">
+              Color Gradient:
+              <span class="gradient">{% raw %}{{ current_gradient[0] }} {% endraw %} -
+                {% raw %}{{ current_gradient[1] }}{% endraw %}</span>
+            </button>
+
+            <input
+              type="button"
+              ng-click="removeColor()"
+              value="x"
+              class="btn btn-primary"
+            >
+          </div>
+
+          <div
+            class="btn-group filter-flag-item"
+            role="group"
+            ng-repeat="flag in all_flags_list"
+          >
+
+            <button class="btn filter-bar flag-filter">
+              Flag Values {% raw %}{{ flag[0] }} {{ flag[1] }}{% endraw %}
+            </button>
+
+            <input
+              type="button"
+              ng-click="removeFlag(flag)"
+              value="x"
+              class="btn btn-primary"
+            >
           </div>
         </div>
-        <div id="collapseOne" class="panel-collapse collapse" role="tabpanel">
-          <div class="panel-body">
-            <div class="filters">
-              <div class="col-xs-4 well">
-                <h5 class="h5"> Create Flag: </h5>
-                <br>
-                <div class="radio-buttons">
-                  <div class="form-check">
-                    <input class="form-check-input" type="radio" ng-model="flag_operator" value=">"
-                           id="greater_op">
-                    <label class="form-check-label" for="greater_op">
-                      Greater Than
-                    </label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="radio" ng-model="flag_operator" value="="
-                           id="equal_op">
-                    <label class="form-check-label" for="equal_op">
-                      Equal To
-                    </label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="radio" ng-model="flag_operator" value="<"
-                           id="less_op">
-                    <label class="form-check-label" for="less_op">
-                      Less Than
-                    </label>
-                  </div>
+      </div>
+
+      {# the the top panel button and form #}
+      <div
+        id="collapseOne"
+        class="panel-collapse collapse"
+        role="tabpanel"
+      >
+        <div class="panel-body">
+          <div class="filters">
+            <div class="col-xs-4 well marg-r-1">
+              <h5 class="h5"> Flag This Value: </h5>
+              <br>
+
+              {# flags #}
+              <div class="radio-buttons">
+                <div class="form-check">
+
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    ng-model="flag_operator"
+                    value=">"
+                    id="greater_op"
+                  >
+
+                  <label
+                    class="form-check-label"
+                    for="greater_op"
+                  >
+                    Greater Than
+                  </label>
                 </div>
-                <div class="input-group mb-3 flag_value_input">
-                  <div class="input-group-addon">
-                      <span class="input-group-number" id="basic-addon1">Flag Value</span>
-                  </div>
-                  <input type="number" ng-model="flag_value" class="form-control"
-                       placeholder="Flag Value">
+                <div class="form-check">
+
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    ng-model="flag_operator"
+                    value="="
+                    id="equal_op"
+                  >
+
+                  <label
+                    class="form-check-label"
+                    for="equal_op"
+                  >
+                    Equal To
+                  </label>
                 </div>
-                <button class="btn btn-primary add-flag" type="button" ng-if="flagExists() === 2 && valueIsNumber(flag_value)" ng-click="addFlag()">
-                  Add Flag
-                </button>
-                <div class="invalid_input" ng-if="flagExists() === 1">
-                  <p>Invalid Input: This flag already exists.</p>
-                </div>
-                <div class="invalid_input" ng-if="!valueIsNumber(flag_value) && flag_value !== null">
-                  <p>Invalid Input: Please enter ONLY numerical inputs.</p>
+                <div class="form-check">
+
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    ng-model="flag_operator"
+                    value="<"
+                    id="less_op"
+                  >
+
+                  <label
+                    class="form-check-label"
+                    for="less_op"
+                  >
+                    Less Than
+                  </label>
                 </div>
               </div>
-              <div class="col-xs-8 well text-center">
-                <h3> Create Gradient: </h3>
-                <br>
-                <div class="input-group color_range_min">
-                  <div class="input-group-addon">
-                    <span style="padding: 10pt" class="input-group-number" id="basic-addon1"> Minimum </span>
-                  </div>
-                  <input type="number" ng-model="color_low_range" class="form-control"
-                         placeholder="Minimum">
+
+              {# flag validation #}
+              <div class="input-group mb-3 flag_value_input">
+                <div class="input-group-addon">
+                  <span
+                    class="input-group-number"
+                    id="basic-addon1"
+                  >Flag Value</span>
                 </div>
-                <div class="input-group mb-3 color_range_max">
-                  <div class="input-group-addon">
-                    <span style="padding: 8.6pt" class="input-group-number" id="basic-addon1"> Maximum </span>
-                  </div>
-                  <input type="number" ng-model="color_high_range" class="form-control"
-                       placeholder="Maximum">
-                </div>
-                <div class="invalid_input" ng-if="evalColorRange() && valueIsNumber(color_low_range) && valueIsNumber(color_high_range)">
-                  <p>Invalid Input: Please make sure Minimum is less than Maximum.</p>
-                </div>
-                <div class="invalid_input" ng-if="color_high_range!== null && color_low_range !== null && show_color && valueIsNumber(color_low_range) && valueIsNumber(color_high_range)">
-                  <p>Only one gradient is allowed.</p>
-                </div>
-                <div class="invalid_input" ng-if="(!valueIsNumber(color_low_range) || !valueIsNumber(color_high_range)) && color_low_range !== null && color_high_range !== null">
-                  <p>Invalid Input: Please enter ONLY numerical inputs.</p>
-                </div>
-                <button class="btn btn-primary add-flag" type="button"
-                        ng-if="!show_color && !evalColorRange() && color_high_range !== null && color_low_range !== null && valueIsNumber(color_low_range) && valueIsNumber(color_high_range)"
-                        ng-click="addGradient()">
-                  Add Gradient
-                </button>
-                <form action="#" method="post">
-                <input name="color_high_range" type="hidden" id="color_high_range" value="{% raw %}{{ getCurrentGradient(current_gradient[1]) }}{% endraw %}"/>
-                <input name="color_low_range" type="hidden" id="color_low_range" value="{% raw %} {{ getCurrentGradient(current_gradient[0]) }}{% endraw %}"/>
-                <input name="all_flags_list" type="hidden" id="all_flags_list" value="{% raw %} {{ all_flags_list }} {% endraw %}"/>
-                <button class="btn btn-primary pull-right" >
-                  Save Current Filter Bar as Default Settings
-                </button>
-                {% comment %} note: can add this command to the save button to have user confirmation that settings are saved
+
+                <input
+                  type="number"
+                  ng-model="flag_value"
+                  class="form-control"
+                  placeholder="Flag Value"
+                >
+              </div>
+
+              <button
+                class="btn btn-primary add-flag"
+                type="button"
+                ng-disabled="!(flagExists() === 2 && valueIsNumber(flag_value))"
+                ng-click="addFlag()"
+              >
+                Add Flag
+              </button>
+              <div
+                class="invalid_input"
+                ng-if="flagExists() === 1"
+              >
+                <p>Such a flag already exists.</p>
+              </div>
+              <div
+                class="invalid_input"
+                ng-if="!valueIsNumber(flag_value) && flag_value !== null"
+              >
+                <p>Numerical inputs only please.</p>
+              </div>
+            </div>
+
+            {# gradient setup #}
+            <div class="col-xs-8 well text-center">
+              <div class="col-xs-12">
+                {# save button #}
+                <form
+                  action="#"
+                  method="post"
+                >
+
+                  <input
+                    name="color_high_range"
+                    type="hidden"
+                    id="color_high_range"
+                    value="{% raw %}{{ getCurrentGradient(current_gradient[1]) }}{% endraw %}"
+                  />
+
+                  <input
+                    name="color_low_range"
+                    type="hidden"
+                    id="color_low_range"
+                    value="{% raw %} {{ getCurrentGradient(current_gradient[0]) }}{% endraw %}"
+                  />
+
+                  <input
+                    name="all_flags_list"
+                    type="hidden"
+                    id="all_flags_list"
+                    value="{% raw %} {{ all_flags_list }} {% endraw %}"
+                  />
+
+                  <button class="btn btn-primary  marg-b-3">
+                    Save Current Flags and Filters as Defaults
+                  </button>
+                  {% comment %} note: can add this command to the save button to have user confirmation that settings are
+                  saved
                   - it's a little weird though bc it says saved before it reloads the page.
                   onclick="alert('Default Settings Saved')" {% endcomment %}
+
+                </form>
               </div>
-              
-              </form>
+
+              <h3> Create Gradient </h3>
+              <br>
+              <div class="input-group color_range_min">
+                <div class="input-group-addon">
+                  <span
+                    style="padding: 10pt"
+                    class="input-group-number"
+                    id="basic-addon1"
+                  > Minimum </span>
+                </div>
+
+                <input
+                  type="number"
+                  ng-model="color_low_range"
+                  class="form-control"
+                  placeholder="Minimum"
+                >
+              </div>
+              <div class="input-group mb-3 color_range_max">
+                <div class="input-group-addon">
+                  <span
+                    style="padding: 8.6pt"
+                    class="input-group-number"
+                    id="basic-addon1"
+                  > Maximum </span>
+                </div>
+
+                <input
+                  type="number"
+                  ng-model="color_high_range"
+                  class="form-control"
+                  placeholder="Maximum"
+                >
+              </div>
+              <div
+                class="invalid_input"
+                ng-if="evalColorRange() && valueIsNumber(color_low_range) && valueIsNumber(color_high_range)"
+              >
+                <p>Minimum must be less than Maximum.</p>
+              </div>
+              <div
+                class="invalid_input"
+                ng-if="color_high_range!== null && color_low_range !== null && show_color && valueIsNumber(color_low_range) && valueIsNumber(color_high_range)"
+              >
+                <p>Only one gradient is allowed.</p>
+              </div>
+              <div
+                class="invalid_input"
+                ng-if="(!valueIsNumber(color_low_range) || !valueIsNumber(color_high_range)) && color_low_range !== null && color_high_range !== null"
+              >
+                <p>Numerical inputs only please.</p>
+              </div>
+
+              <button
+                class="btn btn-primary add-flag"
+                type="button"
+                ng-disabled="!(!show_color && !evalColorRange() && color_high_range !== null && color_low_range !== null && valueIsNumber(color_low_range) && valueIsNumber(color_high_range))"
+                ng-click="addGradient()"
+              >
+                Add Gradient
+              </button>
+
             </div>
+
           </div>
         </div>
       </div>
     </div>
+  </div>
 
 
   {#  ------------------- NEW GENERAL CONTENT ----------------------------------#}
-    <div class="date_bar">
-      <div>
-        {% if base_past_url %}
-          <a ng-click="createNewUrl(base_past_url)" class="btn btn-primary">< Past</a>
-        {% endif %}
-      </div>
-
-{#    Start Date #}
-      <div class="choose-date">
-        <div class="col-sm-4">
-          <label for="start_datetime">Start Date</label>
-          <div class="input-group date" id="start_datetimepicker">
-            <input type="text" class="form-control" id="start_datetime" value="">
-            <span class="input-group-addon">
-              <span class="glyphicon glyphicon-calendar"></span>
-            </span>
-          </div>
-        </div>
-
-        {# End Date #}
-        <div class="col-sm-4">
-          <label for="end_datetime">End Date</label>
-          <div class="input-group date" id="end_datetimepicker">
-            <input type="text" class="form-control" id="end_datetime">
-            <span class="input-group-addon">
-              <span class="glyphicon glyphicon-calendar"></span>
-            </span>
-          </div>
-        </div>
-        <a ng-click="createDateRangeUrl()" class="btn btn-primary">Submit</a>
-      </div>
-      <div>
-        {% if base_next_url %}
-          <a ng-click="createNewUrl(base_next_url)" class="btn btn-primary">Newer</a>
-        {% endif %}
-      </div>
+  <div class="date_bar">
+    <div>
+      <a
+        {% if base_past_url %} ng-click="createNewUrl(base_past_url)" {% endif %}
+        class="btn btn-primary"
+      {% if not base_past_url %} disabled {% endif %}
+      > < Previous</a>
+          
     </div>
 
-    {#  ################# THE TABLE ################## #}
-      <table class="table table-bordered" id="dashboard-datastream-table">
-        <thead>
-          <tr>
-            <th> Participant ID </th>
-            {% for time in range(times|length) %}
-                <th>{{ times[time].strftime('%m/%d/%Y') }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
+    {#    Start Date #}
+    <div class="choose-date">
+      <div class="col-sm-4 marg-r-n-6">
+
+        <label for="start_datetime">Start Date</label>
+        <div
+          class="input-group date"
+          id="start_datetimepicker"
+        >
+
+          <input
+            type="text"
+            class="form-control"
+            id="start_datetime"
+            value=""
+          >
+          <span class="input-group-addon">
+            <span class="glyphicon glyphicon-calendar"></span>
+          </span>
+        </div>
+      </div>
+
+      {# End Date #}
+      <div class="col-sm-4">
+
+        <label for="end_datetime">End Date</label>
+        <div
+          class="input-group date"
+          id="end_datetimepicker"
+        >
+
+          <input
+            type="text"
+            class="form-control"
+            id="end_datetime"
+          >
+          <span class="input-group-addon">
+            <span class="glyphicon glyphicon-calendar"></span>
+          </span>
+        </div>
+      </div>
+      <a
+        ng-click="createDateRangeUrl()"
+        class="btn btn-primary marg-l-n-5"
+      >View Date Range</a>
+    </div>
+    <div>
+      <a
+        {% if base_next_url %} ng-click="createNewUrl(base_next_url)" {% endif %}
+        class="btn btn-primary"
+        {% if not base_next_url %} disabled {% endif %}
+      >Next > </a>
+    </div>
+  </div>
+
+  {#  ################# THE TABLE ################## #}
+<div class="x-scrollable ">
+  <table
+    class="table table-bordered"
+    id="dashboard-datastream-table"
+  >
+    <thead>
+      <tr>
+        <th> Participant ID </th>
+        {% for time in range(times|length) %}
+        <th>{{ times[time].strftime('%m/%d/%Y') }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
 
 {# (doing some whitespace optimization here, this element gets repeated a lot) #}
 {% for patient_id, byte_list in byte_streams.items() %} {# iterate over keys #}
 <tr>
 <th>
+  
 <a href="/dashboard/{{ study_id }}/patient/{{ patient_id }}">{{ patient_id }}</a>
 </th>
 {# iterate over bytes in values #}
 {% for bytes in byte_list %}
 {% if bytes == None %}
-<td class="bytes" ng-style="calculateColor()" data-number="0" >0</td>
+<td
+class="bytes"
+ng-style="calculateColor(0)"
+data-number="0"
+>0</td>
 {% else %}
-<td class="bytes" ng-style="calculateColor({{ bytes }})" data-number="{{ bytes }}">{{ "{:,}".format(bytes) }}</td>
+<td
+class="bytes"
+ng-style="calculateColor({{ bytes }})"
+data-number="{{ bytes }}"
+>{{ "{:,}".format(bytes) }}</td>
 {% endif %}
 {% endfor %}
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p> There is no data currently available for {{ data_stream }}</p>
-    {% endif %}
-  </div>
-
+</tr>
+{% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p> There is no data currently available for {{ data_stream }}</p>
+  {% endif %}
+</div>
+</div>
 {% endblock %}

@@ -23,7 +23,7 @@
   <p> Choose a participant or data stream to view the Dashboard. </p>
 
   <div class="dashboard-options">
-    <ul class="list-group well min-wid-20">
+    <ul class="list-group col-xs-6 well min-wid-20">
       <li class="list-group-item marg-t-1 bold text-center force-green-bg">Select Participant</li>
       {% for i in range(participants|length) %}
         <li class="list-group-item dashboard-list-margins">
@@ -33,7 +33,7 @@
         </li>
       {%  endfor %}
     </ul>
-    <ul class="list-group well min-wid-20">
+    <ul class="list-group col-xs-6 well min-wid-20">
       <li class="list-group-item marg-t-1 bold text-center force-green-bg">Select Data Stream</li>
       {% for stream in data_stream_dict.keys()|sort() %}
         <li class="list-group-item dashboard-list-margins">
