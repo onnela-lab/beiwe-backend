@@ -52,7 +52,7 @@ SESSION_COOKIE_SECURE = not DEBUG
 
 # mac os homebrew postgres has configuration complexities that are not worth the effort to resolve.
 if (not SECURE_SSL_REDIRECT and platform.system() == "Darwin") or os.environ.get("RUNNING_IN_DOCKER", False):
-    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
+    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'  # type: ignore[type checker is breaking on default or options potentially map to a str not a dict]
 
 MIDDLEWARE = [
     'middleware.downtime_middleware.DowntimeMiddleware',  # does a single database call
@@ -122,6 +122,7 @@ SHELL_PLUS_POST_IMPORTS = [
     
     # really useful constants
     ["constants.user_constants", ("ANDROID_API", "IOS_API", "NULL_OS", "ResearcherRole")],
+    ["constants.data_stream_constants", ("ALL_DATA_STREAMS", )],
 ]
 SHELL_PLUS_PRE_IMPORTS = []
 
