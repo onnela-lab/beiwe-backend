@@ -1,7 +1,7 @@
 from libs.celery_control import CeleryScriptTask, DAILY, HOURLY, SIX_MINUTELY
 from scripts import (purge_participant_data, repopulate_push_notifications,
-    script_that_compresses_s3_data, script_that_removes_data_from_invalid_time_sources,
-    update_forest_version, upload_logs)
+    script_that_compresses_s3_data, script_that_deletes_known_junk_uploads,
+    script_that_removes_data_from_invalid_time_sources, update_forest_version, upload_logs)
 
 
 """
@@ -62,6 +62,13 @@ def daily_purge_invalid_time_data():
 @CeleryScriptTask()
 def daily_compress_bucket_access_logs():
     script_that_compresses_s3_data.compress_s3_logging_logs()
+
+#
+## deletes files on s3 that are known to be junk (currently defined as csvs just containing headers)
+#
+@CeleryScriptTask()
+def daily_clear_s3_known_junk_uploads():
+    script_that_deletes_known_junk_uploads.main()
 
 
 ####################################################################################################
