@@ -25,7 +25,7 @@ DATABASES = {
         'OPTIONS': {
             'sslmode': 'require',
             "pool": {
-                "min_size": 5,
+                "min_size": 1,
                 "max_size": 20,
                 "timeout": 60,
             },
