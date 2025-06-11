@@ -4,16 +4,14 @@ from __future__ import annotations
 
 import pickle
 from posixpath import join as path_join
+from typing import TYPE_CHECKING
 
 from constants.common_constants import BEIWE_PROJECT_ROOT
 from libs.s3 import s3_retrieve
 
 
-# this is a hack to avoid circular imports but still use them for type hints, see annotations import
-try:
+if TYPE_CHECKING:
     from database.forest_models import ForestTask
-except ImportError:
-    pass
 
 
 # Cached data set serialization for Jasmine

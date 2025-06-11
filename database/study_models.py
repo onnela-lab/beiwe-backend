@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, tzinfo
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from dateutil.tz import gettz
 from django.core.exceptions import ObjectDoesNotExist
@@ -23,12 +23,9 @@ from database.validators import LengthValidator
 from libs.utils.date_utils import date_is_in_the_past
 
 
-# this is an import hack to improve IDE assistance
-try:
+if TYPE_CHECKING:
     from database.models import (ChunkRegistry, DashboardColorSetting, FileToProcess, Intervention,
         Participant, ParticipantFieldValue, Researcher, StudyRelation, Survey)
-except ImportError:
-    pass
 
 
 class Study(TimestampedModel, ObjectIDModel):
@@ -105,14 +102,14 @@ class Study(TimestampedModel, ObjectIDModel):
                 .annotate(name_lower=Func(F('name'), function='LOWER')).order_by('name_lower')
     
     @classmethod
-    def _get_administered_studies_by_name(cls, researcher) -> QuerySet[Study]:
+    def _get_administered_studies_by_name(cls, researcher: Researcher) -> QuerySet[Study]:
         return cls.get_all_studies_by_name().filter(
                 study_relations__researcher=researcher,
                 study_relations__relationship=ResearcherRole.study_admin,
             )
     
     @classmethod
-    def get_researcher_studies_by_name(cls, researcher) -> QuerySet[Study]:
+    def get_researcher_studies_by_name(cls, researcher: Researcher) -> QuerySet[Study]:
         return cls.get_all_studies_by_name().filter(study_relations__researcher=researcher)
     
     def get_researchers(self) -> QuerySet[Researcher]:

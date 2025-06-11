@@ -77,7 +77,7 @@ def repopulate_all_survey_scheduled_events(study: Study, participant: Participan
 
 
 def common_setup(
-    survey,
+    survey: Survey,
     schedule_type: str,
     participant: Participant = None
 ) -> tuple[list[ScheduledEvent], list[ParticipantPK]]:
@@ -485,19 +485,19 @@ def check_archives_for_newly_created_scheduled_events_to_mark_as_deleted(
 # The helpers we need because we are not usisg higher levels of abstraction (this is a good thing).
 #
 
-def absolute_orgs(abs_sched_pk: int):
+def absolute_orgs(abs_sched_pk: int) -> dict[str, int | None]:
     return {
         "weekly_schedule": None, "relative_schedule": None, "absolute_schedule_id": abs_sched_pk
     }
 
 
-def relative_orgs(rel_sched_pk: int):
+def relative_orgs(rel_sched_pk: int) -> dict[str, int | None]:
     return {
         "weekly_schedule": None, "relative_schedule_id": rel_sched_pk, "absolute_schedule": None
     }
 
 
-def weekly_orgs(weekly_sched_pk: int):
+def weekly_orgs(weekly_sched_pk: int) -> dict[str, int | None]:
     return {
         "weekly_schedule_id": weekly_sched_pk, "relative_schedule": None, "absolute_schedule": None
     }

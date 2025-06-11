@@ -1,14 +1,13 @@
 from datetime import date, timedelta
 
-from django.http.response import HttpResponse
-
 from constants.data_stream_constants import COMPLETE_DATA_STREAM_DICT, DASHBOARD_DATA_STREAMS
 from constants.forest_constants import DATA_QUANTITY_FIELD_MAP
+from constants.message_strings import DATA_DOWNLOAD_NO_CREDS
 from constants.user_constants import ResearcherRole
 from database.forest_models import SummaryStatisticDaily
 from database.security_models import ApiKey
 from database.user_models_participant import Participant
-from tests.common import ResearcherSessionTest
+from tests.common import HttpResponse2, ResearcherSessionTest
 
 
 #
@@ -19,13 +18,13 @@ class TestDataAccessWebFormPage(ResearcherSessionTest):
     
     def test(self):
         resp = self.smart_get()
-        self.assert_present("can download data. Go to", resp.content)
+        self.assert_present(DATA_DOWNLOAD_NO_CREDS, resp.content)
         
         api_key = ApiKey.generate(researcher=self.session_researcher)
         id_key, secret_key = api_key.access_key_id, api_key.access_key_secret_plaintext
         
         resp = self.smart_get()
-        self.assert_not_present("can download data. Go to", resp.content)
+        self.assert_not_present(DATA_DOWNLOAD_NO_CREDS, resp.content)
 
 
 #
@@ -36,7 +35,7 @@ class TestDataAccessWebFormPage(ResearcherSessionTest):
 class TestDashboard(ResearcherSessionTest):
     ENDPOINT_NAME = "data_page_endpoints.dashboard_page"
     
-    def assert_data_streams_present(self, resp: HttpResponse):
+    def assert_data_streams_present(self, resp: HttpResponse2):
         for data_stream_text in COMPLETE_DATA_STREAM_DICT.values():
             self.assert_present(data_stream_text, resp.content)
     
@@ -120,7 +119,7 @@ class TestDashboardStream(ResearcherSessionTest):
         number_days = ((end - start).days + 1) if start and end else 1
         
         # we need to know the byte count we are injecting for each data stream
-        byte_count_match_by_field_name = self.default_summary_statistic_daily_cheatsheet()
+        byte_count_match_by_field_name = SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet()
         
         for data_stream in DASHBOARD_DATA_STREAMS:
             # technically the endpoint accepts post and get

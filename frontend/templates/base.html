@@ -12,12 +12,11 @@
     <script src="{{ ASSETS.HANDLEBARS }}" type="text/javascript"></script>    
     <script src="{{ ASSETS.LODASH }}" type="text/javascript"></script>
     <script src="{{ ASSETS.MOMENTJS }}" type="text/javascript"></script>
-
+    
     {# Global CSS #}
     <link rel="stylesheet" href="{{ ASSETS.BOOTSTRAP_CSS }}" media="all" type="text/css" integrity="{{ ASSETS.BOOTSTRAP_CSS_INTEGRITY }}" crossorigin="anonymous">
     <link rel="stylesheet" src="{{ ASSETS.BOOTSTRAP_TIMEPICKER_CSS }}" type="text/css">
-    <link rel="stylesheet" href="/static/css/admin.css" type="text/css"/>
-
+    <style> {% include "admin.css" %} </style>
     <!-- Sentry Configuration -->
     {% if SENTRY_JAVASCRIPT_DSN and SENTRY_JAVASCRIPT_DSN != 'USE_EMAIL_FALLBACK' %}
       <script src="https://cdn.ravenjs.com/3.25.2/angular/raven.min.js" crossorigin="anonymous"></script>
@@ -27,10 +26,10 @@
         }).install();
       </script>
     {% endif %}
-
+    
     <!-- Load Angular -->
     <script src="/static/javascript/app/app.module.js"></script>
-
+    
     <link rel="icon" href="/static/images/favicon-32x32.png" sizes="32x32">
     <link rel="icon" href="/static/images/favicon-192x192.png" sizes="192x192">
     <title>Beiwe | {% block title %}{% endblock %}</title>
@@ -43,26 +42,26 @@
       {% include 'navbar.html' %}
     {% endblock %}
   </div>
-
+  
   <div class="container">
     <div class="row">
       {% block notifications %}
         {% include 'notifications.html' %}
       {% endblock %}
     </div>
-
+    
     <div id="content" class="row">
       {% block content %}
       {% endblock %}
     </div>
-
+    
     <div id="footer" class="row">
       {% block footer %}
         {% include 'footer.html' %}
       {% endblock %}
     </div>
   </div>
-
+  
   {% block javascript %}
   {% endblock %}
 </body>

@@ -868,7 +868,7 @@ class DatabaseHelperMixin:
             return self._default_summary_statistic_daily
     
     def generate_summary_statistic_daily(self, a_date: date = None, participant: Participant = None) -> SummaryStatisticDaily:
-        field_dict = self.default_summary_statistic_daily_cheatsheet()
+        field_dict = SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet()
         params = {}
         for field in SummaryStatisticDaily._meta.fields:
             if field.name in ["id", "created_on", "last_updated", "jasmine_task", "willow_task", "sycamore_task", "oak_task"]:
@@ -882,24 +882,6 @@ class DatabaseHelperMixin:
         stats = SummaryStatisticDaily(**params)
         stats.save()
         return stats
-    
-    def default_summary_statistic_daily_cheatsheet(self):
-        # this is used to populate default values in a SummaryStatisticDaily in a way that creates
-        # legible output when something goes wrong.  The meaning of these values is literally never
-        # important in the context of the Beiwe Backend, they are purely hosted for download.
-        field_dict = {}
-        for i, field in enumerate(SummaryStatisticDaily._meta.fields):
-            if isinstance(field, (ForeignKey, DateField, AutoField)):
-                continue
-            elif isinstance(field, IntegerField):
-                field_dict[field.name] = i
-            elif isinstance(field, FloatField):
-                field_dict[field.name] = float(i)
-            elif isinstance(field, (TextField, CharField)):
-                field_dict[field.name] = str(i)
-            else:
-                raise TypeError(f"encountered unhandled SummaryStatisticDaily type: {type(field)}")
-        return field_dict
     
     #
     ## DeviceStatusReportHistory

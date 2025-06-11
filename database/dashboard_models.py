@@ -1,16 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from django.db import models
 from django.db.models import Manager
 
 from database.models import TimestampedModel
 
 
-# this is an import hack to improve IDE assistance
-try:
+if TYPE_CHECKING:
     from database.models import Study
-except ImportError:
-    pass
 
 
 class DashboardColorSetting(TimestampedModel):

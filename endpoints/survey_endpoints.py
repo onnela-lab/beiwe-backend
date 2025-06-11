@@ -12,7 +12,7 @@ from config.settings import DOMAIN_NAME
 from database.schedule_models import AbsoluteSchedule, RelativeSchedule, WeeklySchedule
 from database.study_models import Study
 from database.survey_models import Survey
-from libs.firebase_config import check_firebase_instance
+from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
 from libs.json_logic import do_validate_survey
 from libs.schedules import (repopulate_absolute_survey_schedule_events,
     repopulate_relative_survey_schedule_events, repopulate_weekly_survey_schedule_events)
@@ -34,7 +34,7 @@ def render_edit_survey(request: ResearcherRequest, study_id: int, survey_id: int
             weekly_timings=survey.weekly_timings(),
             relative_timings=survey.relative_timings(),
             absolute_timings=survey.absolute_timings(),
-            push_notifications_enabled=check_firebase_instance(require_android=True) or check_firebase_instance(require_ios=True),
+            push_notifications_enabled=AndroidFirebaseAppState.check() or IosFirebaseAppState.check(),
             today=localtime(timezone.now(), survey.study.timezone).strftime('%Y-%m-%d'),
         )
     )

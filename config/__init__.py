@@ -4,10 +4,6 @@ from os.path import abspath, dirname, exists as file_exists, join
 # stick all errors into this list and raise a special exception at the end.
 ERRORS = []
 
-# Config constants. These are constants declared in this file, they are for configuration details.
-DB_MODE_POSTGRES = "postgres"
-DB_MODE_SQLITE = "sqlite"
-
 # The explicit remote env file should be beiwe-backend/config/remote_db_env.py
 CELERY_SERVER_ENV_FILE = join(abspath(dirname(__file__)), "remote_db_env.py")
 ELASTIC_BEANSTALK_ENV_FILE = join(abspath(dirname(dirname(dirname(__file__)))), "env")
@@ -36,18 +32,10 @@ MANDATORY_VARS = {
 if file_exists(CELERY_SERVER_ENV_FILE):
     import config.remote_db_env
 
-# determine database mode, based on the presence of the RDS_HOSTNAME variable
-if "RDS_HOSTNAME" in os.environ:
-    DB_MODE = DB_MODE_POSTGRES
-    # If you are running with a remote database (e.g. on a server in a beiwe cluster) you need
-    # some extra environment variables to be set.
-    for env_var in POSTGRES_DATABASE_SETTINGS:
-        if env_var not in os.environ:
-            ERRORS.append(f"Environment variable '{env_var}' was not found.")
-else:
-    # assume that this is a development/local environment and use a sqlite database
-    DB_MODE = DB_MODE_SQLITE
-
+# postgres database details
+for env_var in POSTGRES_DATABASE_SETTINGS:
+    if env_var not in os.environ:
+        ERRORS.append(f"Environment variable '{env_var}' was not found.")
 
 ####################################################################################################
 #### Start introspecting to validate parameters and inform user of missing required parameters. ####

@@ -4,6 +4,7 @@ import hashlib
 from collections.abc import Generator
 from os.path import join as path_join
 from time import perf_counter_ns
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import boto3
@@ -18,12 +19,13 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
     ENABLE_IOS_FILE_RECOVERY, S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
-from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, BadS3PathException,
+from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException,
     COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
-    COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
-    IOSDataRecoveryDisabledException, MetaDotDict, MUST_BE_ZSTD_FORMAT, NoSuchKeyException,
-    S3DeletionException, SMART_GET_ERROR, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
-    UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
+    COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+    COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, IOSDataRecoveryDisabledException, MetaDotDict,
+    MUST_BE_ZSTD_FORMAT, NoSuchKeyException, S3DeletionException, SMART_GET_ERROR,
+    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION, UNCOMPRESSED_DATA_MISSING_ON_POP,
+    UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
     UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
@@ -31,11 +33,9 @@ from libs.utils.compression import compress, decompress
 
 ## This file must be near-globally importable, including inside db models; so these imports fail.
 # If you need to use a model you must to use a local import.
-try:
+if TYPE_CHECKING:
     from database.models import Participant, Study
     StrPartStudy = str | Participant | Study
-except ImportError:
-    pass
 
 
 ## Global S3 Connection
@@ -127,13 +127,13 @@ class S3Storage:
         # We have some very specific folders and extra clear error messages
         # (and we do allow the correct study folder on a raw path)
         path_start = path.split("/", 1)[0]
-        if path_start in (PROBLEM_UPLOADS, CUSTOM_ONDEPLOY_PREFIX):
+        if path_start == CUSTOM_ONDEPLOY_PREFIX:
             raise BadS3PathException(BAD_FOLDER.format(path_start=path_start, path=path))
         
         if not ENABLE_IOS_FILE_RECOVERY and path_start == PROBLEM_UPLOADS:
             raise IOSDataRecoveryDisabledException(BAD_FOLDER.format(path_start=path_start, path=path))
         
-        if path_start != CHUNKS_FOLDER and path_start != self.get_path_prefix:
+        if path_start not in [CHUNKS_FOLDER, PROBLEM_UPLOADS] and path_start != self.get_path_prefix:
             raise BadS3PathException(BAD_FOLDER_2.format(path_start=path_start, path=path))
         
         self.s3_path_uncompressed = path
@@ -141,7 +141,7 @@ class S3Storage:
     
     ## File State Tracking
     
-    def set_file_content_uncompressed(self, file_content: bytes):
+    def set_file_content_uncompressed(self, file_content: bytes) -> S3Storage:
         # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
@@ -151,7 +151,7 @@ class S3Storage:
         self.uncompressed_data = file_content
         return self
     
-    def set_file_content_compressed(self, file_content: bytes):
+    def set_file_content_compressed(self, file_content: bytes) -> S3Storage:
         # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
@@ -167,13 +167,13 @@ class S3Storage:
         self.metadata.size_compressed = len(self.compressed_data)
         return self
     
-    def pop_uncompressed_file_content(self):
+    def pop_uncompressed_file_content(self) -> bytes:
         assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_ON_POP
         uncompressed_data = self.uncompressed_data
         del self.uncompressed_data
         return uncompressed_data
     
-    def pop_compressed_file_content(self):
+    def pop_compressed_file_content(self) -> bytes:
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_ON_POP
         compressed_data = self.compressed_data
         del self.compressed_data
@@ -232,7 +232,7 @@ class S3Storage:
     
     ## Download
     
-    def download(self):
+    def download(self) -> S3Storage:
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         try:
@@ -291,14 +291,14 @@ class S3Storage:
     # Todo: cache for real? do we want to cache the encryption keys globally?
     
     @property
-    def encryption_key(self):
+    def encryption_key(self) -> bytes:
         if hasattr(self, "_encryption_key"):
             return self._encryption_key
         self._encryption_key = smart_get_study_encryption_key(self.smart_key_obj)
         return self._encryption_key
     
     @property
-    def get_path_prefix(self):
+    def get_path_prefix(self) -> str:
         if hasattr(self, "_the_path_prefix"):
             return self._the_path_prefix
         self._the_path_prefix = get_just_prefix(self.smart_key_obj)
@@ -324,14 +324,10 @@ class S3Storage:
         This is a critical performance path. DO NOT separate into further functions calls without
         profiling memory usage. """
         
-        compressed_data = self.compressed_data  # 1x memory
-        
         t_encrypt = perf_counter_ns()
-        encrypted_compressed_data = encrypt_for_server(compressed_data, self.encryption_key)
+        encrypted_compressed_data = encrypt_for_server(self.compressed_data, self.encryption_key)
         t_encrypt = perf_counter_ns() - t_encrypt
         self.metadata.encryption_time_ns = t_encrypt
-        
-        del compressed_data
         
         t_upload = perf_counter_ns()
         _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
@@ -343,10 +339,10 @@ class S3Storage:
     
     ## Retrieve
     
-    def _s3_retrieve_uncompressed(self):
+    def _s3_retrieve_uncompressed(self) -> bytes:
         return decrypt_server(self._raw_s3_retrieve(self.s3_path_uncompressed), self.encryption_key)
     
-    def _s3_retrieve_zst_and_profile(self):
+    def _s3_retrieve_zst_and_profile(self) -> bytes:
         key = self.encryption_key  # may have network/db op
         
         t_download = perf_counter_ns()
@@ -395,12 +391,19 @@ def s3_get_size(key_path: str):
 
 
 def s3_upload(
-        key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
+    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
 ) -> None:
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
     storage = S3Storage(key_path, obj, raw_path).set_file_content_uncompressed(data_string)
     storage.compress_and_push_to_storage_and_clear_memory()
+
+
+def s3_upload_no_compression(
+    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
+):
+    storage = S3Storage(key_path, obj, raw_path).set_file_content_compressed(data_string)
+    storage.push_to_storage_already_compressed_and_clear_memory()
 
 
 def s3_upload_plaintext(upload_path: str, data_string: bytes) -> None:
@@ -429,6 +432,11 @@ def s3_retrieve(key_path: str, obj: StrPartStudy, raw_path: bool = False, number
     appropriate study_id folder. """
     # This reference pattern clears internal references before the return statement.
     return S3Storage(key_path, obj, raw_path).download().pop_uncompressed_file_content()
+
+
+def s3_retrieve_no_decompress(key_path: str, obj: StrPartStudy, raw_path: bool = False) -> bytes:
+    """ As s3_retrieve, but does not decompress the file. """
+    return S3Storage(key_path, obj, raw_path).download_no_decompress().pop_compressed_file_content()
 
 
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
@@ -497,8 +505,9 @@ def _do_list_files_generator(page_iterator: Paginator.PAGE_ITERATOR_CLS) -> Gene
             for item in page['Contents']:
                 yield item['Key'].strip("/")
         except KeyError as e:
-            assert str(e) == 'Contents'
-            return
+            if 'Contents' not in page:
+                return
+            raise KeyError("Unknown KeyError in _do_list_files_generator") from e
 
 
 def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None]]:

@@ -1,4 +1,5 @@
 import functools
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 import bleach
@@ -38,7 +39,7 @@ class ResearcherRequest(HttpRequest):
 
 
 # Top level authentication wrappers
-def authenticate_researcher_login(some_function):
+def authenticate_researcher_login(some_function: Callable) -> Callable:
     """ Decorator for functions (pages) that require a login, redirect to login page on failure. """
     @functools.wraps(some_function)
     def authenticate_and_call(*args, **kwargs):
@@ -76,7 +77,7 @@ def logout_researcher(request: HttpRequest):
 def log_in_researcher(request: ResearcherRequest, username: str):
     """ Populate session for a researcher - should only be called from  validate_login endpoint. """
     request.session[SESSION_UUID] = generate_easy_alphanumeric_string()
-    request.session[EXPIRY_NAME] = timezone.now() + timedelta(hours=SESSION_TIMEOUT_HOURS)
+    request.session[EXPIRY_NAME] = ((timezone.now() + timedelta(hours=SESSION_TIMEOUT_HOURS))).isoformat()
     request.session[SESSION_NAME] = username
     Researcher.objects.filter(username=username).update(last_login_time=timezone.now())
 
@@ -106,7 +107,15 @@ def check_is_logged_in(request: ResearcherRequest):
 def handle_session_expiry(request: ResearcherRequest):
     # Sometimes the datetime is naive, probably a development environment bug? We force a timezone
     # in updating the expiry later, this is a safety check.
-    expiry_time: datetime = request.session[EXPIRY_NAME]
+    expiry_time_str: str = request.session[EXPIRY_NAME]
+    try:
+        expiry_time: datetime = datetime.fromisoformat(expiry_time_str)
+    except ValueError:
+        # this is a safety check, we should never hit this.
+        logout_researcher(request)
+        log("session expiry time was not a valid isoformat string, logging out researcher")
+        return False
+    
     now = datetime.now() if is_naive(expiry_time) else timezone.now()
     
     # session has expired, do not refresh - the returned-to code will call logout_researcher.
@@ -163,7 +172,7 @@ def assert_site_admin(request: ResearcherRequest):
     return True
 
 
-def assert_researcher_under_admin(request: ResearcherRequest, researcher: Researcher, study=None):
+def assert_researcher_under_admin(request: ResearcherRequest, researcher: Researcher, study: Study | str | None=None):
     """ Asserts that the researcher provided is allowed to be edited by the session user.
         If study is provided then the admin test is strictly for that study, otherwise it checks
         for admin status anywhere. """
@@ -202,7 +211,7 @@ def assert_researcher_under_admin(request: ResearcherRequest, researcher: Resear
 class ArgumentMissingException(Exception): pass
 
 
-def authenticate_researcher_study_access(some_function):
+def authenticate_researcher_study_access(some_function: Callable) -> Callable:
     """ This authentication decorator checks whether the user has permission to to access the
     study/survey they are accessing.
     This decorator requires the specific keywords "survey_id" or "study_id" be provided as
@@ -218,7 +227,7 @@ def authenticate_researcher_study_access(some_function):
 
 
 # we need to be able to import this for a special case in the manage_study_endpoints.py
-def authenticate_researcher_study_access_and_call(some_function, *args, **kwargs):
+def authenticate_researcher_study_access_and_call(some_function: Callable, *args, **kwargs):
     # Check for regular login requirement
     request: ResearcherRequest = args[0]
     assert isinstance(request, HttpRequest), \
@@ -311,7 +320,7 @@ def get_researcher_allowed_studies_as_query_set(request: ResearcherRequest) -> Q
 ############################# Site Administrator ###############################
 ################################################################################
 
-def authenticate_admin(some_function):
+def authenticate_admin(some_function: Callable) -> Callable:
     """ Authenticate site admin, checks whether a user is a system admin before allowing access to
     pages marked with this decorator.  If a study_id variable is supplied as a keyword argument, the
     decorator will automatically grab the ObjectId in place of the string provided in a route.
@@ -364,7 +373,7 @@ def authenticate_admin(some_function):
     return authenticate_and_call
 
 
-def forest_enabled(func):
+def forest_enabled(func: Callable) -> Callable:
     """ Decorator for validating that Forest is enabled for this study. """
     @functools.wraps(func)
     def wrapped(*args, **kwargs):

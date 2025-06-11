@@ -7,6 +7,7 @@ from django.http.response import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
 
+from constants.common_constants import UTC
 from constants.message_strings import (MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING,
     MFA_CODE_WRONG, MFA_CONFIGURATION_REQUIRED, MFA_CONFIGURATION_SITE_ADMIN, PASSWORD_EXPIRED,
     PASSWORD_RESET_FORCED, PASSWORD_RESET_SITE_ADMIN, PASSWORD_RESET_TOO_SHORT,
@@ -32,11 +33,11 @@ class TestLoginPages(BasicSessionTestCase):
     in and out are functional at setting and clearing a session. 
     THIS CLASS DOES NOT AUTO INSTANTIATE THE DEFAULT RESEARCHER, YOU MUST DO THAT MANUALLY. """
     
-    THE_PAST = datetime(2010, 1, 1, tzinfo=timezone.utc)
+    THE_PAST = datetime(2010, 1, 1, tzinfo=UTC)
     
     def test_load_login_page_while_not_logged_in(self):
         # make sure the login page loads without logging you in when it should not
-        response = self.client.get(reverse("login_endpoints.login_page"))
+        response = self.client_get(reverse("login_endpoints.login_page"))
         self.assertEqual(response.status_code, 200)
         # this should uniquely identify the login page
         self.assertIn(b'<form method="POST" action="/validate_login">', response.content)
@@ -45,7 +46,7 @@ class TestLoginPages(BasicSessionTestCase):
         # make sure the login page loads without logging you in when it should not
         self.session_researcher  # create the default researcher
         self.do_default_login()
-        response = self.client.get(reverse("login_endpoints.login_page"))
+        response = self.client_get(reverse("login_endpoints.login_page"))
         self.assertEqual(response.status_code, 302)
         self.assert_response_url_equal(response.url, reverse("study_endpoints.choose_study_page"))
         # this should uniquely identify the login page
@@ -70,8 +71,8 @@ class TestLoginPages(BasicSessionTestCase):
         # create the default researcher, login, logout, attempt going to main page,
         self.session_researcher
         self.do_default_login()
-        self.client.get(reverse("login_endpoints.logout_page"))
-        r = self.client.get(reverse("study_endpoints.choose_study_page"))
+        self.client_get(reverse("login_endpoints.logout_page"))
+        r = self.client_get(reverse("study_endpoints.choose_study_page"))
         self.assertEqual(r.status_code, 302)
         self.assert_response_url_equal(r.url, reverse("login_endpoints.login_page"))
     
@@ -133,9 +134,9 @@ class TestLoginPages(BasicSessionTestCase):
         # password reset redirects initially to the choose study page, then to the manage credentials page
         response = self.do_default_login()
         self.assert_response_url_equal(response.url, reverse("study_endpoints.choose_study_page"))
-        response2 = self.client.get(response.url)
+        response2 = self.client_get(response.url)
         self.assert_response_url_equal(response2.url, reverse("manage_researcher_endpoints.self_manage_credentials_page"))
-        response3 = self.client.get(reverse("manage_researcher_endpoints.self_manage_credentials_page"))
+        response3 = self.client_get(reverse("manage_researcher_endpoints.self_manage_credentials_page"))
         self.assertEqual(response3.status_code, 200)
         self.assert_present(error_message, response3.content)
     
@@ -172,7 +173,7 @@ class TestLoginPages(BasicSessionTestCase):
         # page with the message.
         response = self.do_default_login()
         self.assert_response_url_equal(response.url, reverse("study_endpoints.choose_study_page"))
-        response2 = self.client.get(response.url)
+        response2 = self.client_get(response.url)
         self.assertEqual(response2.status_code, 200)
         self.assert_present(PASSWORD_WILL_EXPIRE.format(days=5), response2.content)
         self.assert_not_present(PASSWORD_EXPIRED, response2.content)
@@ -182,7 +183,7 @@ class TestLoginPages(BasicSessionTestCase):
         # this one redirects initially to choose study page,then to the view study page with a message.
         # expects a password to expire in 5 days
         response2 = self._test_initial_redirect()
-        response3 = self.client.get(response2.url)
+        response3 = self.client_get(response2.url)
         self.assertEqual(response3.status_code, 200)
         self.assert_present(PASSWORD_WILL_EXPIRE.format(days=5), response3.content)
         self.assert_not_present(PASSWORD_EXPIRED, response3.content)
@@ -191,7 +192,7 @@ class TestLoginPages(BasicSessionTestCase):
     def _test_password_not_expired(self):
         # password reset redirects initially to the choose study page, then to the view study page
         response2 = self._test_initial_redirect()
-        response3 = self.client.get(response2.url)
+        response3 = self.client_get(response2.url)
         self.assertEqual(response3.status_code, 200)
         # none of the password messages should be visible
         self.assert_not_present(PASSWORD_WILL_EXPIRE, response3.content)
@@ -203,7 +204,7 @@ class TestLoginPages(BasicSessionTestCase):
         # still needs to be tested.  Most of the complexity is in determine_2nd_redirect
         response = self.do_default_login()
         self.assert_response_url_equal(response.url, reverse("study_endpoints.choose_study_page"))
-        response2 = self.client.get(response.url)
+        response2 = self.client_get(response.url)
         # its not always a redirect, sometimes it actually loads the page, but if it is a redirect
         # we run the logic to test it.
         self.assert_response_url_equal(response2.url, self.determine_2nd_redirect)
@@ -230,7 +231,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.session_researcher
         self.do_default_login()
         self.session_researcher.update(password_force_reset=True)
-        resp = self.client.get(reverse("manage_researcher_endpoints.self_manage_credentials_page"))
+        resp = self.client_get(reverse("manage_researcher_endpoints.self_manage_credentials_page"))
         self.assertIsInstance(resp, HttpResponse)
         self.assertEqual(resp.status_code, 200)
     
@@ -239,7 +240,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.session_researcher
         self.do_default_login()
         self.session_researcher.update(password_force_reset=True)
-        resp = self.client.get(reverse("login_endpoints.logout_page"))
+        resp = self.client_get(reverse("login_endpoints.logout_page"))
         self.assertIsInstance(resp, HttpResponseRedirect)
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, reverse("login_endpoints.login_page"))  # that's the / endpoint
@@ -280,11 +281,11 @@ class TestLoginPages(BasicSessionTestCase):
             # the +1 minute ensures we are passing the hour mark
             with time_machine.travel(start + timedelta(hours=hour, minutes=1)):
                 if hour < THE_TIMEOUT_HOURS_VARIABLE_YOU_ARE_LOOKING_FOR:
-                    resp = self.client.get(reverse("study_endpoints.choose_study_page"))
+                    resp = self.client_get(reverse("study_endpoints.choose_study_page"))
                     self.assertEqual(resp.status_code, 200, msg=f"hour={hour}")
                     check_1_happened = True
                 else:
-                    resp = self.client.get(reverse("study_endpoints.choose_study_page"))
+                    resp = self.client_get(reverse("study_endpoints.choose_study_page"))
                     self.assertEqual(resp.status_code, 302, msg=f"hour={hour}")
                     self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
                     check_2_happened = True
@@ -298,7 +299,7 @@ class TestLoginPages(BasicSessionTestCase):
         self.assertEqual(ResearcherSession.objects.count(), 0)  # check nothing weird in db.
         self.session_researcher
         self.do_default_login()
-        original_expiry = self.client.session[EXPIRY_NAME]
+        original_expiry = datetime.fromisoformat(self.client.session[EXPIRY_NAME])
         # assert session is currently 2 hours in the future (yep you have to update this test too)
         self.assertGreater(original_expiry, timezone.now() + timedelta(hours=1, minutes=59))
         self.assertLess(original_expiry, timezone.now() + timedelta(hours=2, minutes=1))
@@ -312,14 +313,14 @@ class TestLoginPages(BasicSessionTestCase):
         # within 10 seconds:
         with time_machine.travel(original_expiry - timedelta(seconds=9)):
             # hit a page, confirm check expiry didn't change
-            resp = self.client.get(reverse("study_endpoints.choose_study_page"))
+            resp = self.client_get(reverse("study_endpoints.choose_study_page"))
             self.assertEqual(resp.status_code, 200)
-            new_expiry = self.client.session[EXPIRY_NAME]
+            new_expiry = datetime.fromisoformat(self.client.session[EXPIRY_NAME])
             self.assertEqual(new_expiry, original_expiry)
         # after 10 seconds:
         with time_machine.travel(original_expiry + timedelta(seconds=1)):
             # hit a page, confirm check expiry deleted
-            resp: HttpResponseRedirect = self.easy_get("study_endpoints.choose_study_page")
+            resp = self.easy_get("study_endpoints.choose_study_page")
             self.assertEqual(resp.status_code, 302)
             self.assertEqual(resp.url, easy_url("login_endpoints.login_page"))
             try:
@@ -493,7 +494,6 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
             "data_page_endpoints.get_data_for_dashboard_datastream_display",
             "data_page_endpoints.dashboard_participant_page",
             "data_page_endpoints.data_api_web_form_page",
-            "forest_endpoints.forest_tasks_progress",
             "forest_endpoints.task_log",
             "participant_endpoints.notification_history",
             "participant_endpoints.participant_page",
@@ -511,7 +511,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
     }
     
     @property
-    def urls(self):
+    def urls(self) -> list[str]:
         # a list of ~valid test urls for every single url in LOGIN_REDIRECT_SAFE.
         # (these urls must start with a slash, ending slash shouldn't matter)
         return [
@@ -536,7 +536,6 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
             f"/view_study/{self.session_study.id}",
             f'/view_study/{self.session_study.id}/participant/{self.default_participant.id}',
             f'/view_study/{self.session_study.id}/participant/{self.default_participant.id}/notification_history',
-            f'/studies/{self.session_study.id}/forest/progress/',
             f'/studies/{self.session_study.id}/forest/tasks/',
             f'/view_study/{self.session_study.id}/participant/{self.default_participant.id}/experiments',
         ]
@@ -589,7 +588,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
         # test that every url has the parameterized referrer url, then test that the page loads with
         # the value embedded with the referrer post parameter.
         for url in self.urls + [self.a_valid_redirect_url]:
-            resp = self.client.get(url)
+            resp = self.client_get(url)
             # case: you actually do need the url to be valid to get a redirect To The Login page
             if url[0] != "/":
                 self.assertEqual(resp.status_code, 404)
@@ -597,7 +596,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
             self.assertEqual(
                 resp.url, "/?page=/" + url.lstrip("/")
             )  # ensure there is a leading slash
-            page = resp.client.get(resp.url).content
+            page = self.client_get(resp.url).content
             self.assert_present( # ensure there is a leading slash
                 f'<input type="hidden" name="referrer" value="/{url.lstrip("/")}" />', page
             )
@@ -606,31 +605,31 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
         
         # whn there is no change to the url we don't get a url attribute
         # test junk
-        resp = self.client.get("/?page=literally junk")
+        resp = self.client_get("/?page=literally junk")
         self.assertFalse(hasattr(resp, "url"))
         self.assert_not_present('name="referrer"', resp.content)
         # test blank
-        resp = self.client.get("/?page=")
+        resp = self.client_get("/?page=")
         self.assertFalse(hasattr(resp, "url"))
         self.assert_not_present('name="referrer"', resp.content)
         # test "/"
-        resp = self.client.get("/?page=/")
+        resp = self.client_get("/?page=/")
         self.assertFalse(hasattr(resp, "url"))
         self.assert_not_present('name="referrer"', resp.content)
         # test a url that doesn't redirect because its not on the whitelist
-        resp = self.client.get("/?page=/manage_credentials/")
+        resp = self.client_get("/?page=/manage_credentials/")
         self.assertFalse(hasattr(resp, "url"))
         self.assert_not_present('name="referrer"', resp.content)
         # test a url that doesn't redirect because its on the redirects-ignore list
-        resp = self.client.get("/?page=/reset_download_api_credentials/")
+        resp = self.client_get("/?page=/reset_download_api_credentials/")
         self.assertFalse(hasattr(resp, "url"))
         self.assert_not_present('name="referrer"', resp.content)
         # test an injection on a valid page
-        resp = self.client.get(f"/?page={self.a_valid_redirect_url}'><script>alert('hi')</script>")
+        resp = self.client_get(f"/?page={self.a_valid_redirect_url}'><script>alert('hi')</script>")
         self.assertFalse(hasattr(resp, "url"))
         self.assert_not_present('name="referrer"', resp.content)
         # test html escaped version of a valid page
-        resp = self.client.get(f"/?page={self.a_valid_redirect_url}".replace("_", r"%5f"))
+        resp = self.client_get(f"/?page={self.a_valid_redirect_url}".replace("_", r"%5f"))
         self.assertFalse(hasattr(resp, "url"))
         self.assert_not_present('name="referrer"', resp.content)
     

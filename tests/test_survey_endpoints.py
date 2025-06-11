@@ -81,9 +81,11 @@ class TestRenderEditSurvey(ResearcherSessionTest):
         self._test_with_absolute_schedule()
     
     def test_absolute_schedules_with_firebase(self):
-        with mock.patch("endpoints.survey_endpoints.check_firebase_instance", return_value=True) as m:
+        with mock.patch("endpoints.survey_endpoints.AndroidFirebaseAppState") as m:
+            m.check = p = mock.PropertyMock()
+            p.return_value = True
             self._test_with_absolute_schedule()
-            self.assertEqual(m.call_count, 1)  # it is only one because of short-circuiting.
+            self.assertEqual(p.call_count, 1)  # it is only one because of short-circuiting.
     
     def _test_with_absolute_schedule(self):
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -95,9 +97,11 @@ class TestRenderEditSurvey(ResearcherSessionTest):
         self._test_with_relative_schedule()
         
     def test_relative_schedules_with_firebase(self):
-        with mock.patch("endpoints.survey_endpoints.check_firebase_instance", return_value=True) as m:
+        with mock.patch("endpoints.survey_endpoints.AndroidFirebaseAppState") as m:
+            m.check = p = mock.PropertyMock()
+            p.return_value = True
             self._test_with_relative_schedule()
-            self.assertEqual(m.call_count, 1)  # it is only one because of short-circuiting.
+            self.assertEqual(p.call_count, 1)  # it is only one because of short-circuiting.
     
     def _test_with_relative_schedule(self):
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -109,9 +113,11 @@ class TestRenderEditSurvey(ResearcherSessionTest):
         self._test_with_weekly_schedule()
         
     def test_weekly_schedules_with_firebase(self):
-        with mock.patch("endpoints.survey_endpoints.check_firebase_instance", return_value=True) as m:
+        with mock.patch("endpoints.survey_endpoints.AndroidFirebaseAppState") as m:
+            m.check = p = mock.PropertyMock()
+            p.return_value = True
             self._test_with_weekly_schedule()
-            self.assertEqual(m.call_count, 1)  # it is only one because of short-circuiting.
+            self.assertEqual(p.call_count, 1)  # it is only one because of short-circuiting.
     
     def _test_with_weekly_schedule(self):
         self.set_session_study_relation(ResearcherRole.researcher)

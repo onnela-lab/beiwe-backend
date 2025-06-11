@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from datetime import datetime
 
@@ -32,14 +34,14 @@ def log(*args, **kwargs):
 @require_http_methods(['POST', "GET"])
 @api_study_credential_check()
 @transaction.non_atomic_requests
-def get_data(request: ApiStudyResearcherRequest):
+def get_data_v1(request: ApiStudyResearcherRequest):
     return _get_data(request, as_compressed=False)
 
 
 @require_http_methods(['POST', "GET"])
 @api_study_credential_check()
 @transaction.non_atomic_requests
-def get_data_2(request: ApiStudyResearcherRequest):
+def get_data_v2_compressed(request: ApiStudyResearcherRequest):
     return _get_data(request, as_compressed=True)
 
 
@@ -69,6 +71,7 @@ def _get_data(request: ApiStudyResearcherRequest, as_compressed: bool):
             error="did not pass query validation, " + str(e),
         )
         raise
+    
     # Do query! (this is actually a generator, it can only be iterated over once)
     get_these_files = handle_database_query(
         request.api_study.pk, query_args, registry_dict=registry_dict
@@ -107,10 +110,9 @@ def _get_data(request: ApiStudyResearcherRequest, as_compressed: bool):
         record.update_only(time_end=timezone.now(), bytes=streaming_zip_file.total_bytes)
 
 
-def parse_registry(request: ApiStudyResearcherRequest):
-    """ Parses the provided registry.dat file and returns a dictionary of chunk
-    file names and hashes.  (The registry file is just a json dictionary containing
-    a list of file names and hashes.) """
+def parse_registry(request: ApiStudyResearcherRequest) -> dict[str, str]:
+    """ Parses the provided registry.dat file and returns a dictionary of chunk file names and hashes.
+    (The registry file is just a json dictionary containing a list of file names and hashes.) """
     registry = request.POST.get("registry", None)
     if registry is None:
         log("no registry")
@@ -129,7 +131,7 @@ def parse_registry(request: ApiStudyResearcherRequest):
     return ret
 
 
-def str_to_datetime(time_string):
+def str_to_datetime(time_string: str) -> datetime:
     """ Translates a time string to a datetime object, raises a 400 if the format is wrong."""
     try:
         return make_aware(datetime.strptime(time_string, API_TIME_FORMAT), tz.UTC)

@@ -32,7 +32,7 @@ def validate_ios_credentials(credentials: str) -> bool:
     return True
 
 
-def mfa_clear_allowed(session_researcher: Researcher, edit_researcher: Researcher):
+def mfa_clear_allowed(session_researcher: Researcher, edit_researcher: Researcher) -> bool:
     # we allow site admins to reset mfa for anyone, including other site admins. (for that to be a
     # security risk the current site admin must already be compromised.)
     if session_researcher.site_admin:

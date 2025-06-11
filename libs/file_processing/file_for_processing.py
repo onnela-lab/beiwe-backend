@@ -1,6 +1,8 @@
 import sys
+from time import perf_counter
 import traceback
 
+from constants.data_processing_constants import DEBUG_FILE_PROCESSING
 from constants.data_stream_constants import (ANDROID_LOG_FILE, CALL_LOG, CHUNKABLE_FILES,
     IDENTIFIERS, SURVEY_TIMINGS, WIFI)
 from constants.user_constants import ANDROID_API
@@ -13,6 +15,12 @@ from libs.s3 import s3_retrieve
 
 class SomeException(Exception): pass
 class SomeException2(Exception): pass
+
+
+def log(*args, **kwargs):
+    """ A simple wrapper around print to make it easier to change logging later. """
+    if DEBUG_FILE_PROCESSING:
+        print(*args, **kwargs)
 
 
 # This file contains the class and necessary functions for the general data container
@@ -39,45 +47,47 @@ class FileForProcessing():
         self.download_file_contents()
     
     def clear_file_content(self):
-        if self.file_contents is None:
-            raise Exception("misuse, file_contents was already deleted.")
+        assert self.file_contents is not None, "misuse, file_contents was already deleted."
         self.file_contents = None
     
     def clear_file_lines(self):
-        if self.file_contents is not None:
-            raise Exception("misuse, file_contents was not deleted.")
-        if self.file_lines is None:
-            raise Exception("misuse, file_lines was already deleted.")
+        assert self.file_contents is None, "misuse, file_contents was not deleted."
+        assert self.file_lines is not None, "misuse, file_lines was already deleted."
         self.file_lines = None
         self.header = None
     
     def download_file_contents(self) -> None:
-        """ Handles network errors and updates state accordingly """
-        # blow up if misused
-        if self.file_lines is not None:
-            raise Exception("file_contents was already deleted.")
+        """ Handles network errors and updates state accordingly. """
+        assert self.file_lines is None, "file_lines was not deleted."
         
         # Try to retrieve the file contents. If any errors are raised, store them to be reraised by
         # the parent function
         try:
+            t1 = perf_counter()
             self.file_contents = s3_retrieve(
                 self.file_to_process.s3_file_path,
                 self.file_to_process.study.object_id,
                 raw_path=True
             )
+            t2 = perf_counter()
+            
+            # log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}, {len(self.file_contents)} bytes in {t2 - t1:.4f} seconds.")
         except Exception as e:
             traceback.print_exc()  # for debugging
-            self.traceback = sys.exc_info()
+            self.traceback = sys.exc_info() # type: ignore[assignment]
             self.exception = e
             raise SomeException(e)
     
     def raw_csv_to_line_list(self):
         """ Grab a list elements from of every line in the csv, strips off trailing whitespace. dumps
         them into a new list (of lists), and returns the header line along with the list of rows. """
+        assert self.file_contents is not None, "file_contents was not populated. (1)"
         
         # case: the file coming in is just a single line, e.g. the header.
         # Need to provide the header and an empty iterator.
         if b"\n" not in self.file_contents:
+            # log(f"\tFileForProcessing: file {self.file_to_process.s3_file_path} is a single line file.")
+            # log(f"\t{self.file_contents}")
             self.header = self.file_contents
             self.file_lines = []
             self.clear_file_content()
@@ -96,8 +106,10 @@ class FileForProcessing():
         else:
             HEADER_DEDUPLICATOR[self.header] = self.header
     
-    def prepare_data(self) -> tuple[bytes, list[list[bytes]]]:
+    def prepare_data(self):
         """ We need to apply fixes (in the correct order), and get the list of csv lines."""
+        assert self.file_contents is not None, "file_contents was not populated (2)."
+        
         # the android log file is weird, it is almost not a csv, more of a time enumerated list of
         # events. we need to fix it to be a csv.
         if self.file_to_process.os_type == ANDROID_API and self.data_type == ANDROID_LOG_FILE:
@@ -107,6 +119,8 @@ class FileForProcessing():
         
         # convert the file to a list of lines and columns
         self.raw_csv_to_line_list()
+        assert self.file_lines is not None, "file_lines was not populated."
+        assert self.header is not None, "header was not populated (1)."
         
         if self.file_to_process.os_type == ANDROID_API:
             # two android fixes require the data immediately, so we convert the generator to a list.
@@ -123,17 +137,21 @@ class FileForProcessing():
         
         # sometimes there is whitespace in the header? clean it.
         self.header = b",".join(tuple(column_name.strip() for column_name in self.header.split(b",")))
+        # log(f"FileForProcessing: prepared data for {self.file_to_process.s3_file_path[25:]}")
     
     def raise_data_processing_error(self):
         """ If we encountered any errors in retrieving the files for processing, they have been
         lumped together into data['exception']. Raise them here to the error handler and move to the
         next file. """
+        
         print("\n" + self.file_to_process.s3_file_path)
         print(self.traceback)
         #########################################################
         # YOU ARE SEEING THIS EXCEPTION WITHOUT A STACK TRACE   #
         # BECAUSE IT OCCURRED INSIDE POOL.MAP ON ANOTHER THREAD #
         #########################################################
+        if self.exception is None:
+            raise Exception("FileForProcessing.exception was not populated.")
         raise self.exception
 
 
@@ -173,6 +191,7 @@ def is_version_greater_ios(proposed_version: str, reference_version: str) -> boo
         return True
     return False
 
+
 def is_version_greater_android(proposed_version: str, reference_version: int) -> bool:
     """ Returns True if the proposed version is greater than the reference version.  Reference 
     MUST be a valid version code. Function should handle weird proposed versions. """
@@ -180,5 +199,5 @@ def is_version_greater_android(proposed_version: str, reference_version: int) ->
     if proposed_version == "" or proposed_version is None:
         return False
     
-    proposed_version = int(proposed_version)  # if it errors... we error.
-    return proposed_version > reference_version
+    proposed_version_calculate = int(proposed_version)  # if it errors... we error.
+    return proposed_version_calculate > reference_version

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
+from typing import TYPE_CHECKING
 
 from django.db import models
 from django.db.models import QuerySet
@@ -18,11 +19,8 @@ from database.user_models_participant import Participant
 from libs.utils.security_utils import chunk_hash
 
 
-# this is an import hack to improve IDE assistance
-try:
+if TYPE_CHECKING:
     from database.models import Study, Survey
-except ImportError:
-    pass
 
 
 class UnchunkableDataTypeError(Exception): pass
@@ -78,7 +76,7 @@ class ChunkRegistry(TimestampedModel):
         
         chunk_hash_str = chunk_hash(file_contents).decode()
         time_bin = int(time_bin) * CHUNK_TIMESLICE_QUANTUM
-        time_bin = timezone.make_aware(datetime.utcfromtimestamp(time_bin), timezone.utc)
+        time_bin = timezone.make_aware(datetime.utcfromtimestamp(time_bin), UTC)
         
         cls.objects.create(
             is_chunkable=True,
@@ -95,7 +93,7 @@ class ChunkRegistry(TimestampedModel):
     @classmethod
     def register_unchunked_data(cls, data_type, unix_timestamp, chunk_path, study_id, participant_id,
                                 file_contents, survey_id=None):
-        time_bin = timezone.make_aware(datetime.utcfromtimestamp(unix_timestamp), timezone.utc)
+        time_bin = timezone.make_aware(datetime.utcfromtimestamp(unix_timestamp), UTC)
         
         if data_type in CHUNKABLE_FILES:
             raise ChunkableDataTypeError

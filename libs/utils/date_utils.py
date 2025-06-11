@@ -66,14 +66,14 @@ def datetime_to_list(datetime_obj: date | datetime) -> list[int]:
     return datetime_component_list
 
 
-def date_to_start_of_day(a_date: date, tz: tzinfo):
+def date_to_start_of_day(a_date: date, tz: tzinfo) -> datetime:
     """ Given a date and a timezone, returns a timezone'd datetime for the start of that day. """
     if not type(a_date) is date:
         raise TypeError("date_start_of_day requires dates, datetimes must be handled manually")
     return make_aware(datetime.combine(a_date, datetime.min.time()), tz)
 
 
-def date_to_end_of_day(a_date: date, tz: tzinfo):
+def date_to_end_of_day(a_date: date, tz: tzinfo) -> datetime:
     """ Given a date and a timezone, returns a timezone'd datetime for the end of that day. """
     if not type(a_date) is date:
         raise TypeError("date_end_of_day requires dates, datetimes must be handled manually")
@@ -95,7 +95,7 @@ def get_timezone_shortcode(a_date: date, timezone_long_name: str|tzinfo) -> str:
     return make_aware(datetime.combine(a_date, datetime.max.time()), timezone=timezone_long_name).tzname()  # type: ignore
 
 
-def date_is_in_the_past(end_date: datetime, timezone_name: str):
+def date_is_in_the_past(end_date: datetime, timezone_name: str) -> bool:
     """ Returns True if the date (and timezone) are in the past. """
     if end_date is None:
         return False

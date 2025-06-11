@@ -1,5 +1,6 @@
 <script>navBarStudies = {{ allowed_studies|tojson }}</script>
 <script src="/static/javascript/app/survey-builder/controllers/nav-bar-study-controller.js"></script>
+
 <nav class="navbar navbar-default">
   <div class="container-fluid">
 
@@ -16,16 +17,16 @@
     <div id="main-navbar-menu" ng-controller="NavBarStudyController" class="collapse navbar-collapse" style="background-color: transparent;" max-width="10px">
       <ul class="nav navbar-nav navbar-left">
         {# If the current admin is authorized to view more than one study, give them a drop-down menu to switch studies #}
-        <li ng-if="navBarStudies.length > 1" class="dropdown" role="presentation">
-          <a class="dropdown-toggle " type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+        <li ng-if="navBarStudies.length > 1" class="dropdown hover-pulse" role="presentation">
+          <a class="dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
               Studies <span class="caret"></span>
           </a>
           {# The dropdown menu is an AngularJS app that's searchable/filterable #}
-          <ul id="searchableStudyList" class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenu1" style="background-color: rgb(255, 255, 255, 0.9); backdrop-filter: blur(1.5px);">
+          <ul id="searchableStudyList" class="dropdown-menu dropdown-menu-left dropdown-translucent noanimation" aria-labelledby="dropdownMenu1">
             {# Search/filter input field #}
-            <li class="dropdown_search_field">
-              <div class="form-group">
-                <input type="search" class="form-control"
+            <li class="dropdown_search_field noanimation">
+              <div class="form-group noanimation">
+                <input type="search" class="form-control noanimation"
                 placeholder="Find Study by Name or ID"
                 ng-model="searchText"
                 ng-click="$event.stopPropagation()"
@@ -33,28 +34,28 @@
               </div>
             </li>
             {# Filtered list of studies #}
-            <li ng-repeat="study in navBarStudies | filter:{search_text: searchText}">
-              <a href="/view_study/{% raw %}{{ study.id }}{% endraw %}">{% raw %}{{ study.name }}{% endraw %}</a></li>
+            <li class="noanimation" ng-repeat="study in navBarStudies | filter:{search_text: searchText}">
+              <a class="noanimation" href="/view_study/{% raw %}{{ study.id }}{% endraw %}">{% raw %}{{ study.name }}{% endraw %}</a></li>
           </ul>
         </li>
         {# If the current admin is authorized to view only one study, give them a "Home" button to view that study #}
-        <li ng-if="navBarStudies.length <= 1" role="presentation"><a href="/choose_study">Home</a></li>
+        <li ng-if="navBarStudies.length <= 1" role="presentation" class="hover-pulse"><a href="{{ easy_url("study_endpoints.choose_study_page") }}">Home</a></li>
         
         {% if study and request.session_researcher %}
           {% if page_location != 'edit_study' and request.session_researcher.is_site_admin_or_study_admin(study.id) %}
-            <li role="presentation">
+            <li role="presentation" class="hover-pulse">
               <a href="{{ easy_url('study_endpoints.edit_study', study_id=study.id) }}">Edit Study</a>
             </li>
           {% endif %}
 
           {% if page_location != 'view_study' %}
-            <li role="presentation">
+            <li role="presentation" class="hover-pulse">
               <a href="{{ easy_url('study_endpoints.view_study_page', study_id=study.id) }}">View Study</a>
             </li>
           {% endif %}
 
           {% if page_location != 'dashboard_landing' %}
-            <li role="presentation">
+            <li role="presentation" class="hover-pulse">
               <a href="{{ easy_url('data_page_endpoints.dashboard_page', study_id=study.id) }}">Dashboard</a>
             </li>
           {% endif %}
@@ -67,36 +68,62 @@
         {% endif %}
 
         {% if study and study.forest_enabled %}
-          <li role="presentation">
+          <li role="presentation" class="hover-pulse">
+          
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
             Forest <span class="caret"></span>
           </a>
-          <ul class="dropdown-menu">
-            <li><a href="{{ easy_url('forest_endpoints.create_tasks', study_id=study.id) }}">Create Forest Tasks</a></li>
-            <li><a href="{{ easy_url('forest_endpoints.task_log', study_id=study.id) }}">View Forest Task Log</a></li>
-            <li><a href="{{ easy_url('forest_endpoints.forest_tasks_progress', study_id=study.id) }}">View Forest Analysis Progress</a></li>
+          
+          <ul class="dropdown-menu dropdown-translucent noanimation">
+            <li class="noanimation"><a class="noanimation" href="{{ easy_url('forest_endpoints.create_tasks', study_id=study.id) }}">Create Forest Tasks</a></li>
+            <li class="noanimation"><a class="noanimation" href="{{ easy_url('forest_endpoints.task_log', study_id=study.id) }}">View Forest Task Log</a></li>
             {% if site_admin %}
-            <li><a class="" href="{{ easy_url('forest_endpoints.download_task_log', study_id=study.id) }}">
-              <i>Download Forest Task Log As CSV</i>
-            </a></li>
+            <li class="noanimation">
+              <a class="noanimation" href="{{ easy_url('forest_endpoints.download_task_log', study_id=study.id) }}">
+                <i>Download Forest Task Log As CSV</i>
+              </a>
+            </li>
             {% endif %}
           </ul>
           </li>
         {% endif %}
       </ul>
 
-      <ul class="nav navbar-nav navbar-right">
+      <ul class="nav navbar-nav navbar-right text-small text-center" style="margin-bottom: -0.8em; margin-top: -0.8em;">
+        <li role="presentation" class="hover-pulse">
+          <a href="{{ easy_url("data_page_endpoints.data_api_web_form_page") }}" class="margin-left-neg-1">
+            Download <br> <span class="hover-pulse">Data</span>
+          </a></li>
+        
+        <li role="presentation" class="hover-pulse">
+          <a href="{{ easy_url("manage_researcher_endpoints.self_manage_credentials_page") }}" class="margin-left-neg-1">
+            Manage <br> Credentials
+          </a></li>
+        
         {# Give the System Admin an extra link here to manage researchers #}
         {% if is_admin %}
-          <li role="presentation"><a href="/manage_researchers">Manage Researchers</a></li>
-          <li role="presentation"><a href="/manage_studies">Manage Studies</a></li>
+          <li role="presentation" class="hover-pulse">
+            <a href="{{ easy_url("manage_researcher_endpoints.administrator_manage_researchers_page") }}" class="margin-left-neg-1">
+              Manage <br> Researchers
+            </a></li>
+        
+          <li role="presentation" class="hover-pulse">
+            <a href="{{ easy_url("study_endpoints.manage_studies_page") }}" class="margin-left-neg-1">
+              Manage <br> Studies
+            </a></li>
         {% endif %}
+        
         {% if request.session_researcher.site_admin %}
-          <li role="presentation"><a href="/manage_firebase_credentials">Firebase Credentials</a></li>
+          <li role="presentation" class="hover-pulse">
+            <a href="{{ easy_url("system_admin_endpoints.manage_firebase_credentials") }}" class="margin-left-neg-1">
+            Firebase <br> Credentials
+            </a></li>
         {% endif %}
-        <li role="presentation"><a href="/data_access_web_form">Download Data</a></li>
-        <li role="presentation"><a href="/manage_credentials">Manage Credentials</a></li>
-        <li role="presentation"><a href="/logout">Log Out</a></li>
+        
+        <li role="presentation" class="hover-pulse">
+          <a href="{{ easy_url("login_endpoints.logout_page") }}" class="" style="font-size: medium; margin-top: 0.6em;">
+            Log Out
+          </a></li>
       </ul>
     </div>
   </div>

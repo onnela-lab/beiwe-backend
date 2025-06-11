@@ -1,11 +1,25 @@
 ## Chunks
 # This value is in seconds, it sets the time period that chunked files will be sliced into.
+from typing import DefaultDict
+
 from constants.data_stream_constants import (ACCELEROMETER, ANDROID_LOG_FILE, BLUETOOTH, CALL_LOG,
     DEVICE_IDENTIFIERS_HEADER, DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE, MAGNETOMETER,
     POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_TIMINGS, TEXTS_LOG, WIFI)
 from constants.user_constants import ANDROID_API, IOS_API
 
 
+# typping used inside file processing 
+FileToProcessPK = int
+BinifyKey = tuple[str, str, str, int, bytes]  # study_object_id, patient_id, data_type, timecode int, header bytes
+BinifyDict = dict[BinifyKey, list[list[bytes]]]
+AllBinifiedData = DefaultDict[BinifyKey, tuple[list[list[bytes]], list[FileToProcessPK]]]
+SurveyIDHash = tuple[str, str, str, bytes]
+
+
+DEBUG_FILE_PROCESSING = False
+
+
+# leave this as 1 hour (its period measured in seconds)
 CHUNK_TIMESLICE_QUANTUM = 3600
 
 # These reference dicts contain the output headers that should exist for each data stream, per-os.

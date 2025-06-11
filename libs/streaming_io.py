@@ -17,12 +17,12 @@ class StreamingBytesIO(BytesIO):
         self.truncate(0)
         super(StreamingBytesIO, self).seek(0)
     
-    def tell(self):
+    def tell(self) -> int:
         """ Returns the current stream's virtual position (where the stream would be if it had
         been running contiguously and self.empty() is not called) """
         return self._position + super(StreamingBytesIO, self).tell()
     
-    def seek(self, *args, **kwargs):
+    def seek(self, *args, **kwargs) -> int:
         """ Sets the position explicitly, required for compatibility with Python 3 Zipfile """
         self._position = args[0]
         return super(StreamingBytesIO, self).seek(0)
@@ -46,7 +46,7 @@ class StreamingStringsIO(StringIO):
         self.truncate(0)
         super(StreamingStringsIO, self).seek(0)
     
-    def tell(self):
+    def tell(self) -> int:
         """ Returns the current stream's virtual position (where the stream would be if it had
         been running contiguously and self.empty() is not called) """
         return self._position + super(StreamingStringsIO, self).tell()
@@ -61,8 +61,8 @@ class StreamingStringsIO(StringIO):
 class CSVBuffer:
     line = ""
     
-    def read(self):
+    def read(self) -> str:
         return self.line
     
-    def write(self, line):
+    def write(self, line: str):
         self.line = line

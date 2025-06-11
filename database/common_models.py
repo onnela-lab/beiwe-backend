@@ -10,7 +10,7 @@ from random import choice as random_choice
 from typing import Any, Self
 
 from django.db import models
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import RelatedField
 from django.db.models.manager import BaseManager
@@ -19,6 +19,7 @@ from django.utils.timezone import localtime
 
 from constants.common_constants import DEV_TIME_FORMAT3, DT_24HR_W_TZ_W_SEC_N_PAREN, EASTERN
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
+from libs.utils.http_utils import numformat
 
 
 class ObjectIdError(Exception): pass
@@ -111,7 +112,7 @@ class UtilityModel(models.Model):
         return cls.objects.values_list(*args, **{"flat": True, **kwargs} if len(args) == 1 else kwargs)
     
     @classmethod
-    def vdict(cls, *args, **kwargs) -> QuerySet[dict]:
+    def vdict(cls, *args, **kwargs) -> QuerySet[Self, dict[str, Any]]:
         return cls.objects.values(*args, **kwargs)
     
     @classmethod
@@ -126,14 +127,31 @@ class UtilityModel(models.Model):
     def flat(cls, field_name: str, **filter_kwargs) -> QuerySet[Any]:
         return cls.objects.filter(**filter_kwargs).values_list(field_name, flat=True)
     
+    @classmethod
+    def rdrby(cls, *args, **kwargs) -> QuerySet[Self]:
+        return cls.objects.order_by(*args, **kwargs)
+    
     ################################## Show nice information #######################################
     
     @classmethod
-    def nice_count(cls):
-        t1 = datetime.now()
-        print(f"{count:= cls.objects.count():,}")
+    def nice_count(cls) -> int:
+        # .objects.count() is slow on large tables. This raw query is only only about 2x faster.
+        #     f'select count(*) from "{cls._meta.db_table}"'
+        #
+        # So let's cheat. If we use .explain() on this random query, it sources a value is from some
+        # inner metadata on the database and is instantaneous. The value updates every few seconds.
+        # The explain string looks like this (Also, this appears to be a Postgres problem.)
+        #
+        # GroupAggregate (cost=0.57..32464536.21 rows=244141235 width=12) ... there's more; don't care.
+        #                                         ^^^^^^^^^^^^^^
+        
+        t1 =  datetime.now()
+        a_column_name = cls._meta.fields[0].column
+        explained = cls.objects.annotate(_=Count(a_column_name)).values("_").explain()
+        count = int(explained.split("rows=")[1].split(" width=")[0])
         t2 = datetime.now()
-        print("this query took", (t2 - t1).total_seconds(), "seconds.")
+        
+        print(numformat(count), "- this query took", (t2 - t1).total_seconds(), "seconds.")
         return count
     
     @property
@@ -387,33 +405,41 @@ def lookup_dict_setup(queryable, keys: Sequence[str], values: Sequence[str], **f
     return keys, values, ret_query, keys_count, values_count, dd
 
 
-"""
-Some probably ill-advised hacks
 
-The Below is a bunch of monkeypatches that add some functionality to the django queryset-adjacent
-classes.  
+# Some quality of life improvements for various query objects in django.
+# 
+# == Examples ==
+# 
+# shorten common queries on managers and not needing to always use .objects:
+#     study_instance_variable.interventions.vlist("name", "study_object_id")
+#     Participant.fltr(created_on__lte=TODAY).xcld(created_on__gte=LAST_WEEK)
+# 
+# vlist and flat automatically unwrap and intelligently use the flat=True parameter:
+#     Participant.vlist("patient_id")         # gets all patient ids
+#     Participant.flat("patient_id", pk=1)    # filters and gets a flat query list
+# 
+# A shorthand to get a single attribute in a maximallly efficient query:
+#     Study.value_get("name", study_object_id=study_instance_variable.study_object_id)
 
-And then you can just do:
-    study.interventions.vlist("name", "study_object_id")
-And it just works.
-
-I'm sure in some way it doesn't work, like the IDE doesn't understand it and I couldn't get the full
-type hinting working.
-"""
 
 _special_format = "<" + DT_24HR_W_TZ_W_SEC_N_PAREN.replace(" ", "_") + ">"
 
-# Monkeypatches that add a ~pprint property to django querysets for date/time objects.
-def terminal_legible_dt_as_a_method(self: BaseIterable):
-    end = ""
-    ret = [terminal_legible_dt(v) for v in list(self[:31])]
-    if len(ret) > 30:
-        ret.pop(30)  # there we go, if its too long we REPLACE a "..." to the end.....
-        end = ", '...(remaining elements truncated)...'"
-    
-    return f'<QuerySet [{", ".join([(repr(x)) for x in ret])}{end}]>'
 
-# part 2
+def terminal_legible_dt_magic(self: BaseIterable):
+    """ Takes the default layout of a values or values_list and makes any datetime or date legible. """
+    try:
+        end = ""
+        # self might be a class (monkeypatching is weird) this is the TypeError
+        ret = [terminal_legible_dt(v) for v in list(self[:31])]  
+        if len(ret) > 30:
+            ret.pop(30)  # there we go, if its too long we REPLACE a "..." to the end.....
+            end = ", '...(remaining elements truncated)...'"
+        
+        return f'<QuerySet [{", ".join([(repr(x)) for x in ret])}{end}]>'
+    except TypeError:
+        return type(self).__name__ + " object at " + hex(id(self))
+
+
 def terminal_legible_dt(x: Any) -> Any:
     if isinstance(x, datetime):
         return localtime(x, EASTERN).strftime(_special_format)
@@ -435,20 +461,20 @@ def terminal_legible_dt(x: Any) -> Any:
 
 
 # instance methods that we monkeypatch onto the ~queryset classes
-# These all function as the UtilityModel methods (but don't contain `.objects` in their code).
-def _value_get(self, field_name: str, **filters) -> Any:
-    return self.flat(field_name, **filters).get()
-
-
+# These all function as the UtilityModel methods
 def _obj_get(self, *args, **kwargs) -> Self:  # type: ignore
     return self.get(*args, **kwargs)
 
 
-def _vlist(self, *args, **kwargs) -> BWValuesListIterable[Any]:  # type: ignore
+def _value_get(self, field_name: str, **filters) -> Any:
+    return self.flat(field_name, **filters).get()
+
+
+def _vlist(self, *args, **kwargs) -> ValuesListIterable[Any]:  # type: ignore
     return self.values_list(*args, **{"flat": True, **kwargs} if len(args) == 1 else kwargs)
 
 
-def _vdict(self, *args, **kwargs) -> QuerySet[dict[str, Any]]:  # type: ignore
+def _vdict(self, *args, **kwargs) -> ValuesIterable[dict[str, Any]]:  # type: ignore
     return self.values(*args, **kwargs)
 
 
@@ -463,6 +489,11 @@ def _xcld(self, *args, **kwargs) -> QuerySet[Self]:  # type: ignore
 def _flat(self, field_name: str, **filter_kwargs) -> QuerySet[Any]:
     return self.filter(**filter_kwargs).values_list(field_name, flat=True)
 
+
+def _rdrby(self, *args, **kwargs) -> QuerySet[Self]:  # type: ignore
+        return self.order_by(*args, **kwargs)
+
+
 # and this is where we assign them - there's a bunch of typing errors, they are wrong. XD
 for _T in (QuerySet, BaseIterable, BaseManager, ValuesIterable, ValuesListIterable):
     _T.vlist = _vlist  # type: ignore
@@ -472,4 +503,4 @@ for _T in (QuerySet, BaseIterable, BaseManager, ValuesIterable, ValuesListIterab
     _T.fltr = _fltr  # type: ignore
     _T.xcld = _xcld  # type: ignore
     _T.flat = _flat  # type: ignore
-    _T.__repr__ = terminal_legible_dt_as_a_method  # type: ignore
+    _T.__repr__ = terminal_legible_dt_magic  # type: ignore

@@ -14,7 +14,7 @@ from deepdiff import DeepDiff
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Model
-from django.http.response import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.test import TestCase
 from django.urls import reverse
 from django.urls.base import resolve
@@ -26,10 +26,24 @@ from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models_participant import Participant, SurveyNotificationReport
 from database.user_models_researcher import Researcher, StudyRelation
+from libs.django_typing import (FileResponse as _FileResponse, HttpResponse as _HttpResponse,
+    HttpResponseBase as _HttpResponseBase, HttpResponseRedirect as _HttpResponseRedirect,
+    StreamingHttpResponse as _StreamingHttpResponse)
 from libs.shell_support import tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
 from urls import urlpatterns
+
+
+# we need to do some magic to make these fake typing classes not break due to MRO issues
+# TLDR we have magic return types so that we don't want a thousand type errors on when accessing
+# the streaming_countent or status_code properties.
+class a(_HttpResponse): pass
+class b(a, _StreamingHttpResponse): pass
+class c(b, _HttpResponseBase): pass
+class d(c, _HttpResponseRedirect): pass
+class HttpResponse2(d, _FileResponse): pass
+
 
 
 # if we import this from constants.url_constants then its not populated because ... Django.
@@ -51,18 +65,17 @@ VERBOSE_3 = "-v3" in argv and "-v2" not in argv and "-v1" not in argv
 logging.getLogger("django.request").setLevel(logging.ERROR)
 
 
-ResponseOrRedirect = HttpResponse|HttpResponseRedirect
+# HttpResponse2 = HttpResponse|HttpResponseRedirect
 
 
 class MisconfiguredTestException(Exception): pass
-StrOrBytes = str|bytes
 
 
 # This parameter sets the password iteration count, which directly adds to the runtime of ALL user
 # tests. If we use the default value it is 1000s of times slower and tests take forever.
-Researcher.DESIRED_ITERATIONS = 2
-Participant.DESIRED_ITERATIONS = 2
-ApiKey.DESIRED_ITERATIONS = 2
+Researcher.DESIRED_ITERATIONS = 2  # type: ignore[assignment]
+Participant.DESIRED_ITERATIONS = 2  # type: ignore[assignment]
+ApiKey.DESIRED_ITERATIONS = 2  # type: ignore[assignment]
 
 
 class CommonTestCase(TestCase, DatabaseHelperMixin):
@@ -128,17 +141,17 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         msg = f"urls do not point to the same function:\n a - {a}, {resolve_a}\nb - {b}, {resolve_b}"
         return self.assertIs(resolve(a).func, resolve(b).func, msg)
     
-    def assert_not_present(self, test_str: StrOrBytes, corpus: StrOrBytes):
+    def assert_not_present(self, test_str: str|bytes, corpus: str|bytes):
         """ Tests "in" and also handles the type coersion for bytes and strings, and suppresses 
         excessively long output that can occur when testing for presence of substrings in html."""
         return self._assert_present(False, test_str, corpus)
     
-    def assert_present(self, test_str: StrOrBytes, corpus: StrOrBytes):
+    def assert_present(self, test_str: str|bytes, corpus: str|bytes):
         """ Tests "not in" and also handles the type coersion for bytes and strings, and suppresses 
         excessively long output that can occur when testing for presence of substrings in html."""
         return self._assert_present(True, test_str, corpus)
     
-    def _assert_present(self, the_test: bool, test_str: StrOrBytes, corpus: StrOrBytes):
+    def _assert_present(self, the_test: bool, test_str: str|bytes, corpus: str|bytes):
         t_test = type(test_str)
         t_corpus = type(corpus)
         test_str = test_str.encode() if t_test == str and t_corpus == bytes else test_str
@@ -269,19 +282,19 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         else:
             raise TypeError(f"Unhandled type: {type(var)}")
     
-    def simple_get(self, url: str, status_code=None, **get_kwargs) -> ResponseOrRedirect:
+    def simple_get(self, url: str, status_code=None, **get_kwargs) -> HttpResponse2:
         """ provide a url with, supports a status code check, only get kwargs"""
         ret = self.client.get(url, **get_kwargs)
         if status_code is not None:
             self.assertEqual(status_code, ret.status_code)
         return ret
     
-    def easy_get(self, view_name: str, status_code=None, **get_kwargs) -> ResponseOrRedirect:
+    def easy_get(self, view_name: str, status_code=None, **get_kwargs) -> HttpResponse2:
         """ very easy, use endpoint names, no reverse args only kwargs """
         url = self.smart_reverse(view_name, kwargs=get_kwargs)
         return self.simple_get(url, status_code=status_code, **get_kwargs)
     
-    def smart_reverse(self, endpoint_name: str, args: tuple = None, kwargs: dict = None):
+    def smart_reverse(self, endpoint_name: str, args: tuple = None, kwargs: dict = None) -> HttpResponse2:
         kwargs = {} if kwargs is None else kwargs
         args = {} if args is None else args
         try:
@@ -343,17 +356,22 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
     def dd(self, d1, d2) -> DeepDiff:
         return self.deepdiff(d1, d2)
 
+
 class BasicSessionTestCase(CommonTestCase):
     """ This class has the basics needed to do login operations, but runs no extra setup before each
     test.  This class is probably only useful to test the login pages. """
     
-    def do_default_login(self, **post_params: dict[str, str]) -> HttpResponse:
+    def client_get(self, path, data=None, follow=False, secure=False, *, headers=None, **extra) -> HttpResponse2:
+        # function purely exists to get around typing errors in uses of client.get
+        return self.client.get(path, data=None, follow=False, secure=False, headers=None, **extra)
+    
+    def do_default_login(self, **post_params: dict[str, str]) -> HttpResponse2:
         # logs in the default researcher user, assumes it has been instantiated.
         return self.do_login(
             self.DEFAULT_RESEARCHER_NAME, self.DEFAULT_RESEARCHER_PASSWORD, post_params=post_params
         )
     
-    def do_login(self, username, password, mfa_code=None, post_params: dict = None) -> HttpResponse:
+    def do_login(self, username, password, mfa_code=None, post_params: dict = None) -> HttpResponse2:
         post_params = {} if post_params is None else post_params
         if mfa_code:
             post_params["mfa_code"] = mfa_code
@@ -434,7 +452,7 @@ class SmartRequestsTestCase(BasicSessionTestCase):
             return some_function(*args, **kwargs)
         return checker_function
     
-    def smart_post(self, *reverse_args, reverse_kwargs=None, **post_params) -> HttpResponse:
+    def smart_post(self, *reverse_args, reverse_kwargs=None, **post_params) -> HttpResponse2:
         """ A wrapper to do a post request, using reverse on the ENDPOINT_NAME, and with a
         reasonable pattern for providing parameters to both reverse and post. """
         reverse_kwargs = reverse_kwargs or {}
@@ -443,7 +461,7 @@ class SmartRequestsTestCase(BasicSessionTestCase):
             self.smart_reverse(self.ENDPOINT_NAME, args=reverse_args, kwargs=reverse_kwargs), data=post_params
         )
     
-    def smart_get(self, *reverse_params, reverse_kwargs=None, **get_kwargs) -> HttpResponse:
+    def smart_get(self, *reverse_params, reverse_kwargs=None, **get_kwargs) -> HttpResponse2:
         """ A wrapper to do a get request, using reverse on the ENDPOINT_NAME, and with a reasonable
         pattern for providing parameters to both reverse and get. """
         reverse_kwargs = reverse_kwargs or {}
@@ -461,7 +479,7 @@ class SmartRequestsTestCase(BasicSessionTestCase):
     @validate_status_code
     def smart_post_status_code(
         self, status_code: int, *reverse_args, reverse_kwargs=None, **post_params
-    ) -> HttpResponse:
+    ) -> HttpResponse2:
         """ This helper function takes a status code in addition to post parameters, and tests for
         it.  Use for writing concise tests. """
         # print(f"reverse_args: {reverse_args}\nreverse_kwargs: {reverse_kwargs}\npost_params: {post_params}")
@@ -471,14 +489,14 @@ class SmartRequestsTestCase(BasicSessionTestCase):
     
     def smart_get_status_code(
         self, status_code: int, *reverse_params, reverse_kwargs=None, **get_kwargs
-    ) -> HttpResponse:
+    ) -> HttpResponse2:
         """ As smart_get, but tests for a given status code on the response. """
         resp = self.smart_get(*reverse_params, reverse_kwargs=reverse_kwargs, **get_kwargs)
         self.assertEqual(resp.status_code, status_code)
         return resp
     
     @ensure_has_redirect
-    def smart_get_redirect(self, *reverse_params, get_kwargs=None, **reverse_kwargs) -> HttpResponseRedirect:
+    def smart_get_redirect(self, *reverse_params, get_kwargs=None, **reverse_kwargs) -> HttpResponse2:
         """ As smart_get, but checks for a redirect. """
         get_kwargs = get_kwargs or {}
         # print(f"*reverse_params: {reverse_params}\n**get_kwargs: {get_kwargs}\n**reverse_kwargs: {reverse_kwargs}\n")
@@ -491,7 +509,7 @@ class SmartRequestsTestCase(BasicSessionTestCase):
         return response
     
     @ensure_has_redirect
-    def smart_post_redirect(self, *reverse_args, reverse_kwargs={}, **post_params) -> HttpResponseRedirect:
+    def smart_post_redirect(self, *reverse_args, reverse_kwargs={}, **post_params) -> HttpResponse2:
         # As smart post, but assert that the request was redirected, and that it points to the
         # appropriate endpoint.
         reverse_kwargs = reverse_kwargs or {}
@@ -549,7 +567,7 @@ class ParticipantSessionTest(SmartRequestsTestCase):
         self.INJECT_RECEIVED_SURVEY_UUIDS = True  # reset for every test
         return super().setUp()
     
-    def smart_post(self, *reverse_args, reverse_kwargs=None, **post_params) -> HttpResponse:
+    def smart_post(self, *reverse_args, reverse_kwargs=None, **post_params) -> HttpResponse2:
         """ Injects parameters for authentication and confirms the device tracking fields are 
         tracking. Features can be toggled """
         
@@ -592,7 +610,7 @@ class ParticipantSessionTest(SmartRequestsTestCase):
                     notification_uuid="a1019758-63f1-48a9-96bf-08208f2c9055").count(), 1,
                     msg="SurveyNotificationReport count is wrong."
                 )
-            
+        
         # reset the toggle after every request
         self.INJECT_DEVICE_TRACKER_PARAMS = True
         return ret
@@ -608,7 +626,7 @@ class DataApiTest(SmartRequestsTestCase):
         self.session_secret_key = self.API_KEY.access_key_secret_plaintext
         return super().setUp()
     
-    def smart_post(self, *reverse_args, reverse_kwargs={}, **post_params) -> HttpResponseRedirect:
+    def smart_post(self, *reverse_args, reverse_kwargs={}, **post_params) -> HttpResponse2:
         if not self.DISABLE_CREDENTIALS:
             # As smart post, but assert that the request was redirected, and that it points to the
             # appropriate endpoint.
@@ -618,7 +636,7 @@ class DataApiTest(SmartRequestsTestCase):
     
     def smart_post_status_code(
         self, status_code: int, *reverse_args, reverse_kwargs=None, **post_params
-    ) -> HttpResponse:
+    ) -> HttpResponse2:
         """ We need to inject the session keys into the post parameters because the code that uses
         smart_post is inside the super class. """
         if not self.DISABLE_CREDENTIALS:
@@ -628,7 +646,7 @@ class DataApiTest(SmartRequestsTestCase):
             status_code, *reverse_args, reverse_kwargs=reverse_kwargs, **post_params
         )
     
-    def less_smart_post(self, *reverse_args, reverse_kwargs=None, **post_params) -> HttpResponse:
+    def less_smart_post(self, *reverse_args, reverse_kwargs=None, **post_params) -> HttpResponse2:
         """ we need the passthrough and calling super() in an implementation class is dumb.... """
         return super().smart_post(*reverse_args, reverse_kwargs=reverse_kwargs, **post_params)
 

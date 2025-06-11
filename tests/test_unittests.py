@@ -21,20 +21,21 @@ from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS
 from constants.s3_constants import (COMPRESSED_DATA_MISSING_AT_UPLOAD,
     COMPRESSED_DATA_MISSING_ON_POP, COMPRESSED_DATA_PRESENT_AT_COMPRESSION,
     COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
-    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION, UNCOMPRESSED_DATA_MISSING_ON_POP,
-    UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
-    UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
+    IOSDataRecoveryDisabledException, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
+    UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+    UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD, UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
 from database.models import ArchivedEvent, S3File, ScheduledEvent
-from database.profiling_models import EncryptionErrorMetadata, LineEncryptionError, UploadTracking
+from database.profiling_models import EncryptionErrorMetadata, UploadTracking
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
     PushNotificationDisabledEvent, SurveyNotificationReport)
 from libs.aes import encrypt_for_server
 from libs.celery_control import DebugCeleryApp
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
-from libs.file_processing.utility_functions_simple import BadTimecodeError, binify_from_timecode
+from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
+    convert_unix_to_human_readable_timestamps)
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
 from libs.s3 import BadS3PathException, decrypt_server, NoSuchKeyException, S3Storage
@@ -253,17 +254,6 @@ class TestParticipantDataDeletion(CommonTestCase):
     @data_purge_mock_s3_calls
     def test_confirm_SummaryStatisticDaily(self):
         self.default_summary_statistic_daily
-        self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
-        confirm_deleted(self.default_participant_deletion_event)
-    
-    @data_purge_mock_s3_calls
-    def test_confirm_LineEncryptionError(self):
-        LineEncryptionError.objects.create(
-            base64_decryption_key="abc123",
-            participant=self.default_participant,
-            type=LineEncryptionError.PADDING_ERROR
-        )
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
@@ -919,7 +909,7 @@ class TestS3Storage(CommonTestCase):
             S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=True)
         
         S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=False)
-        with self.assertRaises(BadS3PathException):
+        with self.assertRaises(IOSDataRecoveryDisabledException):
             S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=True)
         
         S3Storage("CUSTOM_ONDEPLOY_SCRIPT/EB/a_path.csv", self.default_participant, bypass_study_folder=False)
@@ -1532,3 +1522,18 @@ class TestDetermineFileName(CommonTestCase):
             determine_base_file_name(d),
             "steve/survey_timings/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.csv"
         )
+
+
+class TestFileProcessingUnittests(CommonTestCase):
+    
+    def test_convert_unix_to_human_readable_timestamps(self):
+        rows = [
+            [b"1", b"content"],
+            [b"2", b"more content"],
+        ]
+        header = convert_unix_to_human_readable_timestamps(b"something,anything", rows)
+        self.assertEqual(header, b"something,UTC time,anything")
+        self.assertEqual(rows, [
+            [b"1", b"1970-01-01T00:00:00.001", b"content"],
+            [b"2", b"1970-01-01T00:00:00.002", b"more content"],
+        ])

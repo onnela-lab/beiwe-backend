@@ -5,6 +5,7 @@ from typing import Any
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.fields import BooleanField
 from django.db.models.functions.text import Lower
+from django.db.models.query import QuerySet
 from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.utils.functional import Promise
@@ -178,7 +179,7 @@ def get_interventions_and_fields(q: dbt.ParticipantQS) -> tuple[dict[int, dict[s
     return dict(fields_lookup), dict(interventions_lookup)
 
 
-def filtered_participants(study: Study, contains_string: str):
+def filtered_participants(study: Study, contains_string: str) -> QuerySet:
     """ Searches for participants with lowercase matches on os_type and patient_id, excludes deleted participants. """
     return Participant.objects.filter(study_id=study.id) \
             .filter(Q(patient_id__icontains=contains_string)|Q(os_type__icontains=contains_string)) \

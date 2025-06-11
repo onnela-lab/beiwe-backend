@@ -209,7 +209,8 @@ path(
 )
 
 # data access api and other researcher apis
-path("get-data/v1", raw_data_api_endpoints.get_data)
+path("get-data/v1", raw_data_api_endpoints.get_data_v1)
+path("get-data/v2", raw_data_api_endpoints.get_data_v2_compressed)
 path("get-studies/v1", data_api_endpoints.get_studies)
 path("get-users/v1", data_api_endpoints.get_participant_ids_in_study)  # deprecated June 2024
 path("get-study-settings/v1", data_api_endpoints.get_study_settings_file)
@@ -240,7 +241,6 @@ path("tableau/participant-table-wdc/v1/<str:study_object_id>", data_api_endpoint
 # forest pages
 path('studies/<str:study_id>/forest/tasks/create', forest_endpoints.create_tasks)
 path('studies/<str:study_id>/forest/tasks/copy', forest_endpoints.copy_forest_task)
-path('studies/<str:study_id>/forest/progress', forest_endpoints.forest_tasks_progress, login_redirect=SAFE)
 path("studies/<str:study_id>/forest/tasks/<str:forest_task_external_id>/cancel", forest_endpoints.cancel_task)
 path('studies/<str:study_id>/forest/tasks', forest_endpoints.task_log, login_redirect=SAFE)
 path('studies/<str:study_id>/forest/tasks/download', forest_endpoints.download_task_log)

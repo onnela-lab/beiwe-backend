@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import logging
 import operator
 import random
 from datetime import datetime
 from functools import reduce
+from threading import Lock
+from time import perf_counter
 
-from cronutils import null_error_handler
+from cronutils import ErrorSentry, null_error_handler
 from dateutil.tz import gettz
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -20,6 +24,8 @@ from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.survey_models import Survey
 from database.user_models_participant import Participant, ParticipantFCMHistory
+from libs.celery_control import make_error_sentry
+from libs.sentry import SentryTypes
 
 
 # same logger as in celery_push_notifications
@@ -36,6 +42,74 @@ logd = logger.debug
 
 UTC = gettz("UTC")
 
+
+class ParticipantCache:
+    """ Push notifications can cause a lot of database queries, so we cache the participants. """
+    
+    fcm_to_participant_id: dict[str, int] = {}
+    participant_id_to_participant: dict[int, Participant] = {}
+    lock_time: float | None = None  # None on first call
+    timer_timeout = 10 * 60  # 10 minutes in seconds
+    lock = Lock()
+    
+    @classmethod
+    def check_populate(cls):
+        """ Test the cache once, if it is invalid then lock, after we are passed the lock check
+        again, and if it is still invalid then repopulate the cache. """
+        
+        # "now" is a higher number than the lock time, subtraction yields seconds since lock timeout.
+        cache_invalid = lambda: cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout
+        
+        if not cache_invalid():
+            return
+        with cls.lock:
+            if not cache_invalid():
+                return
+            
+            # condition to populate is met, repopulate the cache.
+            cls.participant_id_to_participant = {p.pk: p for p in Participant.fltr()}
+            cls.fcm_to_participant_id = ParticipantFCMHistory.make_lookup_dict("token", "participant_id")
+            cls.lock_time = perf_counter()
+    
+    @classmethod
+    def get_participant_by_fcm(cls, token: str) -> Participant:
+        cls.check_populate()
+        
+        if token not in cls.fcm_to_participant_id:
+            print(f"yo participant was not in cache cache for token {token}")
+            p = Participant.obj_get(fcm_tokens__token=token)
+            cls.participant_id_to_participant[p.pk] = p
+            cls.fcm_to_participant_id[token] = p.pk
+        
+        p = cls.participant_id_to_participant[cls.fcm_to_participant_id[token]]
+        return p
+
+
+class ErrorSentryCache:
+    """ ErrorSentry objects cause IO on creatiion, so we cache them for 10 minutes. """
+    
+    lock_time: float | None = None  # None on first call
+    timer_timeout = 10 * 60  # 10 minutes in seconds
+    lock = Lock()
+    error_sentry: ErrorSentry|None = None  # None on first call
+    
+    @classmethod
+    def check_populate(cls):
+        # "now" is a higher number than the lock time, subtraction yields seconds since lock timeout.
+        cache_invalid = lambda: cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout
+        
+        # check, lock, check again after unlock, 
+        if cache_invalid():
+            with cls.lock:
+                if cache_invalid():
+                    cls.error_sentry = SentryTypes.error_handler_push_notifications()
+                    cls.lock_time = perf_counter()
+    
+    @classmethod
+    def get_sentry_processing(cls) -> ErrorSentry:
+        cls.check_populate()
+        assert cls.error_sentry is not None, "ErrorSentryCache failed."
+        return cls.error_sentry
 #
 ## Somewhat common code (regular SURVEY notifications have extra logic)
 #
@@ -158,10 +232,11 @@ def debug_send_valid_survey_push_notification(participant: Participant, now: dat
     """ Runs the REAL LOGIC for sending push notifications based on the time passed in, but without
     the ErrorSentry. """
     
-    from services.celery_push_notifications import (check_firebase_instance,
-        get_surveys_and_schedules, send_scheduled_event_survey_push_notification_logic)
+    from libs.firebase_config import BackendFirebaseAppState
+    from services.celery_push_notifications import (get_surveys_and_schedules,
+        send_scheduled_event_survey_push_notification_logic)
     
-    if not now:
+    if now is None:
         now = timezone.now()
     # get_surveys_and_schedules for one participant, extra args are query filters on ScheduledEvents.
     surveys, schedules, _ = get_surveys_and_schedules(now, participant=participant)
@@ -179,7 +254,7 @@ def debug_send_valid_survey_push_notification(participant: Participant, now: dat
     for survey in Survey.objects.filter(object_id__in=survey_object_ids):
         print(f"Sending notification for survey '{survey.name if survey.name else survey.object_id}'")
     
-    if not check_firebase_instance():
+    if not BackendFirebaseAppState.check():
         print("Firebase is not configured, cannot queue notifications.")
         return
     

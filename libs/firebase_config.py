@@ -1,5 +1,7 @@
 import json
 from json import JSONDecodeError
+from multiprocessing import Lock
+from time import perf_counter
 
 from firebase_admin import (delete_app as delete_firebase_instance, get_app as get_firebase_app,
     initialize_app as initialize_firebase_app)
@@ -14,6 +16,36 @@ MANUALLY_DISABLE_FIREBASE = False
 
 
 class FirebaseMisconfigured(Exception): pass
+
+
+class FirebaseAppState:
+    """ A class to hold the state of the firebase app, used to avoid re-initializing it. """
+    
+    def __init__(self, require_android:bool, require_ios:bool):
+        self._lock = Lock()
+        self._status_ok = False
+        self.timer: float | None = None  # start with a negative timer so the first check always runs
+        self.timer_timeout = 60  # a one minute timeout
+        self.kwargs = {"require_android": require_android, "require_ios": require_ios}
+    
+    def check(self) -> bool:
+        cache_invalid = lambda: self.timer is None or (perf_counter() - self.timer) > self.timer_timeout
+        
+        # test cache validity, if invalid lock, when past lock check again, repopulate if still invalid
+        if cache_invalid():
+            with self._lock:
+                if cache_invalid():
+                    self._status_ok = check_firebase_instance(**self.kwargs)
+                    self.timer = perf_counter()
+                    return self._status_ok
+        
+        return self._status_ok  # if it hasn't just return the last status
+
+
+AndroidFirebaseAppState = FirebaseAppState(require_android=True, require_ios=False)
+IosFirebaseAppState = FirebaseAppState(require_android=False, require_ios=True)
+DoubleFirebaseAppState = FirebaseAppState(require_android=True, require_ios=True)
+BackendFirebaseAppState = FirebaseAppState(require_android=False, require_ios=False)
 
 #
 # Firebase app object instantiation and credential tests

@@ -1,4 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from django.utils import timezone
 
 from database.user_models_participant import Participant
 from libs.celery_control import (CeleryDataProcessingTask, get_processing_active_job_ids,
@@ -6,11 +8,13 @@ from libs.celery_control import (CeleryDataProcessingTask, get_processing_active
 from libs.file_processing.file_processing_core import easy_run
 from libs.sentry import make_error_sentry, SentryTypes
 
+
+from libs.celery_control import processing_celery_app;  # required in the file namespace for celery to work.
+
 ################################################################################
 ############################# Data Processing ##################################
 ################################################################################
 
-from libs.celery_control import processing_celery_app  # required in the file namespace for celery to work.
 
 def create_file_processing_tasks():
     """ Generates tasks to enqueue.  This is called every 6 minutes, and tasks have a lifetime
@@ -22,7 +26,7 @@ def create_file_processing_tasks():
     
     # set the tasks to expire at the 5 minutes and thirty seconds mark after the most recent 6
     # minutely cron task. This way all tasks will be revoked at the same, and well-known, instant.
-    expiry = (datetime.utcnow() + timedelta(minutes=5)).replace(second=30, microsecond=0)
+    expiry = (timezone.now() + timedelta(minutes=5)).replace(second=30, microsecond=0)
     
     with make_error_sentry(sentry_type=SentryTypes.data_processing):
         participant_set = set(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from datetime import date, datetime, time, timedelta, tzinfo
+from typing import TYPE_CHECKING
 
 from django.core.validators import MaxValueValidator
 from django.db import models
@@ -15,11 +16,8 @@ from database.common_models import TimestampedModel
 from database.survey_models import Survey, SurveyArchive
 
 
-# this is an import hack to improve IDE assistance
-try:
+if TYPE_CHECKING:
     from database.models import Participant, Study
-except ImportError:
-    pass
 
 
 class BadWeeklyCount(Exception): pass
@@ -213,10 +211,10 @@ class ScheduledEvent(TimestampedModel):
         # canonical form is the study timezone, that should match the time of day on the survey editor
         return self.scheduled_time.astimezone(self.survey.study.timezone)
     
-    def get_schedule_type(self):
+    def get_schedule_type(self) -> str:
         return self.SCHEDULE_CLASS_LOOKUP[self.get_schedule().__class__]
     
-    def get_schedule(self):
+    def get_schedule(self) -> AbsoluteSchedule:
         number_schedules = sum((
             self.weekly_schedule is not None,
             self.relative_schedule is not None,
@@ -235,7 +233,7 @@ class ScheduledEvent(TimestampedModel):
         else:
             raise TypeError("ScheduledEvent had no associated schedule")
     
-    def get_schedule_pk(self):
+    def get_schedule_pk(self) -> int:
         if self.weekly_schedule_id:
             return self.weekly_schedule_id
         elif self.relative_schedule_id:

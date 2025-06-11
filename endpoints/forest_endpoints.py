@@ -1,6 +1,5 @@
 import csv
 import pickle
-from collections import defaultdict
 from datetime import date, datetime
 
 import orjson
@@ -25,18 +24,14 @@ from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED,
 from constants.raw_data_constants import CHUNK_FIELDS
 from database.data_access_models import ChunkRegistry
 from database.forest_models import ForestTask, SummaryStatisticDaily
-from database.models import dbt
 from database.study_models import Study
 from database.system_models import ForestVersion
-from database.user_models_participant import Participant
 from libs.django_forms.forms import CreateTasksForm
 from libs.efficient_paginator import EfficientQueryPaginator
-from libs.endpoint_helpers.dashboard_helpers import get_first_and_last_days_of_data
 from libs.endpoint_helpers.summary_statistic_helpers import SummaryStatisticsPaginator
 from libs.s3 import NoSuchKeyException
 from libs.streaming_io import CSVBuffer
 from libs.streaming_zip import ZipGenerator
-from libs.utils.date_utils import daterange
 from libs.utils.forest_utils import download_output_file
 from libs.utils.http_utils import easy_url
 
@@ -63,69 +58,6 @@ TASK_SERIALIZER_FIELDS = [
     "process_download_end_time",  # -> dev time format
     "created_on",  # -> dev time format
 ]
-
-@require_GET
-@authenticate_researcher_study_access
-@forest_enabled
-def forest_tasks_progress(request: ResearcherRequest, study_id=None):
-    # generates a chart of study analysis progress logs
-    study = Study.objects.get(pk=study_id)
-    participants: dbt.ParticipantQS = Participant.objects.filter(study=study_id)
-    
-    # later tasks will overwrite earlier tasks - this is intentional.
-    # number of forest tasks shouldn't be the bottleneck here.
-    tasks = ForestTask.objects.filter(participant__in=participants).order_by("created_on")
-    
-    results = defaultdict(lambda: "-")
-    chart_elements_lookup = {False: "N", None: "?"}
-    # this loop builds the chart of whether there are forest results for date ranges
-    # per-participant- -and-tree. The tasks query is ordered by creation date, so later tasks will
-    # overwrite earlier tasks. a "-" means no task has been run, "N" means a task ran but there was
-    # no output, "?" means there the code ran successfully but there was an error reading in the
-    # data so we MIGHT have data, and "Y" means there was definitely data.
-    for task in tasks:
-        for a_date in daterange(task.data_date_start, task.data_date_end, inclusive=True):
-            key = (task.participant_id, task.forest_tree, a_date)
-            in_table = results[key]  # will populates with a "-" on first access
-            output_exists = task.forest_output_exists
-            if in_table == "Y" or output_exists:  # always force "Y"
-                results[key] = "Y"
-            elif in_table != "?":
-                # We have some nice constraints here:
-                # 1. output_exists is False or None, so chart_elements_lookup[false or None]
-                #    can only return "N" or "?".
-                # 2. The chart's current field is "-", "N", or "?"
-                # 3. If in_table is a ? we can just skip it because we cannot upgrade from ? to Y here.
-                #  So, we just skip if we are already at ? in the chart element, and otherwise we do the lookup.
-                results[key] = chart_elements_lookup[output_exists]
-    
-    start_date, end_date = get_first_and_last_days_of_data(study)
-    start_date = start_date or study.created_on.date()
-    end_date = end_date or timezone.now().date()
-    
-    # generate the date range for the chart, we need it many times.
-    dates = list(daterange(start_date, end_date, inclusive=True))
-    chart = []
-    for participant in participants:
-        for tree_name in ForestTree.values():
-            # we need to make a list of lists with the participant and tree name
-            row = [participant.patient_id, tree_name] + \
-                [results[(participant.id, tree_name, date)] for date in dates]
-            chart.append(row)
-    
-    chart_json = orjson.dumps(chart).decode()  # may be huge, but orjson is very fast.
-    return render(
-        request,
-        'forest/forest_tasks_progress.html',  # has been renamed internally because this is imprecise.
-        context=dict(
-            study=study,
-            chart_columns=["participant", "tree"] + dates,
-            status_choices=ForestTaskStatus,
-            start_date=start_date,
-            end_date=end_date,
-            chart=chart_json  # this uses the jinja safe filter and should never involve user input
-        )
-    )
 
 
 @require_http_methods(['GET', 'POST'])

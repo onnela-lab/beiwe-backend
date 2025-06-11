@@ -1,15 +1,12 @@
 import os
 import platform
-from os.path import join
 
 import sentry_sdk
 from django.core.exceptions import ImproperlyConfigured
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
-from config import DB_MODE, DB_MODE_POSTGRES, DB_MODE_SQLITE
 from config.settings import DOMAIN_NAME, FLASK_SECRET_KEY, SENTRY_ELASTIC_BEANSTALK_DSN
-from constants.common_constants import BEIWE_PROJECT_ROOT
 from libs.sentry import normalize_sentry_dsn
 
 
@@ -17,42 +14,36 @@ from libs.sentry import normalize_sentry_dsn
 # we are not actually using it in any server runtime capacity.
 SECRET_KEY = FLASK_SECRET_KEY
 
-# TODO: remove sqlite support entirely.
-if DB_MODE == DB_MODE_SQLITE:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': join(BEIWE_PROJECT_ROOT, "private/beiwe_db.sqlite"),
-            'CONN_MAX_AGE': None,
-            'TEST': {
-                'NAME': join(BEIWE_PROJECT_ROOT, "private/beiwe_test_db.sqlite"),
-            },
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ['RDS_DB_NAME'],
+        'USER': os.environ['RDS_USERNAME'],
+        'PASSWORD': os.environ['RDS_PASSWORD'],
+        'HOST': os.environ['RDS_HOSTNAME'],
+        'CONN_MAX_AGE': 0,
+        'OPTIONS': {
+            'sslmode': 'require',
+            # "pool": {
+            #     "min_size": 5,
+            #     "max_size": 20,
+            #     "timeout": 10,
+            # },
         },
-    }
-elif DB_MODE == DB_MODE_POSTGRES:
-    CONN_HEALTH_CHECKS = True  # new in django 4.1, allows for health checks on the database connection
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ['RDS_DB_NAME'],
-            'USER': os.environ['RDS_USERNAME'],
-            'PASSWORD': os.environ['RDS_PASSWORD'],
-            'HOST': os.environ['RDS_HOSTNAME'],
-            'CONN_MAX_AGE': 0,
-            'OPTIONS': {'sslmode': 'require'},
-            "ATOMIC_REQUESTS": True,  # default is True, just being explicit
-            'TEST': {
-                'MIGRATE': True,
-            }
-        },
-    }
-else:
-    raise ImproperlyConfigured("server not running as expected, could not find environment variable DJANGO_DB_ENV")
+        "ATOMIC_REQUESTS": True,  # default is True, just being explicit
+        'TEST': {
+            'MIGRATE': True,
+        }
+    },
+}
 
 # database primary key setting
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 DEBUG = 'localhost' in DOMAIN_NAME or '127.0.0.1' in DOMAIN_NAME or '::1' in DOMAIN_NAME
+
+# if DEBUG:
+#     DATABASES['default']['OPTIONS']['pool']['min_size'] = 1
 
 SECURE_SSL_REDIRECT = not DEBUG
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -60,7 +51,7 @@ CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 
 # mac os homebrew postgres has configuration complexities that are not worth the effort to resolve.
-if (not SECURE_SSL_REDIRECT and DB_MODE == DB_MODE_POSTGRES and platform.system() == "Darwin") or os.environ.get("RUNNING_IN_DOCKER", False):
+if (not SECURE_SSL_REDIRECT and platform.system() == "Darwin") or os.environ.get("RUNNING_IN_DOCKER", False):
     DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
 
 MIDDLEWARE = [
@@ -83,7 +74,6 @@ INSTALLED_APPS = [
     'database.apps.DatabaseConfig',
     'django.contrib.sessions',
     'django_extensions',
-    'timezone_field',
     'django.contrib.staticfiles'
     # 'static_files',
 ]
@@ -159,6 +149,8 @@ TEMPLATES = [
         'APP_DIRS': False,
         'DIRS': [
             "frontend/templates/",
+            "frontend/static/javascript",
+            "frontend/static/css",
         ],
         'OPTIONS': {
             'autoescape': True,
@@ -173,7 +165,7 @@ TEMPLATES = [
 
 # json serializer crashes with module object does not have attribute .dumps
 # or it cannot serialize a datetime object.
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
 SESSION_ENGINE = "database.user_models_researcher"
 
 # https-only

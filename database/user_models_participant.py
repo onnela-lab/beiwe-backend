@@ -5,7 +5,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, tzinfo
 from pprint import pprint
-from typing import Self
+from typing import Self, TYPE_CHECKING
 
 import orjson
 from dateutil.tz import gettz
@@ -34,23 +34,8 @@ from libs.utils.security_utils import (compare_password, device_hash, django_pas
     generate_easy_alphanumeric_string)
 
 
-# This is an import hack to improve IDE assistance.  Most of these imports are cyclical and fail at
-# runtime, but the exception is caught.  The IDE's parser doesn't know it would fail and just uses
-# the information correctly, allowing us to use them in type annotations.  There are no weird
-# runtime errors because type annotations are Completely Elided before runtime.  Then, with these
-# annotations, your IDE is able to provide type inferencing assistance throughout the codebase.
-#
-# By attaching some extra type declarations to model classes for django's dynamically generated
-# properties (example: "scheduled_events" on the Participant class below) we magically get that type
-# information almost everywhere.  (These can be generated for you automatically by running `python
-# run_script.py generate_relation_hax` and pasting as required.)
-#
-# If you must to use an unimportable class (like ArchivedEvent in the notification_events()
-# convenience method on Participants below) you will need to add a local import.
-try:
+if TYPE_CHECKING:
     from database.models import ArchivedEvent, dbt, StudyField
-except ImportError:
-    pass
 
 
 class Participant(AbstractPasswordUser):
@@ -146,7 +131,6 @@ class Participant(AbstractPasswordUser):
     encryptionerrormetadata_set: dbt.EncryptionErrorMetadatums
     foresttask_set: dbt.ForestTasks
     iosdecryptionkey_set: dbt.IOSDecryptionKeys
-    lineencryptionerror_set: dbt.LineEncryptionErrors
     pushnotificationdisabledevent_set: dbt.PushNotificationDisabledEvents
     summarystatisticdaily_set: dbt.SummaryStatisticsDaily
     
@@ -231,11 +215,12 @@ class Participant(AbstractPasswordUser):
     def participant_push_enabled(self) -> bool:
         # this import causes a super stupid import triangle over in celery push notifications
         # after a refactor that literally just separated code into multiple files. Obviously.
-        from libs.firebase_config import check_firebase_instance
-        return (
-            self.os_type == ANDROID_API and check_firebase_instance(require_android=True) or
-            self.os_type == IOS_API and check_firebase_instance(require_ios=True)
-        )
+        from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
+        if self.os_type == ANDROID_API:
+            return AndroidFirebaseAppState.check()
+        elif self.os_type == IOS_API:
+            return IosFirebaseAppState.check()
+        return False
     
     ################################################################################################
     ###################################### History I Guess #########################################
@@ -247,7 +232,7 @@ class Participant(AbstractPasswordUser):
         return ArchivedEvent.objects.filter(participant=self) \
             .filter(**archived_event_filter_kwargs).order_by("-scheduled_time")
     
-    def log(self, action: str):
+    def log(self, action: str) -> ParticipantActionLog:
         """ Creates a ParticipantActionLog object. """
         return ParticipantActionLog.objects.create(
             participant=self, timestamp=timezone.now(), action=action)
@@ -564,7 +549,7 @@ class AppHeartbeats(UtilityModel):
     message = models.TextField(null=True, blank=True)
     
     @classmethod
-    def create(cls, participant: Participant, timestamp: datetime, message: str = None):
+    def create(cls, participant: Participant, timestamp: datetime, message: str = None) -> AppHeartbeats:
         participant.update_only(last_heartbeat_checkin=timestamp)
         return cls.objects.create(participant=participant, timestamp=timestamp, message=message)
 

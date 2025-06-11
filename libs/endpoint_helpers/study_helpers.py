@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any
+from typing import Any, Dict
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -37,7 +37,7 @@ def conditionally_display_study_status_warnings(request: ResearcherRequest, stud
 ## Update Study Device Settings helpers
 
 
-def unflatten_consent_sections(consent_sections_dict: dict):
+def unflatten_consent_sections(consent_sections_dict: dict) -> Dict[str, Dict[str, str]]:
     """ "unflattens" a dictionary of consent sections (study device settings) into a nested structure. """
     # consent_sections is a flat structure with structure like this:
     # { 'label_ending_in.text': 'text content',  'label_ending_in.more': 'more content' }

@@ -36,7 +36,6 @@ from libs.django_forms.forms import ParticipantExperimentForm
 from libs.endpoint_helpers.participant_helpers import (conditionally_display_locked_message,
     convert_to_template_expectations, get_heartbeats_query, get_survey_names_dict,
     query_values_for_notification_history, render_participant_page)
-from libs.firebase_config import check_firebase_instance
 from libs.intervention_utils import add_fields_and_interventions
 from libs.participant_purge import add_participant_for_deletion
 from libs.rsa import create_participant_key_pair
@@ -297,10 +296,6 @@ def resend_push_notification(request: ResearcherRequest, study_id: int, patient_
     participant = get_object_or_404(Participant, patient_id=patient_id, study=study)
     fcm_token = participant.get_valid_fcm_token()
     now = timezone.now()
-    firebase_check_kwargs = {
-        "require_android": participant.os_type == ANDROID_API,
-        "require_ios": participant.os_type == IOS_API,
-    }
     
     # setup exit details
     error_message = f'Could not send notification to {participant.patient_id}'
@@ -336,7 +331,7 @@ def resend_push_notification(request: ResearcherRequest, study_id: int, patient_
         return return_redirect
     
     # "participant os"
-    if not check_firebase_instance(firebase_check_kwargs):
+    if not participant.participant_push_enabled:
         unscheduled_archive.update(status=PUSH_NOTIFICATIONS_NOT_CONFIGURED)
         messages.error(request, error_message)
         return return_redirect

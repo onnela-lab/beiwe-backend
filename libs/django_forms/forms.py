@@ -1,9 +1,9 @@
 import bleach
 from django import forms
 
-from constants.forest_constants import (SERIALIZABLE_FIELD_NAMES,
-    SERIALIZABLE_FIELD_NAMES_DROPDOWN, VALID_QUERY_PARAMETERS, ForestTree)
 from constants.celery_constants import ForestTaskStatus
+from constants.forest_constants import (ForestTree, SERIALIZABLE_FIELD_NAMES,
+    SERIALIZABLE_FIELD_NAMES_DROPDOWN, VALID_QUERY_PARAMETERS)
 from database.forest_models import ForestTask
 from database.study_models import Study
 from database.user_models_participant import Participant
@@ -16,7 +16,7 @@ class NewApiKeyForm(forms.Form):
     def clean(self):
         super().clean()
     
-    def clean_readable_name(self):
+    def clean_readable_name(self) -> str:
         return bleach.clean(self.cleaned_data["readable_name"])
 
 

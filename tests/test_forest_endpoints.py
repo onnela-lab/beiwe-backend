@@ -8,7 +8,7 @@ from django.http import FileResponse
 
 from constants.celery_constants import ForestTaskStatus
 from constants.data_stream_constants import GPS
-from constants.forest_constants import FOREST_NO_TASK, FOREST_TASK_CANCELLED, ForestTree
+from constants.forest_constants import FOREST_NO_TASK, FOREST_TASK_CANCELLED, TREE_TO_TASK_NAME, ForestTree
 from constants.testing_constants import EMPTY_ZIP, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ResearcherRole
 from database.forest_models import ForestTask, SummaryStatisticDaily
@@ -19,19 +19,6 @@ from tests.helpers import CURRENT_TEST_DATE_BYTES, DummyThreadPool
 #
 ## forest endpoints
 #
-
-
-# FIXME: This endpoint is unusable, it is not a viable way to look at forest stuff.
-class TestForestAnalysisProgress(ResearcherSessionTest):
-    ENDPOINT_NAME = "forest_endpoints.forest_tasks_progress"
-    
-    def test(self):
-        # hey it loads...
-        self.set_session_study_relation(ResearcherRole.researcher)
-        for _ in range(10):
-            self.generate_participant(self.session_study)
-        # print(Participant.objects.count())
-        self.smart_get(self.session_study.id)
 
 
 # class TestForestCreateTasks(ResearcherSessionTest):
@@ -126,13 +113,11 @@ class TestForestCancelTask(ResearcherSessionTest):
         self.smart_post_status_code(403, self.session_study.id, self.default_forest_task.external_id)
         self.default_forest_task.refresh_from_db()
         self.assertEqual(self.default_forest_task.status, ForestTaskStatus.queued)
-    
     def test_study_admin_cannot(self):
         self.set_session_study_relation(ResearcherRole.researcher)
         self.smart_post_status_code(403, self.session_study.id, self.default_forest_task.external_id)
         self.default_forest_task.refresh_from_db()
         self.assertEqual(self.default_forest_task.status, ForestTaskStatus.queued)
-    
     def test_site_admin_can(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
         self.smart_post_redirect(self.session_study.id, self.default_forest_task.external_id)
@@ -229,7 +214,7 @@ class TestForestDownloadTaskData(ResearcherSessionTest):
             time_bin=datetime(2020, 1, 2, tzinfo=dateutil.tz.UTC), data_type=GPS
         )
         # hit endpoint, check for our SIMPLE_FILE_CONTENTS nonce
-        resp: FileResponse = self.smart_get_status_code(
+        resp = self.smart_get_status_code(
             200, self.session_study.id, self.default_forest_task.external_id
         )
         self.assertIn(SIMPLE_FILE_CONTENTS, b"".join(resp.streaming_content))
@@ -316,7 +301,6 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
         'Flight Distance Stddev',
         'Flight Duration Average',
         'Flight Duration Stddev',
-        'Gps Data Missing Duration',
         'Home Duration',
         'Gyration Radius',
         'Significant Location Count',
@@ -366,9 +350,9 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
             f"{self.CURRENT_DATE.isoformat()},"
             f"{self.default_participant.patient_id},"
             f"{self.default_study.object_id},"
-            "5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25.0,26.0,27.0,28.0,29.0,30.0"
-            ",31.0,32,33.0,34.0,35,36.0,37,38.0,39.0,40.0,41.0,42.0,43.0,44,45,46,47,48,49,50,51,52,"
-            "53,54,55,56.0,57,58,59.0,60,61,62,63,64,65,66.0,67.0,68.0,69.0,70.0,71.0\r\n"
+            # to regenerate this next line open a shell and get the output of:
+            # ",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet().values()) + "\r\n"
+            '5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0,43,44,45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61,62,63,64,65.0,66.0,67.0,68.0,69.0,70.0\r\n'
             .encode()
         )
     
@@ -445,13 +429,6 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
 class TestDownloadParticipantTreeData(ResearcherSessionTest):
     ENDPOINT_NAME = "forest_endpoints.download_participant_tree_data"
     
-    summary_field_tree_map = {
-        ForestTree.jasmine: "jasmine_task",
-        ForestTree.oak: "oak_task",
-        ForestTree.sycamore: "sycamore_task",
-        ForestTree.willow: "willow_task",
-    }
-    
     # hardcode these, but generate with
     # b"Date," + ",".join(JASMINE_FIELDS).replace("jasmine_", "").replace("_", " ").title().encode()
     # b"Date," + ",".join(OAK_FIELDS).replace("oak_", "").replace("_", " ").title().encode()
@@ -460,8 +437,8 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
     csv_columns_map = {
         ForestTree.jasmine:
             b'Date,Distance Diameter,Distance From Home,Distance Traveled,Flight Distance Average,'
-            b'Flight Distance Stddev,Flight Duration Average,Flight Duration Stddev,Gps Data '
-            b'Missing Duration,Home Duration,Gyration Radius,Significant Location Count,Significant'
+            b'Flight Distance Stddev,Flight Duration Average,Flight Duration Stddev'
+            b',Home Duration,Gyration Radius,Significant Location Count,Significant'
             b' Location Entropy,Pause Time,Obs Duration,Obs Day,Obs Night,Total Flight Time,Av'
             b' Pause Duration,Sd Pause Duration',
         ForestTree.oak:
@@ -477,18 +454,23 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
             b' Call Duration,Missed Call Count,Missed Callers,Uniq Individual Call Or Text Count'
     }
     
-    # the values for these are permuted in self.default_summary_statistic_daily_cheatsheet
-    # (we do this to create a different value in every field so that we can test and have
-    # something visibly wrong.)
+    # These values are PERMUTED in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet.
+    #
+    # We do this to create a different value in every field so that we can test see something
+    # visibly and knowably go wrong.  This discovers unanticipated changes in the output, not wrong
+    # content.
+    # When changing the fields themselves the values in this list will need to be changed to match
+    # the new field values. (Field type also shifts which numbers are floats.) So, you will get an
+    # error on the tests and you just need to swap in the new values.
     csv_data_line_map = {
         ForestTree.jasmine: CURRENT_TEST_DATE_BYTES + 
-            b",25.0,26.0,27.0,28.0,29.0,30.0,31.0,32,33.0,34.0,35,36.0,37,38.0,39.0,40.0,41.0,42.0,43.0",
+            b",25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0",
         ForestTree.oak: CURRENT_TEST_DATE_BYTES + 
-            b',69.0,70.0,71.0',
+            b',68.0,69.0,70.0',
         ForestTree.sycamore: CURRENT_TEST_DATE_BYTES + 
-            b',63,64,65,66.0,67.0,68.0',
+            b',62,63,64,65.0,66.0,67.0',
         ForestTree.willow: CURRENT_TEST_DATE_BYTES + 
-            b',44,45,46,47,48,49,50,51,52,53,54,55,56.0,57,58,59.0,60,61,62'
+            b',43,44,45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61'
     }
     
     def setup_valid_tree_and_summary_statistic(self, tree_name: str) -> tuple[ForestTask, SummaryStatisticDaily]:
@@ -496,7 +478,7 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
         task.update(forest_tree=tree_name)
         stat = self.default_summary_statistic_daily
         # we need to point at a correctly typed tree
-        stat.update_only(**{self.summary_field_tree_map[tree_name]: task})
+        stat.update_only(**{TREE_TO_TASK_NAME[tree_name]: task})
         return task, stat
     
     def test_no_relation_no_worky(self):
@@ -565,7 +547,7 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
         stat2 = self.generate_summary_statistic_daily(date(2020,1,1))
         
         # we need to point at a correctly typed tree
-        stat2.update_only(**{self.summary_field_tree_map[ForestTree.jasmine]: task})
+        stat2.update_only(**{TREE_TO_TASK_NAME[ForestTree.jasmine]: task})
         
         # get the data, esure it has two lines of data
         # painful to debug, keep the extra variables
@@ -575,5 +557,6 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
         header, line1, line2, split_backslash_r_backslash_n = content.split(b"\r\n")
         self.assertEqual(split_backslash_r_backslash_n, b"")
         self.assertEqual(header, self.csv_columns_map[ForestTree.jasmine])
+        
         self.assertEqual(line2, correct_line)
         self.assertEqual(line1, correct_line.replace(CURRENT_TEST_DATE_BYTES, b"2020-01-01"))
