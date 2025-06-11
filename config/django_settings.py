@@ -24,11 +24,11 @@ DATABASES = {
         'CONN_MAX_AGE': 0,
         'OPTIONS': {
             'sslmode': 'require',
-            # "pool": {
-            #     "min_size": 5,
-            #     "max_size": 20,
-            #     "timeout": 10,
-            # },
+            "pool": {
+                "min_size": 5,
+                "max_size": 20,
+                "timeout": 60,
+            },
         },
         "ATOMIC_REQUESTS": True,  # default is True, just being explicit
         'TEST': {
