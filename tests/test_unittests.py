@@ -13,7 +13,7 @@ from dateutil.tz import gettz
 from django.utils import timezone
 
 from constants.common_constants import API_TIME_FORMAT, CHUNKS_FOLDER, EASTERN, UTC
-from constants.data_stream_constants import SURVEY_ANSWERS, SURVEY_TIMINGS, VOICE_RECORDING
+from constants.data_stream_constants import AUDIO_RECORDING, SURVEY_ANSWERS, SURVEY_TIMINGS
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
@@ -1420,7 +1420,7 @@ class TestDetermineFileName(CommonTestCase):
         d = self.updated_dict(
             chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.wav",
             survey__object_id="thesurveyobjectidvalue",
-            data_type=VOICE_RECORDING,
+            data_type=AUDIO_RECORDING,
         )
         self.assertEqual(
             determine_base_file_name(d),
@@ -1431,7 +1431,7 @@ class TestDetermineFileName(CommonTestCase):
         d = self.updated_dict(
             chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.mp4",
             survey__object_id="thesurveyobjectidvalue",
-            data_type=VOICE_RECORDING,
+            data_type=AUDIO_RECORDING,
         )
         self.assertEqual(
             determine_base_file_name(d),
@@ -1441,7 +1441,7 @@ class TestDetermineFileName(CommonTestCase):
     def test_survey_id_present_in_audio_survey_without_param(self):
         d = self.updated_dict(
             chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.wav",
-            data_type=VOICE_RECORDING,
+            data_type=AUDIO_RECORDING,
         )
         self.assertEqual(
             determine_base_file_name(d),
@@ -1451,7 +1451,7 @@ class TestDetermineFileName(CommonTestCase):
     def test_survey_id_present_in_without_param_or_file_path(self):
         d = self.updated_dict(
             chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/1524857988384.wav",
-            data_type=VOICE_RECORDING,
+            data_type=AUDIO_RECORDING,
         )
         self.assertEqual(
             determine_base_file_name(d),

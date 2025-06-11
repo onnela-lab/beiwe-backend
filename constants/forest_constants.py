@@ -224,7 +224,7 @@ DATA_QUANTITY_FIELD_MAP = {
     SURVEY_ANSWERS: "beiwe_survey_answers_bytes",
     SURVEY_TIMINGS: "beiwe_survey_timings_bytes",
     TEXTS_LOG: "beiwe_texts_bytes",
-    VOICE_RECORDING: "beiwe_audio_recordings_bytes",
+    AUDIO_RECORDING: "beiwe_audio_recordings_bytes",
     WIFI: "beiwe_wifi_bytes",
 }
 

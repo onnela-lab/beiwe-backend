@@ -25,9 +25,9 @@ DATABASES = {
         'OPTIONS': {
             'sslmode': 'require',
             "pool": {
-                "min_size": 1,
-                "max_size": 20,
-                "timeout": 60,
+                "min_size": 0,
+                "max_size": 30,
+                "timeout": 10,
             },
         },
         "ATOMIC_REQUESTS": True,  # default is True, just being explicit

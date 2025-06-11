@@ -454,13 +454,13 @@ class S3File(TimestampedModel):
             SURVEY_ANSWERS:   ("surveyAnswers", SURVEY_ANSWERS, ),
             SURVEY_TIMINGS:   ("surveyTimings", SURVEY_TIMINGS, ),
             TEXTS_LOG:        ("textsLog", TEXTS_LOG, ),
-            VOICE_RECORDING:  ("voiceRecording", VOICE_RECORDING, ),
+            AUDIO_RECORDING:  ("voiceRecording", AUDIO_RECORDING, ),
             WIFI:             ("wifiLog", WIFI, ),
             "key_file":       ("/keys/", ),
             "forest":         ("forest", ),
         }
         
-        not_chunked = AMBIENT_AUDIO, SURVEY_ANSWERS, VOICE_RECORDING, "key_file", "forest"
+        not_chunked = AMBIENT_AUDIO, SURVEY_ANSWERS, AUDIO_RECORDING, "key_file", "forest"
         
         for label, filters in MAPPING.items():
             path_contains = Q()

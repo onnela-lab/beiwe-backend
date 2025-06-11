@@ -1,6 +1,7 @@
 ## Constants for for the keys in DATA_STREAM_TO_S3_FILE_NAME_STRING
 ACCELEROMETER = "accelerometer"
 AMBIENT_AUDIO = "ambient_audio"
+AUDIO_RECORDING = "audio_recordings"
 ANDROID_LOG_FILE = "app_log"
 BLUETOOTH = "bluetooth"
 CALL_LOG = "calls"
@@ -16,12 +17,12 @@ REACHABILITY = "reachability"
 SURVEY_ANSWERS = "survey_answers"
 SURVEY_TIMINGS = "survey_timings"
 TEXTS_LOG = "texts"
-VOICE_RECORDING = "audio_recordings"
 WIFI = "wifi"
 
 
 ALL_DATA_STREAMS = [
     ACCELEROMETER,
+    AUDIO_RECORDING,
     AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
     BLUETOOTH,
@@ -38,14 +39,17 @@ ALL_DATA_STREAMS = [
     SURVEY_ANSWERS,
     SURVEY_TIMINGS,
     TEXTS_LOG,
-    VOICE_RECORDING,
     WIFI,
 ]
+
+ALL_DATA_STREAMS_SET = set(ALL_DATA_STREAMS)
+assert(len(ALL_DATA_STREAMS_SET) == len(ALL_DATA_STREAMS))
 
 SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
 
 UPLOAD_FILE_TYPE_MAPPING = {
     "accel": ACCELEROMETER,
+    "voiceRecording": AUDIO_RECORDING,
     "bluetoothLog": BLUETOOTH,
     "callLog": CALL_LOG,
     "devicemotion": DEVICEMOTION,
@@ -58,7 +62,6 @@ UPLOAD_FILE_TYPE_MAPPING = {
     "surveyAnswers": SURVEY_ANSWERS,
     "surveyTimings": SURVEY_TIMINGS,
     "textsLog": TEXTS_LOG,
-    "voiceRecording": VOICE_RECORDING,
     "wifiLog": WIFI,
     "proximity": PROXIMITY,
     "ios_log": IOS_LOG_FILE,
@@ -72,6 +75,7 @@ REVERSE_UPLOAD_FILE_TYPE_MAPPING = {v: k for k, v in UPLOAD_FILE_TYPE_MAPPING.it
 # Used for debugging and reverse lookups.
 DATA_STREAM_TO_S3_FILE_NAME_STRING = {
     ACCELEROMETER: "accel",
+    AUDIO_RECORDING: "voiceRecording",
     BLUETOOTH: "bluetoothLog",
     CALL_LOG: "callLog",
     GPS: "gps",
@@ -81,7 +85,6 @@ DATA_STREAM_TO_S3_FILE_NAME_STRING = {
     SURVEY_ANSWERS: "surveyAnswers",
     SURVEY_TIMINGS: "surveyTimings",
     TEXTS_LOG: "textsLog",
-    VOICE_RECORDING: "voiceRecording",
     WIFI: "wifiLog",
     PROXIMITY: "proximity",
     GYRO: "gyro",
@@ -136,7 +139,7 @@ DASHBOARD_DATA_STREAMS = [
     SURVEY_ANSWERS,
     SURVEY_TIMINGS,
     TEXTS_LOG,
-    VOICE_RECORDING,
+    AUDIO_RECORDING,
     WIFI,
 ]
 
@@ -158,6 +161,6 @@ COMPLETE_DATA_STREAM_DICT = {
     SURVEY_ANSWERS: "Survey Answers (bytes)",
     SURVEY_TIMINGS: "Survey Timings (bytes)",
     TEXTS_LOG: "Text Log (bytes)",
-    VOICE_RECORDING: "Audio Recordings (bytes)",
+    AUDIO_RECORDING: "Audio Recordings (bytes)",
     WIFI: "Wifi (bytes)",
 }
