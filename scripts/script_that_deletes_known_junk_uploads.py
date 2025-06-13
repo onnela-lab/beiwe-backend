@@ -229,7 +229,7 @@ def main():
             
             for _ in pool.imap_unordered(s3_delete, paths):
                 i += 1
-                if i % 1000 == 0 and i > 0:
+                if i % 10_000 == 0 and i > 0:
                     print(f"deleted {i} files so far...")
             
             # turns out this can detect files that were just uploaded. oops!
