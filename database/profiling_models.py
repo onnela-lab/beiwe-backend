@@ -274,6 +274,7 @@ class UploadTracking(UtilityModel):
         return data
 
 
+# warning: this table is also huge.
 class S3File(TimestampedModel):
     
     class Meta:  # type: ignore

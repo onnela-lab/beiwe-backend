@@ -11,19 +11,20 @@ import multiprocessing
 bind = "127.0.0.1:8000"
 
 # Set the SO_REUSEPORT flag on the listening socket.  Default: False
-# this setting did not appear to change behavior, it may have caused longer deployment operation times.
-# reuse_port = 
+# documentation on what SO_REUSEPORT is: https://lwn.net/Articles/542629/
+# This port-atttachment option should allow multiple processes a more even distribution of accepting
+# connections on the same port.  This is highly desireable, but not our initially observed behavior.
+# Documentation states it must be applied the first connection (all connections?) on the socket.
+reuse_port = True
 
 
 #
 ## Worker Settings
 #
 
-
 # The number of worker PROCESSES. We are a synchronous django app. Observations:
 # 1) Django "opens a database connection when a request comes in".
-# 2) Django is configured to use a database connection pool, which applies to the worker process,
-#    not the thread.  (uh, I _think_.)
+# 2) Django is configured to use a database connection pool, which applies to the worker _thread_.
 # 3) Gunicorn's Sync worker [threads?] hook onto a socket and then rely on the system to distribute
 #    the task to a worker that has not already accepted a connection.  The os manages this
 #    disribution -- apparently -- based order of "first accept" on the socket?
@@ -36,11 +37,11 @@ bind = "127.0.0.1:8000"
 #    differently named database operational errors. Pre-pool We would see sudden spikes in database
 #    connections count aligning with these rejections, implying active high load conditions on the
 #    webserver; similar incidents implied the same on the processing server.
-# 6) a setting on the pool of 4 min and 20 max resulted in errors on upload requests (which are
-#    ~constant) and on data download requests ([then] a long-running database query via an iterator
-#    [a database cursor]) - the specific error was that it couldn't get a database connection within
-#    the timeout period.
-# 7) On the Gthread worker the main thread decides which worker thread handles the request... so 
+# 6) a setting on the pool of 4 min and 20 max with a timeout of 10 seconds resulted in errors on
+#    upload requests (which are ~constant) and on data download requests ([then] a long-running
+#    database query via an iterator [a database cursor]) - the specific error was that it couldn't
+#    get a database connection within the timeout period.
+# 7) On the Gthread worker the main thread decides which worker thread handles the request... so
 #    maybe that's why it is picking up tasks when there are insufficient database connections?
 
 

@@ -22,13 +22,22 @@ DATABASES = {
         'PASSWORD': os.environ['RDS_PASSWORD'],
         'HOST': os.environ['RDS_HOSTNAME'],
         'CONN_MAX_AGE': 0,
+        'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {
             'sslmode': 'require',
             "pool": {
-                "min_size": 0,
-                "max_size": 30,
-                "timeout": 10,
+                # settings of min_size: 0, max_size: 30, timeout: 10, had connection errors after 6 hours
+                "min_size": 0,       # scale down minimum
+                "max_size": 60,      # scale up maximum
+                "timeout": 10,       # seconds to wait for a connection in the pool before giving up.
+                # "open": False,       # create new connections on initialization -- ok you cannot set this to false here
+                "max_waiting": 0,    # number of waiting operations, set to unlimited.
+                # "max_lifetime": X, # seconds allowed for age of a connection, default one hour.
+                "max_idle": 60,      # seconds until inactive connection close, default is 10 _minutes_.
+                "reconnect_timeout": 5,  # seconds to wait before retrying a connection. default is 5 _minutes_
+                # "num_workers": 3,  # number of cleanup worker threads to use, default is 3.
             },
+            'client_encoding': 'UTF-8',
         },
         "ATOMIC_REQUESTS": True,  # default is True, just being explicit
         'TEST': {
@@ -149,9 +158,10 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.jinja2.Jinja2',
         'APP_DIRS': False,
         'DIRS': [
-            "frontend/templates/",
+            "frontend/templates",
             "frontend/static/javascript",
             "frontend/static/css",
+            "frontend/static",
         ],
         'OPTIONS': {
             'autoescape': True,
