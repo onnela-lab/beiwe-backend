@@ -1,5 +1,8 @@
+from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from time import perf_counter
+
+from django.utils import timezone
 
 from database.models import S3File
 from libs.s3 import s3_delete
@@ -213,6 +216,7 @@ sha1_hashes = [
 
 def main():
     pool = ThreadPool(processes=20)
+    one_week_ago = timezone.now() - timedelta(days=7)
     
     t1 = perf_counter()
     
@@ -228,7 +232,8 @@ def main():
                 if i % 1000 == 0 and i > 0:
                     print(f"deleted {i} files so far...")
             
-            S3File.fltr(path__in=paths).delete()
+            # turns out this can detect files that were just uploaded. oops!
+            S3File.fltr(path__in=paths, created_on__lt=one_week_ago).delete()
         
         print(f"found and deleted {i} files total. (Current runtime: {perf_counter() - t1:.2f} seconds)")
     
