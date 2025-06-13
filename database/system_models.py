@@ -77,12 +77,6 @@ class GlobalSettings(SingletonModel):
     def cached_downtime_enabled(cls) -> bool:
         """ Returns the cached value of downtime_enabled. """
         return cls.singleton().downtime_enabled
-    
-    @classmethod
-    @timeout_cache(seconds=60)
-    def cached_push_notification_resend_enabled(cls) -> datetime | None:
-        """ Returns the cached value of push_notification_resend_enabled. """
-        return cls.singleton().push_notification_resend_enabled
 
 
 class DataAccessRecord(TimestampedModel):
