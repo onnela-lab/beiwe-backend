@@ -290,15 +290,9 @@ class S3File(TimestampedModel):
     # TODO: is there a way to compress this down without losing substantial precision?
     size_uncompressed = models.PositiveBigIntegerField(null=True, blank=True)
     size_compressed = models.PositiveBigIntegerField(null=True, blank=True)
-    compression_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    decompression_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    encryption_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    download_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    upload_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    decrypt_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     
-    # TODO: add this field maybe?
-    # glacier = models.BooleanField(default=False)
+    # TODO: add functionality to this field (big feature)
+    glacier = models.BooleanField(default=False)
     
     study_id: int
     participant_id: int

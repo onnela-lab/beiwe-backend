@@ -210,25 +210,10 @@ class S3Storage:
         assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_AT_COMPRESSION
         self.metadata.size_uncompressed = len(self.uncompressed_data)
-        
         # sha1 is twice as fast as md5, it is 20 bytes, we care about speed here.
         self.metadata.sha1 = hashlib.sha1(self.uncompressed_data).digest()
-        
-        t_compress = perf_counter_ns()
         self.compressed_data = compress(self.uncompressed_data)
-        t_compress = perf_counter_ns() - t_compress
-        self.metadata.compression_time_ns = t_compress
         self.metadata.size_compressed = len(self.compressed_data)
-    
-    ## Decompress
-    
-    def _decompress_and_profile(self):
-        # data as optional because sometimes we want to avoid storing compressed data on the S3Storage object
-        t_decompress = perf_counter_ns()
-        self.uncompressed_data = decompress(self.compressed_data)
-        t_decompress = perf_counter_ns() - t_decompress
-        self.metadata.decompression_time_ns = t_decompress
-        self.metadata.size_uncompressed = len(self.uncompressed_data)
     
     ## Download
     
@@ -254,7 +239,8 @@ class S3Storage:
     def _download_decompress_and_profile_clearing_compressed(self):
         # This line should be the error on when there is no compressed copy
         self.compressed_data = self._s3_retrieve_zst_and_profile()
-        self._decompress_and_profile()
+        self.uncompressed_data = decompress(self.compressed_data)
+        self.metadata.size_uncompressed = len(self.uncompressed_data)
         del self.compressed_data
         self.update_s3_table()
     
@@ -275,6 +261,7 @@ class S3Storage:
     #
     
     def update_metadata(self, **kwargs):
+        """ for use if an external source has metadata to update """
         for k,v in kwargs.items():
             self.metadata[k] = v
     
@@ -323,16 +310,9 @@ class S3Storage:
         """ Manually manage these memory/reference count operations.  It matters.
         This is a critical performance path. DO NOT separate into further functions calls without
         profiling memory usage. """
-        
-        t_encrypt = perf_counter_ns()
         encrypted_compressed_data = encrypt_for_server(self.compressed_data, self.encryption_key)
-        t_encrypt = perf_counter_ns() - t_encrypt
-        self.metadata.encryption_time_ns = t_encrypt
         
-        t_upload = perf_counter_ns()
         _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
-        t_upload = perf_counter_ns() - t_upload
-        self.metadata.upload_time_ns = t_upload
         
         del encrypted_compressed_data  # 0x memory
         self.update_s3_table()
@@ -345,7 +325,6 @@ class S3Storage:
     def _s3_retrieve_zst_and_profile(self) -> bytes:
         key = self.encryption_key  # may have network/db op
         
-        t_download = perf_counter_ns()
         try:
             data = self._raw_s3_retrieve(self.s3_path_zst)
         except NoSuchKeyException:
@@ -353,14 +332,8 @@ class S3Storage:
             self.delete_s3_table_entry_zst()
             raise
         
-        t_download = perf_counter_ns() - t_download
-        self.metadata.download_time_ns = t_download
         
-        t_decrypt = perf_counter_ns()
         ret = decrypt_server(data, key)
-        t_decrypt = perf_counter_ns() - t_decrypt
-        self.metadata.decrypt_time_ns = t_decrypt
-        
         self.metadata.size_compressed = len(ret)  # after decryption, no iv or padding
         del data
         

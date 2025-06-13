@@ -1314,12 +1314,6 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
         self.assertEqual(s3_file.study, self.default_study)
         self.assertEqual(s3_file.participant, self.default_participant)
-        self.assertIsNone(s3_file.compression_time_ns)
-        self.assertIsNone(s3_file.encryption_time_ns)
-        self.assertIsNone(s3_file.upload_time_ns)
-        self.assertIsNotNone(s3_file.decrypt_time_ns)
-        self.assertIsNotNone(s3_file.download_time_ns)
-        self.assertIsNotNone(s3_file.decompression_time_ns)
         self.assertIsNone(s3_file.sha1)
     
     def assert_correct_uploaded_s3file(self, s3_file: S3File):
@@ -1328,12 +1322,6 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
         self.assertEqual(s3_file.study, self.default_study)
         self.assertEqual(s3_file.participant, self.default_participant)
-        self.assertIsNotNone(s3_file.compression_time_ns)
-        self.assertIsNotNone(s3_file.encryption_time_ns)
-        self.assertIsNotNone(s3_file.upload_time_ns)
-        self.assertIsNone(s3_file.decrypt_time_ns)
-        self.assertIsNone(s3_file.download_time_ns)
-        self.assertIsNone(s3_file.decompression_time_ns)
         self.assertEqual(s3_file.sha1, hashlib.sha1(b"content").digest())
     
     def assert_correct_uploaded_s3file_already_compressed(self, s3_file: S3File):
@@ -1342,15 +1330,9 @@ class TestS3Storage(CommonTestCase):
         self.assertIsNotNone(s3_file.participant_id)
         self.assertIsNotNone(s3_file.study_id)
         self.assertIsNotNone(s3_file.size_compressed)
-        self.assertIsNotNone(s3_file.encryption_time_ns)
-        self.assertIsNotNone(s3_file.upload_time_ns)
         self.assertIsNotNone(s3_file.last_updated)
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
         self.assertEqual(s3_file.study, self.default_study)
-        self.assertIsNone(s3_file.compression_time_ns)
-        self.assertIsNone(s3_file.decompression_time_ns)
-        self.assertIsNone(s3_file.decrypt_time_ns)
-        self.assertIsNone(s3_file.download_time_ns)
         self.assertIsNone(s3_file.sha1)
         self.assertIsNone(s3_file.size_uncompressed)
 
