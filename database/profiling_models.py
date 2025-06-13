@@ -277,7 +277,10 @@ class UploadTracking(UtilityModel):
 class S3File(TimestampedModel):
     
     class Meta:  # type: ignore
-        indexes = [models.Index(fields=["created_on"], name="s3file_created_on_idx"), ]
+        indexes = [
+            models.Index(fields=["created_on"], name="s3file_created_on_idx"),
+            models.Index(fields=["sha1"], name="s3file_sha1_idx"),
+        ]
     
     study: Study = models.ForeignKey("Study", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
     participant: Participant = models.ForeignKey("Participant", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
