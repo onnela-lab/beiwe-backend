@@ -225,7 +225,7 @@ def main():
         print(f"Searching files with hash '{a_hex}'...")
         
         # this returns items almost immediately even if the table is massive
-        while paths:= list(S3File.flat("path", sha1=bytes.fromhex(a_hex))[:10_000]):
+        while paths:= list(S3File.flat("path", sha1=bytes.fromhex(a_hex), created_on__lt=one_week_ago)[:10_000]):
             
             for _ in pool.imap_unordered(s3_delete, paths):
                 i += 1
