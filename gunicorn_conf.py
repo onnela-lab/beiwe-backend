@@ -122,7 +122,7 @@ graceful_timeout = 5
 # throttling for those clients on a doubled-up process (observed ~halved data download rate).
 # Disabled - processes are used more evenly, slowly loading up the 100MB and then larger memory
 # usage states. utilization seems spread out.
-preload_app = False
+preload_app = True
 
 
 #
