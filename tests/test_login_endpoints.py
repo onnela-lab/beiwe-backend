@@ -468,17 +468,25 @@ class TestDowntime(BasicSessionTestCase):
     """ Tests our very basic downtime middleware """
     
     def test_downtime(self):
+        from libs.utils.timeout_cache import THE_TIMEOUT_CACHE
         # this test emits a logging statement `ERROR:django.request:Service Unavailable: /`
         # that we want to squash, but we want to set logging level back to normal when we are done.
         previous_logging_level = logging.getLogger("django.request").level
         try:
             logging.getLogger("django.request").setLevel(logging.CRITICAL)
+            THE_TIMEOUT_CACHE.clear()
             GlobalSettings.singleton().update(downtime_enabled=False)
             self.easy_get("login_endpoints.login_page", status_code=200)
+            self.assertNotEqual(len(THE_TIMEOUT_CACHE), 0)
+            THE_TIMEOUT_CACHE.clear()
             GlobalSettings.singleton().update(downtime_enabled=True)
             self.easy_get("login_endpoints.login_page", status_code=503)
+            self.assertNotEqual(len(THE_TIMEOUT_CACHE), 0)
+            THE_TIMEOUT_CACHE.clear()
             GlobalSettings.singleton().update(downtime_enabled=False)
             self.easy_get("login_endpoints.login_page", status_code=200)
+            self.assertNotEqual(len(THE_TIMEOUT_CACHE), 0)
+            THE_TIMEOUT_CACHE.clear()
         except Exception:
             raise
         finally:

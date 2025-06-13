@@ -8,6 +8,7 @@ from django.db import models
 
 from database.common_models import TimestampedModel
 from database.user_models_researcher import Researcher
+from libs.utils.timeout_cache import timeout_cache
 
 
 class FileAsText(TimestampedModel):
@@ -70,6 +71,18 @@ class GlobalSettings(SingletonModel):
     # notification feature can be activated.  (this defines a check on historical ArchivedEvent
     # created_on times.)
     push_notification_resend_enabled: datetime = models.DateTimeField(default=None, null=True, blank=True)
+    
+    @classmethod
+    @timeout_cache(seconds=60)
+    def cached_downtime_enabled(cls) -> bool:
+        """ Returns the cached value of downtime_enabled. """
+        return cls.singleton().downtime_enabled
+    
+    @classmethod
+    @timeout_cache(seconds=60)
+    def cached_push_notification_resend_enabled(cls) -> datetime | None:
+        """ Returns the cached value of push_notification_resend_enabled. """
+        return cls.singleton().push_notification_resend_enabled
 
 
 class DataAccessRecord(TimestampedModel):
