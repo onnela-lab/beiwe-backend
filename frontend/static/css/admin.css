@@ -193,6 +193,11 @@ select > option:checked {
 hr {border-top: 1px solid var(--forest-green-dark);}
 
 
+.margin-auto {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
 
 /* navbar links need some forcing */
 .dropdown-nice .open > a:focus {
@@ -592,7 +597,9 @@ td.custom-field-value:hover span.custom-field-edit-link {
     }
 } */
 
-
+.btn {
+      font-weight: bold;
+}
 /* btns require some dumb forcing, missing something in original that breaks these */
 /* btn warning, uses yellow (neon) */
 .btn-warning { color: var(--text-on-yellow) !important; background-color: var(--Byellow);  border-color:  var(--Byellow); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow); }

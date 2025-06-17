@@ -8,33 +8,98 @@
 
 <div class="container">
   <br><br>
-  <div class="col-xs-1 col-md-3"></div>
-  <div class="col-xs-12 col-md-6">
-      <div class="well" style="min-height: 200px;">
-      
-      <h3 class="pulse-lt1-lt2">Log In</h3>
-      <form method="POST" action="/validate_login" class="">
-        <input name="username" type="text" placeholder="Username" autofocus/>
-        <input name="password" type="password" placeholder="Password" />
-        <input name="mfa_code" type="mfa_code"  placeholder="(optional MFA code)" class="h3-margins-vertical"/>
+  {# <div class="col-xs-1 col-md-3"></div> #}
+  <div class="col-xs-12">
+    <div
+      class="well"
+      style="min-height: 300px;"
+    >
+
+      <h1 class="h2 pulse-lt1-lt2 text-center marg-t-2 marg-r-4">Log In</h1>
+
+      <form
+        method="POST"
+        action="/validate_login"
+        class="input-lg"
+      >
+
+        <input
+          name="username"
+          type="text"
+          placeholder="Username"
+          aria-label="Username field"
+          autofocus
+        />
+
+        <input
+          name="password"
+          type="password"
+          aria-label="Password field"
+          placeholder="Password"
+        />
+
+        <input
+          name="mfa_code"
+          type="mfa_code"
+          placeholder="(optional MFA code)"
+          aria-label="optional MFA Code field"
+          title="Mult-factor authentication may be required on your account, if it is not configured you will be directed to configure it after you log in."
+        />
         {% if redirect_page %}
-          <input type="hidden" name="referrer" value="{{redirect_page}}" />
+
+        <input
+          type="hidden"
+          name="referrer"
+          value="{{redirect_page}}"
+        />
         {% endif %}
-        <input type="submit" name="submit" value="Log in" class="btn btn-large btn-success marg-l-4 h3-margins-vertical">
+
+        <input
+          type="submit"
+          name="submit"
+          value="Log in"
+          aria-label="Log in button"
+          class="btn btn-lg marg-l-4 btn-success"
+          style="line-height: 0 !important; padding: -10px -20px !important;"
+        >
+
       </form>
     </div>
-    
-    <div class="col-xs-1 col-md-3">
-    </div>
+
+    {# <div class="col-xs-1 col-md-3"> #}
   </div>
-  {# Informational text from the old Beiwe website #}
-  {% comment %} <div class="row">
-    <hr>
-    <h2>Welcome to the Beiwe App Website</h2>
-    <p>Beiwe is a smartphone application that functions as a data collection platform. Unlike the large majority of commercially available applications, Beiwe is intended for biomedical research. Our primary activity in this area is the development of statistical learning methods and software for analyzing and modeling data collected from Beiwe. Our initial application areas of digital phenotyping are psychiatric and neurodegenerative disorders, where we aim to generate new outcome measures and social and behavioral biomarkers that can be used in diagnostication and monitoring of these disorders. Our work in Digital Phenotyping is primarily supported by an NIH Director’s New Innovator Award made to Dr. Onnela. Here is the HSPH <a href="http://www.hsph.harvard.edu/news/features/jp-onnela-wins-nih-directors-new-innovator-award/">Press Release</a>.</p>
-    <p>Progress in medical science has always been driven by high quality data. A longstanding barrier to progress, both in clinical settings and research trials, has been the fundamental difficulty of accurately measuring the human phenotype, including but not limited to physical mobility, gross motor activity, speech production, behavioral patterns, and social engagement. Smartphones are now ubiquitous and can be harnessed to offer medicine a wealth of data on the human phenotype. Subjects can be instrumented using dedicated scientific apps that generate continuous streams of behavioral data. This approach has enormous potential, but data alone are not enough: the data need to be coupled with appropriate statistical learning tools in order to fully leverage their potential. Only then can these data be transformed into clinically valid and useful information, the kind of information that can transform research and discovery and, ultimately, patient health.</p>
-    <p>We have coined the term <b>digital phenotyping</b> to refer to the <i>moment-by-moment quantification of the individual-level human phenotype, in situ, using data from digital devices</i>. It is enabled by the combination of rich behavioral data from personal digital devices and appropriate statistical learning methods. Human behavior is also context specific, which is why we believe characterizing behavior <i>in situ</i>–life as lived and experienced by people in their everyday surroundings–is critical. Our understanding of the human genotype has been revolutionized in the past two decades, but there are at present many areas of medicine where some of the most important challenges lie in characterizing the associated human phenotype. This is where Digital Phenotyping comes in.</p>
-  </div> {% endcomment %}
+</div>
+{# Informational text from the old Beiwe website #}
+{% comment %} <div class="row">
+  <hr>
+  <h2>Welcome to the Beiwe App Website</h2>
+  <p>Beiwe is a smartphone application that functions as a data collection platform. Unlike the large majority of
+    commercially available applications, Beiwe is intended for biomedical research. Our primary activity in this area
+    is the development of statistical learning methods and software for analyzing and modeling data collected from
+    Beiwe. Our initial application areas of digital phenotyping are psychiatric and neurodegenerative disorders, where
+    we aim to generate new outcome measures and social and behavioral biomarkers that can be used in diagnostication
+    and monitoring of these disorders. Our work in Digital Phenotyping is primarily supported by an NIH Director’s New
+    Innovator Award made to Dr. Onnela. Here is the HSPH <a
+      href="http://www.hsph.harvard.edu/news/features/jp-onnela-wins-nih-directors-new-innovator-award/"
+    >Press Release</a>.</p>
+  <p>Progress in medical science has always been driven by high quality data. A longstanding barrier to progress, both
+    in clinical settings and research trials, has been the fundamental difficulty of accurately measuring the human
+    phenotype, including but not limited to physical mobility, gross motor activity, speech production, behavioral
+    patterns, and social engagement. Smartphones are now ubiquitous and can be harnessed to offer medicine a wealth of
+    data on the human phenotype. Subjects can be instrumented using dedicated scientific apps that generate continuous
+    streams of behavioral data. This approach has enormous potential, but data alone are not enough: the data need to
+    be coupled with appropriate statistical learning tools in order to fully leverage their potential. Only then can
+    these data be transformed into clinically valid and useful information, the kind of information that can transform
+    research and discovery and, ultimately, patient health.</p>
+  <p>We have coined the term <b>digital phenotyping</b> to refer to the <i>moment-by-moment quantification of the
+      individual-level human phenotype, in situ, using data from digital devices</i>. It is enabled by the combination
+    of rich behavioral data from personal digital devices and appropriate statistical learning methods. Human behavior
+    is also context specific, which is why we believe characterizing behavior <i>in situ</i>–life as lived and
+    experienced by people in their everyday surroundings–is critical. Our understanding of the human genotype has been
+    revolutionized in the past two decades, but there are at present many areas of medicine where some of the most
+    important challenges lie in characterizing the associated human phenotype. This is where Digital Phenotyping comes
+    in.</p>
+</div> {% endcomment %}
 </div>
 
 {% endblock %}
