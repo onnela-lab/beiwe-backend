@@ -21,13 +21,14 @@
 
   {% if site_admin or is_study_admin %}
   <div class="col-xs-8">
-    <h2>{{ study.name }}</h2>
+    <h1 class="h2">{{ study.name }}</h2>
   </div>
 
   <div class="col-xs-4 h3-margins-vertical">
     <a
       href="/edit_study/{{ study['id'] }}"
       class="btn btn-success pull-right text-large"
+      aria-label="Edit settings for the Study"
     >
       Edit This Study
     </a>
@@ -41,7 +42,7 @@
   <div class="col-xs-3 marg-t-0-5">
     <a
       href="/dashboard/{{ study['id'] }}"
-      class="btn btn-info h3-margins-vertical"
+      class="btn btn-info h3-margins-vertical pull-right"
     >
       View the Study Dashboard
     </a>
@@ -49,9 +50,9 @@
   {% endif %}
 
   <div>
-    <h3 class="marg-t-1 marg-b-n-0-5 marg-l-0-5">
+    <h2 class="h3 marg-t-1 marg-b-n-0-5 marg-l-0-5">
       Participants
-    </h3>
+    </h2>
     <span class="pull-right italic text-mono">
       Study ID: {{ study.object_id }}
     </span>
@@ -100,7 +101,10 @@
           value="{{ study.id }}"
         >
 
-        <button class="btn btn-primary">Download Participants Table</button>
+        <button
+          class="btn btn-primary"
+          aria-label="Download the Participants Table Data As a CSV"
+        >Download Participants Table</button>
       </div>
 
     </form>
@@ -108,6 +112,8 @@
     <form
       action="/create_new_participant"
       method="post"
+      title="Create one new participant eligible to enroll in this study"
+      aria-label="Create one new participant eligible to enroll in this study"
     >
       <div class="pull-right h3-margins-vertical marg-l-1">
 
@@ -126,24 +132,24 @@
       class="btn btn-success pull-right h3-margins-vertical"
       data-toggle="modal"
       data-target="#addManyPatientsModal"
-      title="Enable a number of new participants to enroll in {{ study.name }}: 
-              download a file of new Patient IDs and registration passwords"
+      title="Create multiple new participants who can enroll in this study.  
+              Generates a CSV file of new Patient IDs and registration passwords."
     >Add <b>Many</b> New Participants</button>
     {% include 'create_many_participants_modal.html' %}
   </div>
-  
+
   <hr>
 
   <div class="col-xs-11">
-    <h3> Edit Surveys </h3>
+    <h2 class="h3"> Edit Surveys </h2>
   </div>
-  
+
   <div class="col-xs-1">
     <a
       href="/create_survey/{{ study.id }}/tracking_survey"
       class="btn btn-info h3-margins pull-right marg-r-n-1"
     >
-      Create New <b>Survey</b></a>
+      Create New Survey</a>
   </div>
 
 
@@ -155,6 +161,7 @@
       <a
         href="/edit_survey/{{study_id}}/{{info["id"] }}"
         class="list-group-item survey-button-margins"
+        aria-label="Edit Survey '{{info["name"]}}', last updated {{info["last_updated"]}}, with ID {{info["object_id"]}}"
       >
 
         <span class="col-xs-9">
@@ -165,7 +172,10 @@
           {% endif %}
         </span>
         {# stick these metadata into a small table so we can stack them #}
-        <table class="survey-inline-table pull-right">
+        <table
+          class="survey-inline-table pull-right"
+          aria-hidden="true"
+        >
           <div class="col-xs-3">
             <tr>
               <td>
@@ -191,9 +201,9 @@
 
   <div class="clearfix"></div>
   <hr>
-  
+
   <div class="col-xs-11">
-    <h3> Edit Audio Surveys </h3>
+    <h2 class="h3"> Edit Audio Surveys </h2>
   </div>
 
   <div class="col-xs-1">
@@ -201,7 +211,7 @@
       href="/create_survey/{{ study.id }}/audio_survey"
       class="btn btn-info h3-margins pull-right marg-r-n-1"
     >
-      Create New <b>Audio Survey</b></a>
+      Create New Audio Survey</a>
   </div>
 
 
@@ -213,6 +223,7 @@
       <a
         href="/edit_survey/{{study_id}}/{{info["id"] }}"
         class="list-group-item survey-button-margins"
+        aria-label="Edit Audio Survey {{info["name"]}} with ID {{info["object_id"]}}"
       >
         <span class="col-xs-9">
           {% if info["name"].startswith("(Unnamed Survey") %}
@@ -246,12 +257,12 @@
     </div>
     {% endif %}
   </div>
-  
+
   <div class="clearfix"></div>
   <hr>
-  
+
   <div>
-    <h3>Study Configuration</h3>
+    <h2 class="h3">Study Configuration</h2>
 
     <div class="col-xs-12 well">
       {% if push_notifications_enabled %}
@@ -324,7 +335,7 @@
   <div class="clearfix"></div>
   <hr>
   <div>
-    <h3>Forest Data Analysis</h3>
+    <h2 class="h3">Forest Data Analysis</h2>
     <div class="col-xs-12 well">
 
       {% if site_admin %}
@@ -353,7 +364,6 @@
   </div>
   {% endif %}
 
-</div>
 </div>
 
 {% endblock %}

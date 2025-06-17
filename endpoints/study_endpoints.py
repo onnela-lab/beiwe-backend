@@ -42,8 +42,8 @@ def get_researcher_allowed_studies_searchable(request: ResearcherRequest):
     studies = list(get_administerable_studies_by_name(request).values("id", "name", "object_id"))
     for s in studies:
         s["search_text"] = f"{s['name']} {s['object_id']}"
-    return studies
 
+    return studies
 
 @require_GET
 @authenticate_researcher_login
@@ -55,7 +55,7 @@ def choose_study_page(request: ResearcherRequest):
     # If the admin is authorized to view exactly 1 study, redirect to that study,
     # Otherwise, show the "Choose Study" page
     if allowed_studies.count() == 1:
-        return redirect('/view_study/{:d}'.format(allowed_studies.values_list('pk', flat=True).get()))
+        return redirect('/view_study/{:d}'.format(allowed_studies.value_get('pk')))
     
     return render(
         request,

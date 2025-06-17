@@ -1,36 +1,104 @@
-<div class="modal fade" id="addManyPatientsModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <form action="/create_many_patients/{{ study.id }}" method="post" id="createManyPatientsForm">
-                <div class="modal-header">
-                    <button  class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title" id="myModalLabel">Add many new participants</h4>
-                    <p>Create a number of new Patient IDs, and download a CSV file of the new Patient IDs with their registration passwords.</p>
-                    <p><b>Important: there is no way to delete a Patient ID!</b> Make sure you really do want to create this many new Patient IDs.</p>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Number of new patient IDs to generate: &nbsp;</label>
-                        <input class="form-control" type="number" name="number_of_new_patients" required="true">
-                    </div>
-                    <div class="form-group">
-                        <label>Name of file to export: &nbsp;</label>
-                        <input class="form-control" type="text" name="desired_filename" value="new_patient_ids.csv" required="true">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <div id="many-new-patients-loading-spinner">
-                        <p><b>This may take several minutes</b>, because it's computationally intensive for Beiwe to create cryptographically secure keys for each patient. <b>Do not close this window until your file finishes downloading.</b></p>
-                        <!--<div class="progress">
-                            <div class="progress-bar progress-bar-striped active" role="progressbar" style="width: 100%"><span class="sr-only">Loading...</span></div>
-                        </div>-->
-                    </div>
-                    <div id="many-new-patients-submit-and-cancel-buttons">
-                        <button  class="btn btn-default" data-dismiss="modal">Cancel</button>
-                        <button  class="btn btn-primary" id="createManyPatientsButton">Create new Patient IDs</button>
-                    </div>
-                </div>
-            </form>
+<div
+  class="modal fade"
+  id="addManyPatientsModal"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="myModalLabel"
+>
+  <div class="modal-dialog modalSize">
+    <div class="modal-content">
+      <form
+        action="/create_many_patients/{{ study.id }}"
+        method="post"
+        id="createManyPatientsForm"
+      >
+        <div class="modal-header">
+
+          <button
+            class="close"
+            data-dismiss="modal"
+          ><span aria-hidden="true">&times;</span></button>
+
+          <h3
+            class="modal-title h4 text-center h3-margins"
+            id="myModalLabel"
+          >Add Multiple New Participants</h3>
         </div>
+        <div class="modal-body">
+
+          <div class="well block">
+            {# text does not wrap correctly inside these blocks and I don't know why #}
+            <p>
+              Create a number of new Participants, and download a CSV file of the new
+              <br>
+              participant IDs with their registration passwords.
+            </p>
+            <p>
+              <b>To delete a participant ID </b> Make sure you will need to enter their page and
+              <br>
+              click the Permanantly Delete All Participant Data button.
+            </p>
+
+            <div class="form-group marg-t-1">
+              <input
+                class="form-control"
+                type="number"
+                id="number_of_new_patients"
+                name="number_of_new_patients"
+                required="true"
+                placeholder="Number of new participant IDs to generate"
+                aria-label="Number of new participant IDs to generate"
+              />
+            </div>
+            <div class="form-group">
+
+              <label for="desired_filename">Name of file to generate: &nbsp;</label>
+
+              <input
+                class="form-control"
+                type="text"
+                id="desired_filename"
+                name="desired_filename"
+                value="new_participant_ids.csv"
+                required="true"
+                aria-label="Name of the CSV file to generate."
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div
+            id="many-new-patients-loading-spinner"
+            class="well"
+            style="margins: auto;"
+          >
+            {# text does not wrap correctly inside these blocks and I don't know why #}
+            <p><b>This may take several minutes.</b> </p>
+            <p>
+              It is computationally intensive for Beiwe to create cryptographically secure
+              <br>
+              keys for each participant. <b>Do not close this window until your file finishes
+                <br>
+                downloading.</b>
+            </p>
+          </div>
+          <div id="many-new-patients-submit-and-cancel-buttons">
+
+            <button
+              class="btn btn-default"
+              data-dismiss="modal"
+              aria-label="Cancel creating multiple new participant IDs"
+            >Cancel</button>
+
+            <button
+              class="btn btn-primary"
+              id="createManyPatientsButton"
+              aria-label="Create new participant IDs"
+            >Create New Participants</button>
+          </div>
+        </div>
+
+      </form>
     </div>
+  </div>
 </div>

@@ -68,7 +68,6 @@
 @property --list-group-bg { initial-value: #375a7f; syntax: "<color>"; inherits: true;}
 @property --list-group-bg-desat { initial-value: #535A61; syntax: "<color>"; inherits: true;}
 
-
 /* customize base theming backgrounds */
 
 .container {
@@ -111,10 +110,7 @@
 
 .modal-content {
     background: var(--Bblack);
-    /* box-shadow: 0pt 5pt 5pt 5pt var(--Bblack-half); */
-    /* border-radius: 10pt; */
 }
-
 
 /* inputs have blazing white backgrounds - text color does not work consistently*/
 input:not([type=submit]) {
@@ -129,6 +125,9 @@ input:not([type=submit]) {
 input[type=text]:hover { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
 input[type=text]:focus { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
 input[type=text]:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; animation: pulse-outline 3s infinite !important;}
+input[type=number]:hover { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
+input[type=number]:focus { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
+input[type=number]:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; animation: pulse-outline 3s infinite !important;}
 input[type=password]:hover { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
 input[type=password]:focus { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
 input[type=password]:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; animation: pulse-outline 3s infinite !important;}
@@ -597,9 +596,9 @@ td.custom-field-value:hover span.custom-field-edit-link {
     }
 } */
 
-.btn {
-      font-weight: bold;
-}
+
+
+
 /* btns require some dumb forcing, missing something in original that breaks these */
 /* btn warning, uses yellow (neon) */
 .btn-warning { color: var(--text-on-yellow) !important; background-color: var(--Byellow);  border-color:  var(--Byellow); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow); }

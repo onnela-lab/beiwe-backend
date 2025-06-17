@@ -14,7 +14,7 @@ from django.db.models import Count, Q, QuerySet
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import RelatedField
 from django.db.models.manager import BaseManager
-from django.db.models.query import BaseIterable, QuerySet, ValuesIterable, ValuesListIterable
+from django.db.models.query import BaseIterable, ValuesIterable, ValuesListIterable
 from django.utils.timezone import localtime
 
 from constants.common_constants import DEV_TIME_FORMAT3, DT_24HR_W_TZ_W_SEC_N_PAREN, EASTERN
@@ -494,13 +494,28 @@ def _rdrby(self, *args, **kwargs) -> QuerySet[Self]:  # type: ignore
         return self.order_by(*args, **kwargs)
 
 
+# This almost works but real queries still are not annotated with these methods by the type checker
+# if typing.TYPE_CHECKING:
+#     class QuerySet[ list ](_QuerySet):
+#         vlist = _vlist
+#         value_get = _value_get
+#         vdict = _vdict
+#         obj_get = _obj_get
+#         fltr = _fltr
+#         xcld = _xcld
+#         flat = _flat
+#         rdrby = _rdrby
+# else:
+#    QuerySet = _QuerySet
+
 # and this is where we assign them - there's a bunch of typing errors, they are wrong. XD
 for _T in (QuerySet, BaseIterable, BaseManager, ValuesIterable, ValuesListIterable):
-    _T.vlist = _vlist  # type: ignore
-    _T.value_get = _value_get  # type: ignore
-    _T.vdict = _vdict  # type: ignore
-    _T.obj_get = _obj_get  # type: ignore
-    _T.fltr = _fltr  # type: ignore
-    _T.xcld = _xcld  # type: ignore
-    _T.flat = _flat  # type: ignore
-    _T.__repr__ = terminal_legible_dt_magic  # type: ignore
+    setattr(_T, "vlist", _vlist)
+    setattr(_T, "value_get", _value_get)
+    setattr(_T, "vdict", _vdict)
+    setattr(_T, "obj_get", _obj_get)
+    setattr(_T, "fltr", _fltr)
+    setattr(_T, "xcld", _xcld)
+    setattr(_T, "flat", _flat)
+    setattr(_T, "rdrby", _rdrby)
+    setattr(_T, "__repr__", terminal_legible_dt_magic)
