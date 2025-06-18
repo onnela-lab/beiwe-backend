@@ -26,28 +26,35 @@
 
 {% block content %}
 <div class="container">
+
   <ol class="breadcrumb">
     <li>
-      <a href="/manage_studies">Manage Studies</a>
+      <a
+        href="/manage_studies"
+        aria-label="click to go to the Manage Studies page"
+      >Manage Studies</a>
     </li>
     <li>
-      <a href={{easy_url("study_endpoints.view_study_page", study.id)}}>{{ study.name }}</a>
+      <a
+        href={{easy_url("study_endpoints.view_study_page", study.id)}}
+        aria-label="click to go to the study page for {{ study.name }}"
+      >{{ study.name }}</a>
     </li>
   </ol>
 
+  {# this overboard formatting is required to keep the link text on one line #}
   <div class="col-xs-12 well">
     <div class="col-xs-4 marg-l-n-1">
-      <h2>Edit App Settings</h2>
+      <h1 class="h2">Edit App Settings</h1>
     </div>
-    <div class="col-xs-9 h2-margins-vertical text-center bold marg-l-n-5 marg-r-n-1">
-      <h4>
-        <a
-          href="/device_settings/{{ study.id }}"
-          class="underline"
-        >
-          Edit the types of data this study collects, and text that study participants see in the app
-        </a>
-      </h4>
+    <div class="col-xs-9 marg-t-2 text-center bold marg-l-n-5 marg-r-n-1">
+      <a
+        href="/device_settings/{{ study.id }}"
+        class="btn-link underline h4"
+        aria-label="click to edit the study's app settings - the types of data this study collects and text that study participants see in the app"
+      >
+        Edit the types of data this study collects, and text that study participants see in the app
+      </a>
     </div>
   </div>
 
@@ -68,8 +75,10 @@
       <button
         {% if study.easy_enrollment %}
         class="btn btn-warning text-large pull-right h2-margins-vertical"
+        aria-label="click to disable or disable easy enrollment for this study"
         {% else %}
         class="btn btn-success text-large pull-right h2-margins-vertical"
+        aria-label="click to enable easy enrollment for this study"
         {% endif %}
       >
         {% if study.easy_enrollment %} Disable {% else %} Enable {% endif %}
@@ -80,8 +89,8 @@
 
   {# toggle forest #}
   <div class="col-xs-12 well">
-    <h2 class="pull-left col-xs-3">Toggle Forest</h2>
-    <div class="col-xs-7 h2-middle-margins-vertical text-center">
+    <h2 class="pull-left col-xs-3 marg-t-1">Toggle Forest</h2>
+    <div class="col-xs-7 marg-t-3 text-center marg-l-n-2">
       Enable or disable whether forest analyses are runnable for this study.
     </div>
     <form
@@ -94,6 +103,7 @@
         <button
           class="btn btn-danger text-large"
           type="submit"
+          aria-label="click to disable forest for this study"
         >Disable Forest</button>
       </div>
       {% else %}
@@ -102,6 +112,7 @@
         <button
           class="btn btn-success text-large"
           type="submit"
+          aria-label="click to enable forest for this study"
         >Enable Forest</button>
       </div>
       {% endif %}
@@ -112,7 +123,7 @@
 
   {# download intervention data #}
   <div class="col-xs-12 well">
-    <h2 class="pull-left"> Intervention Data</h2>
+    <h2 class="pull-left marg-r-n-0-5"> Intervention Data</h2>
     <div class="pull-right h2-margins-vertical">
       <form
         action="{{ easy_url("manage_study_endpoints.download_study_interventions", study_id=study.id) }}"
@@ -122,6 +133,7 @@
         <button
           class="btn btn-success text-large"
           type="submit"
+          aria-label="click to download a JSON representation of interventions data for all users on this study"
         >Download Interventions</button>
     </div>
 
@@ -133,7 +145,7 @@
 
   {# download history of changes to surveys #}
   <div class="col-xs-12 well">
-    <h2 class="pull-left">Survey History</h2>
+    <h2 class="pull-left marg-r-1">Survey History</h2>
     <div class="col-xs-7 h2-middle-margins-vertical text-center">
       Download a JSON representation of the entire history of changes to surveys.
     </div>
@@ -146,6 +158,7 @@
         <button
           class="btn btn-success text-large"
           type="submit"
+          aria-label="click to download a JSON representation of the entire history of changes to surveys"
         >Download Surveys</button>
       </div>
 
@@ -163,6 +176,7 @@
         <select
           class="form-control"
           name="new_timezone_name"
+          aria-label="select a timezone for this study - warning, read the text below before changing the timezone"
         >
           {% for name, value in timezones %}
           <option
@@ -177,17 +191,18 @@
         <button
           class="btn btn-warning pull-right"
           type="submit"
+          aria-label="click to apply the updated timezone for this study"
         >Update Timezone</button>
       </div>
       <div class="col-xs-12">
-        <h5 class="h2-margins-vertical">
+        <div class="h2-margins-vertical h5">
           If you change the Study Timezone after surveys are sent to participants, Beiwe will immediately resend any
           previously sent absolute-date and relative-date surveys.
-        </h5>
-        <h5 class="h2-margins-vertical">
+        </div>
+        <div class="h2-margins-vertical h5">
           Additionally, Forest's daily summary statistics are calculated within the study's time zone. Changing the time
           zone here will NOT recalculate existing data, that must be done manually.
-        </h5>
+        </div>
       </div>
 
     </form>
@@ -204,14 +219,14 @@
     >
 
       <div class="col-xs-6">
-        <h5 class="h2-margins-vertical">
+        <div class="h2-margins-vertical h5">
           Setting a study end date will automatically stop collecting data at the end of the day on the chosen date, in
           the study's timezone. This will not delete any data, but will prevent new data from being uploaded.
-          {% if study.manually_stopped %} <h4> This study has been manually stopped. </h4> {% endif %}
-          {% if study.end_date %} <h4> This study currently has an end date of {{study.end_date.isoformat()}}. </h4>
+          {% if study.manually_stopped %} <h3 class="h4"> This study has been manually stopped. </h3> {% endif %}
+          {% if study.end_date %} <h3 class="h4"> This study currently has an end date of {{study.end_date.isoformat()}}. </h3>
           {% endif %}
-          {% if study.end_date_is_in_the_past %} <h4> This study's data collection period has ended. </h4> {% endif %}
-        </h5>
+          {% if study.end_date_is_in_the_past %} <h3 class="h4"> This study's data collection period has ended. </h3> {% endif %}
+        </div>
       </div>
 
       <div class="col-xs-4">
@@ -230,6 +245,7 @@
               name="end_date"
               id="end_date"
               value="{{ '' if not study.end_date else study.end_date.isoformat() }}"
+              aria-label="enter an end date for this study"
             >
             <div class="input-group-addon">
               <span class="glyphicon glyphicon-th"></span>
@@ -243,6 +259,7 @@
         <button
           class="btn btn-danger pull-right h2-margins-vertical"
           type="submit"
+          aria-label="click to update the end date for this study"
         >
           Update End Date
         </button>
@@ -258,12 +275,15 @@
     <div class="col-xs-3">
       <h2>Security Policies</h2>
     </div>
-    <div class="col-xs-9 h2-margins-vertical text-center bold">
-      <h4>
-        <a href="/edit_study_security/{{ study.id }}">
+    <div class="col-xs-9 h2-margins-vertical text-center bold underline h4">
+      <div>
+        <a
+          href="/edit_study_security/{{ study.id }}"
+          aria-label="click to go to the study security policies page for study {{ study.name }}"
+        >
           Edit various settings related to security policies and compliance required for your study.
         </a>
-      </h4>
+      </div>
     </div>
   </div>
 
@@ -281,6 +301,7 @@
           name="new_study_name"
           value="{{ study['name'] }}"
           class="form-control"
+          aria-label="enter a new name for this study"
         >
       </div>
       <div class="col-md-2">
@@ -288,6 +309,7 @@
         <button
           class="btn btn-warning"
           type="submit"
+          aria-label="click to update the name of this study"
         >Update Name</button>
       </div>
 
@@ -299,7 +321,7 @@
     <h2>Authorized researchers on this study</h2>
     <div>
       <table
-        class="list-group table table-striped table-hover"
+        class="list-group table  table-condensed"
         width="100%"
       >
         {% if not study.get_researchers() %}
@@ -343,7 +365,10 @@
                 value="{{ redirect_url }}"
               />
 
-              <button class="btn btn-link no-padding">
+              <button
+                class="btn btn-link no-padding"
+                aria-label="click to elevate this {{researcher_username}} to be a study admin"
+              >
                 (Elevate to Study Admin
                 <span class="glyphicon glyphicon-arrow-up"></span>)
               </button>
@@ -374,7 +399,10 @@
                 value="{{ redirect_url }}"
               />
 
-              <button class="btn btn-link no-padding">
+              <button
+                class="btn btn-link no-padding"
+                aria-label="click to demote {{researcher_username}} to be a researcher"
+              >
                 (Demote to Researcher
                 <span class="glyphicon glyphicon-arrow-down"></span>)
               </button>
@@ -407,7 +435,10 @@
                 value="{{ redirect_url }}"
               />
 
-              <button class="btn btn-link no-padding">
+              <button
+                class="btn btn-link no-padding"
+                aria-label="click to remove {{researcher_username}} from this study entirely"
+              >
                 <span class="glyphicon glyphicon-remove"></span>
                 Remove from study
               </button>
@@ -420,8 +451,8 @@
         {% endif %}
       </table>
     </div>
-    <div class="col-xs-4">
-      <h5>Authorize an additional researcher on this study: </h5>
+    <div class="col-xs-4 marg-top-3 h5">
+      Authorize additional researchers on this study:
     </div>
     <div class="col-xs-8">
       <form
@@ -432,6 +463,7 @@
           <select
             class="form-control"
             name="researcher_id"
+            aria-label="select a researcher to add to this study"
           >
             {% for researcher in administerable_researchers %}
             <option value="{{ researcher.id }}">{{ researcher.username }}</option>
@@ -450,7 +482,10 @@
             value="{{ redirect_url }}"
           />
 
-          <button class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
+          <button
+            class="btn btn-info add_researcher_to_study_button"
+            aria-label="add the selected researcher to this study"
+          >Add researcher to study</button>
         </div>
 
       </form>
@@ -460,18 +495,19 @@
   <div class="col-xs-12 well well-lcm">
     <h2 class="col-xs-12">Export/Import study settings</h2>
     <div class="col-md-6 ">
-      <h4>Export {{ study['name'] }}'s App Settings and Surveys</h4>
+      <h3 class="h4">Export {{ study['name'] }}'s App Settings and Surveys</h3>
       <p>Download a JSON file that contains {{ study['name'] }}'s App Settings (which data streams are turned on, what
         the timer durations and frequencies are, and what text appears in the app) and copies of all Surveys (including
         schedules, questions, and skip logic) and Audio Surveys (including schedules and voice recording prompts).</p>
       <a
         class="btn btn-success h3-margins"
         href="/export_study_settings_file/{{ study.id }}"
+        aria-label="click to download a JSON file that contains this study's App Settings and Surveys"
       >Export study settings JSON file</a>
     </div>
 
     <div class="col-md-6">
-      <h4>Import another study's App Settings and/or Surveys into {{ study['name'] }}</h4>
+      <h3 class="h4">Import another study's App Settings and/or Surveys into {{ study['name'] }}</h3>
       <form
         action="/import_study_settings_file/{{ study.id }}"
         method="post"
@@ -483,14 +519,16 @@
           type="file"
           name="upload"
           id="file_upload_selector"
+          aria-label="select a file to upload that contains the App Settings and Surveys you want to import into this study"
         >
-        <div class="checkbox  ">
+        <div class="checkbox">
 
-          <label>
+          <label for="device_settings">
 
             <input
               type="checkbox"
               name="device_settings"
+              id="device_settings"
               value="true"
               checked
             >
@@ -499,11 +537,12 @@
         </div>
         <div class="checkbox">
 
-          <label>
+          <label for="surveys">
 
             <input
               type="checkbox"
               name="surveys"
+              id="surveys"
               value="true"
               checked
             >
@@ -515,6 +554,7 @@
         <button
           id="file_upload_button "
           class="btn btn-warning pull-right"
+          aria-label="click to upload the file you selected and import the App Settings and Surveys into this study"
         >Import study settings file</button>
 
       </form>
@@ -549,6 +589,11 @@
           class="btn btn-danger pull-right h2-margins-vertical"
           type="submit"
           {% if study.end_date_is_in_the_past %}disabled{% endif %}
+          {% if study.manually_stopped %}
+          aria-label="click to reopen this study and allow new data to be collected"
+          {% else %}
+          aria-label="click to end this study and prevent new data from being collected"
+          {% endif %}
         >
           {% if study.manually_stopped %} Reopen Study {% else %} End Study {% endif %}
         </button>
@@ -568,6 +613,7 @@
       <a
         class="btn btn-danger h2-margins-vertical pull-right"
         onclick="confirm_hide_study('{{ study.name|replace("'", "")|replace('"', "") }}', '{{ study.id }}')"
+        aria-label="click to hide this study - you will be presented with a browser-controlled prompt to confirm this action"
       >
         Hide Study
       </a>

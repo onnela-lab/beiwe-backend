@@ -635,7 +635,6 @@ td.custom-field-value:hover span.custom-field-edit-link {
 
 
 
-
 /* btns require some dumb forcing, missing something in original that breaks these */
 /* btn warning, uses yellow (neon) */
 .btn-warning { color: var(--text-on-yellow) !important; background-color: var(--Byellow);  border-color:  var(--Byellow); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow); }
@@ -672,6 +671,12 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .btn-primary:active:hover{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
 .btn-primary:active:focus{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
 .btn-primary[disabled]{ background-color: var(--forest-green-desat) !important; border-color: var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+/* btn-link just uses the link... stuff */
+.btn-link{ color: var(--Baqua-bright) }
+.btn-link:focus { color: var(--Baqua-lt1) }
+.btn-link:hover { color: var(--Baqua-lt1) }
+.btn-link:active:hover{ color: var(--Baqua-lt1) }
+.btn-link:active:focus{ color: var(--Baqua-lt1) }
 
 
 
