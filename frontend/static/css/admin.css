@@ -75,6 +75,7 @@
     /* x offset 0 for symmetry, y offset to make top surfaces not overlap with precisely placed objects */
     box-shadow: 0pt 5pt 5pt 5pt var(--Bblack-half);
     border-radius: 10pt;
+    padding: 0.5em;
     /* filter: blur(3pt); */
 }
 
@@ -640,14 +641,14 @@ td.custom-field-value:hover span.custom-field-edit-link {
 
 .min-wid-5{min-width: 5em;}.min-wid-6{min-width: 6em;}.min-wid-7{min-width: 7em;}.min-wid-8{min-width: 8em;}.min-wid-9{min-width: 9em;}.min-wid-10{min-width: 10em;}.min-wid-11{min-width: 11em;}.min-wid-12{min-width: 12em;}.min-wid-13{min-width: 13em;}.min-wid-14{min-width: 14em;}.min-wid-15{min-width: 15em;}.min-wid-16{min-width: 16em;}.min-wid-17{min-width: 17em;}.min-wid-18{min-width: 18em;}.min-wid-19{min-width: 19em;}.min-wid-20{min-width: 20em;}.min-wid-21{min-width: 21em;}.min-wid-22{min-width: 22em;}.min-wid-23{min-width: 23em;}.min-wid-24{min-width: 24em;}.min-wid-25{min-width: 25em;}
 
-.marg-r-0{margin-right:0em;}.marg-r-0-5{margin-right:0.5em;}.marg-r-1{margin-right:1em;}.marg-r-2{margin-right:2em;}.marg-r-3{margin-right:3em;}.marg-r-4{margin-right:4em;}.marg-r-5{margin-right:5em;}.marg-r-6{margin-right:6em;}.marg-r-12{margin-right:12em;}
-.marg-r-n-0{margin-right:0em;}.marg-r-n-0-5{margin-right:-0.5em;}.marg-r-n-1{margin-right:-1em;}.marg-r-n-2{margin-right:-2em;}.marg-r-n-3{margin-right:-3em;}.marg-r-n-4{margin-right:-4em;}.marg-r-n-5{margin-right:-5em;}.marg-r-n-6{margin-right:-6em;}.marg-r-n-12{margin-right:-12em;}
-.marg-l-0{margin-left:0em;}.marg-l-0-5{margin-left:0.5em;}.marg-l-1{margin-left:1em;}.marg-l-2{margin-left:2em;}.marg-l-3{margin-left:3em;}.marg-l-4{margin-left:4em;}.marg-l-5{margin-left:5em;}.marg-l-6{margin-left:6em;}.marg-l-12{margin-left:12em;}
-.marg-l-n-0{margin-left:0em;}.marg-l-n-0-5{margin-left:-0.5em;}.marg-l-n-1{margin-left:-1em;}.marg-l-n-2{margin-left:-2em;}.marg-l-n-3{margin-left:-3em;}.marg-l-n-4{margin-left:-4em;}.marg-l-n-5{margin-left:-5em;}.marg-l-n-6{margin-left:-6em;}.marg-l-n-12{margin-left:-12em;}
-.marg-t-0{margin-top:0em;}.marg-t-0-5{margin-top:0.5em;}.marg-t-1{margin-top:1em;}.marg-t-1-75{margin-top:1.75em;}.marg-t-2{margin-top:2em;}.marg-t-3{margin-top:3em;}.marg-t-4{margin-top:4em;}.marg-t-5{margin-top:5em;}.marg-t-5{margin-top:5em;}.marg-t-6{margin-top:6em;}.marg-t-12{margin-top:12em;}
-.marg-t-n-0{margin-top:0em;}.marg-t-n-0-5{margin-top:-0.5em;}.marg-t-n-1{margin-top:-1em;}.marg-t-n-2{margin-top:-2em;}.marg-t-n-3{margin-top:-3em;}.marg-t-n-4{margin-top:-4em;}.marg-t-n-5{margin-top:-5em;}.marg-t-n-6{margin-top:-6em;}.marg-t-n-12{margin-top:-12em;}
-.marg-b-0{margin-bottom:0em;}.marg-b-0-5{margin-bottom:0.5em;}.marg-b-1{margin-bottom:1em;}.marg-b-2{margin-bottom:2em;}.marg-b-3{margin-bottom:3em;}.marg-b-4{margin-bottom:4em;}.marg-b-5{margin-bottom:5em;}.marg-b-6{margin-bottom:6em;}.marg-b-12{margin-bottom:12em;}
-.marg-b-n-0{margin-bottom:0em;}.marg-b-n-0-5{margin-bottom:-0.5em;}.marg-b-n-1{margin-bottom:-1em;}.marg-b-n-2{margin-bottom:-2em;}.marg-b-n-3{margin-bottom:-3em;}.marg-b-n-4{margin-bottom:-4em;}.marg-b-n-5{margin-bottom:-5em;}.marg-b-n-6{margin-bottom:-6em;}.marg-b-n-12{margin-bottom:-12em;}
+.marg-t-a{margin-top:auto;}.marg-t-0{margin-top:0em;}.marg-t-0-5{margin-top:0.5em;}.marg-t-1{margin-top:1em;}.marg-t-1-75{margin-top:1.75em;}.marg-t-2{margin-top:2em;}.marg-t-3{margin-top:3em;}.marg-t-4{margin-top:4em;}.marg-t-5{margin-top:5em;}.marg-t-5{margin-top:5em;}.marg-t-6{margin-top:6em;}.marg-t-12{margin-top:12em;}
+.marg-b-a{margin-bottom:auto;}.marg-b-0{margin-bottom:0em;}.marg-b-0-5{margin-bottom:0.5em;}.marg-b-1{margin-bottom:1em;}.marg-b-2{margin-bottom:2em;}.marg-b-3{margin-bottom:3em;}.marg-b-4{margin-bottom:4em;}.marg-b-5{margin-bottom:5em;}.marg-b-6{margin-bottom:6em;}.marg-b-12{margin-bottom:12em;}
+.marg-l-a{margin-left:auto;}.marg-l-0{margin-left:0em;}.marg-l-0-5{margin-left:0.5em;}.marg-l-1{margin-left:1em;}.marg-l-2{margin-left:2em;}.marg-l-3{margin-left:3em;}.marg-l-4{margin-left:4em;}.marg-l-5{margin-left:5em;}.marg-l-6{margin-left:6em;}.marg-l-12{margin-left:12em;}
+.marg-r-a{margin-right:auto;}.marg-r-0{margin-right:0em;}.marg-r-0-5{margin-right:0.5em;}.marg-r-1{margin-right:1em;}.marg-r-2{margin-right:2em;}.marg-r-3{margin-right:3em;}.marg-r-4{margin-right:4em;}.marg-r-5{margin-right:5em;}.marg-r-6{margin-right:6em;}.marg-r-12{margin-right:12em;}
+.marg-t-n-a{margin-top:auto;}.marg-t-n-0{margin-top:0em;}.marg-t-n-0-5{margin-top:-0.5em;}.marg-t-n-1{margin-top:-1em;}.marg-t-n-2{margin-top:-2em;}.marg-t-n-3{margin-top:-3em;}.marg-t-n-4{margin-top:-4em;}.marg-t-n-5{margin-top:-5em;}.marg-t-n-6{margin-top:-6em;}.marg-t-n-12{margin-top:-12em;}
+.marg-b-n-a{margin-bottom:auto;}.marg-b-n-0{margin-bottom:0em;}.marg-b-n-0-5{margin-bottom:-0.5em;}.marg-b-n-1{margin-bottom:-1em;}.marg-b-n-2{margin-bottom:-2em;}.marg-b-n-3{margin-bottom:-3em;}.marg-b-n-4{margin-bottom:-4em;}.marg-b-n-5{margin-bottom:-5em;}.marg-b-n-6{margin-bottom:-6em;}.marg-b-n-12{margin-bottom:-12em;}
+.marg-l-n-a{margin-left:auto;}.marg-l-n-0{margin-left:0em;}.marg-l-n-0-5{margin-left:-0.5em;}.marg-l-n-1{margin-left:-1em;}.marg-l-n-2{margin-left:-2em;}.marg-l-n-3{margin-left:-3em;}.marg-l-n-4{margin-left:-4em;}.marg-l-n-5{margin-left:-5em;}.marg-l-n-6{margin-left:-6em;}.marg-l-n-12{margin-left:-12em;}
+.marg-r-n-a{margin-right:auto;}.marg-r-n-0{margin-right:0em;}.marg-r-n-0-5{margin-right:-0.5em;}.marg-r-n-1{margin-right:-1em;}.marg-r-n-2{margin-right:-2em;}.marg-r-n-3{margin-right:-3em;}.marg-r-n-4{margin-right:-4em;}.marg-r-n-5{margin-right:-5em;}.marg-r-n-6{margin-right:-6em;}.marg-r-n-12{margin-right:-12em;}
 
 .pad-r-0{padding-right:0em;}.pad-r-0-5{padding-right:0.5em;}.pad-r-1{padding-right:1em;}.pad-r-2{padding-right:2em;}.pad-r-3{padding-right:3em;}.pad-r-4{padding-right:4em;}.pad-r-5{padding-right:5em;}.pad-r-6{padding-right:6em;}.pad-r-12{padding-right:12em;}
 .pad-r-n-0{padding-right:0em;}.pad-r-n-0-5{padding-right:-0.5em;}.pad-r-n-1{padding-right:-1em;}.pad-r-n-2{padding-right:-2em;}.pad-r-n-3{padding-right:-3em;}.pad-r-n-4{padding-right:-4em;}.pad-r-n-5{padding-right:-5em;}.pad-r-n-6{padding-right:-6em;}.pad-r-n-12{padding-right:-12em;}
