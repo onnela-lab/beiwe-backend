@@ -19,7 +19,7 @@
 <div class="container">
   <br><br>
 
-  <div class="row well">
+  <div class="well">
     <form
       action="/get-data/v1"
       method="POST"
@@ -37,6 +37,7 @@
           id="access_key"
           class="form-control"
           placeholder="Paste your unique Access Key here"
+          aria-label="Paste your unique Access Key here"
           required
         >
       </div>
@@ -52,6 +53,7 @@
           id="secret_key"
           class="form-control"
           placeholder="Paste your unique Secret Key here"
+          aria-label="Paste your unique Secret Key here"
           required
         >
       </div>
@@ -72,7 +74,9 @@
             <select
               class="form-control"
               name="study_pk"
+              id="study_selector"
               ng-model="selectedStudyId"
+              aria-label="Select the study from which to download data"
             >
               <option
                 value=""
@@ -100,6 +104,7 @@
               size=12
               style="height: 20em"
               multiple
+              aria-label="Select the patient or patients for which to download data"
             ></select>
           </div>
         </div>
@@ -116,6 +121,7 @@
               style="height: 20em"
               size=12
               multiple
+              aria-label="Select the data stream or streams to download"
             >
               {% for data_stream in ALL_DATA_STREAMS | sort %}
               <option>{{ data_stream }}</option>
@@ -142,6 +148,7 @@
                 class="form-control"
                 name="time_start"
                 id="start_datetime"
+                aria-label="Select the start date and time for the data download"
               />
               <span class="input-group-addon">
                 <span class="glyphicon glyphicon-calendar"></span>
@@ -165,6 +172,7 @@
                 class="form-control"
                 name="time_end"
                 id="end_datetime"
+                aria-label="Select the end date and time for the data download"
               />
               <span class="input-group-addon">
                 <span class="glyphicon glyphicon-calendar"></span>
@@ -192,6 +200,8 @@
             value="Download Data"
             id="download_submit_button"
             ng-disabled="!selectedStudyId"
+            aria-label="Click to download the selected data"
+            title="This download will stream and may take a long time."
           />
         </div>
 
