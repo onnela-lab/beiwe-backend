@@ -86,8 +86,8 @@
             {% endfor %}
           </tr>
         </thead>
-    </div>
     </table>
+    </div>
 
     <form
       action={{ easy_url("manage_study_endpoints.download_participants_csv", study_id) }}
@@ -137,8 +137,6 @@
     >Add <b>Many</b> New Participants</button>
     {% include 'create_many_participants_modal.html' %}
   </div>
-
-  <hr>
 
   <div class="col-xs-11">
     <h2 class="h3"> Edit Surveys </h2>
@@ -200,7 +198,6 @@
   </div>
 
   <div class="clearfix"></div>
-  <hr>
 
   <div class="col-xs-11">
     <h2 class="h3"> Edit Audio Surveys </h2>
@@ -259,7 +256,6 @@
   </div>
 
   <div class="clearfix"></div>
-  <hr>
 
   <div>
     <h2 class="h3">Study Configuration</h2>
@@ -333,7 +329,6 @@
 
   {% if study.forest_enabled %}
   <div class="clearfix"></div>
-  <hr>
   <div>
     <h2 class="h3">Forest Data Analysis</h2>
     <div class="col-xs-12 well">

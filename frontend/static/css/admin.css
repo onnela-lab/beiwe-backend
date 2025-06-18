@@ -568,6 +568,12 @@ td.custom-field-value:hover span.custom-field-edit-link {
     margin-left: -20px;
 }
 
+.x-scrollable {
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    width: 100%;
+}
 
 .xy-scrollable {
     overflow-x: auto;
