@@ -1,6 +1,8 @@
 @charset "utf-8";
 /* These are the Beiwe Brand Colors */
 @property --deep-ocean { initial-value: #004b87; syntax: "<color>"; inherits: true;}
+@property --deep-ocean66 { initial-value: #004b8766; syntax: "<color>"; inherits: true;}
+
 @property --mist { initial-value: #a7bcd6; syntax: "<color>"; inherits: true;}
 @property --cloud { initial-value: #d0d1c9; syntax: "<color>"; inherits: true;}
 @property --sea-foam { initial-value: #7fa9ae; syntax: "<color>"; inherits: true;}
@@ -15,6 +17,7 @@
 @property --Baqua-bright { initial-value: #69e9ff; syntax: "<color>"; inherits: true;}
 @property --Baqua-bright-desat { initial-value: #9DD4DD; syntax: "<color>"; inherits: true;}
 @property --Baqua-less-bright { initial-value: #0094ad; syntax: "<color>"; inherits: true;}
+@property --Baqua-less-bright66 { initial-value: #0094ad66; syntax: "<color>"; inherits: true;}
 @property --Baqua-less-bright-desat { initial-value: #3D7C87; syntax: "<color>"; inherits: true;}
 @property --Baqua { initial-value: #00778b; syntax: "<color>"; inherits: true;}
 @property --Baqua-desat { initial-value: #31646C; syntax: "<color>"; inherits: true;}
@@ -160,6 +163,49 @@ textarea {
 textarea:hover { outline: solid 1pt var(--Baqua-dark); border-radius: 3px; }
 textarea:focus { outline: solid 1pt var(--Baqua-dark); border-radius: 3px; }
 textarea:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; animation: pulse-outline 3s infinite !important;}
+
+/* .activity-info >* tr {
+    color: red;
+} */
+.activity-info > * td {
+    text-align: center;
+}
+.activity-info > * td:first-child {
+    text-align: right;
+    max-width: 5em;
+}
+.survey-info > * tr {
+    
+}
+.survey-info > * td {
+    text-align: center;
+    border-radius: 6px;
+}
+.survey-info > * td:first-child {
+    text-align: right;
+    max-width: 7em;
+}
+
+.tableRowReceived {
+    background-color: var(--Baqua-less-bright66);
+    color: white;
+    border-radius:2pt;
+    box-shadow: 0pt 0pt 5pt 5pt var(--Baqua-less-bright66);
+}
+.tableRowError {
+    background-color: var(--Bred-dark);
+    color: black;
+    border-radius: 3pt;
+    box-shadow: 0pt 0pt 5pt 5pt var(--Bred-dark);
+
+}
+.tableRowPending {
+    background-color: var(--deep-ocean66);
+    color: white;
+    border-radius: 3pt;
+    box-shadow: 0pt 0pt 5pt 5pt var(--deep-ocean66);
+}
+
 
 
 /* darkly has weird locations for select */
@@ -333,16 +379,6 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .oneline {
     display: inline-block;
 }
-
-/* .tableRowReceived {
-    background-color: #dff0d8 !important;
-}
-.tableRowError {
-    background-color: #f2dede !important;
-}
-.tableRowPending {
-    background-color: rgb(41, 98, 146, 0.5) !important;
-} */
 
 .current-text-green:hover {
     color: #0bcb9a !important;
