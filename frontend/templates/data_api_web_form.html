@@ -3,16 +3,16 @@
 {% block title %}Download Data{% endblock %}
 
 {% block head %}
-  {{ super() }}
-  <script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
-  <script>
+{{ super() }}
+<script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
+<script>
     var allowedStudies = {{ allowed_studies|tojson }};
     var participantsByStudy = {{ users_by_study|tojson }};
   </script>
-  <script> {% include LocalAssets.TRANSITION_JS %} </script>
-  <script> {% include LocalAssets.COLLAPSE_JS %} </script>
-  <script> {% include LocalAssets.DATA_ACCESS_WEB_FORM_CONTROLLER %} </script>
-  <script> {% include LocalAssets.DATA_DOWNLOAD_PAGE %} </script>
+<script> {% include LocalAssets.TRANSITION_JS %} </script>
+<script> {% include LocalAssets.COLLAPSE_JS %} </script>
+<script> {% include LocalAssets.DATA_ACCESS_WEB_FORM_CONTROLLER %} </script>
+<script> {% include LocalAssets.DATA_DOWNLOAD_PAGE %} </script>
 {% endblock %}
 
 {% block content %}
@@ -20,65 +20,129 @@
   <br><br>
 
   <div class="row well">
-    <form action="/get-data/v1" method="POST" id="data_download_parameters_form">
+    <form
+      action="/get-data/v1"
+      method="POST"
+      id="data_download_parameters_form"
+    >
 
       {# Access Key #}
       <div class="form-group">
+
         <label for="access_key">Access Key</label>
-        <input type="text" name="access_key" id="access_key" class="form-control" placeholder="Paste your unique Access Key here" required>
+
+        <input
+          type="text"
+          name="access_key"
+          id="access_key"
+          class="form-control"
+          placeholder="Paste your unique Access Key here"
+          required
+        >
       </div>
 
       {# Secret Key #}
       <div class="form-group">
+
         <label for="secret_key">Secret Key</label>
-        <input type="text" name="secret_key" id="secret_key" class="form-control" placeholder="Paste your unique Secret Key here" required>
+
+        <input
+          type="text"
+          name="secret_key"
+          id="secret_key"
+          class="form-control"
+          placeholder="Paste your unique Secret Key here"
+          required
+        >
       </div>
 
       <br>
 
       {# Data Selectors #}
-      <div ng-controller="DataAccessWebFormController" class="row">
+      <div
+        ng-controller="DataAccessWebFormController"
+        class="row"
+      >
 
         {# Study ID #}
         <div class="col-sm-4">
           <div class="form-group">
+
             <label for="study_selector">Study</label>
-              <select class="form-control" name="study_pk" ng-model="selectedStudyId">
-                <option value="" disabled>--- Select Study ---</option>
-                <option ng-repeat="study in allowedStudies" value="{%raw%}{{ study.id }}{%endraw%}">{%raw%}{{ study.name }}{%endraw%}</option>
-              </select>
+            <select
+              class="form-control"
+              name="study_pk"
+              ng-model="selectedStudyId"
+            >
+              <option
+                value=""
+                disabled
+              >--- Select Study ---</option>
+              <option
+                ng-repeat="study in allowedStudies"
+                value="{%raw%}{{ study.id }}{%endraw%}"
+              >{%raw%}{{ study.name }}{%endraw%}</option>
+            </select>
           </div>
         </div>
 
         {# Patient Selector #}
         <div class="col-sm-4">
           <div class="form-group">
+
             <label for="patient_selector">Patients</label>
-            <select id="patient_selector" ng-model="selectedPatient" ng-options="participant for participant in participantsByStudy[selectedStudyId] track by participant" name="user_ids" class="form-control" size=12 style="height: 20em"  multiple></select>
+            <select
+              id="patient_selector"
+              ng-model="selectedPatient"
+              ng-options="participant for participant in participantsByStudy[selectedStudyId] track by participant"
+              name="user_ids"
+              class="form-control"
+              size=12
+              style="height: 20em"
+              multiple
+            ></select>
           </div>
         </div>
 
         {# Data Stream Selector #}
         <div class="col-sm-4">
           <div class="form-group">
+
             <label for="data_stream_selector">Data Types</label>
-            <select class="form-control" name="data_streams" id="data_stream_selector" style="height: 20em" size=12 multiple>
+            <select
+              class="form-control"
+              name="data_streams"
+              id="data_stream_selector"
+              style="height: 20em"
+              size=12
+              multiple
+            >
               {% for data_stream in ALL_DATA_STREAMS | sort %}
-                <option>{{ data_stream }}</option>
+              <option>{{ data_stream }}</option>
               {% endfor %}
             </select>
           </div>
         </div>
-        
+
         <br>
 
         {# Time Range #}
         {# Start Datetime #}
         <div class="col-sm-6">
           <div class="form-group">
+
             <label for="start_datetime">Start Date and Time</label>
-            <div class="input-group date" id="start_datetimepicker">
-              <input type="text" class="form-control" name="time_start" id="start_datetime" />
+            <div
+              class="input-group date"
+              id="start_datetimepicker"
+            >
+
+              <input
+                type="text"
+                class="form-control"
+                name="time_start"
+                id="start_datetime"
+              />
               <span class="input-group-addon">
                 <span class="glyphicon glyphicon-calendar"></span>
               </span>
@@ -89,9 +153,19 @@
         {# End Datetime #}
         <div class="col-sm-6">
           <div class="form-group">
+
             <label for="end_datetime">End Date and Time</label>
-            <div class="input-group date" id="end_datetimepicker">
-              <input type="text" class="form-control" name="time_end" id="end_datetime" />
+            <div
+              class="input-group date"
+              id="end_datetimepicker"
+            >
+
+              <input
+                type="text"
+                class="form-control"
+                name="time_end"
+                id="end_datetime"
+              />
               <span class="input-group-addon">
                 <span class="glyphicon glyphicon-calendar"></span>
               </span>
@@ -100,41 +174,86 @@
         </div>
 
         {# Hidden Input to tell Data Download API that this request came from the web form (not from the command-line) #}
-        <input type="hidden" name="web_form" value="true">
-        
-        <div class="col-xs-2 h2-margins-vertical" id="submit_button_div">
-          <input type="submit" class="btn btn-success" value="Download Data" id="download_submit_button"
-          ng-disabled="!selectedStudyId"/>
+
+        <input
+          type="hidden"
+          name="web_form"
+          value="true"
+        >
+
+        <div
+          class="col-xs-2 h2-margins-vertical"
+          id="submit_button_div"
+        >
+
+          <input
+            type="submit"
+            class="btn btn-success"
+            value="Download Data"
+            id="download_submit_button"
+            ng-disabled="!selectedStudyId"
+          />
         </div>
-        
-        <div class="col-xs-2 h2-margins-vertical" id="download_ready_button" hidden>
-          <button  class="btn btn-warning text-smaller" onmousedown="enable_submit_button()">
-           Ready to Download More Data </button>
+
+        <div
+          class="col-xs-2 h2-margins-vertical"
+          id="download_ready_button"
+          hidden
+        >
+
+          <button
+            class="btn btn-warning text-smaller"
+            onmousedown="enable_submit_button()"
+          >
+            Ready to Download More Data </button>
         </div>
-        
+
         {# a checkbox for data compression #}
-        <div class="col-xs-3 h3-margins-vertical" >
-          <div class="checkbox" onmousedown="toggle_compress()">
+        <div class="col-xs-3 h3-margins-vertical">
+          <div
+            class="checkbox"
+            onmousedown="toggle_compress()"
+          >
+
             <label>
-              <input type="checkbox" name="compress" id="compress"> Download Compressed Data
+
+              <input
+                type="checkbox"
+                name="compress"
+                id="compress"
+              > Download Compressed Data
             </label>
           </div>
         </div>
-        
+
         {# a checkbox for data compression #}
-        <div class="col-xs-7 h3-margins-vertical text-small" id="compress_info" hidden>
+        <div
+          class="col-xs-7 h3-margins-vertical text-small"
+          id="compress_info"
+          hidden
+        >
           <i>
-            When downloading compressed data the file structure is unchanged, but each file is compressed using zstd ("z-standard") compression in a .zst wrapper. Compressed data takes up 5-10x less space, but will require a separate tool to decompress it. <a href="https://github.com/onnela-lab/beiwe-backend/wiki/Managing-ZSTD%E2%80%90Compressed-Data-From-The-Beiwe-Platform"> We have some recommendations on the wiki. </a>
+            When downloading compressed data the file structure is unchanged, but each file is compressed using zstd
+            ("z-standard") compression in a .zst wrapper. Compressed data takes up 5-10x less space, but will require a
+            separate tool to decompress it. <a
+              href="https://github.com/onnela-lab/beiwe-backend/wiki/Managing-ZSTD%E2%80%90Compressed-Data-From-The-Beiwe-Platform"
+            > We have some recommendations on the wiki. </a>
           </i>
         </div>
-        
-        <div class="col-sm-7 h2-margins-vertical" id="explanation_paragraph" hidden>
+
+        <div
+          class="col-sm-7 h2-margins-vertical"
+          id="explanation_paragraph"
+          hidden
+        >
           <p>
-          <b> It may take quite some time to stream all your data. </b> <br>
-          It uses server resources to download, so please check that your download has finished before starting another one.
+            <b> It may take quite some time to stream all your data. </b> <br>
+            It uses server resources to download, so please check that your download has finished before starting
+            another one.
         </div>
-      
-      </div>  {# ng-controller #}
+
+      </div> {# ng-controller #}
+
     </form>
   </div>
 </div>
