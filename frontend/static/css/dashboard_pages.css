@@ -80,10 +80,6 @@
     margin-bottom: 10px;
 }
 
-.choose_participant{
-    float: right;
-}
-
 .choose-date{
     display: flex;
     flex-direction: row;
@@ -98,6 +94,35 @@
     display: flex;
     flex-direction: row;
     justify-content: space-evenly;
+    
+}
+
+.label-th {
+    width: 90px;
+    position: sticky;
+    left: -25px;
+    text-align: right;
+    background-color: var(--Baqua-dark-desat66);
+    box-shadow: 0pt 0pt 5pt 5pt var(--Baqua-dark-desat66);
+    border-width: 0px !important;
+    backdrop-filter: blur(3px);
+    overflow: visible !important;
+}
+
+.label-th2 {
+    width: calc(100% - 90px);
+    position: sticky;
+    left: -20px;
+    text-align: right;
+    background-color: var(--Baqua-dark-desat66);
+    box-shadow: 0pt 0pt 5pt 5pt var(--Baqua-dark-desat66);
+    border-width: 0px !important;
+    backdrop-filter: blur(3px);
+    font-size: 11pt;
+    font-weight: 100;
+}
+.label-th2 > a {
+    text-decoration: none !important;
 }
 
 /* used by patient and data stream dashboard html pages */

@@ -146,7 +146,7 @@ DASHBOARD_DATA_STREAMS = [
 COMPLETE_DATA_STREAM_DICT = {
     ACCELEROMETER: "Accelerometer",
     AUDIO_RECORDING: "Audio Recordings",
-    AMBIENT_AUDIO: "Ambient Audio Recording",
+    AMBIENT_AUDIO: "Ambient Audio",
     ANDROID_LOG_FILE: "Android Log File",
     BLUETOOTH: "Bluetooth",
     CALL_LOG: "Call Log",

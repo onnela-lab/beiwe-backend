@@ -6,6 +6,7 @@
 @property --mist { initial-value: #a7bcd6; syntax: "<color>"; inherits: true;}
 @property --cloud { initial-value: #d0d1c9; syntax: "<color>"; inherits: true;}
 @property --sea-foam { initial-value: #7fa9ae; syntax: "<color>"; inherits: true;}
+@property --sea-foam66 { initial-value: #7fa9ae66; syntax: "<color>"; inherits: true;}
 @property --neon { initial-value: #e3e829; syntax: "<color>"; inherits: true;}  /* too bright */
 @property --crystal { initial-value: #ded8eb; syntax: "<color>"; inherits: true;}
 @property --fire { initial-value: #ff7276; syntax: "<color>"; inherits: true;}
@@ -23,7 +24,9 @@
 @property --Baqua-desat { initial-value: #31646C; syntax: "<color>"; inherits: true;}
 @property --Baqua-dark { initial-value: #005e6f; syntax: "<color>"; inherits: true;}
 @property --Baqua-dark-desat { initial-value: #264F56; syntax: "<color>"; inherits: true;}
-@property --Baqua-dark-66 { initial-value: #005e6f66; syntax: "<color>"; inherits: true;}
+@property --Baqua-dark-desat66 { initial-value: #264F5666; syntax: "<color>"; inherits: true;}
+
+@property --Baqua-dark66 { initial-value: #005e6f66; syntax: "<color>"; inherits: true;}
 
 @property --Byellow { initial-value: #B5B920; syntax: "<color>"; inherits: true;}
 @property --Byellow-desat { initial-value: #999A59; syntax: "<color>"; inherits: true;}
@@ -42,7 +45,7 @@
 /* two more nice greens #008966 #007f5e */
 /* from original theme */
 @property --original-aqua { initial-value: #0ce3ac; syntax: "<color>"; inherits: true;}
-@property --original-aqua-desat { initial-value: #53AF98; syntax: "<color>"; inherits: true;}
+@property --original-aqua-desat { initial-value: #5c998a; syntax: "<color>"; inherits: true;}
 @property --Baqua-lt1 { initial-value: #0bcb9a; syntax: "<color>"; inherits: true;}
 @property --Baqua-lt1-desat { initial-value: #4A9C87; syntax: "<color>"; inherits: true;}
 @property --Baqua-lt2 { initial-value: #08a27b; syntax: "<color>"; inherits: true;}
@@ -55,6 +58,8 @@
 @property --forest-green-bright { initial-value: #10666c; syntax: "<color>"; inherits: true;}
 @property --forest-green-bright-desat { initial-value: #315659; syntax: "<color>"; inherits: true;}
 @property --forest-green-dark { initial-value: #0a4145; syntax: "<color>"; inherits: true;}
+@property --forest-green-dark66 { initial-value: #0a414566; syntax: "<color>"; inherits: true;}
+
 @property --forest-green-dark-dd { initial-value: #0a4145dd; syntax: "<color>"; inherits: true;}
 @property --forest-green-dark-desat { initial-value: #1F3739dd; synt: "<color>"; inherits: true;}
 @property --forest-green-very-dark { initial-value: #001114; syntax: "<color>"; inherits: true;}
@@ -499,6 +504,10 @@ td.custom-field-value:hover span.custom-field-edit-link {
     background-color: var(--forest-green-bright) !important;
     border-color: var(--forest-green-bright) !important;
 }
+
+.dashboard-list-rounded {
+    border-radius: 7pt;
+}
 .dashboard-list-margins {
     margin-block-start: 3pt;
     margin-block-end: 3pt;
@@ -513,6 +522,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .dashboard-list-margins:hover > a {
     color: var(--Bwhite) !important;
 }
+
 
 
 .text-large { font-size: large; }
@@ -551,21 +561,12 @@ td.custom-field-value:hover span.custom-field-edit-link {
     backdrop-filter: blur(1.5px)
 }
 
-.x-scrollable {
-    overflow-x: auto;
-    overflow-y: hidden;
+.stream-table-scroll{
+    overflow-y: scroll;
     white-space: nowrap;
-    width: 100%;
+    width: calc(100% + 20px);
+    margin-left: -20px;
 }
-/* cannot get these to stick in place in a useful fashion, they are injected by datatables */
-/* .x-scrollable > .dataTables_wrapper > .dataTables_length {
-    position: sticky;
-    color: red !important;
-}
-.x-scrollable > .dataTables_wrapper > .dataTables_filter {
-    position: sticky;
-    color: red !important; 
-} */
 
 
 .xy-scrollable {
@@ -640,6 +641,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .btn-warning { color: var(--text-on-yellow) !important; background-color: var(--Byellow);  border-color:  var(--Byellow); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow); }
 .btn-warning:focus { background-color: var(--Byellow-dark);  border-color:  var(--Byellow-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow-dark); }
 .btn-warning:hover { background-color: var(--Byellow-dark);  border-color:  var(--Byellow-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow-dark); }
+.btn-primary:active{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
 .btn-warning:active:hover{ background-color: var(--Byellow-very-dark);  border-color:  var(--Byellow-very-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow-very-dark); }
 .btn-warning:active:focus{ background-color: var(--Byellow-very-dark);  border-color:  var(--Byellow-very-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow-very-dark); }
 .btn-warning[disabled]{ background-color: var(--Byellow-dark-desat) !important;  border-color:  var(--Byellow-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Byellow-dark); }
@@ -647,6 +649,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .btn-danger { color: var(--text-on-fire) !important; background-color: var(--Bred);  border-color:  var(--Bred); box-shadow: 0pt 0pt 1pt 1pt var(--Bred); }
 .btn-danger:focus { background-color: var(--Bred-dark);  border-color:  var(--Bred-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Bred-dark); }
 .btn-danger:hover { background-color: var(--Bred-dark);  border-color:  var(--Bred-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Bred-dark); }
+.btn-danger:active { background-color: var(--Bred-dark);  border-color:  var(--Bred-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Bred-dark); }
 .btn-danger:active:hover{ background-color: var(--Bred-very-dark);  border-color:  var(--Bred-very-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Bred-dark); }
 .btn-danger:active:focus{ background-color: var(--Bred-very-dark);  border-color:  var(--Bred-very-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Bred-dark); }
 .btn-danger[disabled]{ background-color: var(--Bred-dark-desat) !important;  border-color:  var(--Bred-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Bred-dark); }
@@ -654,6 +657,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .btn-info { color: var(--Bwhite); background-color: var(--Baqua-less-bright);  border-color:  var(--Baqua-less-bright); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-less-bright); }
 .btn-info:focus { color: #fff !important; background-color: var(--Baqua-bright);  border-color:  var(--Baqua-bright); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-bright); }
 .btn-info:hover { color: #fff !important; background-color: var(--Baqua-bright);  border-color:  var(--Baqua-bright); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-bright); }
+.btn-info:active { color: #fff !important; background-color: var(--Baqua-bright);  border-color:  var(--Baqua-bright); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-bright); }
 .btn-info:active:hover{ background-color: var(--Baqua-dark);  border-color:  var(--Baqua-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-dark); }
 .btn-info:active:focus{ background-color: var(--Baqua-dark);  border-color:  var(--Baqua-dark); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-dark); }
 .btn-info[disabled]{ background-color: var(--Baqua-desat) !important;  border-color:  var(--Baqua); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua);  }
@@ -661,6 +665,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .btn-success { color: #fff;  /* needs to be actually-white text */ background-color: var(--Baqua-lt1);  border-color:  var(--Baqua-lt1); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-lt1); }
 .btn-success:focus { color: var(--Bwhite); background-color: var(--Baqua-lt2); border-color:  var(--Baqua-lt2); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-lt2); }
 .btn-success:hover { color: var(--Bwhite); background-color: var(--Baqua-lt2);  border-color:  var(--Baqua-lt2); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-lt2); }
+.btn-success:active { color: var(--Bwhite); background-color: var(--Baqua-lt2);  border-color:  var(--Baqua-lt2); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-lt2); }
 .btn-success:active:hover{ background-color: var(--Baqua-lt3);  border-color:  var(--Baqua-lt3); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-lt3); }
 .btn-success:active:focus{ background-color: var(--Baqua-lt3);  border-color:  var(--Baqua-lt3); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-lt3); }
 .btn-success[disabled]{ color: var(--Bwhite) !important; background-color: var(--Baqua-lt1-desat) !important;  border-color:  var(--Baqua-lt1); box-shadow: 0pt 0pt 1pt 1pt var(--Baqua-lt1); }
@@ -668,9 +673,32 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .btn-primary { color: var(--Bwhite) !important; background-color: var(--forest-green-bright);  border-color:  var(--forest-green-bright); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-bright); }
 .btn-primary:focus { background-color: var(--forest-green);  border-color:  var(--forest-green); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green); }
 .btn-primary:hover { background-color: var(--forest-green);  border-color:  var(--forest-green); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green); }
+.btn-primary:active { background-color: var(--forest-green);  border-color:  var(--forest-green); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green); }
 .btn-primary:active:hover{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
 .btn-primary:active:focus{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
 .btn-primary[disabled]{ background-color: var(--forest-green-desat) !important; border-color: var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+
+/* .btn-primary.active:focus{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+
+.btn-primary:active.hover{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+.btn-primary:active.focus{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+
+.btn-primary.active.hover{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+.btn-primary.active.focus{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+
+.btn-primary.active:hover{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+.btn-primary.active:focus{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+
+.btn-primary.active:hover{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+.btn-primary.active:focus{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+
+.btn-primary.active:hover{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+.btn-primary.active:focus{ background-color: var(--forest-green-dark);  border-color:  var(--forest-green-dark); box-shadow: 0pt 0pt 1pt 1pt var(--forest-green-dark); }
+ */
+
+
+
+
 /* btn-link just uses the link... stuff */
 .btn-link{ color: var(--Baqua-bright) }
 .btn-link:focus { color: var(--Baqua-lt1) }
