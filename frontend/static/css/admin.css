@@ -23,10 +23,10 @@
 @property --Baqua { initial-value: #00778b; syntax: "<color>"; inherits: true;}
 @property --Baqua-desat { initial-value: #31646C; syntax: "<color>"; inherits: true;}
 @property --Baqua-dark { initial-value: #005e6f; syntax: "<color>"; inherits: true;}
+@property --Baqua-dark66 { initial-value: #005e6f66; syntax: "<color>"; inherits: true;}
 @property --Baqua-dark-desat { initial-value: #264F56; syntax: "<color>"; inherits: true;}
 @property --Baqua-dark-desat66 { initial-value: #264F5666; syntax: "<color>"; inherits: true;}
 
-@property --Baqua-dark66 { initial-value: #005e6f66; syntax: "<color>"; inherits: true;}
 
 @property --Byellow { initial-value: #B5B920; syntax: "<color>"; inherits: true;}
 @property --Byellow-desat { initial-value: #999A59; syntax: "<color>"; inherits: true;}

@@ -1019,12 +1019,12 @@ th {
   border-bottom-width: 2px;
 }
 .table-striped > tbody > tr:nth-of-type(odd) {
-  background-color: var(--Baqua-dark-partial);
-  color: var(--Bwhite);
+  background-color: var(--forest-green-very-dark);
+  /* color: var(--Bwhite); */
 }
 .table-striped > tbody > tr:nth-of-type(even) {
-  background-color: var(--forest-green-dark);
-  color: var(--Bwhite);
+  background-color: var(--forest-green-dark66);
+  /* color: var(--Bwhite); */
 }
 .table-hover > tbody > tr:hover {
   background-color: var(--Baqua-desat);
