@@ -1,62 +1,93 @@
 {% extends "base.html" %}
 
 {% block head %}
-  {{ super() }}
-  <script>filterableObjects = {{ admins|tojson }}</script>
-  <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
+{{ super() }}
+<script>filterableObjects = {{ admins|tojson }}</script>
+<script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
 {% endblock %}
 
 {% block title %}Manage Researchers{% endblock %}
 
 {% block content %}
 
-  <div class="row">
-    <h2>All Researchers</h2>
+<div class="row">
+  <h2>All Researchers</h2>
+</div>
+
+<br>
+
+<div
+  id="filterableList"
+  ng-controller="FilterableListController"
+  class="row col-lg-12"
+>
+  {# Search/filter input field #}
+  <div class="form-group col-sm-4">
+
+    <input
+      type="search"
+      class="form-control"
+      placeholder="Filter by username"
+      ng-model="researcherFilterText"
+      autofocus
+      aria-label="Search for a researcher by username to have them appear in the list below, you will be able to jump to their edit page."
+    >
   </div>
-
-  <br>
-
-  <div id="filterableList" ng-controller="FilterableListController" class="row col-lg-12">
-    {# Search/filter input field #}
-    <div class="form-group col-sm-4">
-      <input type="search" class="form-control" placeholder="Filter by username" ng-model="researcherFilterText" autofocus>
-    </div>
-    
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th><h4>Username</h4></th>
-          <th><h4>Authorized Studies</h4></th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="researcher_data in filterableObjects | filter:{username: researcherFilterText}">
-          <td>
-            <b>{% raw %}{{ researcher_data[0].username }}{% endraw %}</b>
-          </td>
-          <td>
-            <span ng-if="researcher_data[1].length == 0">
-              <i>This user is not authorized on any studies</i>
+  <div class="pull-right">
+    <a
+      href="/create_new_researcher"
+      class="btn btn-success"
+      aria-label="click to create a new researcher"
+    >Add new researcher</a>
+  </div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th class="h3">
+          Username
+        </th>
+        <th class="h3">
+          Authorized Studies
+        </th>
+        {# this is really only for ux for screen readers. #}
+        <th style="color:#0000"> Edit Researcher Link </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="researcher_data in filterableObjects | filter:{username: researcherFilterText}">
+        <td>
+          <b>{% raw %}{{ researcher_data[0].username }}{% endraw %}</b>
+        </td>
+        <td>
+          <span ng-if="researcher_data[1].length == 0">
+            <i>This user is not authorized on any studies</i>
+          </span>
+          <span ng-if="researcher_data[1].length > 0">
+            <span ng-repeat="study_name in researcher_data[1]">
+              {% raw %}{{ study_name }}{% endraw %} &nbsp; &nbsp;
             </span>
-            <span ng-if="researcher_data[1].length > 0">
-              <span ng-repeat="study_name in researcher_data[1]">
-                {% raw %}{{ study_name }}{% endraw %} &nbsp; &nbsp;
-              </span>
-            </span>
-          </td>
-          <td class="col-xs-2 text-center">
-            <a class="link-fill" href="/edit_researcher/{% raw %}{{ researcher_data[0].id }}{% endraw %}">edit researcher</a>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+          </span>
+        </td>
+        <td class="col-xs-2 text-center">
+          <a
+            class="link-fill"
+            href="/edit_researcher/{% raw %}{{ researcher_data[0].id }}{% endraw %}"
+            aria-label="click to edit this researcher's information and authorized studies"
+          >edit researcher</a>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
-  <br><br>
+<br><br>
 
-  <div class="row">
-    <a href="/create_new_researcher" class="btn btn-success">Add new researcher</a>
-  </div>
+<div>
+  <a
+    href="/create_new_researcher"
+    class="btn btn-success"
+    aria-label="click to create a new researcher"
+  >Add new researcher</a>
+</div>
 
 {% endblock %}
