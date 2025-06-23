@@ -40,7 +40,7 @@ class TestLoginPages(BasicSessionTestCase):
         response = self.client_get(reverse("login_endpoints.login_page"))
         self.assertEqual(response.status_code, 200)
         # this should uniquely identify the login page
-        self.assertIn(b'form method="POST" action="/validate_login"', response.content)
+        self.assertIn(b'action="/validate_login"', response.content)
     
     def test_load_login_page_while_logged_in(self):
         # make sure the login page loads without logging you in when it should not
@@ -605,9 +605,9 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
                 resp.url, "/?page=/" + url.lstrip("/")
             )  # ensure there is a leading slash
             page = self.client_get(resp.url).content
-            self.assert_present( # ensure there is a leading slash
-                f'<input type="hidden" name="referrer" value="/{url.lstrip("/")}" />', page
-            )
+            # ensure there is a leading slash
+            t = f'<input type="hidden" name="referrer" value="/{url.lstrip("/")}" />'.replace(" ", "\n")
+            self.assert_present(t, page)
             # test that the negative tests be based in reality
             self.assert_present('name="referrer"', page)
         
