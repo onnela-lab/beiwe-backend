@@ -54,4 +54,4 @@ git+https://git@github.com/onnela-lab/forest@dcb3a1954f18ce93f1a4a7c6270f8aa8060
 celery==5.4.0
 
 
-css-html-js-minify
+rcssmin  # extremely fast css minifier
