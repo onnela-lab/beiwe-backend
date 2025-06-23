@@ -1,15 +1,23 @@
 {% extends "base.html" %}
 
 {% block head %}
-  {{ super() }}
-  <link rel="stylesheet" href="/static/css/libraries/bootstrap-datetimepicker.css"  type="text/css"/>
-  <script type="text/javascript" src="/static/javascript/libraries/transition.js"></script>
-  <script type="text/javascript" src="/static/javascript/libraries/collapse.js"></script>
-  {% comment %} We are using a different datepicker on this page... {% endcomment %}
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css"  type="text/css"/>
-  
-  <script type="text/javascript">
+{{ super() }}
+<link
+  rel="stylesheet"
+  href="/static/css/libraries/bootstrap-datetimepicker.css"
+  type="text/css"
+/>
+<script type="text/javascript" src="/static/javascript/libraries/transition.js"></script>
+<script type="text/javascript" src="/static/javascript/libraries/collapse.js"></script>
+{% comment %} We are using a different datepicker on this page... {% endcomment %}
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css"
+  type="text/css"
+/>
+
+<script type="text/javascript">
     $(document).ready(function() {
     /* Set up Date/Time pickers */
       $('#start_datepicker').datepicker({
@@ -29,81 +37,136 @@
 {% block title %}Create Forest Tasks{% endblock %}
 
 {% block content %}
-  <h1>Run Forest</h1>
-  <div class="container">
+<h1>Run Forest</h1>
+<div class="container">
+  <br>
+  <div class="alert alert-success">
+    Forest under development at Onnela Lab. The currently deployed version is {{forest_version}}
+    ({{forest_commit}})
+
+  </div>
+  <br>
+  <div
+    class="well"
+    style="height: 33em"
+  >
+    <h1 class="h3">Queue Analyses for {{ study.name }}</h1>
+    <form
+      action=""
+      method="POST"
+    >
       <br>
-      <div class="alert alert-info">
-        Forest integration is still under development. The currently deployed version is {{forest_version}} ({{forest_commit}})
 
-      </div>
-      <br>
-      <div class="row well">
-        <h3>Queue analysis for {{ study.name }}</h3>
-        <form action="" method="POST">
-          <br>
+      {# Patient Selector #}
+      <div class="col-sm-4">
+        <div class="form-group">
 
-          {# Patient Selector #}
-          <div class="col-sm-4">
-            <div class="form-group">
-              <label for="patient_selector">Patients</label>
-              <select id="patient_selector" ng-model="selectedPatient" name="participant_patient_ids" class="form-control" size=12 multiple>
-                {% for participant in participants %}
-                  <option>{{ participant }}</option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-
-          {# Trees #}
-          <div class="col-sm-4">
-            <div class="form-group">
-              <label for="tree_selector">Trees</label>
-              {% for tree in trees %}
-                <div class="checkbox">
-                  <label>
-                    <input name="trees" type="checkbox" value="{{ tree[0] }}"> {{ tree[1] }}
-                  </label>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-          <br>
-
-          {# Time Range #}
-          <div class="row">
-            {# Start date #}
-            <div class="col-sm-4">
-              <div class="form-group">
-                <label for="start_date">Start Date</label> (earliest data in this study is from {{ start_date }})
-                <div class="input-group date" data-provide="start_datepicker" id="start_datepicker">
-                  <input type="text" class="form-control" name="date_start" id="start_date">
-                  <div class="input-group-addon">
-                    <span class="glyphicon glyphicon-th"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {# End date #}
-            <div class="col-sm-4">
-              <div class="form-group">
-                <label for="end_date">End Date</label>
-                <div class="input-group date" data-provide="end_datepicker" id="end_datepicker">
-                  <input type="text" class="form-control" name="date_end" id="end_date">
-                  <div class="input-group-addon">
-                    <span class="glyphicon glyphicon-th"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <br><br>
-          <div class="col-sm-2">
-            <input type="submit" class="btn btn-success" value="Create Forest Tasks" id="forest_task_submit_button" />
-          </div>
-        </form>
+          <label for="patient_selector">Select Participants to Queue Their Forest Tasks </label>
+          <select
+            id="patient_selector"
+            ng-model="selectedPatient"
+            name="participant_patient_ids"
+            class="form-control"
+            size=12
+            multiple
+          >
+            {% for participant in participants %}
+            <option>{{ participant }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
 
-    </div>
+      {# Trees #}
+      <div class="col-sm-3">
+        <div class="form-group">
+
+          <div class="marg-l-1">Select Forest Tree to Run</div>
+          {% for tree in trees %}
+          <div class="checkbox marg-l-3">
+
+            <fieldset legend="Forest Trees">
+
+              <input
+                name="trees"
+                type="checkbox"
+                value="{{ tree[0] }}"
+                {# legend="checkbox for the {{ tree[0] }} Forest Tree analysis" #}
+                aria-label="checkbox for the {{ tree[0] }} Forest Tree analysis"
+              > {{ tree[1] }}
+
+            </fieldset>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <br>
+
+      {# Time Range #}
+      <div class="">
+        {# Start date #}
+        <div class="col-sm-5">
+          <div class="form-group">
+
+            <label for="start_date">Start Date</label> (earliest data in this study is from {{ start_date }})
+            <div
+              class="input-group date"
+              data-provide="start_datepicker"
+              id="start_datepicker"
+            >
+
+              <input
+                type="text"
+                class="form-control"
+                name="date_start"
+                id="start_date"
+              >
+              <div class="input-group-addon">
+                <span class="glyphicon glyphicon-th"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# End date #}
+        <div class="col-sm-5">
+          <div class="form-group">
+
+            <label for="end_date">End Date</label>
+            <div
+              class="input-group date"
+              data-provide="end_datepicker"
+              id="end_datepicker"
+            >
+
+              <input
+                type="text"
+                class="form-control"
+                name="date_end"
+                id="end_date"
+              >
+              <div class="input-group-addon">
+                <span class="glyphicon glyphicon-th"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br><br>
+      <div class="col-sm-8 marg-t-3">
+
+        <input
+          type="submit"
+          class="btn btn-success pull-right"
+          value="Create Forest Tasks"
+          aria-label="click to create forest tasks"
+          id="forest_task_submit_button"
+        />
+      </div>
+
+    </form>
+  </div>
+
+</div>
 
 {% endblock %}
