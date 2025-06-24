@@ -3,10 +3,10 @@
 {% block title %}Forest Task Log{% endblock %}
 
 {% block head %}
-    {{ super() }}
-    <script>window.filterableObjects = {{ forest_log|safe }}</script>
-    <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
-    <script>
+{{ super() }}
+<script>window.filterableObjects = {{ forest_log|safe }}</script>
+<script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
+<script>
       (function () {
         angular
           .module('surveyBuilder')
@@ -32,182 +32,253 @@
 {% block content %}
 
 <div ng-controller="ForestLogController">
-    <div class="form-group col-xs-12 well">
-      <input type="search" class="form-control" placeholder="Filter Here (searches all columns except Actions)" ng-model="filterText" autofocus>
-    </div>
-    
-    <div class="table-responsive col-xs-12 well">
-      <table class="table ng-cloak">
-        <thead>
-          <tr>
-            <th scope="col">Created On</th>
-            <th scope="col">Task ID</th>
-            <th scope="col">Patient ID</th>
-            <th scope="col">Tree</th>
-            <th scope="col">Data Start and End Date</th>
-            <th scope="col">Status</th>
-            <th scope="col">Actions</th>
-          </tr>
-        </thead>
-        
-        <tbody>
-          <tr> <p style="color: gray;"> Note: downloading source data provides only the data streams used, and results in the data <b>as it currently is,</b> not the state of the data at the time of the Forest tree ran.
+  <div class="form-group col-xs-12 well">
+
+    <input
+      type="search"
+      class="form-control"
+      placeholder="Filter Here (searches all columns except Actions)"
+      ng-model="filterText"
+      autofocus
+    >
+  </div>
+
+  <div class="table-responsive col-xs-12 well">
+    <table class="table ng-cloak">
+      <thead>
+        <tr>
+          <th scope="col">Created On</th>
+          <th scope="col">Task ID</th>
+          <th scope="col">Patient ID</th>
+          <th scope="col">Tree</th>
+          <th scope="col">Data Start and End Date</th>
+          <th scope="col">Status</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr>
+          <p style="color: gray;"> Note: downloading source data provides only the data streams used, and results in the
+            data <b>as it currently is,</b> not the state of the data at the time of the Forest tree ran.
             {# link to download summary statistics csv #}
-            <a href="{{ easy_url("forest_endpoints.download_summary_statistics_csv", study_id=study.id) }}" > Click here to download a csv of the current summary statistics for your study.</a>
+            <a href="{{ easy_url("forest_endpoints.download_summary_statistics_csv", study_id=study.id) }}"> Click here
+              to download a csv of the current summary statistics for your study.</a>
             <br>
-            {% include "basic_paginator.html" %}  {# the pages #}
-          </tr>
-          
-          <tr ng-repeat="log in filterableObjects" ng-if="(log.created_on_display + log.patient_id + log.forest_tree_display + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())">
-            <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.created_on_display }}{% endraw %}</td>
-            <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.external_id }}{% endraw %}</td>
-            <td>{% raw %}{{ log.patient_id }}{% endraw %}</td>
-            <td>{% raw %}{{ log.forest_tree_display }}{% endraw %}</td>
-            <td>{% raw %}{{ log.data_date_start }}{% endraw %} - {% raw %}{{ log.data_date_end }}{% endraw %}</td>
-            <td ng-class="{ {{ status_choices.queued }}: 'list-group-item-info',
+            {% include "basic_paginator.html" %} {# the pages #}
+        </tr>
+
+        <tr
+          ng-repeat="log in filterableObjects"
+          ng-if="(log.created_on_display + log.patient_id + log.forest_tree_display + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())"
+        >
+          <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.created_on_display }}{% endraw %}</td>
+          <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.external_id }}{% endraw %}</td>
+          <td>{% raw %}{{ log.patient_id }}{% endraw %}</td>
+          <td>{% raw %}{{ log.forest_tree_display }}{% endraw %}</td>
+          <td>{% raw %}{{ log.data_date_start }}{% endraw %} - {% raw %}{{ log.data_date_end }}{% endraw %}</td>
+          <td ng-class="{ {{ status_choices.queued }}: 'list-group-item-info',
                             {{ status_choices.running }}: 'list-group-item-primary',
                             {{ status_choices.success }}: 'list-group-item-success',
                             {{ status_choices.error }}: 'list-group-item-danger',
                             {{ status_choices.cancelled }}: 'list-group-item-warning'}[log.status]">
-              {% raw %}{{ log.status }}{% endraw %}
-            </td>
-            
-            <td>
-              <div>
-                <button class="btn-link" ng-click="showErrorModal(log)" style="padding: 0;">
-                  View details
+            {% raw %}{{ log.status }}{% endraw %}
+          </td>
+
+          <td>
+            <div>
+
+              <button
+                class="btn-link"
+                ng-click="showErrorModal(log)"
+                style="padding: 0;"
+              >
+                View details
+              </button>
+            </div>
+            <div>
+              <a
+                class="btn btn-link"
+                ng-href="{% raw %}{{ log.download_url|trustAsResourceUrl }}{% endraw %}"
+                style="padding: 0;"
+              >
+                Download Source Data
+              </a>
+            </div>
+
+            <div ng-if="log.has_runtime_output_downloadable_data">
+              <a
+                class="btn btn-link"
+                ng-href="{% raw %}{{ log.download_runtime_output_url|trustAsResourceUrl }}{% endraw %}"
+                style="padding: 0;"
+              >
+                Download Runtime Output Data
+              </a>
+            </div>
+
+            <div ng-if="log.has_output_data">
+              <a
+                class="btn btn-link"
+                ng-href="{% raw %}{{ log.download_participant_tree_data_url|trustAsResourceUrl }}{% endraw %}"
+                style="padding: 0;"
+              >
+                Download {% raw %}{{ log.forest_tree_display }}{% endraw %} Output Data
+              </a>
+            </div>
+
+
+            <div ng-if="log.status === '{{ status_choices.queued }}'">
+              <form
+                action="{% raw %}{{ log.cancel_url|trustAsResourceUrl }}{% endraw %}"
+                method="post"
+              >
+
+                <button
+                  class="btn btn-link"
+                  onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')"
+                  style="padding: 0;"
+                  type="submit"
+                >
+                  Cancel Task
                 </button>
-              </div>
-              <div>
-                <a class="btn btn-link" ng-href="{% raw %}{{ log.download_url|trustAsResourceUrl }}{% endraw %}"
-                   style="padding: 0;">
-                  Download Source Data
-                </a>
-              </div>
-              
-              <div ng-if="log.has_runtime_output_downloadable_data">
-                <a class="btn btn-link" ng-href="{% raw %}{{ log.download_runtime_output_url|trustAsResourceUrl }}{% endraw %}" style="padding: 0;">
-                  Download Runtime Output Data
-                </a>
-              </div>
-              
-              <div ng-if="log.has_output_data">
-                <a class="btn btn-link" ng-href="{% raw %}{{ log.download_participant_tree_data_url|trustAsResourceUrl }}{% endraw %}" style="padding: 0;">
-                  Download {% raw %}{{ log.forest_tree_display }}{% endraw %} Output Data
-                </a>
-              </div>
-              
-              
-              <div ng-if="log.status === '{{ status_choices.queued }}'">
-                <form action="{% raw %}{{ log.cancel_url|trustAsResourceUrl }}{% endraw %}" method="post">
-                  <button class="btn btn-link"
-                          onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')"
-                          style="padding: 0;" type="submit">
-                    Cancel Task
-                  </button>
-                </form>
-              </div>
-              {% if site_admin %}
-                <div ng-if="log.status !== '{{ status_choices.queued }}'">
-                  <form action="{% raw %}{{ log.copy_url|trustAsResourceUrl }}{% endraw %}" method="post">
-                    <button class="btn btn-link"
-                      onclick="return confirm('This will make a copy of this Forest task queued up to run. It will use the current version of forest ({{ forest_version }}, {{ forest_commit }}), unless the runtime version is updated between now and the time the task starts.')"
-                      style="padding: 0;" type="submit">
-                      Rerun This Task
-                    </button>
-                    <input type="hidden" id="external_id" name="external_id" value="{% raw %}{{ log.external_id }}{% endraw %}" />
-                  </form>
-                </div>
-              {% endif %}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="modal fade" id="error-modal" tabindex="-1" role="dialog">
-      <div class="modal-dialog" role="document" style="width: 60%;">
-        <div class="modal-content">
-          <div class="modal-header bg-primary">
-            <button  class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-            <h4 class="modal-title">Forest Task Details</h4>
-          </div>
-          <div class="modal-body">
-            <div class="panel panel-default">
-              <div class="panel-heading">Task Metadata</div>
-              <div class="panel-body">
-                
-                <dl style="margin-bottom: 0;">
-                  <div class="col-xs-6">
-                    <dt>Patient ID</dt>
-                    <dd>{% raw %}{{ modalLog.patient_id }}{% endraw %}</dd>
-                    <dt>Tree</dt>
-                    <dd>{% raw %}{{ modalLog.forest_tree_display }}{% endraw %}</dd>
-                    <dt>Task ID</dt>
-                    <dd>{% raw %}{{ modalLog.external_id }}{% endraw %}</dd>
-                    <dt>Forest Commit</dt>
-                    <dd>{% raw %}{{ modalLog.forest_commit }}{% endraw %}</dd>
-                  </div>
-                  <div class="col-xs-6">
-                    <dt>Data Date Start</dt>
-                    <dd>{% raw %}{{ modalLog.data_date_start }}{% endraw %}</dd>
-                    <dt>Data Date End</dt>
-                    <dd>{% raw %}{{ modalLog.data_date_end }}{% endraw %}</dd>
-                    <dt>Status</dt>
-                    <dd>{% raw %}{{ modalLog.status }}{% endraw %}</dd>
-                    <dt>Created On</dt>
-                    <dd>{% raw %}{{ modalLog.created_on_display }}{% endraw %}</dd>
-                  </div>
-                </dl>
-              </div>
+
+              </form>
             </div>
-            <div class="panel panel-default">
-              <div class="panel-heading">Processing Metadata</div>
-              <div class="panel-body">
-                <dl style="margin-bottom: 0;">
-                  <dt>Total File Size</dt>
-                  <dd>{% raw %}{{ modalLog.total_file_size || '--' }}{% endraw %}</dd>
-                  <dt>Processing Start Timestamp</dt>
-                  <dd>{% raw %}{{ modalLog.process_start_time || '--' }}{% endraw %}</dd>
-                  <dt>Downloading Complete Timestamp</dt>
-                  <dd>{% raw %}{{ modalLog.process_download_end_time || '--' }}{% endraw %}</dd>
-                  <dt>Processing Complete Timestamp</dt>
-                  <dd>{% raw %}{{ modalLog.process_end_time || '--' }}{% endraw %}</dd>
-                  <dt>Forest Output Exists?</dt>
-                  <dd>{% raw %}{{ modalLog.forest_output_exists_display }}{% endraw %}</dd>
-                </dl>
-              </div>
+            {% if site_admin %}
+            <div ng-if="log.status !== '{{ status_choices.queued }}'">
+              <form
+                action="{% raw %}{{ log.copy_url|trustAsResourceUrl }}{% endraw %}"
+                method="post"
+              >
+
+                <button
+                  class="btn btn-link"
+                  onclick="return confirm('This will make a copy of this Forest task queued up to run. It will use the current version of forest ({{ forest_version }}, {{ forest_commit }}), unless the runtime version is updated between now and the time the task starts.')"
+                  style="padding: 0;"
+                  type="submit"
+                >
+                  Rerun This Task
+                </button>
+
+                <input
+                  type="hidden"
+                  id="external_id"
+                  name="external_id"
+                  value="{% raw %}{{ log.external_id }}{% endraw %}"
+                />
+
+              </form>
             </div>
-            <div class="panel panel-default">
-              <div class="panel-heading">Forest Details</div>
-              <div class="panel-body">
-                <dl style="margin-bottom: 0;">
-                  <dt>Forest Version</dt>
-                  <dd>{% raw %}{{ modalLog.forest_version || '--' }}{% endraw %}</dd>
-                  <dt>Forest Parameters (Name)</dt>
-                  <dd>{% raw %}{{ modalLog.forest_param_name || '--' }}{% endraw %}</dd>
-                  <dt>Forest Parameters (Value)</dt>
-                  <dd>
-                    <p> Below is a representation of the parameters passed into the Forest Tree when it was run: </p>
-                    <p style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.params_dict }}{% endraw %}</p>
-                  </dd>
-                  <dt>Forest Parameters (Notes)</dt>
-                  <dd>{% raw %}{{ modalLog.forest_param_notes || '--' }}{% endraw %}</dd>
-                </dl>
-              </div>
-            </div>
-            <div class="panel panel-default">
-              <div class="panel-heading">Task Log</div>
-              <div class="panel-body">
-                {# Note, because of the white-space: pre-wrap, whitespace between the p tags matters #}
-                <p style="font-family: Consolas, monospace; margin-bottom: 0; overflow-x: auto; white-space: pre-wrap;">{% raw %}{{ modalLog.stacktrace || '--' }}{% endraw %}</p>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button  class="btn btn-default" data-dismiss="modal">Close</button>
-          </div>
-        </div><!-- /.modal-content -->
-      </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
+  <div
+    class="modal fade"
+    id="error-modal"
+    tabindex="-1"
+    role="dialog"
+  >
+    <div
+      class="modal-dialog"
+      role="document"
+      style="width: 60%;"
+    >
+      <div class="modal-content">
+        <div class="modal-header bg-primary">
+
+          <button
+            class="close"
+            data-dismiss="modal"
+            aria-label="Close"
+          ><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Forest Task Details</h4>
+        </div>
+        <div class="modal-body">
+          <div class="panel panel-default">
+            <div class="panel-heading">Task Metadata</div>
+            <div class="panel-body">
+
+              <dl style="margin-bottom: 0;">
+                <div class="col-xs-6">
+                  <dt>Patient ID</dt>
+                  <dd>{% raw %}{{ modalLog.patient_id }}{% endraw %}</dd>
+                  <dt>Tree</dt>
+                  <dd>{% raw %}{{ modalLog.forest_tree_display }}{% endraw %}</dd>
+                  <dt>Task ID</dt>
+                  <dd>{% raw %}{{ modalLog.external_id }}{% endraw %}</dd>
+                  <dt>Forest Commit</dt>
+                  <dd>{% raw %}{{ modalLog.forest_commit }}{% endraw %}</dd>
+                </div>
+                <div class="col-xs-6">
+                  <dt>Data Date Start</dt>
+                  <dd>{% raw %}{{ modalLog.data_date_start }}{% endraw %}</dd>
+                  <dt>Data Date End</dt>
+                  <dd>{% raw %}{{ modalLog.data_date_end }}{% endraw %}</dd>
+                  <dt>Status</dt>
+                  <dd>{% raw %}{{ modalLog.status }}{% endraw %}</dd>
+                  <dt>Created On</dt>
+                  <dd>{% raw %}{{ modalLog.created_on_display }}{% endraw %}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+          <div class="panel panel-default">
+            <div class="panel-heading">Processing Metadata</div>
+            <div class="panel-body">
+              <dl style="margin-bottom: 0;">
+                <dt>Total File Size</dt>
+                <dd>{% raw %}{{ modalLog.total_file_size || '--' }}{% endraw %}</dd>
+                <dt>Processing Start Timestamp</dt>
+                <dd>{% raw %}{{ modalLog.process_start_time || '--' }}{% endraw %}</dd>
+                <dt>Downloading Complete Timestamp</dt>
+                <dd>{% raw %}{{ modalLog.process_download_end_time || '--' }}{% endraw %}</dd>
+                <dt>Processing Complete Timestamp</dt>
+                <dd>{% raw %}{{ modalLog.process_end_time || '--' }}{% endraw %}</dd>
+                <dt>Forest Output Exists?</dt>
+                <dd>{% raw %}{{ modalLog.forest_output_exists_display }}{% endraw %}</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="panel panel-default">
+            <div class="panel-heading">Forest Details</div>
+            <div class="panel-body">
+              <dl style="margin-bottom: 0;">
+                <dt>Forest Version</dt>
+                <dd>{% raw %}{{ modalLog.forest_version || '--' }}{% endraw %}</dd>
+                <dt>Forest Parameters (Name)</dt>
+                <dd>{% raw %}{{ modalLog.forest_param_name || '--' }}{% endraw %}</dd>
+                <dt>Forest Parameters (Value)</dt>
+                <dd>
+                  <p> Below is a representation of the parameters passed into the Forest Tree when it was run: </p>
+                  <p style="font-family: Consolas, monospace; overflow-x: auto; white-space: pre-wrap;">
+                    {% raw %}{{ modalLog.params_dict }}{% endraw %}</p>
+                </dd>
+                <dt>Forest Parameters (Notes)</dt>
+                <dd>{% raw %}{{ modalLog.forest_param_notes || '--' }}{% endraw %}</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="panel panel-default">
+            <div class="panel-heading">Task Log</div>
+            <div class="panel-body">
+              {# Note, because of the white-space: pre-wrap, whitespace between the p tags matters #}
+              <p style="font-family: Consolas, monospace; margin-bottom: 0; overflow-x: auto; white-space: pre-wrap;">
+                {% raw %}{{ modalLog.stacktrace || '--' }}{% endraw %}</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+
+          <button
+            class="btn btn-default"
+            data-dismiss="modal"
+          >Close</button>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+  </div><!-- /.modal -->
+</div>
 {% endblock %}
