@@ -1,38 +1,77 @@
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+>
 
 <div class="">
 
   <h3>Schedule</h3>
 
-  <input type="checkbox" name="trigger_on_first_download" id="trigger_on_first_download"
-      {% if survey.settings['trigger_on_first_download'] %} checked {% endif %}>
+  <input
+    type="checkbox"
+    name="trigger_on_first_download"
+    id="trigger_on_first_download"
+    {% if survey.settings['trigger_on_first_download'] %}
+    checked
+    {% endif %}
+  >
 
-  &nbsp; <label for="trigger_on_first_download"><b> Show survey notification immediately</b> </label> when the user downloads this survey. (Will also trigger this survey right after registration.) <br>
+  &nbsp;
+
+  <label for="trigger_on_first_download"><b> Show survey notification immediately</b> </label> when the user downloads
+  this survey. (Will also trigger this survey right after registration.) <br>
 
   <h4>Schedule type:</h4>
 
 
-  <ul class="nav nav-tabs" id="schedule-picker">
-    <li id="weekly-tab" class="active"><a data-toggle="tab" href="#weekly">Weekly <span class="badge">{{ study.surveys.get(id=survey.id).weekly_schedules.count() }}</span></a></li>
+  <ul
+    class="nav nav-tabs"
+    id="schedule-picker"
+  >
+    <li
+      id="weekly-tab"
+      class="active"
+    ><a
+        data-toggle="tab"
+        href="#weekly"
+      >Weekly <span class="badge">{{ study.surveys.get(id=survey.id).weekly_schedules.count() }}</span></a></li>
     {% if push_notifications_enabled %}
-      <li id="relative-tab"><a data-toggle="tab" href="#relative">Relative <span class="badge">{{ study.surveys.get(id=survey.id).relative_schedules.count() }}</span></a></li>
-      <li id="absolute-tab"><a data-toggle="tab" href="#absolute">Absolute <span class="badge">{{ study.surveys.get(id=survey.id).absolute_schedules.count() }}</span></a></li>
+    <li id="relative-tab"><a
+        data-toggle="tab"
+        href="#relative"
+      >Relative <span class="badge">{{ study.surveys.get(id=survey.id).relative_schedules.count() }}</span></a></li>
+    <li id="absolute-tab"><a
+        data-toggle="tab"
+        href="#absolute"
+      >Absolute <span class="badge">{{ study.surveys.get(id=survey.id).absolute_schedules.count() }}</span></a></li>
     {% endif %}
   </ul>
   <br>
 
 
   <div class="tab-content">
-    <div id="weekly" class="tab-pane fade in active">
+    <div
+      id="weekly"
+      class="tab-pane fade in active"
+    >
       <em>Weekly schedules send surveys at the same time every week</em>
       <br><br>
       <p>Add new scheduled time (type numbers into the pop-up time picker):</p>
 
       <div class="form-inline bootstrap-timepicker timepicker">
-        <input id="weekly_time_timepicker" type="text" class="form-control schedule-timepicker">
+
+        <input
+          id="weekly_time_timepicker"
+          type="text"
+          class="form-control schedule-timepicker"
+        >
         <i class="glyphicon glyphicon-time"></i>
         &nbsp;
-        <select id="day_index_select" name="day" class="form-control">
+        <select
+          id="day_index_select"
+          name="day"
+          class="form-control"
+        >
           <option value="every_day">EVERY DAY</option>
           <option value=0>Sunday</option>
           <option value=1>Monday</option>
@@ -44,56 +83,106 @@
         </select>
 
         &nbsp;&nbsp;&nbsp;
-        <button class="btn btn-info" onclick="add_weekly_time()"><span class="glyphicon glyphicon-plus"></span>Add time</button>
+
+        <button
+          class="btn btn-info"
+          onclick="add_weekly_time()"
+        ><span class="glyphicon glyphicon-plus"></span>Add time</button>
       </div>
     </div>
 
-    <div id="relative" class="tab-pane fade">
-    <p>
-      <em>Relative schedules send surveys a specified number of days before or after an intervention date that is specific to each participant</em>
+    <div
+      id="relative"
+      class="tab-pane fade"
+    >
       <p>
-      {% if study.interventions.all().count() == 0 %}
-        <p>There are no interventions for this study. To create a relative schedule, please <a href="/interventions/{{ study.id }}">create an intervention</a>.</p>
+        <em>Relative schedules send surveys a specified number of days before or after an intervention date that is
+          specific to each participant</em>
+      <p>
+        {% if study.interventions.all().count() == 0 %}
+      <p>There are no interventions for this study. To create a relative schedule, please <a
+          href="/interventions/{{ study.id }}"
+        >create an intervention</a>.</p>
       {% else %}
-        <p>Add new scheduled time followed by how many days before or after the intervention event (type numbers into the pop-up time picker):</p>
-        <div class="form-inline bootstrap-timepicker timepicker">
-          <input id="relative_time_timepicker" type="text" class="form-control schedule-timepicker">
-          <i class="glyphicon glyphicon-time"></i>
+      <p>Add new scheduled time followed by how many days before or after the intervention event (type numbers into the
+        pop-up time picker):</p>
+      <div class="form-inline bootstrap-timepicker timepicker">
 
-          <input id="num_days_picker" type="number" class="form-control">
-          &nbsp;
-          <select id="before_after_select" name="before_after" class="form-control">
-             <option value=1>Days After</option>
-            <option value=-1>Days Before</option>
-            <option value=0>Day Of</option>
-          </select>
+        <input
+          id="relative_time_timepicker"
+          type="text"
+          class="form-control schedule-timepicker"
+        >
+        <i class="glyphicon glyphicon-time"></i>
 
-          <select id="intervention_select" name="intervention" class="form-control">
-            {% for intervention in study.interventions.all() %}
-              <option value="{{ intervention.id }}">{{ intervention.name }}</option>
-            {% endfor %}
-          </select>
+        <input
+          id="num_days_picker"
+          type="number"
+          class="form-control"
+        >
+        &nbsp;
+        <select
+          id="before_after_select"
+          name="before_after"
+          class="form-control"
+        >
+          <option value=1>Days After</option>
+          <option value=-1>Days Before</option>
+          <option value=0>Day Of</option>
+        </select>
 
-          <button class="btn btn-info" onclick="add_relative_time()"><span class="glyphicon glyphicon-plus"></span>Add time</button>
-        </div>
-        <p>
-      {% endif %}
+        <select
+          id="intervention_select"
+          name="intervention"
+          class="form-control"
+        >
+          {% for intervention in study.interventions.all() %}
+          <option value="{{ intervention.id }}">{{ intervention.name }}</option>
+          {% endfor %}
+        </select>
+
+        <button
+          class="btn btn-info"
+          onclick="add_relative_time()"
+        ><span class="glyphicon glyphicon-plus"></span>Add time</button>
+      </div>
       <p>
-        <b> Note: </b> Scheduled events based on Relative schedules occur as soon as the trigger is in the past (usually within 5 minutes). Beiwe will not send survey notifications if there was already one sent for the date and time of the trigger.
+        {% endif %}
+      <p>
+        <b> Note: </b> Scheduled events based on Relative schedules occur as soon as the trigger is in the past (usually
+        within 5 minutes). Beiwe will not send survey notifications if there was already one sent for the date and time
+        of the trigger.
     </div>
-    <div id="absolute" class="tab-pane fade">
+    <div
+      id="absolute"
+      class="tab-pane fade"
+    >
       <p>
         <em>Absolute schedules send out surveys to participants on a specified date</em>
       <p>
       <p>Add new scheduled time followed by the scheduled date (type numbers into the pop-up time picker):</p>
 
       <div class="form-inline bootstrap-timepicker timepicker">
-        <input id="absolute_time_timepicker" type="text" class="form-control schedule-timepicker">
+
+        <input
+          id="absolute_time_timepicker"
+          type="text"
+          class="form-control schedule-timepicker"
+        >
         <i class="glyphicon glyphicon-time"></i>
 
-        <input id="date_picker" type="date" class="form-control", value={{ today }}>
+        <input
+          id="date_picker"
+          type="date"
+          class="form-control"
+          ,
+          value={{ today }}
+        >
 
-        <button class="btn btn-info" onclick="add_absolute_time()"><span class="glyphicon glyphicon-plus"></span>Add time</button>
+        <button
+          class="btn btn-info"
+          onclick="add_absolute_time()"
+        ><span class="glyphicon glyphicon-plus"></span>Add time</button>
       </div>
     </div>
   </div>
