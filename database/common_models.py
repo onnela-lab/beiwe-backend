@@ -4,10 +4,12 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from itertools import product
 from pprint import pprint
 from random import choice as random_choice
 from typing import Any, Self
+from uuid import uuid4
 
 from django.db import models
 from django.db.models import Count, Q, QuerySet
@@ -15,6 +17,7 @@ from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import RelatedField
 from django.db.models.manager import BaseManager
 from django.db.models.query import BaseIterable, ValuesIterable, ValuesListIterable
+from django.utils import timezone
 from django.utils.timezone import localtime
 
 from constants.common_constants import DEV_TIME_FORMAT3, DT_24HR_W_TZ_W_SEC_N_PAREN, EASTERN
@@ -38,7 +41,7 @@ def generate_objectid_string() -> str:
 
 class ObjectIDModel(models.Model):
     """ Provides logic for generating unique objectid strings for a field. """
-    
+     
     @classmethod
     def generate_objectid_string(cls, field_name: str) -> str:
         """ Takes a django database class and a field name, generates a unique BSON-ObjectId-like
@@ -68,6 +71,51 @@ class UtilityModel(models.Model):
         All Models should subclass UtilityModel. """
     
     id: int  # this attribute is not correctly populated as an integer type in some IDEs
+    
+    @classmethod
+    def _do_generate_permutations(cls, **kwargs) -> list[Self]:
+        """ instantiates models with permutations of fields. """
+        return cls.objects.bulk_create(cls(**x) for x in cls._generate_permutations(**kwargs))
+    
+    @classmethod
+    def _generate_permutations(cls, **kwargs) -> list[dict]:
+        """ generates a bunch of permutations of the modeel's fields, testing purposes only. """
+    
+        now = timezone.now().replace(microsecond=0, second=0, minute=0)
+        field_dict = {}
+        foreign_keys = []
+        choice_field_options = []
+        
+        for i, field in enumerate(cls._meta.fields):
+            if isinstance(field, models.ForeignKey):
+                foreign_keys.append(field.name)
+                continue
+            elif isinstance(field, models.BooleanField):
+                choice_field_options.append([(field.name, True), (field.name, False)])
+                continue
+            elif isinstance(field, models.AutoField): continue
+            elif isinstance(field, models.DateTimeField):    x = now + timedelta(minutes=i)
+            elif isinstance(field, models.DateField):        x = date.today() + timedelta(days=i)
+            elif isinstance(field, models.IntegerField):     x = i
+            elif isinstance(field, models.FloatField):       x = float(i)
+            elif isinstance(field, models.UUIDField):        x = uuid4()
+            elif isinstance(field, models.BinaryField):      x = str(i).encode('utf-8')
+            elif isinstance(field, (models.TextField, models.CharField)):    x = str(i)
+            else: raise TypeError(f"encountered unhandled field type: {type(field)}")
+            
+            field_dict[field.name] = x
+            
+            if field.choices:  # choices is a tuple of valid_value, display_value
+                choice_field_options.append(list((field.name, a) for a, _ in field.choices))
+        
+        if keys:= [f for f in foreign_keys if f not in kwargs]:
+            raise ValueError(f"Missing foreign key values for {keys}.")
+        
+        # this produces all possible pairings of the choices (cartesian product).
+        all_pairings = product(*choice_field_options)
+        # copy the field_dict, inject the pairing, inject the kwargs
+        return [{**field_dict, **dict(pairing), **kwargs} for pairing in all_pairings]  
+        
     
     @classmethod
     def m(cls):

@@ -36,8 +36,10 @@
 @property --Byellow-very-dark-desat { initial-value: #6D6E3F; syntax: "<color>"; inherits: true;}
 
 @property --Bred { initial-value: #ff7276; syntax: "<color>"; inherits: true;}
+@property --Bred66 { initial-value: #ff727666; syntax: "<color>"; inherits: true;}
 @property --Bred-desat { initial-value: #C98D8F; syntax: "<color>"; inherits: true;}
 @property --Bred-dark { initial-value: #cc5b5e; syntax: "<color>"; inherits: true;}
+@property --Bred-dark66 { initial-value: #cc5b5e66; syntax: "<color>"; inherits: true;}
 @property --Bred-dark-desat { initial-value: #A17072; syntax: "<color>"; inherits: true;}
 @property --Bred-very-dark { initial-value: #A3484B; syntax: "<color>"; inherits: true;}
 @property --Bred-very-dark-desat { initial-value: #80595B; syntax: "<color>"; inherits: true;}
@@ -191,24 +193,29 @@ textarea:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; an
     max-width: 7em;
 }
 
+.tableRowTitle {
+    color: var(--Bwhite);
+    text-align: center;
+    vertical-align: text-bottom;
+    font-weight: bold;
+    font-size: medium;
+    border-left: 4px dotted var(--deep-ocean66);
+    border-right: 4px dotted var(--deep-ocean66);
+}
+.tableRowTitle > span {
+    font-variant: small-caps;
+}
 .tableRowReceived {
     background-color: var(--Baqua-less-bright66);
-    color: white;
-    border-radius:2pt;
-    box-shadow: 0pt 0pt 5pt 5pt var(--Baqua-less-bright66);
+    color: var(--Bwhite);
 }
 .tableRowError {
-    background-color: var(--Bred-dark);
-    color: black;
-    border-radius: 3pt;
-    box-shadow: 0pt 0pt 5pt 5pt var(--Bred-dark);
-
+    background-color: var(--Bred-dark66);
+    color: var(--Bwhite);
 }
 .tableRowPending {
     background-color: var(--deep-ocean66);
-    color: white;
-    border-radius: 3pt;
-    box-shadow: 0pt 0pt 5pt 5pt var(--deep-ocean66);
+    color: var(--Bwhite);
 }
 
 
@@ -398,6 +405,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .center-text { text-align: center; }
 .text-center { text-align: center; }
 .text-small { font-size: small; }
+.text-medium { font-size: medium; }
 .text-small-italic { font-size: small; font-style: italic; }
 .text-smaller { font-size: smaller; }
 .text-smaller-italic { font-size: smaller; font-style: italic; }
@@ -419,16 +427,15 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .table.table-notifications td:nth-child(1) {
     /* Time Sent column - 2 */
     font-family: monospace;
+    font-size: medium;
 }
 .table.table-notifications td:nth-child(2) {
     /* Time Confirmed column - 3 */
     font-family: monospace;
+    font-size: medium;
 }
 .table.table-notifications td:nth-child(3) {
     /* Survey column - 4 */
-    font-size: small;
-    /* tahoma is slightly more compact */
-    font-family: Tahoma;  
 }
 .table.table-notifications td:nth-child(4) {
     /* Schedule Type column - 5 */

@@ -1,6 +1,6 @@
 import csv
 import pickle
-from datetime import date, datetime
+from datetime import date, datetime, tzinfo
 
 import orjson
 from django.contrib import messages
@@ -143,17 +143,17 @@ def task_log(request: ResearcherRequest, study_id=None):
     paginator = Paginator(query, 50)
     if paginator.num_pages < page:
         return HttpResponse(content="", status=400)
+    tz = Study.objects.get(pk=study_id).timezone
     
     page = paginator.page(page)
     tasks = []
     
     for task_dict in page:
         extern_id = task_dict["external_id"]
-        
         # the commit is populated when the task runs, not when it is queued.
         task_dict["forest_commit"] = task_dict["forest_commit"] if task_dict["forest_commit"] else \
             "(exact commit missing)"
-        
+        # task_dict["status"] = task_dict["status"].title()
         # renames (could be optimized in the query, but speedup is negligible)
         task_dict["patient_id"] = task_dict.pop("participant__patient_id")
         
@@ -163,13 +163,13 @@ def task_log(request: ResearcherRequest, study_id=None):
             "forest_endpoints.download_participant_tree_data", study_id=study_id, forest_task_external_id=extern_id,
         )
         task_dict["forest_tree_display"] = task_dict.pop("forest_tree").title()
-        task_dict["created_on_display"] = task_dict.pop("created_on").strftime(DEV_TIME_FORMAT)
+        task_dict["created_on_display"] = task_dict.pop("created_on").astimezone(tz).strftime(DEV_TIME_FORMAT).split(" ", 1)
         task_dict["forest_output_exists_display"] = yes_no_unknown(task_dict["forest_output_exists"])
         
         # dates/times that require safety (yes it could be less obnoxious)
-        dict_datetime_to_display(task_dict, "process_end_time", None)
-        dict_datetime_to_display(task_dict, "process_start_time", None)
-        dict_datetime_to_display(task_dict, "process_download_end_time", None)
+        dict_datetime_to_display(task_dict, "process_end_time", tz, None)
+        dict_datetime_to_display(task_dict, "process_start_time", tz, None)
+        dict_datetime_to_display(task_dict, "process_download_end_time", tz, None)
         task_dict["data_date_end"] = task_dict["data_date_end"].isoformat() if task_dict["data_date_end"] else None
         task_dict["data_date_start"] = task_dict["data_date_start"].isoformat() if task_dict["data_date_start"] else None
         
@@ -447,7 +447,7 @@ def download_task_log(request: ResearcherRequest, study_id=str):
     )
 
 
-def stream_forest_task_log_csv(forest_tasks: QuerySet[ForestTask]):
+def stream_forest_task_log_csv(forest_tasks: QuerySet[ForestTask], tz: tzinfo):
     # titles of rows as values, query filter values as keys
     field_map = {
         "created_on": "Created On",
@@ -474,22 +474,24 @@ def stream_forest_task_log_csv(forest_tasks: QuerySet[ForestTask]):
     
     # yield rows
     for forest_data in forest_tasks.values(*field_map.keys()):
-        dict_datetime_to_display(forest_data, "created_on", "")
-        dict_datetime_to_display(forest_data, "process_start_time", "")
-        dict_datetime_to_display(forest_data, "process_download_end_time", "")
-        dict_datetime_to_display(forest_data, "process_end_time", "")
+        dict_datetime_to_display(forest_data, "created_on", tz, "")
+        dict_datetime_to_display(forest_data, "process_start_time", tz, "")
+        dict_datetime_to_display(forest_data, "process_download_end_time", tz, "")
+        dict_datetime_to_display(forest_data, "process_end_time", tz, "")
         forest_data["forest_tree"] = forest_data["forest_tree"].title()
         forest_data["forest_output_exists"] = yes_no_unknown(forest_data["forest_output_exists"])
         writer.writerow(forest_data.values())
         yield buffer.read()
 
 
-def dict_datetime_to_display(some_dict: dict[str, datetime], key: str, default: str = None):
+def dict_datetime_to_display(some_dict: dict[str, datetime], key: str, tz: tzinfo, default: str = None):
     # this pattern is repeated numerous times.
     dt = some_dict[key]
+    
     if dt is None:
         some_dict[key] = default
     else:
+        dt = dt.astimezone(tz)
         some_dict[key] = dt.strftime(DEV_TIME_FORMAT)
 
 

@@ -219,10 +219,12 @@ def notification_details_archived_event(
     if archived_event["was_resend"]:  # tack resend onto schedule type
         schedule_type += " (Resend)"
     
+    conf_time = t.split(" ", 1) if (t:=confirmed_formatter(confirmed_time, study_timezone)) else "-"
+    
     return {
         "scheduled_time": scheduled_formatter(archived_event["scheduled_time"], study_timezone),  # participant page
-        "attempted_time": attempt_formatter(archived_event["created_on"], study_timezone),
-        "confirmed_time": confirmed_formatter(confirmed_time, study_timezone) or "-",
+        "attempted_time": attempt_formatter(archived_event["created_on"], study_timezone).split(" ", 1),
+        "confirmed_time": conf_time,
         "survey_name": survey_names[archived_event["survey_id"]],
         "survey_id": archived_event["survey_id"],
         "survey_deleted": archived_event["survey_archive__survey__deleted"],
@@ -348,9 +350,8 @@ def message_from_heartbeat_list(heartbeat_timestamps: list[datetime], tz: tzinfo
             t2 = gratuitoussmallcaps(d2.strftime(DT_24HR_W_TZ_W_SEC_N_PAREN))
             # t2 actually comes before t1
             ret = f"{num_beats} keepalive notifications sent to the device between {t2} and {t1}."
-    print(ret)
     return (ret, )
 
 
 def gratuitoussmallcaps(text: str) -> str:
-    return '<span style="font-variant: small-caps; font-weight: 400; font-style: italic;">' + text.lower() + '</span>'
+    return '<span>' + text.lower() + '</span>'

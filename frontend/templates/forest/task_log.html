@@ -32,13 +32,16 @@
 {% block content %}
 
 <div ng-controller="ForestLogController">
+
   <div class="form-group col-xs-12 well">
+  <h1 class="h2">Forest Task History</h1>
 
     <input
       type="search"
       class="form-control"
-      placeholder="Filter Here (searches all columns except Actions)"
+      placeholder="Filter Forest Tasks Here (searches all columns except Actions)"
       ng-model="filterText"
+      aria-label="Filter Forest Tasks Here (searches all columns except Actions)"
       autofocus
     >
   </div>
@@ -51,7 +54,7 @@
           <th scope="col">Task ID</th>
           <th scope="col">Patient ID</th>
           <th scope="col">Tree</th>
-          <th scope="col">Data Start and End Date</th>
+          <th scope="col">Date Range</th>
           <th scope="col">Status</th>
           <th scope="col">Actions</th>
         </tr>
@@ -72,11 +75,11 @@
           ng-repeat="log in filterableObjects"
           ng-if="(log.created_on_display + log.patient_id + log.forest_tree_display + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())"
         >
-          <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.created_on_display }}{% endraw %}</td>
-          <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.external_id }}{% endraw %}</td>
+          <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.created_on_display[0] }}<br>{{ log.created_on_display[1] }}{% endraw %}</td>
+          <td class="text-small" style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.external_id }}{% endraw %}</td>
           <td>{% raw %}{{ log.patient_id }}{% endraw %}</td>
           <td>{% raw %}{{ log.forest_tree_display }}{% endraw %}</td>
-          <td>{% raw %}{{ log.data_date_start }}{% endraw %} - {% raw %}{{ log.data_date_end }}{% endraw %}</td>
+          <td>{% raw %}{{ log.data_date_start }}{% endraw %} - <br> {% raw %}{{ log.data_date_end }}{% endraw %}</td>
           <td ng-class="{ {{ status_choices.queued }}: 'list-group-item-info',
                             {{ status_choices.running }}: 'list-group-item-primary',
                             {{ status_choices.success }}: 'list-group-item-success',
@@ -92,6 +95,7 @@
                 class="btn-link"
                 ng-click="showErrorModal(log)"
                 style="padding: 0;"
+                aria-label="click to open the details modal for this Forest task"
               >
                 View details
               </button>
@@ -100,6 +104,7 @@
               <a
                 class="btn btn-link"
                 ng-href="{% raw %}{{ log.download_url|trustAsResourceUrl }}{% endraw %}"
+                aria-label="click to download the source data for this Forest task"
                 style="padding: 0;"
               >
                 Download Source Data
@@ -110,6 +115,7 @@
               <a
                 class="btn btn-link"
                 ng-href="{% raw %}{{ log.download_runtime_output_url|trustAsResourceUrl }}{% endraw %}"
+                aria-label="click to download the full runtime output data for this Forest task"
                 style="padding: 0;"
               >
                 Download Runtime Output Data
@@ -120,6 +126,7 @@
               <a
                 class="btn btn-link"
                 ng-href="{% raw %}{{ log.download_participant_tree_data_url|trustAsResourceUrl }}{% endraw %}"
+                aria-label="click to download the regular output data for this Forest task"
                 style="padding: 0;"
               >
                 Download {% raw %}{{ log.forest_tree_display }}{% endraw %} Output Data
@@ -138,6 +145,7 @@
                   onclick="return confirm('This will stop this Forest task from running, are you sure you want to do this?')"
                   style="padding: 0;"
                   type="submit"
+                  aria-label="click to cancel this Forest task - you will be prompted to confirm this action"
                 >
                   Cancel Task
                 </button>
@@ -156,6 +164,7 @@
                   onclick="return confirm('This will make a copy of this Forest task queued up to run. It will use the current version of forest ({{ forest_version }}, {{ forest_commit }}), unless the runtime version is updated between now and the time the task starts.')"
                   style="padding: 0;"
                   type="submit"
+                  aria-label="click to rerun this Forest task - you will be prompted to confirm this action"
                 >
                   Rerun This Task
                 </button>
@@ -194,7 +203,7 @@
             data-dismiss="modal"
             aria-label="Close"
           ><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title">Forest Task Details</h4>
+          <h2 class="h4 modal-title">Forest Task Details</h2>
         </div>
         <div class="modal-body">
           <div class="panel panel-default">
@@ -220,7 +229,7 @@
                   <dt>Status</dt>
                   <dd>{% raw %}{{ modalLog.status }}{% endraw %}</dd>
                   <dt>Created On</dt>
-                  <dd>{% raw %}{{ modalLog.created_on_display }}{% endraw %}</dd>
+                  <dd>{% raw %}{{ modalLog.created_on_display[0] }} {{ modalLog.created_on_display[1] }}{% endraw %}</dd>
                 </div>
               </dl>
             </div>
