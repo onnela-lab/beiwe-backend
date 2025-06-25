@@ -68,6 +68,12 @@ def render_participant_page(request: ResearcherRequest, participant: Participant
         confirmed_formatter=niceish_iso_time_format,
     )
     
+    # I was too clever and broke some stuff in making the notification history page flow better and have to undo that here
+    if "scheduled_time" in latest_notification_attempt:
+        latest_notification_attempt["attempted_time"] = " ".join(latest_notification_attempt["attempted_time"])
+    if "confirmed_time" in latest_notification_attempt:
+        latest_notification_attempt["confirmed_time"] = " ".join(latest_notification_attempt["confirmed_time"])
+    
     conditionally_display_locked_message(request, participant)
     study_interventions_exists = study.interventions.exists()
     study_fields_exists = study.fields.exists()

@@ -3,7 +3,6 @@
 
 {% block content %}
 <ol class="breadcrumb">
-
   <li>
     <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
   </li>
@@ -27,11 +26,11 @@
         <h3>Data Stream Settings</h3>
       </div>
 
-      <div class="col-xs-12 col-md-6 well well-sm">
+      <div class="col-xs-12 col-md-6 well well-sm well-left" style="min-height: 6em;">
         <p>Accelerometer, GPS, Gyro, and Magnetometer are available on Android and iOS.
         <p>Power State is present on both platforms, but the available data differs.
       </div>
-      <div class="col-xs-12 col-md-6 well well-sm">
+      <div class="col-xs-12 col-md-6 well well-sm well-right" style="min-height: 6em;">
         <p>Device Motion, Reachability, and Proximity are iOS-only.
         <p>Ambient Audio, Wifi, Calls, Texts, and Bluetooth are Android-only.
       </div>
@@ -51,7 +50,7 @@
               name="gps"
               id="gps"
               type="checkbox"
-              
+              aria-label="Enable or disabled GPS data collection"
               {{ "checked" if settings["gps"] }}
               {{ "disabled" if readonly }}
             />
@@ -71,6 +70,7 @@
               name="gps_on_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of a recording session when GPS is enabled."
               value="{{ settings['gps_on_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -89,6 +89,7 @@
               name="gps_off_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of the sleep session when GPS is disabled"
               value="{{ settings['gps_off_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -108,6 +109,7 @@
               name="magnetometer"
               id="magnetometer"
               type="checkbox"
+              aria-label="Enable or disable Magnetometer data collection"
               {{ "checked" if settings["magnetometer"] }}
               {{ "disabled" if readonly }}
             />
@@ -126,6 +128,7 @@
               name="magnetometer_on_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of a recording session when Magnetometer is enabled."
               value="{{ settings['magnetometer_on_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -144,6 +147,7 @@
               name="magnetometer_off_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of the sleep session when Magnetometer is disabled"
               value="{{ settings['magnetometer_off_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -163,6 +167,7 @@
               name="devicemotion"
               id="devicemotion"
               type="checkbox"
+              aria-label="Enable or disable Device Motion data collection"
               {{ "checked" if settings["devicemotion"] }}
               {{ "disabled" if readonly }}
             />
@@ -181,6 +186,7 @@
               name="devicemotion_on_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of a recording session when Device Motion is enabled."
               value="{{ settings['devicemotion_on_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             />
@@ -199,6 +205,7 @@
               name="devicemotion_off_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of the sleep session when Device Motion is disabled"
               value="{{ settings['devicemotion_off_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             />
@@ -218,6 +225,7 @@
               name="wifi"
               id="wifi"
               type="checkbox"
+              aria-label="Enable or disable WiFi data collection"
               {{ "checked" if settings["wifi"] }}
               {{ "disabled" if readonly }}
             />
@@ -259,6 +267,7 @@
               name="accelerometer"
               id="accelerometer"
               type="checkbox"
+              aria-label="Enable or disable Accelerometer data collection"
               {{ "checked" if settings["accelerometer"] }}
               {{ "disabled" if readonly }}
             />
@@ -277,6 +286,7 @@
               name="accelerometer_on_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of a recording session when Accelerometer is enabled."
               value="{{ settings['accelerometer_on_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             />
@@ -295,6 +305,7 @@
               name="accelerometer_off_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of the sleep session when Accelerometer is disabled"
               value="{{ settings['accelerometer_off_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -318,6 +329,7 @@
               name="accelerometer_frequency"
               class="form-control"
               type="number"
+              aria-label="Set the sample rate (frequency) of the Accelerometer during its recording session."
               value="{{ settings['accelerometer_frequency'] }}"
               {{ "disabled" if readonly }}
             >
@@ -340,6 +352,7 @@
               name="gyro"
               id="gyro"
               type="checkbox"
+              aria-label="Enable or disable Gyro data collection"
               {{ "checked" if settings["gyro"] }}
               {{ "disabled" if readonly }}
             />
@@ -358,6 +371,7 @@
               name="gyro_on_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of a recording session when Gyro is enabled."
               value="{{ settings['gyro_on_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -376,6 +390,7 @@
               name="gyro_off_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of the sleep session when Gyro is disabled"
               value="{{ settings['gyro_off_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -399,6 +414,7 @@
               name="gyro_frequency"
               class="form-control"
               type="number"
+              aria-label="Set the sample rate (frequency) of the Gyro during its recording session."
               value="{{ settings['gyro_frequency'] }}"
               {{ "disabled" if readonly }}
             >
@@ -421,6 +437,7 @@
               name="ambient_audio"
               id="ambient_audio"
               type="checkbox"
+              aria-label="Enable or disable Ambient Audio data collection"
               {{ "checked" if settings["ambient_audio"] }}
               {{ "disabled" if readonly }}
             />
@@ -439,6 +456,7 @@
               name="ambient_audio_on_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of a recording session when Ambient Audio is enabled."
               value="{{ settings['ambient_audio_on_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             />
@@ -457,6 +475,7 @@
               name="ambient_audio_off_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of the sleep session when Ambient Audio is disabled"
               value="{{ settings['ambient_audio_off_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             />
@@ -478,6 +497,7 @@
               id="ambient_audio_bitrate"
               name="ambient_audio_bitrate"
               class="form-control"
+              aria-label="Set the bitrate of the Ambient Audio recording session."
               {{ "disabled" if readonly }}
             >
               <option
@@ -514,6 +534,7 @@
               id="ambient_audio_sampling_rate"
               name="ambient_audio_sampling_rate"
               class="form-control"
+              aria-label="Set the audio sampling rate of the Ambient Audio recording session."
               {{ "disabled" if readonly }}
             >
               <option
@@ -549,6 +570,7 @@
               name="power_state"
               id="power_state"
               type="checkbox"
+              aria-label="Enable or disable Power State data collection"
               {{ "checked" if settings["power_state"] }}
               {{ "disabled" if readonly }}
             />
@@ -568,6 +590,7 @@
               name="proximity"
               id="proximity"
               type="checkbox"
+              aria-label="Enable or disable Proximity data collection"
               {{ "checked" if settings["proximity"] }}
               {{ "disabled" if readonly }}
             />
@@ -587,6 +610,7 @@
               name="reachability"
               id="reachability"
               type="checkbox"
+              aria-label="Enable or disable Reachability data collection"
               {{ "checked" if settings["reachability"] }}
               {{ "disabled" if readonly }}
             />
@@ -606,6 +630,7 @@
               name="calls"
               id="calls"
               type="checkbox"
+              aria-label="Enable or disable Calls data collection"
               {{ "checked" if settings["calls"] }}
               {{ "disabled" if readonly }}
             />
@@ -625,6 +650,7 @@
               name="texts"
               id="texts"
               type="checkbox"
+              aria-label="Enable or disable Texts data collection"
               {{ "checked" if settings["texts"] }}
               {{ "disabled" if readonly }}
             />
@@ -665,6 +691,7 @@
               name="bluetooth"
               id="bluetooth"
               type="checkbox"
+              aria-label="Enable or disable Bluetooth data collection"
               {{ "checked" if settings["bluetooth"] }}
               {{ "disabled" if readonly }}
             />
@@ -683,6 +710,7 @@
               name="bluetooth_on_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the duration of a recording session when Bluetooth is enabled."
               value="{{ settings['bluetooth_on_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -701,6 +729,7 @@
               name="bluetooth_total_duration_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the total duration of the Bluetooth recording session."
               value="{{ settings['bluetooth_total_duration_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -719,6 +748,7 @@
               name="bluetooth_global_offset_seconds"
               class="form-control"
               type="number"
+              aria-label="Set the global offset in seconds for the Bluetooth recording session."
               value="{{ settings['bluetooth_global_offset_seconds'] }}"
               {{ "disabled" if readonly }}
             >
@@ -731,6 +761,7 @@
       <button
         class="btn btn-primary btn-block h3-margins"
         type="submit"
+        aria-label="click to save all changes to settings"
       ><b>Save All App Settings</b></button>
       {% endif %}
 
@@ -765,6 +796,7 @@
       <button
         class="btn btn-primary btn-block h3-margins"
         type="submit"
+        aria-label="click to save all changes to settings"
       ><b>Save All App Settings</b></button>
       {% endif %}
       <div class="col-xs-12 col-md-12 row text-center">
@@ -791,6 +823,7 @@
                 name="check_for_new_surveys_frequency_seconds"
                 class="form-control"
                 type="number"
+                aria-label="Set the frequency in seconds for checking on new surveys."
                 value="{{ settings['check_for_new_surveys_frequency_seconds'] }}"
                 {{ "disabled" if readonly }}
               >
@@ -811,6 +844,7 @@
                 name="create_new_data_files_frequency_seconds"
                 class="form-control"
                 type="number"
+                aria-label="Set the frequency in seconds for creating new data files."
                 value="{{ settings['create_new_data_files_frequency_seconds'] }}"
                 {{ "disabled" if readonly }}
               >
@@ -831,6 +865,7 @@
                 name="upload_data_files_frequency_seconds"
                 class="form-control"
                 type="number"
+                aria-label="Set the frequency in seconds for uploading data files."
                 value="{{ settings['upload_data_files_frequency_seconds'] }}"
                 {{ "disabled" if readonly }}
               >
@@ -852,6 +887,7 @@
                 name="allow_upload_over_cellular_data"
                 id="allow_upload_over_cellular_data"
                 type="checkbox"
+                aria-label="Enable or disable data upload over a cellular data plan"
                 {{ "checked" if settings["allow_upload_over_cellular_data"] }}
                 {{ "disabled" if readonly }}
               />
@@ -875,6 +911,7 @@
                 name="use_anonymized_hashing"
                 id="use_anonymized_hashing"
                 type="checkbox"
+                aria-label="Enable or disable anonymization of phone numbers and MAC addresses"
                 {{ "checked" if settings["use_anonymized_hashing"] }}
                 {{ "disabled" if readonly }}
               />
@@ -887,6 +924,7 @@
         <button
           class="btn btn-primary btn-block h3-margins"
           type="submit"
+          aria-label="click to save all changes to settings"
         ><b>Save All App Settings</b></button>
         {% endif %}
 
@@ -909,6 +947,7 @@
                 name="call_clinician_button_enabled"
                 id="call_clinician_button_enabled"
                 type="checkbox"
+                aria-label="Enable or disable the 'Call My Clinician' button"
                 {{ "checked" if settings["call_clinician_button_enabled"] }}
                 {{ "disabled" if readonly }}
               />
@@ -932,6 +971,7 @@
                 name="call_research_assistant_button_enabled"
                 id="call_research_assistant_button_enabled"
                 type="checkbox"
+                aria-label="Enable or disable the 'Call Research Assistant' button"
                 {{ "checked" if settings["call_research_assistant_button_enabled"] }}
                 {{ "disabled" if readonly }}
               />
@@ -952,6 +992,7 @@
                 name="voice_recording_max_time_length_seconds"
                 class="form-control"
                 type="number"
+                aria-label="Set the maximum duration in seconds for voice recordings."
                 value="{{ settings['voice_recording_max_time_length_seconds'] }}"
                 {{ "disabled" if readonly }}
               >
@@ -976,6 +1017,7 @@
                 name="seconds_before_auto_logout"
                 class="form-control"
                 type="number"
+                aria-label="Set the time in seconds before the app automatically logs out the user."
                 value="{{ settings['seconds_before_auto_logout'] }}"
                 {{ "disabled" if readonly }}
               >
@@ -995,6 +1037,7 @@
                 name="use_gps_fuzzing"
                 id="use_gps_fuzzing"
                 type="checkbox"
+                aria-label="Enable or disable GPS data fuzzing"
                 {{ "checked" if settings["use_gps_fuzzing"] }}
                 {{ "disabled" if readonly }}
               />
@@ -1004,14 +1047,14 @@
           <hr>
           <h3 style="text-align: center;">Participant and Survey Reminders (Times are in Minutes)</h3>
           <hr>
-          {# Heartbeat Timer #}
+          {# Heartbeat Timer - changed the user-facing name to Keepalive #}
           <div class="col-xs-12">
             <div class="form-group">
 
               <label
                 for="heartbeat_timer_minutes"
                 class="control-label"
-              ><b>Heartbeat Timer</b>&nbsp; <i> (time to wait before and between sending the Heartbeat reminder
+              ><b>Keepalive Timer</b>&nbsp; <i> (time to wait before and between sending the Keepalive reminder
                   notification)</i>:</label>
 
               <input
@@ -1019,6 +1062,7 @@
                 name="heartbeat_timer_minutes"
                 class="form-control"
                 type="number"
+                aria-label="Set the time in minutes between sending the Keepalive reminder notification."
                 value="{{ settings['heartbeat_timer_minutes'] }}"
                 {{ "disabled" if readonly }}
               >
@@ -1083,6 +1127,7 @@
         <button
           class="btn btn-primary btn-block h3-margins"
           type="submit"
+          aria-label="click to save all changes to settings"
         ><b>Save All App Settings</b></button>
         {% endif %}
 
@@ -1245,6 +1290,7 @@
         <button
           class="btn btn-primary btn-block h3-margins"
           type="submit"
+          aria-label="click to save all changes to settings"
         ><b>Save All App Settings</b></button>
         {% endif %}
       </div>

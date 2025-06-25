@@ -37,20 +37,17 @@
 
 <div class="container">
 
-  <div
-    class="col-xs-12"
-    style="padding-right: 0em"
-  >
+  <div>
     <div
-      class="col-md-6 well marg-l-n-1"
-      style="min-height: 36em;"
+      class="col-md-6 well well-left"
+      style="min-height: 577px;"
     >
       <h2 class="h3 text-center"> <b>Activity Information </b></h2>
       <table class="table well activity-info marg-t-4">
 
         <!-- Phone OS info -->
         <tr>
-          <td><b>Phone operating system:</b></td>
+          <td style="width:250px; min-width:250px; "><b>Phone operating system:</b></td>
           <td>
             {% if participant.os_type == "IOS" %} iOS {% elif participant.os_type == "ANDROID" %} Android {% else %}
             <i>Unknown?</i> {% endif %}
@@ -78,37 +75,37 @@
         </tr>
         <tr>
           <td><b>Registration</b></td>
-          <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_register_user, study_timezone) }}</td>
+          <td class="participant-dates">{{ niceish_iso_time_format(participant.last_register_user, study_timezone) }}</td>
         </tr>
         <tr>
           <td><b>Last Heartbeat</b></td>
-          <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_heartbeat_checkin, study_timezone) }}
+          <td class="participant-dates">{{ niceish_iso_time_format(participant.last_heartbeat_checkin, study_timezone) }}
           </td>
         </tr>
         <tr>
           <td><b>Last check-in for updated surveys</b></td>
-          <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_get_latest_surveys, study_timezone) }}
+          <td class="participant-dates">{{ niceish_iso_time_format(participant.last_get_latest_surveys, study_timezone) }}
           </td>
         </tr>
         <tr>
           <td><b>Last file upload event</b></td>
-          <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_upload, study_timezone) }}</td>
+          <td class="participant-dates">{{ niceish_iso_time_format(participant.last_upload, study_timezone) }}</td>
         </tr>
         {% comment %}
         {# This is just going to confuse people until we change the way passwords work. #}
         <tr>
           <td><b>Last participant password reset</b></td>
-          <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_set_password, study_timezone) }}</td>
+          <td class="participant-dates">{{ niceish_iso_time_format(participant.last_set_password, study_timezone) }}</td>
         </tr>
         {% endcomment %}
         <tr>
           <td><b>Last notification credential update</b></td>
-          <td class="text-mono text-small">{{ nice_iso_dt_format(participant.last_set_fcm_token, study_timezone) }}</td>
+          <td class="participant-dates">{{ niceish_iso_time_format(participant.last_set_fcm_token, study_timezone) }}</td>
         </tr>
         <tr>
           <td><b>Last device settings update</b></td>
-          <td class="text-mono text-small">
-            {{ nice_iso_dt_format(participant.last_get_latest_device_settings, study_timezone) }}
+          <td class="participant-dates">
+            {{ niceish_iso_time_format(participant.last_get_latest_device_settings, study_timezone) }}
           </td>
         </tr>
       </table>
@@ -116,8 +113,8 @@
 
 
     <div
-      class="col-md-6 well marg-l-1"
-      style="min-height: 36em;"
+      class="col-md-6 well well-right"
+      style="min-height: 577px;"
     >
       <h2 class="h3 text-center"> <b>Survey Notifications </b></h2>
       <p class="text-center">
@@ -149,22 +146,23 @@
           <tr
             aria-label="survey notification was scheduled for {{ latest_notification_attempt.scheduled_time or "-" }}">
             <td>Scheduled for:</td>
-            <td class="text-mono">
+            <td class="text-mono text-smallcaps text-normal">
               {{ latest_notification_attempt.scheduled_time or "-" }}
             </td>
           </tr>
           <tr aria-label="survey notification was attempted at {{ latest_notification_attempt.attempted_time or "-" }}">
             <td>Send Attempt:</td>
-            <td class="text-mono">
-              {{ latest_notification_attempt.attempted_time or "-" }}
+            <td class="text-mono text-smallcaps text-normal">
+              {{ latest_notification_attempt.attempted_time }}
             </td>
           </tr>
           <tr
             aria-label="survey notification was confirmed received at {{ latest_notification_attempt.confirmed_time or "-" }}"
           >
             <td>Confirmed Received:</td>
-            <td class="text-mono">
-              {{ latest_notification_attempt.confirmed_time or "-" }}
+            <td class="participant-dates">
+            {{ latest_notification_attempt.confirmed_time or "-" }}
+              
             </td>
           </tr>
 
@@ -206,7 +204,7 @@
             Resend as Manual Push Notification
           </button>
 
-          <div class="text-small-italic center-text marg-t-1"> (This action is not yet integrated automatic with survey
+          <div class="text-medium-italic center-text marg-t-1"> (This action is not yet integrated automatic with survey
             notification
             resend logic.) </div>
           {% endif %}
@@ -497,7 +495,7 @@
 
     {% if study_interventions_exists %}
     <div
-      class="col-md-6 col-sm-12 well vertical-padding-3 text-center"
+      class="col-md-6 col-sm-12 well well-left vertical-padding-3 text-center"
       style="min-height: 15em;"
     >
       {% if enable_interventions %}
@@ -554,7 +552,7 @@
 
     {% if study_interventions_exists %}
     <div
-      class="col-md-6 col-sm-12 well vertical-padding-3 text-center"
+      class="col-md-6 col-sm-12 well well-right vertical-padding-3 text-center"
       style="min-height: 15em;"
     >
       {% else %}

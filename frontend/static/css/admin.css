@@ -88,15 +88,23 @@
     /* x offset 0 for symmetry, y offset to make top surfaces not overlap with precisely placed objects */
     box-shadow: 0pt 5pt 5pt 5pt var(--Bblack-half);
     border-radius: 10pt;
-    padding: 0.5em;
-    /* filter: blur(3pt); */
+    padding: 0.5em; /* reduces squeezing */
 }
 
 .well {
     background: #005e6f22;
-    box-shadow: 0pt 5pt 5pt 5pt #005e6f22;
+    box-shadow: 0pt 0pt 5pt 5pt #005e6f22;
     border-radius: 10pt;
 }
+.well-left{
+    inset: 0px 0px 0px -6px;
+    /* right: 4pt */
+}
+.well-right {
+    inset: 0px 0px 0px 6px;
+    /* left: 4pt */
+}
+
 .breadcrumb {
     background: var(--aqua-dark);
     box-shadow: 0pt 5pt 5pt 5pt var(--aqua-dark);
@@ -400,6 +408,14 @@ td.custom-field-value:hover span.custom-field-edit-link {
     background-color: #0d525766 !important
 }
 
+.participant-dates {
+    /* text-mono text-smallcaps text-normal */
+    font-family: monospace;
+    font-size: normal;
+    font-variant: small-caps;
+}
+
+
 /* Text modifiers */
 .bold { font-weight: bold; }
 .italic { font-style: italic; }
@@ -407,10 +423,11 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .text-blackish{ color: rgb(32, 32, 32); }
 .center-text { text-align: center; }
 .text-center { text-align: center; }
+.text-smaller { font-size: smaller; }
 .text-small { font-size: small; }
 .text-medium { font-size: medium; }
+.text-normal { font-size: normal; }
 .text-small-italic { font-size: small; font-style: italic; }
-.text-smaller { font-size: smaller; }
 .text-smaller-italic { font-size: smaller; font-style: italic; }
 .text-mono { font-family: monospace; }
 .text-uppercase { text-transform: uppercase; }
