@@ -57,7 +57,7 @@
           </td>
         </tr>
         <tr>
-          <td><b>Beiwe App Version:</b></td>
+          <td>Beiwe App Version:</td>
           <td>
             {% if participant.os_type == "IOS" %}
             {% if participant.last_version_code %}
@@ -74,36 +74,36 @@
           </td>
         </tr>
         <tr>
-          <td><b>Registration</b></td>
+          <td>Registration</td>
           <td class="participant-dates">{{ niceish_iso_time_format(participant.last_register_user, study_timezone) }}</td>
         </tr>
         <tr>
-          <td><b>Last Heartbeat</b></td>
+          <td>Last Heartbeat</td>
           <td class="participant-dates">{{ niceish_iso_time_format(participant.last_heartbeat_checkin, study_timezone) }}
           </td>
         </tr>
         <tr>
-          <td><b>Last check-in for updated surveys</b></td>
+          <td>Last check-in for updated surveys</td>
           <td class="participant-dates">{{ niceish_iso_time_format(participant.last_get_latest_surveys, study_timezone) }}
           </td>
         </tr>
         <tr>
-          <td><b>Last file upload event</b></td>
+          <td>Last file upload event</td>
           <td class="participant-dates">{{ niceish_iso_time_format(participant.last_upload, study_timezone) }}</td>
         </tr>
         {% comment %}
         {# This is just going to confuse people until we change the way passwords work. #}
         <tr>
-          <td><b>Last participant password reset</b></td>
+          <td>Last participant password reset</td>
           <td class="participant-dates">{{ niceish_iso_time_format(participant.last_set_password, study_timezone) }}</td>
         </tr>
         {% endcomment %}
         <tr>
-          <td><b>Last notification credential update</b></td>
+          <td>Last notification credential update</td>
           <td class="participant-dates">{{ niceish_iso_time_format(participant.last_set_fcm_token, study_timezone) }}</td>
         </tr>
         <tr>
-          <td><b>Last device settings update</b></td>
+          <td>Last device settings update</td>
           <td class="participant-dates">
             {{ niceish_iso_time_format(participant.last_get_latest_device_settings, study_timezone) }}
           </td>
