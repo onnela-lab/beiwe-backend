@@ -3548,7 +3548,7 @@ a.label:focus {
   background-color: #008966;
 }
 .label-info {
-  background-color: #3498db;
+  background-color: var(--deep-ocean-brighter);
 }
 .label-info[href]:hover,
 .label-info[href]:focus {

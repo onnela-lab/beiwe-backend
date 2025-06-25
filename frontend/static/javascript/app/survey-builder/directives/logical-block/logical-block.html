@@ -1,37 +1,78 @@
-<div class="panel panel-default">
-  <div class="panel-heading" style="line-height: 30px;">
+<div class="panel panel-default"
+aria-label="(this is a logical block)"
+>
+
+  <div
+    class="panel-heading"
+    style="line-height: 30px;"
+  >
     {{ type.toUpperCase() }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-    <button class="close pull-right" ng-click="surveyBuilder.deleteBlock(path)" style="padding-left:13px">
+
+    <button
+      class="close pull-right"
+      ng-click="surveyBuilder.deleteBlock(path)"
+      style="padding-left:13px"
+      aria-label="remove this logical block"
+    >
       &times;
     </button>
+    
     <div class="btn-group">
-      <add-logic-buttons ng-if="type != 'not' || _.isEmpty(surveyBuilder.getValueAtPath(path)[type])"
-                         new-path="{{ getNewPath() }}" survey-builder="surveyBuilder" class="pull-right">
+      <add-logic-buttons
+        ng-if="type != 'not' || _.isEmpty(surveyBuilder.getValueAtPath(path)[type])"
+        new-path="{{ getNewPath() }}"
+        survey-builder="surveyBuilder"
+        class="pull-right"
+        aria-label="add a new logical or conditional block called {{ getNewPath() }}"
+      >
       </add-logic-buttons>
     </div>
     <!-- Uncomment this code for debugging -->
-    <!--<div style="color: #eaeaea; font-size: 12px; line-height: 12px;">
+    <div style="color: #eaeaea; font-size: 12px; line-height: 12px;">
       <br>
       var path = '{{ path }}';
       var type = '{{ type }}';
       var valueAtPath = '{{ surveyBuilder.getValueAtPath(path) }}';
       var newPath = '{{ getNewPath() }}';
-    </div>-->
+    </div>
     <!-- /Uncomment this code for debugging -->
   </div>
 
   <ul class="list-group">
-    <li ng-if="type == 'not' && !(_.isEmpty(surveyBuilder.getValueAtPath(path)[type]))" class="list-group-item">
-      <logical-block ng-if="_.includes(LOGICAL_OPERATORS, surveyBuilder.getOperatorType(surveyBuilder.getValueAtPath(path)[type]))"
-                     path="{{ getNewPath($index) }}" survey-builder="surveyBuilder"></logical-block>
-      <conditional-block ng-if="_.includes(ARITHMETIC_OPERATORS, surveyBuilder.getOperatorType(surveyBuilder.getValueAtPath(path)[type]))"
-                         path="{{ getNewPath($index) }}" survey-builder="surveyBuilder"></conditional-block>
+    <li
+      ng-if="type == 'not' && !(_.isEmpty(surveyBuilder.getValueAtPath(path)[type]))"
+      class="list-group-item"
+    >
+      <logical-block
+        ng-if="_.includes(LOGICAL_OPERATORS, surveyBuilder.getOperatorType(surveyBuilder.getValueAtPath(path)[type]))"
+        path="{{ getNewPath($index) }}"
+        survey-builder="surveyBuilder"
+        aria-label="(this is a logical block)"
+      ></logical-block>
+      <conditional-block
+        ng-if="_.includes(ARITHMETIC_OPERATORS, surveyBuilder.getOperatorType(surveyBuilder.getValueAtPath(path)[type]))"
+        path="{{ getNewPath($index) }}"
+        survey-builder="surveyBuilder"
+        aria-label="(this is a logical block)"
+      ></conditional-block>
     </li>
-    <li ng-if="type != 'not'" class="list-group-item" ng-repeat="value in surveyBuilder.getValueAtPath(path)[type]">
-      <logical-block ng-if="_.includes(LOGICAL_OPERATORS, surveyBuilder.getOperatorType(value))"
-                     path="{{ getNewPath($index) }}" survey-builder="surveyBuilder"></logical-block>
-      <conditional-block ng-if="_.includes(ARITHMETIC_OPERATORS, surveyBuilder.getOperatorType(value))"
-                         path="{{ getNewPath($index) }}" survey-builder="surveyBuilder"></conditional-block>
+    <li
+      ng-if="type != 'not'"
+      class="list-group-item"
+      ng-repeat="value in surveyBuilder.getValueAtPath(path)[type]"
+    >
+      <logical-block
+        ng-if="_.includes(LOGICAL_OPERATORS, surveyBuilder.getOperatorType(value))"
+        path="{{ getNewPath($index) }}"
+        survey-builder="surveyBuilder"
+        aria-label="(this is a logical block)"
+      ></logical-block>
+      <conditional-block
+        ng-if="_.includes(ARITHMETIC_OPERATORS, surveyBuilder.getOperatorType(value))"
+        path="{{ getNewPath($index) }}"
+        survey-builder="surveyBuilder"
+        aria-label="(this is a conditional block)"
+      ></conditional-block>
     </li>
   </ul>
 </div>

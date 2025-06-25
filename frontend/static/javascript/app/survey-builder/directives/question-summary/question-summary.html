@@ -1,33 +1,47 @@
-<div class="panel panel-default" ng-repeat="question in surveyBuilder.questions">
+<div
+  class="panel panel-default"
+  ng-repeat="question in surveyBuilder.questions"
+>
   <div class="panel-body container">
     <table>
       <tr>
         <td style="width: 185px; padding-left: 20px; padding-right: 30px; text-align: center;">
-          <h1>Q{{ $index + 1 }}</h1>
-          <span ng-if="question.display_if && !surveyBuilder.randomize" class="label label-warning">
+          <h3 class="h1"> Q{{ $index + 1 }} </h3>
+          <span
+            ng-if="question.display_if && !surveyBuilder.randomize"
+            class="label label-warning"
+          >
             Conditionally Displayed
           </span>
-          <span ng-if="question.display_if && surveyBuilder.randomize" class="label label-info"
-                title="This question's skip logic is disabled because the survey is randomized."
-                data-toggle="tooltip" data-placement="bottom" tooltip>
+          <span
+            ng-if="question.display_if && surveyBuilder.randomize"
+            class="label label-info"
+            title="This question's skip logic is disabled because the survey is randomized."
+            data-toggle="tooltip"
+            data-placement="bottom"
+            tooltip
+          >
             Always Displayed <span class="glyphicon glyphicon-info-sign"></span>
           </span>
-          <span ng-if="!question.display_if" class="label label-success">
+          <span
+            ng-if="!question.display_if"
+            class="label label-success"
+          >
             Always Displayed
           </span>
         </td>
         <td>
-          <h4>{{ question.question_text }}</h4>
+          <h4 class="h4">{{ question.question_text }}</h4>
           <table>
             <!-- Question type -->
             <tr>
               <td><i>Question Type:</i></td>
               <td>{{ surveyBuilder.QUESTION_TYPE_LABELS[question.question_type] }}</td>
               <!-- spacing and the required attribute -->
-              <td style="padding-right: 150px;"> </td> 
+              <td style="padding-right: 150px;"> </td>
               <td ng-if="question.question_type != surveyBuilder.QUESTION_TYPES.infoTextBox">
                 <i>Required Question:</i>
-              </td> 
+              </td>
               <td ng-if="question.question_type != surveyBuilder.QUESTION_TYPES.infoTextBox">
                 {{ question.required ? "Yes" : "No"}}
               </td>
@@ -41,12 +55,15 @@
               <td><i>Maximum:</i></td>
               <td>{{ question.max }}</td>
             <tr>
-            <!-- Radio Button or Checkbox question options array -->
+              <!-- Radio Button or Checkbox question options array -->
             <tr ng-if="question.answers">
               <td><i>Options:</i></td>
               <td>
                 <span ng-repeat-start="answer in question.answers">{{ answer.text }}</span>
-                <span ng-if="!$last" ng-repeat-end>, </span>
+                <span
+                  ng-if="!$last"
+                  ng-repeat-end
+                >, </span>
               </td>
             </tr>
             <!-- Free response question text_field_type -->
@@ -54,18 +71,38 @@
               <td><i>Text Field Type:</i></td>
               <td>{{ surveyBuilder.TEXT_FIELD_TYPE_LABELS[question.text_field_type] }}</td>
             </tr>
-            
+
             <!-- Action buttons -->
             <tr>
               <td colspan="2">
-                <button class="btn btn-default btn-sm" ng-click="surveyBuilder.populateEditQuestionModal($index)">Edit</button>
-                <button class="btn btn-default btn-sm" ng-click="surveyBuilder.deleteQuestion($index)">Delete</button>
-                <button ng-class="{'disabled': $first}" class="btn btn-default btn-sm"
-                        ng-click="surveyBuilder.moveQuestionUp($index)">
+
+                <button
+                  class="btn btn-default btn-sm"
+                  ng-click="surveyBuilder.populateEditQuestionModal($index)"
+                  aria-label="click to open the modal to edit this question"
+                >Edit</button>
+
+                <button
+                  class="btn btn-default btn-sm"
+                  ng-click="surveyBuilder.deleteQuestion($index)"
+                  aria-label="click to delete this question"
+                >Delete</button>
+
+                <button
+                  ng-class="{'disabled': $first}"
+                  class="btn btn-default btn-sm"
+                  ng-click="surveyBuilder.moveQuestionUp($index)"
+                  aria-label="click to swap this question into the previous position"
+                >
                   Move Up
                 </button>
-                <button ng-class="{'disabled': $last}" class="btn btn-default btn-sm"
-                        ng-click="surveyBuilder.moveQuestionDown($index)">
+
+                <button
+                  ng-class="{'disabled': $last}"
+                  class="btn btn-default btn-sm"
+                  ng-click="surveyBuilder.moveQuestionDown($index)"
+                  aria-label="click to swap question into the next position"
+                >
                   Move Down
                 </button>
               </td>

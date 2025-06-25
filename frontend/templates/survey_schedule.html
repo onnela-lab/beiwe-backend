@@ -93,7 +93,7 @@
         <button
           class="btn btn-info"
           onclick="add_weekly_time()"
-          aria-label="click to add the entered schedule for a weekly survey"
+          aria-label="click to add the entered schedule for a weekly survey. Changes will not be saved until you click a Save And Deploy button."
         ><span class="text-mono">+ </span>Add time</button>
       </div>
     </div>
@@ -171,7 +171,7 @@
           <button
             class="btn btn-info"
             onclick="add_relative_time()"
-            aria-label="click to add the new relative schedule to the schedule list below"
+            aria-label="click to add the new relative schedule to the schedule list below. Changes will not be saved until you click a Save And Deploy button."
           ><span class="glyphicon glyphicon-plus"></span>Add time</button>
         </div>
 
@@ -223,22 +223,23 @@
         <button
           class="btn btn-info"
           onclick="add_absolute_time()"
-          aria-label="click to add the entered schedule for an absolute survey"
+          aria-label="click to add the entered schedule for an absolute survey.  Changes will not be saved until you click a Save And Deploy button."
         ><span class="glyphicon glyphicon-plus"></span>Add time</button>
       </div>
       <p>
       <p></p>
-      <b> Note: </b> Absolute schedules created with a time in the past will trigger immediately (usually within 5 minutes).
+      <b> Note: </b> Absolute schedules created with a time in the past will trigger immediately (usually within 5
+      minutes).
       Beiwe will not send survey notifications if there was already one sent for the date and time of the schedule.
       </p>
       <br>
-      
-      
+
+
     </div>
 
 
-  {% raw %}
-  <script id="weekly-schedule-template" type="text/x-handlebars-template">
+    {% raw %}
+    <script id="weekly-schedule-template" type="text/x-handlebars-template">
     <br>
     <p><h3>Current Schedule Times:</p></h3>
     <div class="well well-sm col-xs-12">
@@ -250,12 +251,11 @@
 
           {{#each times}}
           <td>
-            <b><span class="label label-info time-label">
+            <b><span class="label label-info time-label" >
               {{int_to_time this}}
               <i
-                class="remove glyphicon glyphicon-remove"
+                class="remove glyphicon glyphicon-remove schedule-x"
                 onclick="delete_weekly_time({{@../index}}, {{@index}})"
-                style="cursor:pointer; padding: 0.5em; padding-right: 1em; padding-left: 0.75em; margin-right: -1em; margin-left: -1em"
                 title="Delete this time"
                 aria-label="remove weekly schedule time {{int_to_time this}} on {{day_name}}"
               ></i>
@@ -269,7 +269,7 @@
     </div>
   </script>
 
-  <script id="relative-schedule-template" type="text/x-handlebars-template">
+    <script id="relative-schedule-template" type="text/x-handlebars-template">
     <br>
     <p><h3>Current Schedule Times:</p></h3>
     <div class="well well-sm col-xs-12" style="min-height:100px"">
@@ -280,9 +280,8 @@
             <b><span class="label label-info time-label">
               {{ rel_sched_to_label this }}
               <i
-                class="remove glyphicon glyphicon-remove"
+                class="remove glyphicon glyphicon-remove schedule-x"
                 onclick="delete_relative_time({{@index}})"
-                style="cursor:pointer; padding: 0.5em; padding-right: 1em; padding-left: 0.75em; margin-right: -1em; margin-left: -1em"
                 title="Delete this time"
                 aria-label="remove relative schedule time {{ rel_sched_to_label this }}"
               ></i>
@@ -294,7 +293,7 @@
     </div>
   </script>
 
-  <script id="absolute-schedule-template" type="text/x-handlebars-template">
+    <script id="absolute-schedule-template" type="text/x-handlebars-template">
     <h3>Current Schedule Times:</h3>
     <div class="well well-sm" style="min-height:100px">
       <table>
@@ -305,9 +304,8 @@
             <span class="label label-info time-label">
               {{ abs_sched_to_label this }}
               <i
-                class="remove glyphicon glyphicon-remove"
+                class="remove glyphicon glyphicon-remove schedule-x"
                 onclick="delete_absolute_time({{@index}})"
-                style="cursor:pointer; padding: 0.5em; padding-right: 1em; padding-left: 0.75em; margin-right: -1em; margin-left: -1em"
                 title="Delete this time"
                 aria-label="remove absolute schedule time {{ abs_sched_to_label this }}"
               ></i>
@@ -321,4 +319,4 @@
     </div>
   </script>
 
-  {% endraw %}
+    {% endraw %}

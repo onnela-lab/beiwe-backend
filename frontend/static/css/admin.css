@@ -2,6 +2,9 @@
 /* These are the Beiwe Brand Colors */
 @property --deep-ocean { initial-value: #004b87; syntax: "<color>"; inherits: true;}
 @property --deep-ocean66 { initial-value: #004b8766; syntax: "<color>"; inherits: true;}
+@property --deep-ocean-bright { initial-value: #005DA8; syntax: "<color>"; inherits: true;}
+@property --deep-ocean-brighter { initial-value: #0070CA; syntax: "<color>"; inherits: true;}
+
 
 @property --mist { initial-value: #a7bcd6; syntax: "<color>"; inherits: true;}
 @property --cloud { initial-value: #d0d1c9; syntax: "<color>"; inherits: true;}
@@ -529,7 +532,6 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .dashboard-list-margins:hover > a {
     color: var(--Bwhite) !important;
 }
-
 
 
 .text-large { font-size: large; }

@@ -108,7 +108,7 @@
       <h3>Questions</h3>
     </div>
     <div class="col-xs-8 h3-margins text-center marg-t-2 italic pulse-text-constant">
-      Changes will not be saved until you click "Save and Deploy."
+      Changes will not be saved until you click "Save & Deploy."
     </div>
     <div class="col-xs-2 marg-l-3 marg-t-1">
 
@@ -116,6 +116,7 @@
         type="submit"
         class="btn btn-success text-larger"
         onclick="end('{{ domain_name }}'); return false;"
+        aria-label="Click to save all changes to survey questions and schedules for this survey."
       >
         <span class="glyphicon glyphicon-upload"></span> Save & Deploy
       </button>
@@ -129,6 +130,7 @@
     type="button"
     class="btn btn-info text-larger"
     ng-click="surveyBuilder.resetQuestionModal();"
+    aria-label="Click to open the modal to add a new question to the survey."
   >
     <span class="glyphicon glyphicon-plus"></span> Add Question
   </button>
@@ -306,6 +308,7 @@ available to the participants at all times regardless of schedule <br>
     type="submit"
     class="btn btn-success text-larger"
     onclick="end('{{ domain_name }}'); return false;"
+    aria-label="Click to save all changes to survey questions and schedules for this survey."
   >
     <span class="glyphicon glyphicon-upload"></span> Save & Deploy
   </button>
@@ -329,6 +332,4 @@ available to the participants at all times regardless of schedule <br>
   </ul>
 </div>
 
-{# </div> #}
-{# </div> #}
 {% endblock %}

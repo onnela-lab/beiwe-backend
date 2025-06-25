@@ -13,12 +13,14 @@
             type="button"
             class="close"
             data-dismiss="modal"
+            aria-label="click to close the edit question modal without saving changes"
           ><span>&times;</span></button>
-          <h4
+          <h3
             class="modal-title"
             id="editQuestionModalLabel"
-          >Edit Question</h4>
+          >Edit Question</h3>
         </div>
+
         <div class="modal-body">
           <span style="display:none"> {{ surveyBuilder.currentQuestionFields }} </span>
           <table style="width: 100%;">
@@ -34,6 +36,7 @@
                   class="form-control"
                   rows=4
                   ng-model="surveyBuilder.currentQuestionFields.question_text"
+                  aria-label="text box for the question prompt of the open question"
                 >
                 </textarea>
               </td>
@@ -48,6 +51,7 @@
                   name="type"
                   id="type"
                   class="form-control"
+                  aria-label="select the question type for the current question"
                   ng-model="surveyBuilder.currentQuestionFields.question_type"
                   ng-options="surveyBuilder.QUESTION_TYPE_LABELS[type] for type in surveyBuilder.QUESTION_TYPES track by type"
                 >
@@ -68,6 +72,7 @@
                   class="form-control"
                   min="-100"
                   max="100"
+                  aria-label="Set a minimum value for this slider question"
                   ng-keyup="surveyBuilder.checkSliderValue('min')"
                   ng-model="surveyBuilder.currentQuestionFields.min"
                 >
@@ -87,6 +92,7 @@
                   class="form-control"
                   min="-100"
                   max="100"
+                  aria-label="Set a maximum value for this slider question"
                   ng-keyup="surveyBuilder.checkSliderValue('max')"
                   ng-model="surveyBuilder.currentQuestionFields.max"
                 >
@@ -105,6 +111,7 @@
                   class="form-control"
                   ng-model="surveyBuilder.currentQuestionFields.text_field_type"
                   ng-options="surveyBuilder.TEXT_FIELD_TYPE_LABELS[type] for type in surveyBuilder.TEXT_FIELD_TYPES track by type"
+                  aria-label="select the exact type of text field that should be displayed to the user for this question"
                 >
                 </select>
               </td>
@@ -124,6 +131,7 @@
                   <button
                     class="btn btn-info"
                     ng-click="surveyBuilder.addAnswerField()"
+                    aria-label="click to add a new answer choice for this question"
                   >Add new answer choice</button>
                 </td>
               </tr>
@@ -137,6 +145,7 @@
                     type="text"
                     class="form-control"
                     ng-model="answer.text"
+                    aria-label="enter the answer text for option {{ $index }} of this question"
                   >
                 </td>
                 <td>
@@ -145,6 +154,7 @@
                     class="close pull-right"
                     style="line-height: 34px;"
                     ng-click="surveyBuilder.deleteAnswerField($index)"
+                    aria-label="click to delete this answer option"
                   >&times;</button>
                 </td>
               </tr>
@@ -167,6 +177,7 @@
                   type="checkbox"
                   style="margin-right: 6px;"
                   ng-model="surveyBuilder.currentQuestionFields.required"
+                  aria-label="check this box if an answer to this question is required to proceed in the survey"
                 >
                 <i>If this question is displayed the participant will be unable to proceed without answering it.</i>
               </td>
@@ -178,14 +189,17 @@
                   class="alert alert-warning"
                   style="margin-bottom: 0;"
                 >
-                  Skip logic for this question has been disabled because the survey is randomized. You may still edit
+                  Skip logic for this survey has been disabled because the survey is randomized. You may still edit
                   the logic below, but this question will always be displayed as long as the survey remains randomized.
                 </div>
               </td>
             </tr>
 
             <tr ng-class="{'faded': surveyBuilder.randomize}">
-              <td class="tablecell-align-top">
+              <td
+                class="tablecell-align-top"
+                aria-label="This is a dynamic table that represents the logic for whether this question should be displayed. We have inserted several extra labels in an effort to tell you where you are in the table. It is composed of logical outer blocks with conditional inner blocks."
+              >
 
                 <label for="text">Display This<br>Question If:</label>
               </td>
@@ -194,6 +208,7 @@
                   ng-if="surveyBuilder.LOGICAL_OPERATORS.indexOf(surveyBuilder.getOperatorType(surveyBuilder.currentQuestionFields.display_if)) > -1"
                   path=""
                   survey-builder="surveyBuilder"
+                  aria-label="(outer logical statement block)"
                 ></logical-block>
                 <div
                   ng-if="surveyBuilder.ARITHMETIC_OPERATORS.indexOf(surveyBuilder.getOperatorType(surveyBuilder.currentQuestionFields.display_if)) > -1"
@@ -205,12 +220,14 @@
                   <conditional-block
                     survey-builder="surveyBuilder"
                     path=""
+                    aria-label="(conditional logic item block)"
                   ></conditional-block>
                 </div>
                 <div ng-if="!surveyBuilder.currentQuestionFields.display_if">
                   <add-logic-buttons
                     new-path="{{ getNewPath() }}"
                     survey-builder="surveyBuilder"
+                    aria-label="click to add a logical or conditional block to the question's skip logic called {{ getNewPath() }}"
                   ></add-logic-buttons>
                 </div>
                 <!-- Uncomment this code for debugging -->
@@ -231,9 +248,10 @@
             ng-if="surveyBuilder.currentQuestionFields.is_new_question"
             class="btn btn-primary"
             data-dismiss="modal"
+            aria-label="click to create this new question for the survey"
             ng-click="surveyBuilder.addNewQuestion()"
           >
-            Add Question
+            Create Question
           </button>
 
           <button
@@ -241,6 +259,7 @@
             class="btn btn-primary"
             data-dismiss="modal"
             ng-click="surveyBuilder.editQuestion()"
+            aria-label="click to save the changes made to this question"
           >
             Save Question
           </button>
