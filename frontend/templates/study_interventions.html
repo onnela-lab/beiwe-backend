@@ -3,60 +3,104 @@
 
 
 {% block head %}
-  {{ super() }}
-  <script src="/static/javascript/admin.js" type="text/javascript"></script>
+{{ super() }}
+<script src="/static/javascript/admin.js" type="text/javascript"></script>
 {% endblock %}
 
 
 {% block content %}
+<div class="ontainer">
+  <div class="col-xs-12 well">
+    <h1 class="h3">Edit The Interventions for {{study.name}}</h1>
+  </div>
+
 
   <ol class="breadcrumb">
     <li>
       <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
     </li>
     <li class="active">
-      Edit which Interventions are on this study
+      Edit Study Interventions
     </li>
   </ol>
 
-  <div class="row">
-    <h2>Edit which Interventions are on this study</h2>
-  </div>
 
-  <div class="row form-horizontal">
+  <div class="col-xs-12 well form-horizontal">
     <table class="table">
       <thead>
-      <tr>
-        <th>Interventions</th>
-        <th>Edit Interventions</th>
-        <th>Remove Interventions</th>
-      </tr>
+        <tr>
+          <th>Interventions</th>
+          <th>Edit Interventions</th>
+          <th>Remove Interventions</th>
+        </tr>
       </thead>
       <tbody>
-      {% for intervention in interventions | sort(attribute='name', case_sensitive=False) %}
+        {% for intervention in interventions | sort(attribute='name', case_sensitive=False) %}
         <tr>
           <td>
             {{ intervention.name }}
           </td>
           <td>
-            <button  class="btn btn-primary" data-toggle="modal" data-target="#interventionModal{{ intervention.id }}">
+
+            <button
+              class="btn btn-primary"
+              data-toggle="modal"
+              data-target="#interventionModal{{ intervention.id }}"
+              aria-label="click to edit the intervention {{ intervention.name }}"
+            >
               Edit Intervention
             </button>
-            <div class="modal fade" id="interventionModal{{ intervention.id }}" tabindex="-1" role="dialog">
-              <div class="modal-dialog" role="document">
+            <div
+              class="modal fade"
+              id="interventionModal{{ intervention.id }}"
+              tabindex="-1"
+              role="dialog"
+            >
+              <div
+                class="modal-dialog"
+                role="document"
+              >
                 <div class="modal-content">
                   <div class="modal-header">
-                    <button  class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">Edit Intervention</h4>
+
+                    <button
+                      class="close"
+                      data-dismiss="modal"
+                      aria-label="click to close the edit intervention modal"
+                    ><span aria-hidden="true">&times;</span></button>
+                    <h2 class="modal-title">Edit Intervention</h2>
                   </div>
                   <div class="modal-body">
-                    <form action="/edit_intervention/{{ study.id }}" method="POST">
+                    <form
+                      action="/edit_intervention/{{ study.id }}"
+                      method="POST"
+                    >
+                    
                       Intervention Name:
-                      <input type="text" class="form-control" name="edit_intervention" value="{{ intervention.name }}"/>
-                      <input type="hidden" name="intervention_id" value="{{ intervention.id }}"/>
+
+                      <input
+                        type="text"
+                        class="form-control"
+                        name="edit_intervention"
+                        value="{{ intervention.name }}"
+                        aria-label="enter a new name for the intervention {{ intervention.name }}"
+                      />
+
+                      <input
+                        type="hidden"
+                        name="intervention_id"
+                        value="{{ intervention.id }}"
+                      />
                       <br>
-                      <button  class="btn btn-default" data-dismiss="modal">Close</button>
-                      <button  class="btn btn-primary">Save changes</button>
+
+                      <button
+                        class="btn btn-default"
+                        data-dismiss="modal"
+                        aria-label="click to close the edit intervention modal"
+                      >Close</button>
+
+                      <button class="btn btn-primary">Save changes</button>
+
                     </form>
                   </div>
                 </div><!-- /.modal-content -->
@@ -65,32 +109,66 @@
           </td>
           <td>
             <form>
-              <input type="hidden" name="study_id" value="{{ study.id }}">
-              <input type="hidden" name="name" value="{{ intervention.name }}">
-              <button onclick="confirm_delete_intervention('{{ intervention.name|replace("'", "")|replace('"', "") }}', '{{ intervention.id }}', '{{ study.id }}')"
-                  class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span> Remove Intervention</button>
+
+              <input
+                type="hidden"
+                name="study_id"
+                value="{{ study.id }}"
+              >
+
+              <input
+                type="hidden"
+                name="name"
+                value="{{ intervention.name }}"
+              >
+
+              <button
+                onclick="confirm_delete_intervention('{{ intervention.name|replace("'", "")|replace('"', "") }}', '{{ intervention.id }}', '{{ study.id }}')"
+                class="btn btn-danger"
+                aria_label="click to remove the intervention {{ intervention.name }}"
+              ><span class="glyphicon glyphicon-trash"></span> Remove Intervention</button>
+
             </form>
           </td>
         </tr>
-      {% endfor %}
+        {% endfor %}
       </tbody>
     </table>
 
     <br>
-    <form action="/interventions/{{ study.id }}" method="POST">
-      <input type="hidden" name="study_id" value="{{ study.id }}">
-      <label>Add new Intervention</label>
-      <div class="row">
-        <div class="col-sm-1">
+    <form
+      action="/interventions/{{ study.id }}"
+      method="POST"
+    >
+
+      <input
+        type="hidden"
+        name="study_id"
+        value="{{ study.id }}"
+      >
+
+      <label class="h4">Add New Intervention</label>
+      <div class=>
+        <div class="col-sm-2 marg-t-1">
           Intervention Name:
         </div>
-        <div class="col-sm-11">
-          <input type="text" class="form-control" name="new_intervention" />
+        
+        <div class="col-sm-7">
+          <input
+            type="text"
+            class="form-control"
+            name="new_intervention"
+            aria-label="enter a new intervention name to add to this study"
+          />
         </div>
       </div>
+      <div class="col-sm-3">
+
+        <button class="btn btn-success"><span class="glyphicon glyphicon-plus"></span> Add New Intervention</button>
+      </div>
       <br>
-      <button  class="btn btn-success"><span class="glyphicon glyphicon-plus"></span> Add New Intervention</button>
+
     </form>
   </div>
-
+</div>
 {% endblock %}

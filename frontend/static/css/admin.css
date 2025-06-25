@@ -551,6 +551,13 @@ td.custom-field-value:hover span.custom-field-edit-link {
 }
 
 
+.vertical-align-middle {
+    vertical-align: middle;
+}
+.text-align-bottom {
+    vertical-align: bottom;
+}
+
 .text-large { font-size: large; }
 .text-larger { font-size: large; }
 
