@@ -62,7 +62,7 @@
   <div class="col-xs-12 well">
     <h2 class="pull-left col-xs-3 marg-l-n-0-5 marg-t-1-75">Easy Enrollment</h2>
     <div class="col-xs-8 h2-middle-margins-vertical marg-l-n-1 marg-r-n-1 ">
-      When Easy Enrollment is enabled for a study or a participant the Temporary Password that is otherwised required at
+      When Easy Enrollment is enabled for a study or a participant the Temporary Password that is otherwise required at
       registration is ignored. Any value that passes any validation performed by the app is allowed.
       <i>(You will be presented with a list of patient ids where Easy Enrollment is manually enabled whenever you
         disable a study's Easy Enrollment policy.) </i>
@@ -223,9 +223,12 @@
           Setting a study end date will automatically stop collecting data at the end of the day on the chosen date, in
           the study's timezone. This will not delete any data, but will prevent new data from being uploaded.
           {% if study.manually_stopped %} <h3 class="h4"> This study has been manually stopped. </h3> {% endif %}
-          {% if study.end_date %} <h3 class="h4"> This study currently has an end date of {{study.end_date.isoformat()}}. </h3>
+          {% if study.end_date %} <h3 class="h4"> This study currently has an end date of
+            {{study.end_date.isoformat()}}.
+          </h3>
           {% endif %}
-          {% if study.end_date_is_in_the_past %} <h3 class="h4"> This study's data collection period has ended. </h3> {% endif %}
+          {% if study.end_date_is_in_the_past %} <h3 class="h4"> This study's data collection period has ended. </h3>
+          {% endif %}
         </div>
       </div>
 
