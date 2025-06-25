@@ -4,16 +4,22 @@
 
 {# Only show the Navigation Bar if the user is logged in #}
 {% block navbar %}
-    {% if is_logged_in %}
-        {{ super() }}
-    {% endif %}
+{% if is_logged_in %}
+{{ super() }}
+{% endif %}
 {% endblock %}
 
 {% block content %}
 
-  <div style=""class="section span4">
-      <h1 class="center">500 Internal Server Error</h1>
-      <p>Sorry, something broke when you tried to access this page.  The web application has restarted, and no damage has been done.  Please email <a href="mailto:hdawood@hsph.harvard.edu">hdawood@hsph.harvard.edu</a> and describe what happened; if possible, please include the time that this page appeared, so that we can look at the error logs and figure out what broke.</p>
-  </div>
+<div
+    style=""
+    class="section span4"
+>
+    <h1 class="center">500 Internal Server Error</h1>
+    <p>Sorry, something broke when you tried to access this page. The web application has restarted, and no damage has
+        been done. Please email <a href="mailto:hdawood@hsph.harvard.edu">hdawood@hsph.harvard.edu</a> and describe what
+        happened; if possible, please include the time that this page appeared, so that we can look at the error logs
+        and figure out what broke.</p>
+</div>
 
 {% endblock %}
