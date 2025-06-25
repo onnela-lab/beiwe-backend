@@ -7,26 +7,26 @@
 <script>window.filterableObjects = {{ forest_log|safe }}</script>
 <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
 <script>
-      (function () {
-        angular
-          .module('surveyBuilder')
-          .controller('ForestLogController', ['$controller', '$scope', function($controller, $scope) {
-            $controller('FilterableListController', {$scope: $scope});
-            $scope.modalLog = null
-            $scope.showErrorModal = showErrorModal
+  (function () {
+    angular
+      .module('surveyBuilder')
+      .controller('ForestLogController', ['$controller', '$scope', function($controller, $scope) {
+        $controller('FilterableListController', {$scope: $scope});
+        $scope.modalLog = null
+        $scope.showErrorModal = showErrorModal
 
-            function showErrorModal(log) {
-              $scope.modalLog = log
-              $('#error-modal').modal('show')
-            }
-          }])
-          .filter('trustAsResourceUrl', ['$sce', function ($sce) {
-            return function(url) {
-              return $sce.trustAsResourceUrl(url);
-            }
-          }])
-      })()
-    </script>
+        function showErrorModal(log) {
+          $scope.modalLog = log
+          $('#error-modal').modal('show')
+        }
+      }])
+      .filter('trustAsResourceUrl', ['$sce', function ($sce) {
+        return function(url) {
+          return $sce.trustAsResourceUrl(url);
+        }
+      }])
+  })()
+</script>
 {% endblock %}
 
 {% block content %}
@@ -34,7 +34,7 @@
 <div ng-controller="ForestLogController">
 
   <div class="form-group col-xs-12 well">
-  <h1 class="h2">Forest Task History</h1>
+    <h1 class="h2">Forest Task History</h1>
 
     <input
       type="search"
@@ -75,8 +75,12 @@
           ng-repeat="log in filterableObjects"
           ng-if="(log.created_on_display + log.patient_id + log.forest_tree_display + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())"
         >
-          <td style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.created_on_display[0] }}<br>{{ log.created_on_display[1] }}{% endraw %}</td>
-          <td class="text-small" style="word-break: break-word; max-width: 110px;">{% raw %}{{ log.external_id }}{% endraw %}</td>
+          <td style="word-break: break-word; max-width: 110px;">
+            {% raw %}{{ log.created_on_display[0] }}<br>{{ log.created_on_display[1] }}{% endraw %}</td>
+          <td
+            class="text-small"
+            style="word-break: break-word; max-width: 110px;"
+          >{% raw %}{{ log.external_id }}{% endraw %}</td>
           <td>{% raw %}{{ log.patient_id }}{% endraw %}</td>
           <td>{% raw %}{{ log.forest_tree_display }}{% endraw %}</td>
           <td>{% raw %}{{ log.data_date_start }}{% endraw %} - <br> {% raw %}{{ log.data_date_end }}{% endraw %}</td>
@@ -229,7 +233,8 @@
                   <dt>Status</dt>
                   <dd>{% raw %}{{ modalLog.status }}{% endraw %}</dd>
                   <dt>Created On</dt>
-                  <dd>{% raw %}{{ modalLog.created_on_display[0] }} {{ modalLog.created_on_display[1] }}{% endraw %}</dd>
+                  <dd>{% raw %}{{ modalLog.created_on_display[0] }} {{ modalLog.created_on_display[1] }}{% endraw %}
+                  </dd>
                 </div>
               </dl>
             </div>

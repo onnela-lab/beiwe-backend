@@ -86,8 +86,8 @@
         href="#collapseOne"
         aria-label="This button opens the configuration for entirely visual elements of the participant dashboard. This page has the sole purpose of providing visualization hints for viewing data quantity metrics, which are accessible via the API in a raw format."
       >
-        <span class="bold text-center marg-b-2 "> 
-        Click to Configure Gradients and Flags <span class="caret"></span></span>
+        <span class="bold text-center marg-b-2 ">
+          Click to Configure Gradients and Flags <span class="caret"></span></span>
         <div
           class="btn-toolbar flag-toolbar"
           role="toolbar"
@@ -271,7 +271,8 @@
                   <button class="btn btn-primary  marg-b-3">
                     Save Current Flags and Filters as Defaults
                   </button>
-                  {% comment %} note: can add this command to the save button to have user confirmation that settings are
+                  {% comment %} note: can add this command to the save button to have user confirmation that settings
+                  are
                   saved
                   - it's a little weird though bc it says saved before it reloads the page.
                   onclick="alert('Default Settings Saved')" {% endcomment %}
@@ -354,12 +355,17 @@
   <div class="date_bar">
     <div>
       <a
-        {% if base_past_url %} ng-click="createNewUrl(base_past_url)" {% endif %}
+        {% if base_past_url %}
+        ng-click="createNewUrl(base_past_url)"
+        {% endif %}
         class="btn btn-primary"
-      {% if not base_past_url %} disabled {% endif %}
-      aria-label="click to go to the previous page of data"
-      > < Previous</a>
-          
+        {% if not base_past_url %}
+        disabled
+        {% endif %}
+        aria-label="click to go to the previous page of data"
+      >
+        < Previous</a>
+
     </div>
 
     {# Start Date #}
@@ -411,40 +417,43 @@
         aria-label="click to go to the provided date range and view data"
       >View Date Range</a>
     </div>
-    
+
     {# next #}
     <div>
       <a
-        {% if base_next_url %} ng-click="createNewUrl(base_next_url)" {% endif %}
+        {% if base_next_url %}
+        ng-click="createNewUrl(base_next_url)"
+        {% endif %}
         class="btn btn-primary"
-        {% if not base_next_url %} disabled {% endif %}
+        {% if not base_next_url %}
+        disabled
+        {% endif %}
         aria-label="click to go to the next page of data"
       >Next > </a>
     </div>
   </div>
 
   {#  ################# THE TABLE ################## #}
-<div class="stream-table-scroll">
-  <table
-    class="table table-bordered"
-    id="dashboard-datastream-table"
-  >
-    <thead>
-      <tr>
-        <th> Participant</th>
-        {% for time in range(times|length) %}
-        <th>{{ times[time].strftime('%m/%d/%Y') }}</th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
+  <div class="stream-table-scroll">
+    <table
+      class="table table-bordered"
+      id="dashboard-datastream-table"
+    >
+      <thead>
+        <tr>
+          <th> Participant</th>
+          {% for time in range(times|length) %}
+          <th>{{ times[time].strftime('%m/%d/%Y') }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
 
 {# (doing some whitespace optimization here, this element gets repeated a lot) #}
 {% for patient_id, byte_list in byte_streams.items() %} {# iterate over keys #}
 <tr>
 <th class="label-th">
-  {# link to the patient dashboard #}
-  
+{# link to the patient dashboard #}
 <a href="/dashboard/{{ study_id }}/patient/{{ patient_id }}">{{ patient_id }}</a>
 </th>
 {# iterate over bytes in values #}
