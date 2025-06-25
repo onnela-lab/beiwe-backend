@@ -2,6 +2,11 @@
 {% block title %}Custom Fields{% endblock %}
 
 {% block content %}
+<div class="container">
+
+  <div class="col-xs-12 well`">
+    <h2>Edit which Custom Fields are on this study</h2>
+  </div>
 
   <ol class="breadcrumb">
     <li>
@@ -12,43 +17,86 @@
     </li>
   </ol>
 
-  <div class="row">
-    <h2>Edit which Custom Fields are on this study</h2>
-  </div>
 
-  <div class="row form-horizontal">
+
+  <div class="col-xs-12 well form-horizontal">
     <table class="table">
       <thead>
-      <tr>
-        <th>Custom Field</th>
-        <th>Edit Custom Field</th>
-        <th>Remove Custom Field</th>
-      </tr>
+        <tr>
+          <th>Custom Field</th>
+          <th>Edit Custom Field</th>
+          <th>Remove Custom Field</th>
+        </tr>
       </thead>
+      
       <tbody>
-      {% for field in fields | sort(attribute='field_name', case_sensitive=False) %}
+        {% for field in fields | sort(attribute='field_name', case_sensitive=False) %}
         <tr>
           <td>
             {{ field.field_name }}
           </td>
           <td>
-            <button  class="btn btn-primary" data-toggle="modal" data-target="#customFieldModal{{ field.id }}">
+
+            <button
+              class="btn btn-primary"
+              data-toggle="modal"
+              data-target="#customFieldModal{{ field.id }}"
+              aria-label="click to open the modal edit the custom field {{ field.field_name }}"
+            >
               Edit Custom Field
             </button>
-            <div class="modal fade" id="customFieldModal{{ field.id }}" tabindex="-1" role="dialog">
-              <div class="modal-dialog" role="document">
+            <div
+              class="modal fade"
+              id="customFieldModal{{ field.id }}"
+              tabindex="-1"
+              role="dialog"
+            >
+              <div
+                class="modal-dialog"
+                role="document"
+              >
                 <div class="modal-content">
                   <div class="modal-header">
-                    <button  class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+
+                    <button
+                      class="close"
+                      data-dismiss="modal"
+                      aria-label="Close edit field name modal"
+                    ><span aria-hidden="true">&times;</span></button>
                     <h4 class="modal-title">Edit Custom Field</h4>
                   </div>
                   <div class="modal-body">
-                    <form action="/edit_custom_field/{{ study.id }}" method="POST">
-                      <input type="text" class="form-control" name="edit_custom_field" value="{{ field.field_name }}"/>
-                      <input type="hidden" name="field_id" value="{{ field.id }}"/>
+                    <form
+                      action="/edit_custom_field/{{ study.id }}"
+                      method="POST"
+                    >
+
+                      <input
+                        type="text"
+                        class="form-control"
+                        name="edit_custom_field"
+                        value="{{ field.field_name }}"
+                        aria-label="Edit the custom field name"
+                      />
+
+                      <input
+                        type="hidden"
+                        name="field_id"
+                        value="{{ field.id }}"
+                      />
                       <br>
-                      <button  class="btn btn-default" data-dismiss="modal">Close</button>
-                      <button  class="btn btn-primary">Save changes</button>
+
+                      <button
+                        class="btn btn-default"
+                        data-dismiss="modal"
+                        aria-label="click to close the modal without saving changes"
+                      >Close</button>
+
+                      <button
+                        class="btn btn-primary"
+                        aria-label="save changes to this custom field"
+                      >Save changes</button>
+
                     </form>
                   </div>
                 </div><!-- /.modal-content -->
@@ -57,24 +105,64 @@
           </td>
           <td>
             <form>
-              <input type="hidden" name="study_id" value="{{ study.id }}">
-              <input type="hidden" name="field" value="{{ field.field_name }}">
-              <button onclick="confirm_delete_custom_field('{{ field.field_name|replace("'", "")|replace('"', "") }}', '{{ field.id }}', '{{ study.id }}')" class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span> Remove Custom Field</button>
+
+              <input
+                type="hidden"
+                name="study_id"
+                value="{{ study.id }}"
+              >
+
+              <input
+                type="hidden"
+                name="field"
+                value="{{ field.field_name }}"
+              >
+
+              <button
+                onclick="confirm_delete_custom_field('{{ field.field_name|replace("'", "")|replace('"', "") }}', '{{ field.id }}', '{{ study.id }}')"
+                class="btn btn-danger"
+              ><span class="glyphicon glyphicon-trash"></span> Remove Custom Field</button>
+
             </form>
           </td>
         </tr>
-      {% endfor %}
+        {% endfor %}
       </tbody>
     </table>
 
     <br>
-    <form action="/study_fields/{{ study.id }}" method="POST">
-      <input type="hidden" name="study_id" value="{{ study.id }}">
-      <label>Add New Custom Field</label>
-      <input type="text" class="form-control" name="new_field" />
-      <button  class="btn btn-success"><span class="glyphicon glyphicon-plus"></span> Add New Custom Field</button>
+    <form
+      action="/study_fields/{{ study.id }}"
+      method="POST"
+    >
+
+      <input
+        type="hidden"
+        name="study_id"
+        value="{{ study.id }}"
+      >
+
+      <label class="col-xs-3 marg-r-n-3 marg-t-1">Add New Custom Field</label>
+      <div class="col-xs-6">
+        <input
+          type="text"
+          class="form-control "
+          name="new_field"
+          placeholder="Enter a new custom field name to add to this study"
+          aria-label="Enter a new custom field name to add to this study"
+        />
+      </div>
+
+      <div class="col-xs-3">
+        <button
+          class="btn btn-success"
+          aria-label="click to add a new custom field to this study"
+        ><span class="glyphicon glyphicon-plus"></span> Add New Custom Field</button>
+      </div>
+
     </form>
 
   </div>
 
+</div>
 {% endblock %}
