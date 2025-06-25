@@ -2697,7 +2697,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
 .nav-tabs > li.active > a,
 .nav-tabs > li.active > a:hover,
 .nav-tabs > li.active > a:focus {
-  color: var(--Baqua);
+  color: var(--Baqua-lt1);
   cursor: default;
   background-color: #222222;
   border: 1px solid var(--Baqua-desat);

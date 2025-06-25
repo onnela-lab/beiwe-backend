@@ -23,7 +23,6 @@
 
   <h4>Schedule type:</h4>
 
-
   <ul
     class="nav nav-tabs"
     id="schedule-picker"
@@ -33,26 +32,32 @@
       class="active"
     ><a
         data-toggle="tab"
+        class="btn btn-link"
         href="#weekly"
       >Weekly <span class="badge">{{ study.surveys.get(id=survey.id).weekly_schedules.count() }}</span></a></li>
     {% if push_notifications_enabled %}
     <li id="relative-tab"><a
         data-toggle="tab"
+        class="btn btn-link"
         href="#relative"
       >Relative <span class="badge">{{ study.surveys.get(id=survey.id).relative_schedules.count() }}</span></a></li>
     <li id="absolute-tab"><a
         data-toggle="tab"
+        class="btn btn-link"
         href="#absolute"
       >Absolute <span class="badge">{{ study.surveys.get(id=survey.id).absolute_schedules.count() }}</span></a></li>
     {% endif %}
   </ul>
   <br>
 
+  {# weekly schedules #}
 
   <div class="tab-content">
+
     <div
       id="weekly"
       class="tab-pane fade in active"
+      style="height: 150px !important;"
     >
       <em>Weekly schedules send surveys at the same time every week</em>
       <br><br>
@@ -64,13 +69,14 @@
           id="weekly_time_timepicker"
           type="text"
           class="form-control schedule-timepicker"
+          aria-label="enter a time of day for a survey scheduled on a weekly basis"
         >
-        <i class="glyphicon glyphicon-time"></i>
-        &nbsp;
+        &nbsp;&nbsp;&nbsp;
         <select
           id="day_index_select"
           name="day"
           class="form-control"
+          aria-label="enter a day of the week for a survey scheduled on a weekly basis"
         >
           <option value="every_day">EVERY DAY</option>
           <option value=0>Sunday</option>
@@ -87,13 +93,17 @@
         <button
           class="btn btn-info"
           onclick="add_weekly_time()"
-        ><span class="glyphicon glyphicon-plus"></span>Add time</button>
+          aria-label="click to add the entered schedule for a weekly survey"
+        ><span class="text-mono">+ </span>Add time</button>
       </div>
     </div>
+
+    {# relative schedules #}
 
     <div
       id="relative"
       class="tab-pane fade"
+      style="height: 150px !important;"
     >
       <p>
         <em>Relative schedules send surveys a specified number of days before or after an intervention date that is
@@ -102,65 +112,95 @@
         {% if study.interventions.all().count() == 0 %}
       <p>There are no interventions for this study. To create a relative schedule, please <a
           href="/interventions/{{ study.id }}"
+          aria-label="click to go to the interventions page for this study to create an intervention"
         >create an intervention</a>.</p>
       {% else %}
+
       <p>Add new scheduled time followed by how many days before or after the intervention event (type numbers into the
         pop-up time picker):</p>
-      <div class="form-inline bootstrap-timepicker timepicker">
 
-        <input
-          id="relative_time_timepicker"
-          type="text"
-          class="form-control schedule-timepicker"
-        >
-        <i class="glyphicon glyphicon-time"></i>
+      <div class="bootstrap-timepicker timepicker">
+        <div class="col-xs-2">
 
-        <input
-          id="num_days_picker"
-          type="number"
-          class="form-control"
-        >
-        &nbsp;
-        <select
-          id="before_after_select"
-          name="before_after"
-          class="form-control"
-        >
-          <option value=1>Days After</option>
-          <option value=-1>Days Before</option>
-          <option value=0>Day Of</option>
-        </select>
+          <input
+            id="relative_time_timepicker"
+            type="text"
+            class="form-control schedule-timepicker"
+            aria-label="enter a time of day for a survey that runs on a relative schedule"
+          >
+        </div>
 
-        <select
-          id="intervention_select"
-          name="intervention"
-          class="form-control"
-        >
-          {% for intervention in study.interventions.all() %}
-          <option value="{{ intervention.id }}">{{ intervention.name }}</option>
-          {% endfor %}
-        </select>
+        <div class="col-xs-2">
 
-        <button
-          class="btn btn-info"
-          onclick="add_relative_time()"
-        ><span class="glyphicon glyphicon-plus"></span>Add time</button>
+          <input
+            id="num_days_picker"
+            type="number"
+            class="form-control"
+            aria-label="enter the number of days before or after the intervention event for the schedule to run relative to"
+          >
+        </div>
+
+        <div class="col-xs-2">
+          <select
+            id="before_after_select"
+            name="before_after"
+            class="form-control"
+            aria-label="select whether relative schedule will be dispatched on, before, or after the intervention event is marked"
+          >
+            <option value=1>Days After</option>
+            <option value=-1>Days Before</option>
+            <option value=0>Day Of</option>
+          </select>
+        </div>
+
+        <div class="col-xs-4">
+          <select
+            id="intervention_select"
+            name="intervention"
+            class="form-control"
+            aria-label="select which intervention event the survey that runs on a relative schedule will be dispatched in relation to"
+          >
+            {% for intervention in study.interventions.all() %}
+            <option value="{{ intervention.id }}">{{ intervention.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="pull-right col-xs-2">
+
+          <button
+            class="btn btn-info"
+            onclick="add_relative_time()"
+            aria-label="click to add the new relative schedule to the schedule list below"
+          ><span class="glyphicon glyphicon-plus"></span>Add time</button>
+        </div>
+
+        <hr class"col-xs-12">
+
+        <div class="col-xs-12">
+          <p>
+            {% endif %}
+          <p>
+            <b> Note: </b> Scheduled events based on Relative schedules occur as soon as the trigger is in the past
+            (usually within 5 minutes). Beiwe will not send survey notifications if there was already one sent for the
+            date and
+            time
+            of the trigger.
+        </div>
       </div>
-      <p>
-        {% endif %}
-      <p>
-        <b> Note: </b> Scheduled events based on Relative schedules occur as soon as the trigger is in the past (usually
-        within 5 minutes). Beiwe will not send survey notifications if there was already one sent for the date and time
-        of the trigger.
     </div>
+
+    {# absolute schedules #}
+
     <div
       id="absolute"
       class="tab-pane fade"
+      style="height: 150px !important;"
     >
       <p>
         <em>Absolute schedules send out surveys to participants on a specified date</em>
       <p>
-      <p>Add new scheduled time followed by the scheduled date (type numbers into the pop-up time picker):</p>
+      <p>Add a new scheduled time followed by the scheduled date (type numbers into the pop-up time picker):</p>
 
       <div class="form-inline bootstrap-timepicker timepicker">
 
@@ -168,31 +208,40 @@
           id="absolute_time_timepicker"
           type="text"
           class="form-control schedule-timepicker"
+          aria-label="enter a time of day for a survey that runs on an absolute schedule"
         >
-        <i class="glyphicon glyphicon-time"></i>
+        &nbsp;&nbsp;&nbsp;
 
         <input
           id="date_picker"
           type="date"
           class="form-control"
-          ,
+          aria-label="select a date for a survey to be dispatched"
           value={{ today }}
         >
 
         <button
           class="btn btn-info"
           onclick="add_absolute_time()"
+          aria-label="click to add the entered schedule for an absolute survey"
         ><span class="glyphicon glyphicon-plus"></span>Add time</button>
       </div>
+      <p>
+      <p></p>
+      <b> Note: </b> Absolute schedules created with a time in the past will trigger immediately (usually within 5 minutes).
+      Beiwe will not send survey notifications if there was already one sent for the date and time of the schedule.
+      </p>
+      <br>
+      
+      
     </div>
-  </div>
 
 
   {% raw %}
   <script id="weekly-schedule-template" type="text/x-handlebars-template">
     <br>
-    <p>Currently scheduled times:</p>
-    <div class="well well-sm">
+    <p><h3>Current Schedule Times:</p></h3>
+    <div class="well well-sm col-xs-12">
       <table>
         {{#each schedules}}
         <tr>
@@ -203,7 +252,13 @@
           <td>
             <b><span class="label label-info time-label">
               {{int_to_time this}}
-              <i class="remove glyphicon glyphicon-remove" onclick="delete_weekly_time({{@../index}}, {{@index}})" style="cursor:pointer" title="Delete this time"></i>
+              <i
+                class="remove glyphicon glyphicon-remove"
+                onclick="delete_weekly_time({{@../index}}, {{@index}})"
+                style="cursor:pointer; padding: 0.5em; padding-right: 1em; padding-left: 0.75em; margin-right: -1em; margin-left: -1em"
+                title="Delete this time"
+                aria-label="remove weekly schedule time {{int_to_time this}} on {{day_name}}"
+              ></i>
             </span></b>
           </td>
           {{/each}}
@@ -213,17 +268,24 @@
       </table>
     </div>
   </script>
+
   <script id="relative-schedule-template" type="text/x-handlebars-template">
     <br>
-    <p>Currently scheduled times:</p>
-    <div class="well well-sm">
+    <p><h3>Current Schedule Times:</p></h3>
+    <div class="well well-sm col-xs-12" style="min-height:100px"">
       <table>
         {{#each schedules}}
         <tr>
           <td>
             <b><span class="label label-info time-label">
               {{ rel_sched_to_label this }}
-              <i class="remove glyphicon glyphicon-remove" onclick="delete_relative_time({{@index}})" style="cursor:pointer" title="Delete this time"></i>
+              <i
+                class="remove glyphicon glyphicon-remove"
+                onclick="delete_relative_time({{@index}})"
+                style="cursor:pointer; padding: 0.5em; padding-right: 1em; padding-left: 0.75em; margin-right: -1em; margin-left: -1em"
+                title="Delete this time"
+                aria-label="remove relative schedule time {{ rel_sched_to_label this }}"
+              ></i>
             </span> </b>
           </td>
         </tr>
@@ -231,19 +293,26 @@
       </table>
     </div>
   </script>
+
   <script id="absolute-schedule-template" type="text/x-handlebars-template">
-    <p><p>
-      <b> Note: </b> Absolute schedules created with a time in the past will trigger immediately (usually within 5 minutes).  Beiwe will not send survey notifications if there was already one sent for the date and time of the schedule.
-    <p>Currently scheduled times</p>
-    <div class="well well-sm">
+    <h3>Current Schedule Times:</h3>
+    <div class="well well-sm" style="min-height:100px">
       <table>
         {{#each schedules}}
         <tr>
           <td>
-            <b><span class="label label-info time-label">
+            <b>
+            <span class="label label-info time-label">
               {{ abs_sched_to_label this }}
-              <i class="remove glyphicon glyphicon-remove" onclick="delete_absolute_time({{@index}})" style="cursor:pointer" title="Delete this time"></i>
-            </span></b>
+              <i
+                class="remove glyphicon glyphicon-remove"
+                onclick="delete_absolute_time({{@index}})"
+                style="cursor:pointer; padding: 0.5em; padding-right: 1em; padding-left: 0.75em; margin-right: -1em; margin-left: -1em"
+                title="Delete this time"
+                aria-label="remove absolute schedule time {{ abs_sched_to_label this }}"
+              ></i>
+            </span>
+            </b>
           </td>
         </tr>
         {{/each}}

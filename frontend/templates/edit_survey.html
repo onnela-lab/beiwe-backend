@@ -40,27 +40,31 @@
 {% endblock %}
 
 {% block content %}
-
-<ol class="breadcrumb">
-  <li>
-    <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
-  </li>
-  <li class="active">
-    {{ "Audio" if survey.survey_type == 'audio_survey' }} Survey ID #{{ survey.object_id }}
-  </li>
-</ol>
-
 <div class="container">
-  <div class="">
-    <h2>Edit Survey</h2>
+  <div class="col-xs-3">
+    <h1>Edit Survey</h1>
+  </div>
+  <br>
+  <div class="col-xs-9 marg-t-0-5">
+    <ol class="breadcrumb">
+      <li>
+        <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
+      </li>
+      <li class="active">
+        {{ "Audio" if survey.survey_type == 'audio_survey' }} Survey ID #{{ survey.object_id }}
+      </li>
+    </ol>
   </div>
 
-  <div class="well well-sm col-xs-12">
-    <div class="col-xs-12 marg-b-1">
+  <div class="well col-xs-12">
+    <div class="marg-b-1">
       {% if not survey.name %}
-      <h3 style="color: gray"> Unnamed Survey </h3>
+      <h2
+        class="h1"
+        style="color: gray"
+      > Unnamed Survey </h2>
       {% else %}
-      <h3> {{ survey.name }} </h3>
+      <h2 class="h1"> {{ survey.name }} </h2>
       {% endif %}
     </div>
 
@@ -75,6 +79,7 @@
           name="survey_name"
           value="{{ survey.name }}"
           class="form-control"
+          aria-label="Update the name for your survey"
         >
       </div>
       <div class="col-lg-2 col-xs-12">
@@ -82,6 +87,7 @@
         <button
           class="btn btn-warning"
           type="submit"
+          aria-label="click to update the survey name"
         >Update Survey Name</button>
       </div>
 
@@ -91,10 +97,8 @@
     </div>
   </div>
 
-  <hr>
   {% include 'survey_schedule.html' %}
   <div id="surveySchedule"></div>
-  <hr>
 
   {# Tracking surveys #}
   {% if survey.survey_type == "tracking_survey" %}

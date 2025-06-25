@@ -716,6 +716,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .btn-link{ color: var(--Baqua-bright) }
 .btn-link:focus { color: var(--Baqua-lt1) }
 .btn-link:hover { color: var(--Baqua-lt1) }
+.btn-link:active { color: var(--Baqua-lt1) }
 .btn-link:active:hover{ color: var(--Baqua-lt1) }
 .btn-link:active:focus{ color: var(--Baqua-lt1) }
 
