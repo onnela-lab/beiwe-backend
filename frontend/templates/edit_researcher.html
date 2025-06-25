@@ -3,301 +3,294 @@
 {% block title %}Edit Researcher {{ edit_researcher.username }}{% endblock %}
 
 {% block content %}
+<div class="container">
 
-<div class="col-xs-12">
-  <h1 class="h2 col-xs-9">Researcher <b>{{ edit_researcher.username }}</b></h1>
+  <div class="col-xs-12 well">
+    <h1 class="h2 col-xs-9">Researcher <b>{{ edit_researcher.username }}</b></h1>
 
-  {% if session_researcher.site_admin and not edit_researcher.site_admin %}
-  <span class="col-xs-3 pull-right">
+    {% if session_researcher.site_admin and not edit_researcher.site_admin %}
+    <span class="col-xs-3 pull-right marg-t-1">
+      <a
+        href="/manage_researchers"
+        class="btn btn-success"
+        aria-label="click to return to the list of all researchers"
+      ><span class="glyphicon glyphicon-arrow-left"></span>&nbsp;Back to all researchers</a>
+    </span>
+    {% endif %}
+  </div>
+
+  <div class="col-xs-12 well">
+    <table
+      class="list-group table table-striped"
+      width="100%"
+    >
+      <tr>
+        <th class="h4">
+          Authorized Study
+        </th>
+        <th class="h4">
+          Permissions {# bwuh? if you make the text of this short the individual lines become double height #}
+        </th>
+        <th class="h4">
+          Actions
+        </th>
+      </tr>
+
+      {% if not edit_study_info %}
+      <tr>
+        <td colspan="3"><i> Researcher {{edit_researcher.username}} is not authorized on any studies.</i></td>
+      </tr>
+      {% endif %}
+
+      {% for relationship, is_administrator_of, study in edit_study_info %}
+      <tr>
+        <td>
+          <i>{{ study.name }}</i>
+        </td>
+        <td>
+          {{ relationship }} &nbsp;&nbsp;
+          {% if is_administrator_of and not is_self and not edit_researcher.site_admin and relationship != "Study Admin" %}
+          <form
+            action="/elevate_researcher"
+            class="oneline"
+            method="post"
+          >
+
+            <input
+              type="hidden"
+              name="study_id"
+              value="{{ study.id }}"
+            />
+
+            <input
+              type="hidden"
+              name="researcher_id"
+              value="{{ edit_researcher.id }}"
+            />
+
+            <input
+              type="hidden"
+              name="redirect_url"
+              value="{{ redirect_url }}"
+            />
+
+            <button
+              class="btn btn-link no-padding"
+              aria-label="Elevate study researcher {{edit_researcher.username}} to a Study Admin on study {{ study.name }}"
+            >
+              (Elevate to Study Admin
+              <span class="glyphicon glyphicon-arrow-up"></span>)
+            </button>
+
+          </form>
+          {% elif is_administrator_of and not is_self and not edit_researcher.site_admin and relationship == "Study Admin" %}
+          <form
+            action="/demote_researcher"
+            class="oneline"
+            method="post"
+          >
+
+            <input
+              type="hidden"
+              name="study_id"
+              value="{{ study.id }}"
+            />
+
+            <input
+              type="hidden"
+              name="researcher_id"
+              value="{{ edit_researcher.id }}"
+            />
+
+            <input
+              type="hidden"
+              name="redirect_url"
+              value="{{ redirect_url }}"
+            />
+
+            <button
+              class="btn btn-link no-padding"
+              aria-label="Demote Study Admin {{edit_researcher.username}} to a regular researcher on study {{ study.name }}"
+            >
+              (Demote to Researcher
+              <span class="glyphicon glyphicon-arrow-down"></span>)
+            </button>
+
+          </form>
+          {% endif %}
+        </td>
+        <td>
+          {% if is_administrator_of and not is_self and not edit_researcher.site_admin and not relationship == "Study Admin" %}
+          <form
+            action="/remove_researcher_from_study"
+            method="post"
+          >
+
+            <input
+              type="hidden"
+              name="study_id"
+              value="{{ study.id }}"
+            />
+
+            <input
+              type="hidden"
+              name="researcher_id"
+              value="{{ edit_researcher.id }}"
+            />
+
+            <input
+              type="hidden"
+              name="redirect_url"
+              value="{{ redirect_url }}"
+            />
+
+            <button
+              class="btn btn-link no-padding"
+              aria-label="click to remove {{edit_researcher.username}} from study {{ study.name }}"
+            >
+              <span class="glyphicon glyphicon-remove"></span>
+              Remove from study
+            </button>
+
+          </form>
+          {% endif %}
+        </td>
+
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="col-xs-12">
+    <div class="h5">Authorize researcher on an additional study:</div>
+    <form
+      action="/add_researcher_to_study"
+      method="post"
+    >
+      <div class="form-inline">
+        <select
+          class="form-control"
+          name="study_id"
+          aria-label="Select a study to add researcher {{edit_researcher.username}} to"
+        >
+          {% for study in all_studies %}
+          <option value="{{ study.id }}">{{ study.name }}</option>
+          {% endfor %}
+        </select>
+
+        <input
+          type="hidden"
+          name="researcher_id"
+          value="{{ edit_researcher.id }}"
+        />
+
+        <input
+          type="hidden"
+          name="redirect_url"
+          value="{{ redirect_url }}"
+        />
+
+        <button
+          class="btn btn-info"
+          aria-label="click to add researcher {{edit_researcher.username}} to the selected study"
+        >Add researcher to study</button>
+      </div>
+
+    </form>
+    <br><br><br>
+  </div>
+
+  {% if editable_password %}
+  <div class={% if editable_mfa %}"col-md-6"{% else %}"col-md-12"{% endif %}>
+    <h2 class="h4">Reset Password</h2>
+    <div class="well">
+      <b>You may provide any characters with a minimum length of 8 to the password reset field below.</b>
+      <ul class="list">
+        <li class="list-item">The researcher will be required to reset their password on their next login.</li>
+        <li class="list-item">Password rules will be enforced based on study password settings.</li>
+      </ul>
+      <form
+        action="/set_researcher_password"
+        method="post"
+      >
+        <div class="form-inline">
+
+          <input
+            type="text"
+            name="password"
+            class="form-control marg-t-2"
+            pattern=".{8,}"
+            oninvalid="setCustomValidity('Must have at least 8 characters')"
+            aria-label="Enter a new password for researcher {{edit_researcher.username}} following the listed rules"
+          >
+
+          <input
+            type="hidden"
+            name="researcher_id"
+            value="{{ edit_researcher.id }}"
+          >
+
+          <input
+            type="submit"
+            class="btn btn-warning marg-t-2"
+            value="Reset Password"
+            aria-label="click to set password for researcher {{edit_researcher.username}}"
+          >
+        </div>
+    </div>
+
+    </form>
+    <br><br><br>
+  </div>
+  {% endif %}
+
+  {% if editable_mfa %}
+  <div class={% if editable_password %}"col-md-6"{% else %}"col-md-12"{% endif %}>
+    <h2 class="h4">Reset Multifactor Authentication</h2>
+    <div class="well">
+      This will clear the MFA token for the researcher, if they are authorized on any studies that will require MFA they
+      will be redirected at next login to the Manage Credentials page and directed to generate a new MFA token.
+
+      <form
+        action="{{ easy_url("manage_researcher_endpoints.administrator_reset_researcher_mfa", edit_researcher.pk) }}"
+        method="post"
+      >
+
+        <input
+          type="submit"
+          class="btn btn-warning h2-middle-margins-vertical marg-l-1"
+          value="Reset MFA"
+          {% if not edit_researcher.mfa_token %}disabled{%endif%}
+          aria-label="click to clear the current MFA configuration for researcher {{edit_researcher.username}}"
+        >
+
+      </form>
+      {% if not edit_researcher.mfa_token %}
+      <p></p>
+      <p class="text-danger">This researcher does not have a MFA enabled.</p>
+      {% endif %}
+    </div>
+    <br><br><br>
+  </div>
+  {% endif %}
+
+  <div>
     <a
       href="/manage_researchers"
       class="btn btn-success"
       aria-label="click to return to the list of all researchers"
     ><span class="glyphicon glyphicon-arrow-left"></span>&nbsp;Back to all researchers</a>
-  </span>
-  {% endif %}
-</div>
-<br>
-<br>
 
-<br>
-
-<div class="clearfix"></div>
-<br>
-<br>
-
-
-<div class="col-xs-12">
-  <table
-    class="list-group table table-striped"
-    width="100%"
-  >
-    <tr>
-      <th class="h4">
-        Authorized Study
-      </th>
-      <th class="h4">
-        Permissions {# bwuh? if you make the text of this short the individual lines become double height #}
-      </th>
-      <th class="h4">
-        Actions
-      </th>
-    </tr>
-
-    {% if not edit_study_info %}
-    <tr>
-      <td colspan="3"><i> Researcher {{edit_researcher.username}} is not authorized on any studies.</i></td>
-    </tr>
-    {% endif %}
-
-    {% for relationship, is_administrator_of, study in edit_study_info %}
-    <tr>
-      <td>
-        <i>{{ study.name }}</i>
-      </td>
-      <td>
-        {{ relationship }} &nbsp;&nbsp;
-        {% if is_administrator_of and not is_self and not edit_researcher.site_admin and relationship != "Study Admin" %}
-        <form
-          action="/elevate_researcher"
-          class="oneline"
-          method="post"
-        >
-
-          <input
-            type="hidden"
-            name="study_id"
-            value="{{ study.id }}"
-          />
-
-          <input
-            type="hidden"
-            name="researcher_id"
-            value="{{ edit_researcher.id }}"
-          />
-
-          <input
-            type="hidden"
-            name="redirect_url"
-            value="{{ redirect_url }}"
-          />
-
-          <button
-            class="btn btn-link no-padding"
-            aria-label="Elevate study researcher {{edit_researcher.username}} to a Study Admin on study {{ study.name }}"
-          >
-            (Elevate to Study Admin
-            <span class="glyphicon glyphicon-arrow-up"></span>)
-          </button>
-
-        </form>
-        {% elif is_administrator_of and not is_self and not edit_researcher.site_admin and relationship == "Study Admin" %}
-        <form
-          action="/demote_researcher"
-          class="oneline"
-          method="post"
-        >
-
-          <input
-            type="hidden"
-            name="study_id"
-            value="{{ study.id }}"
-          />
-
-          <input
-            type="hidden"
-            name="researcher_id"
-            value="{{ edit_researcher.id }}"
-          />
-
-          <input
-            type="hidden"
-            name="redirect_url"
-            value="{{ redirect_url }}"
-          />
-
-          <button
-            class="btn btn-link no-padding"
-            aria-label="Demote Study Admin {{edit_researcher.username}} to a regular researcher on study {{ study.name }}"
-          >
-            (Demote to Researcher
-            <span class="glyphicon glyphicon-arrow-down"></span>)
-          </button>
-
-        </form>
-        {% endif %}
-      </td>
-      <td>
-        {% if is_administrator_of and not is_self and not edit_researcher.site_admin and not relationship == "Study Admin" %}
-        <form
-          action="/remove_researcher_from_study"
-          method="post"
-        >
-
-          <input
-            type="hidden"
-            name="study_id"
-            value="{{ study.id }}"
-          />
-
-          <input
-            type="hidden"
-            name="researcher_id"
-            value="{{ edit_researcher.id }}"
-          />
-
-          <input
-            type="hidden"
-            name="redirect_url"
-            value="{{ redirect_url }}"
-          />
-
-          <button
-            class="btn btn-link no-padding"
-            aria-label="click to remove {{edit_researcher.username}} from study {{ study.name }}"
-          >
-            <span class="glyphicon glyphicon-remove"></span>
-            Remove from study
-          </button>
-
-        </form>
-        {% endif %}
-      </td>
-
-    </tr>
-    {% endfor %}
-  </table>
-</div>
-
-<div class="col-xs-12">
-  <div class="h5">Authorize researcher on an additional study:</div>
-  <form
-    action="/add_researcher_to_study"
-    method="post"
-  >
-    <div class="form-inline">
-      <select
-        class="form-control"
-        name="study_id"
-        aria-label="Select a study to add researcher {{edit_researcher.username}} to"
-      >
-        {% for study in all_studies %}
-        <option value="{{ study.id }}">{{ study.name }}</option>
-        {% endfor %}
-      </select>
-
-      <input
-        type="hidden"
-        name="researcher_id"
-        value="{{ edit_researcher.id }}"
-      />
-
-      <input
-        type="hidden"
-        name="redirect_url"
-        value="{{ redirect_url }}"
-      />
-
-      <button
-        class="btn btn-info"
-        aria-label="click to add researcher {{edit_researcher.username}} to the selected study"
-      >Add researcher to study</button>
-    </div>
-
-  </form>
-  <br><br><br>
-</div>
-
-{% if editable_password %}
-<div class={% if editable_mfa %}"col-md-6"{% else %}"col-md-12"{% endif %}>
-  <h2 class="h4">Reset Password</h2>
-  <div class="well">
-    <b>You may provide any characters with a minimum length of 8 to the password reset field below.</b>
-    <ul class="list">
-      <li class="list-item">The researcher will be required to reset their password on their next login.</li>
-      <li class="list-item">Password rules will be enforced based on study password settings.</li>
-    </ul>
-  <form
-    action="/set_researcher_password"
-    method="post"
-  >
-    <div class="form-inline">
-
-      <input
-        type="text"
-        name="password"
-        class="form-control marg-t-2"
-        pattern=".{8,}"
-        oninvalid="setCustomValidity('Must have at least 8 characters')"
-        aria-label="Enter a new password for researcher {{edit_researcher.username}} following the listed rules"
-      >
-
-      <input
-        type="hidden"
-        name="researcher_id"
-        value="{{ edit_researcher.id }}"
-      >
-
-      <input
-        type="submit"
-        class="btn btn-warning marg-t-2"
-        value="Reset Password"
-        aria-label="click to set password for researcher {{edit_researcher.username}}"
-      >
-    </div>
-  </div>
-
-  </form>
-  <br><br><br>
-</div>
-{% endif %}
-
-{% if editable_mfa %}
-<div class={% if editable_password %}"col-md-6"{% else %}"col-md-12"{% endif %}>
-  <h2 class="h4">Reset Multifactor Authentication</h2>
-  <div class="well">
-    This will clear the MFA token for the researcher, if they are authorized on any studies that will require MFA they
-    will be redirected at next login to the Manage Credentials page and directed to generate a new MFA token.
-
-    <form
-      action="{{ easy_url("manage_researcher_endpoints.administrator_reset_researcher_mfa", edit_researcher.pk) }}"
-      method="post"
+    {% if session_researcher.site_admin and not edit_researcher.site_admin and not is_self %}
+    <a
+      href="{{ easy_url("manage_researcher_endpoints.administrator_delete_researcher", edit_researcher.id) }}"
+      class="btn btn-danger pull-right"
+      onclick="return confirm('Are you certain you want to delete {{ edit_researcher.username }}?  This cannot be undone.')"
+      aria-label="click to delete researcher {{edit_researcher.username}}, you will be prompted to confirm this action."
     >
-
-      <input
-        type="submit"
-        class="btn btn-warning h2-middle-margins-vertical marg-l-1"
-        value="Reset MFA"
-        {% if not edit_researcher.mfa_token %}disabled{%endif%}
-        aria-label="click to clear the current MFA configuration for researcher {{edit_researcher.username}}"
-      >
-
-    </form>
-    {% if not edit_researcher.mfa_token %}
-    <p></p>
-    <p class="text-danger">This researcher does not have a MFA enabled.</p>
+      <span class="glyphicon glyphicon-trash"></span>&nbsp;Delete Researcher</a>
     {% endif %}
   </div>
-  <br><br><br>
+
 </div>
-{% endif %}
-
-<div>
-  <a
-    href="/manage_researchers"
-    class="btn btn-success"
-    aria-label="click to return to the list of all researchers"
-  ><span class="glyphicon glyphicon-arrow-left"></span>&nbsp;Back to all researchers</a>
-
-  {% if session_researcher.site_admin and not edit_researcher.site_admin and not is_self %}
-  <a
-    href="{{ easy_url("manage_researcher_endpoints.administrator_delete_researcher", edit_researcher.id) }}"
-    class="btn btn-danger pull-right"
-    onclick="return confirm('Are you certain you want to delete {{ edit_researcher.username }}?  This cannot be undone.')"
-    aria-label="click to delete researcher {{edit_researcher.username}}, you will be prompted to confirm this action."
-  >
-    <span class="glyphicon glyphicon-trash"></span>&nbsp;Delete Researcher</a>
-  {% endif %}
-</div>
-
 {% endblock %}
