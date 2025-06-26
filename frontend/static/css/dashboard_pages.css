@@ -49,8 +49,8 @@
 
 .filter-bar{
     font-size: 14px;
-    color: black;
-    background-color: white;
+    color: black !important;
+    background-color: var(--cloud);
 }
 
 .add-flag{
@@ -58,8 +58,12 @@
 }
 
 .gradient{
-    background: rgba(67, 170, 54, 1);
-    background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(67, 170, 54, .35) 35%, rgba(67, 170, 54, 1) 100%);
+    background: linear-gradient(90deg, #ff72765c, var(--fire) 100%);
+}
+
+.flag-filter {
+    outline: 5.5px solid var(--neon);
+    outline-offset: -5.5px;
 }
 
 .filter-flag-item{

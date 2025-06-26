@@ -19,6 +19,7 @@
 @property --Bblack-half { initial-value: #1a1c1d66; syntax: "<color>"; inherits: true;}
 
 @property --Baqua-bright { initial-value: #69e9ff; syntax: "<color>"; inherits: true;}
+@property --Baqua-bright66 { initial-value: #69e9ff66; syntax: "<color>"; inherits: true;}
 @property --Baqua-bright-desat { initial-value: #9DD4DD; syntax: "<color>"; inherits: true;}
 @property --Baqua-less-bright { initial-value: #0094ad; syntax: "<color>"; inherits: true;}
 @property --Baqua-less-bright66 { initial-value: #0094ad66; syntax: "<color>"; inherits: true;}

@@ -269,7 +269,7 @@ $(document).ready(function() {
             if(flag === true){
                 ret["border"] = "solid"
                 ret["border-width"] = "1.5px"
-                ret["border-color"] = "#9DD4DD"  // Baqua-bright-desat
+                ret["border-color"] = "var(--neon)"
                 ret["color"] = "#fff"
                 ret["text-shadow"] = "0px 0px 1px #fff"
             }
