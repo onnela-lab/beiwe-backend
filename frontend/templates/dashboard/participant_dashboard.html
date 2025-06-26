@@ -38,7 +38,7 @@
 {# ################## TOP OF PAGE CONTENT ################# #}
 <div class="title">
   <h1 class="h3"> {{ participant }}
-    <div class="pull-right marg-t-n-1">
+    <div class="pull-right mar-t-n1">
       {% if patient_ids %}
       <div class="dropdown">
 
@@ -48,7 +48,7 @@
           data-toggle="dropdown"
           aria-label="click to select a different participant"
         >
-          <div class="marg-t-n-4pt">
+          <div class="mar-t-n4pt">
             {{ participant.patient_id }} <span class="caret"></span>
           </div>
         </button>
@@ -97,7 +97,7 @@
 
     {# Start Date #}
     <div class="choose-date">
-      <div class="col-sm-4 marg-r-n-6">
+      <div class="col-sm-4 mar-r-n6">
 
         <label for="start_datetime">Start Date</label>
         <div
@@ -140,7 +140,7 @@
       </div>
       <a
         ng-click="createPatientDateRangeUrl()"
-        class="btn btn-primary marg-l-n-5"
+        class="btn btn-primary mar-l-n5"
         aria-label="click to go to the provided date range and view data"
       >View Date Range</a>
 

@@ -30,18 +30,18 @@
 
 {#  ################## TOP OF PAGE CONTENT ################# #}
 <div class="title">
-  <h3 closs="marg-t-n-4"> {{ data_stream }} Data for {{ study.name }} Study
+  <h3 closs="mar-t-n4"> {{ data_stream }} Data for {{ study.name }} Study
     <div class="choose-stream">
       <div class="dropdown">
 
         <button
-          class="btn btn-primary dropdown-toggle marg-t-n-4"
+          class="btn btn-primary dropdown-toggle mar-t-n4"
           type="button"
           data-toggle="dropdown"
         >
           {{ data_stream }} <span class="caret"></span>
         </button>
-        <ul class="dropdown-menu dropdown-translucent marg-t-n-1 form-group">
+        <ul class="dropdown-menu dropdown-translucent mar-t-n1 form-group">
           {% for stream in data_stream_dict.keys()|sort if data_stream_dict[stream] != data_stream %}
           <li><a
               class="text-green-hover"
@@ -370,7 +370,7 @@
 
     {# Start Date #}
     <div class="choose-date">
-      <div class="col-sm-4 marg-r-n-6">
+      <div class="col-sm-4 mar-r-n6">
 
         <label for="start_datetime">Start Date</label>
         <div
@@ -413,7 +413,7 @@
       </div>
       <a
         ng-click="createDateRangeUrl()"
-        class="btn btn-primary marg-l-n-5"
+        class="btn btn-primary mar-l-n5"
         aria-label="click to go to the provided date range and view data"
       >View Date Range</a>
     </div>
