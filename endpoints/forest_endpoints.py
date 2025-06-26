@@ -438,9 +438,9 @@ def download_task_log(request: ResearcherRequest, study_id=str):
     
     # study id is already validated by the url pattern?
     forest_tasks = ForestTask.objects.filter(participant__study_id=study_id)
-    
+    study = Study.objects.get(pk=study_id)
     return FileResponse(
-        stream_forest_task_log_csv(forest_tasks),
+        stream_forest_task_log_csv(forest_tasks, study.timezone),
         content_type="text/csv",
         filename=f"forest_task_log_{timezone.now().isoformat()}.csv",
         as_attachment=True,
