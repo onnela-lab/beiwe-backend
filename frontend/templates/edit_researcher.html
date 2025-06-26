@@ -9,7 +9,7 @@
     <h1 class="h2 col-xs-9">Researcher <b>{{ edit_researcher.username }}</b></h1>
 
     {% if session_researcher.site_admin and not edit_researcher.site_admin %}
-    <span class="col-xs-3 pull-right marg-t-1">
+    <span class="col-xs-3 pull-right mar-t-1">
       <a
         href="/manage_researchers"
         class="btn btn-success"
@@ -218,7 +218,7 @@
           <input
             type="text"
             name="password"
-            class="form-control marg-t-2"
+            class="form-control mar-t-2"
             pattern=".{8,}"
             oninvalid="setCustomValidity('Must have at least 8 characters')"
             aria-label="Enter a new password for researcher {{edit_researcher.username}} following the listed rules"
@@ -232,7 +232,7 @@
 
           <input
             type="submit"
-            class="btn btn-warning marg-t-2"
+            class="btn btn-warning mar-t-2"
             value="Reset Password"
             aria-label="click to set password for researcher {{edit_researcher.username}}"
           >
@@ -258,7 +258,7 @@
 
         <input
           type="submit"
-          class="btn btn-warning h2-middle-margins-vertical marg-l-1"
+          class="btn btn-warning h2-middle-margins-vertical mar-l-1"
           value="Reset MFA"
           {% if not edit_researcher.mfa_token %}disabled{%endif%}
           aria-label="click to clear the current MFA configuration for researcher {{edit_researcher.username}}"
