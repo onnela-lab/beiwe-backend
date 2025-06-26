@@ -31,7 +31,7 @@
       style="background-color: transparent;"
       max-width="10px"
     >
-      <ul class="nav navbar-nav navbar-left mar-l-n2">
+      <ul class="nav navbar-nav navbar-left ml-n2">
         {# If the current admin is authorized to view more than one study, give them a drop-down menu to switch studies #}
         <li
           ng-if="navBarStudies.length > 1"
@@ -195,7 +195,7 @@
         >
           <a
             href="{{ easy_url("data_page_endpoints.data_api_web_form_page") }}"
-            class="mar-l-n1"
+            class="ml-n1"
             aria-label="Click to go to the Data Download API Web Form"
           >
             Download <br> Data
@@ -208,7 +208,7 @@
         >
           <a
             href="{{ easy_url("manage_researcher_endpoints.self_manage_credentials_page") }}"
-            class="mar-l-n1"
+            class="ml-n1"
             aria-label="Click to go to the Manage Credentials page."
           >
             Manage <br> Credentials
@@ -223,7 +223,7 @@
         >
           <a
             href="{{ easy_url("manage_researcher_endpoints.administrator_manage_researchers_page") }}"
-            class="mar-l-n1"
+            class="ml-n1"
             aria-label="Click to go to the Manage Researchers page."
           >
             Manage <br> Researchers
@@ -236,7 +236,7 @@
         >
           <a
             href="{{ easy_url("study_endpoints.manage_studies_page") }}"
-            class="mar-l-n1"
+            class="ml-n1"
             aria-label="Click to go to the Manage Studies page."
           >
             Manage <br> Studies
@@ -251,7 +251,7 @@
         >
           <a
             href="{{ easy_url("system_admin_endpoints.manage_firebase_credentials") }}"
-            class="mar-l-n1"
+            class="ml-n1"
             aria-label="Click to go to the Firebase Credentials management page."
           >
             Firebase <br> Credentials
@@ -261,7 +261,7 @@
 
         <li
           role="presentation"
-          class="pulse-text-hover mar-r-n1"
+          class="pulse-text-hover mr-n1"
         >
           <a
             href="{{ easy_url("login_endpoints.logout_page") }}"

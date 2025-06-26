@@ -43,7 +43,7 @@
       style="min-height: 577px;"
     >
       <h2 class="h3 text-center"> <b>Activity Information </b></h2>
-      <table class="table well activity-info mar-t-4">
+      <table class="table well activity-info mt-4">
 
         <!-- Phone OS info -->
         <tr>
@@ -204,7 +204,7 @@
             Resend as Manual Push Notification
           </button>
 
-          <div class="text-medium-italic center-text mar-t-1"> (This action is not yet integrated automatic with survey
+          <div class="text-medium-italic center-text mt-1"> (This action is not yet integrated automatic with survey
             notification
             resend logic.) </div>
           {% endif %}
@@ -499,7 +499,7 @@
       style="min-height: 15em;"
     >
       {% if enable_interventions %}
-      <h2 class="mar-t-0"> Interventions</h3>
+      <h2 class="mt-0"> Interventions</h3>
         {% for intervention_id, intervention_name, intervention_date in intervention_data %}
         <div class="form-group">
 
@@ -558,7 +558,7 @@
       {% else %}
       <div class="col-xs-12 well vertical-padding-3">
         {% endif %}
-        <h2 class="mar-t-0">Custom Fields</h3>
+        <h2 class="mt-0">Custom Fields</h3>
           {% for field_id, field_name, value in field_values %}
           <div class="form-group">
 
