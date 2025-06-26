@@ -145,7 +145,7 @@
   <div class="col-xs-1">
     <a
       href="/create_survey/{{ study.id }}/tracking_survey"
-      class="btn btn-info h3-margins pull-right mr-n1"
+      class="btn btn-info h3-margins pull-right mr-0"
     >
       Create New Survey</a>
   </div>
@@ -206,7 +206,7 @@
   <div class="col-xs-1">
     <a
       href="/create_survey/{{ study.id }}/audio_survey"
-      class="btn btn-info h3-margins pull-right mr-n1"
+      class="btn btn-info h3-margins pull-right mr-0"
     >
       Create New Audio Survey</a>
   </div>
@@ -257,7 +257,7 @@
 
   <div class="clearfix"></div>
 
-  <div>
+  <div class="col-xs-12">
     <h2 class="h3">Study Configuration</h2>
 
     <div class="col-xs-12 well">
@@ -295,6 +295,16 @@
 
       <div class="col-xs-6 mb-2">
         <p><a
+            class="btn btn-info"
+            href={{ easy_url('study_endpoints.export_study_settings_file', study_id=study.id) }}
+          >
+            Export Study Settings JSON
+          </a></p>
+        Download the full JSON configuration for this study.
+      </div>
+
+      <div class="col-xs-6 mb-2">
+        <p><a
             class="btn btn-success"
             href={{ easy_url('study_endpoints.device_settings', study_id=study.id) }}
           >
@@ -302,16 +312,6 @@
           </a></p>
         Configure types and quantity of the passive data streams this study collects, and the wording that study
         participants see in the app
-      </div>
-
-      <div class="col-xs-6 mb-2">
-        <p><a
-            class="btn btn-info"
-            href={{ easy_url('study_endpoints.export_study_settings_file', study_id=study.id) }}
-          >
-            Export Study Settings JSON
-          </a></p>
-        Download the full JSON configuration for this study.
       </div>
 
       <div class="col-xs-6 mb-2">
@@ -329,7 +329,7 @@
 
   {% if study.forest_enabled %}
   <div class="clearfix"></div>
-  <div>
+  <div class="col-xs-12">
     <h2 class="h3">Forest Data Analysis</h2>
     <div class="col-xs-12 well">
 

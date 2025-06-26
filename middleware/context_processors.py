@@ -1,5 +1,6 @@
 from authentication.admin_authentication import ResearcherRequest
 from config.settings import ENABLE_EXPERIMENTS
+from constants.common_constants import FORCE_SITE_NON_ADMIN
 from constants.user_constants import ANDROID_API, IOS_API
 from database.study_models import Study
 
@@ -30,8 +31,8 @@ def researcher_context_processor(request: ResearcherRequest):
             study["search_text"] = f"{study['name']} ({study['object_id']})"
         
         ret["allowed_studies"] = allowed_studies
-        ret["is_admin"] = request.session_researcher.is_an_admin()
-        ret["site_admin"] = request.session_researcher.site_admin
+        ret["is_admin"] = FORCE_SITE_NON_ADMIN or request.session_researcher.is_an_admin()
+        ret["site_admin"] = FORCE_SITE_NON_ADMIN or request.session_researcher.site_admin
         ret["session_researcher"] = request.session_researcher
         ret["IOS_API"] = IOS_API
         ret["ANDROID_API"] = ANDROID_API

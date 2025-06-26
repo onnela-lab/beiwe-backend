@@ -98,3 +98,7 @@ EARLIEST_POSSIBLE_DATA_TIMESTAMP = 1406851200
 # corrupted data, we need a sanity check inside data processing.  This value is updated at runtime,
 # just in case 90 days somehow isn't enough.
 LATEST_POSSIBLE_DATA_TIMESTAMP = int(time.mktime((datetime.utcnow() + timedelta(days=90)).timetuple()))
+
+## these are debugging constants for the website
+FORCE_SITE_READ_ONLY = False
+FORCE_SITE_NON_ADMIN = False

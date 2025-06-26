@@ -13,7 +13,8 @@ from markupsafe import escape
 from authentication.admin_authentication import (abort, assert_admin, assert_site_admin,
     authenticate_admin, authenticate_researcher_login, authenticate_researcher_study_access,
     get_researcher_allowed_studies_as_query_set, ResearcherRequest)
-from constants.common_constants import DT_12HR_W_TZ_N_SEC_N_PAREN, RUNNING_TEST_OR_FROM_A_SHELL
+from constants.common_constants import (DT_12HR_W_TZ_N_SEC_N_PAREN, FORCE_SITE_READ_ONLY,
+    RUNNING_TEST_OR_FROM_A_SHELL)
 from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
 from constants.user_constants import ResearcherRole
@@ -356,7 +357,7 @@ def toggle_study_forest_enabled(request: ResearcherRequest, study_id=None):
 
 @require_http_methods(['GET', 'POST'])
 @authenticate_researcher_study_access
-def device_settings(request: ResearcherRequest, study_id=None):
+def device_settings(request: ResearcherRequest, study_id: int):
     """ Bad Dual Endpoint Pattern - displays page for and handles post operations for updating a
     Study's Device Settings. """
     # TODO: probably rewrite this entire endpoint with django forms....
@@ -374,7 +375,7 @@ def device_settings(request: ResearcherRequest, study_id=None):
             context=dict(
                 study=study.as_unpacked_native_python(Study.STUDY_EXPORT_FIELDS),
                 settings=study.device_settings.export(),
-                readonly=readonly,
+                readonly=FORCE_SITE_READ_ONLY or readonly,
             )
         )
     if readonly:
