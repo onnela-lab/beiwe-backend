@@ -541,6 +541,8 @@ def _flat(self, field_name: str, **filter_kwargs) -> QuerySet[Any]:
 def _rdrby(self, *args, **kwargs) -> QuerySet[Self]:  # type: ignore
         return self.order_by(*args, **kwargs)
 
+def _aslst(self) -> list[Any]:
+    return list(self)
 
 # This almost works but real queries still are not annotated with these methods by the type checker
 # if typing.TYPE_CHECKING:
@@ -566,4 +568,6 @@ for _T in (QuerySet, BaseIterable, BaseManager, ValuesIterable, ValuesListIterab
     setattr(_T, "xcld", _xcld)
     setattr(_T, "flat", _flat)
     setattr(_T, "rdrby", _rdrby)
+    setattr(_T, "aslst", _aslst)
     setattr(_T, "__repr__", terminal_legible_dt_magic)
+    
