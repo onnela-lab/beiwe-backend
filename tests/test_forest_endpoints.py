@@ -6,7 +6,7 @@ import dateutil
 from django.http import FileResponse
 
 from constants.celery_constants import ForestTaskStatus
-from constants.common_constants import EDT
+from constants.common_constants import EDT, UTC
 from constants.data_stream_constants import GPS
 from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED, ForestTree,
     TREE_TO_TASK_NAME)
@@ -190,8 +190,9 @@ class TestForestDownloadTaskData(ResearcherSessionTest):
     
     def test_site_admin_can(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
-        resp: FileResponse = self.smart_get_status_code(
+        resp: FileResponse = self.smart_get_status_code(  # type: ignore
             200, self.session_study.id, self.default_forest_task.external_id)
+        
         self.assertEqual(b"".join(resp.streaming_content), EMPTY_ZIP)
     
     def no_such_task(self):
@@ -207,12 +208,12 @@ class TestForestDownloadTaskData(ResearcherSessionTest):
         self.set_session_study_relation(ResearcherRole.site_admin)
         # make a jasmine task and a single file within the time range that should download (gps)
         self.default_forest_task.update(
-            data_date_start=datetime(2020, 1, 1, tzinfo=dateutil.tz.UTC),
-            data_date_end=datetime(2020, 1, 4, tzinfo=dateutil.tz.UTC),
+            data_date_start=datetime(2020, 1, 1, tzinfo=UTC),
+            data_date_end=datetime(2020, 1, 4, tzinfo=UTC),
             forest_tree=ForestTree.jasmine,
         )
         self.default_chunkregistry.update(
-            time_bin=datetime(2020, 1, 2, tzinfo=dateutil.tz.UTC), data_type=GPS
+            time_bin=datetime(2020, 1, 2, tzinfo=UTC), data_type=GPS
         )
         # hit endpoint, check for our SIMPLE_FILE_CONTENTS nonce
         resp = self.smart_get_status_code(
