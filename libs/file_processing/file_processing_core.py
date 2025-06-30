@@ -207,7 +207,7 @@ class FileProcessingTracker():
         s3_upload_no_compression(chunk_path, compressed_contents, self.study, raw_path=True)
         
         if create_new_chunk:  # validates, creates
-            ChunkRegistry.register_chunked_data(**chunk_kwargs, file_contents=compressed_contents)
+            ChunkRegistry.register_chunked_data(**chunk_kwargs)
         else:  # update info about an existing ChunkRegistry
             ChunkRegistry.objects.filter(chunk_path=chunk_path).update(
                 last_updated=timezone.now(), **chunk_kwargs
