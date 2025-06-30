@@ -12,20 +12,20 @@ from django.utils import timezone
 
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants import common_constants
-from constants.data_processing_constants import (AllBinifiedData, CHUNK_EXISTS_CASE,
-    DEBUG_FILE_PROCESSING, BinifyDict, SurveyIDHash)
+from constants.data_processing_constants import (AllBinifiedData, BinifyDict, DEBUG_FILE_PROCESSING,
+    SurveyIDHash)
 from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry, FileToProcess
 from database.models import Study
 from database.user_models_participant import Participant
-from libs.file_processing.csv_merger import CsvMerger
+from libs.file_processing.csv_merger import CsvMerger, FinalOutputContent
 from libs.file_processing.data_qty_stats import calculate_data_quantity_stats
 from libs.file_processing.file_for_processing import FileForProcessing
 from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
     clean_java_timecode, resolve_survey_id_from_file_name)
 from libs.s3 import s3_upload_no_compression
 from libs.sentry import make_error_sentry, SentryTypes
-from libs.utils.security_utils import chunk_hash
+from libs.utils.dev_utils import Timer
 
 
 FileToProcessPK = int
@@ -135,14 +135,14 @@ class FileProcessingTracker():
         # files percolates back to here.  Delete various database objects accordingly.
         ftps_to_remove, bad_files, earliest_time_bin, latest_time_bin = self.upload_binified_data()
         self.buggy_files.update(bad_files)
-        print(f"Successully processed {len(ftps_to_remove)} files, there have been a total of {len(self.buggy_files)} failed files.")
+        print(f"Successfully processed {len(ftps_to_remove)} files, "
+              f"there have been a total of {len(self.buggy_files)} failed files.")
         
         # Update the data quantity stats (if it actually processed any files)
         if len(files_to_process) > 0:
-            t1 = perf_counter()
-            calculate_data_quantity_stats(self.participant, earliest_time_bin, latest_time_bin)
-            t2 = perf_counter()
-            log(f"FileProcessingCore: calculate_data_quantity_stats took {t2 - t1:.4f} seconds")
+            with Timer() as t:
+                calculate_data_quantity_stats(self.participant, earliest_time_bin, latest_time_bin)
+            log(f"FileProcessingCore: calculate_data_quantity_stats took {t.fseconds} seconds")
         
         # Actually delete the processed FTPs from the database now that we are done.
         FileToProcess.objects.filter(pk__in=ftps_to_remove).delete()
@@ -172,10 +172,9 @@ class FileProcessingTracker():
         )
         # a failed upload will require the user gets rerun entirely.
         len_merged_data = len(merged_data.upload_these)
-        t1 = perf_counter()
-        self.do_uploads(merged_data)
-        t2 = perf_counter()
-        log(f"FileProcessingCore: do_uploads took {t2 - t1:.4f} seconds for {len_merged_data} files")
+        with Timer() as t:
+            self.do_uploads(merged_data)
+        log(f"FileProcessingCore: do_uploads took {t.fseconds} seconds for {len_merged_data} files")
         return merged_data.get_retirees()
     
     def do_uploads(self, merged_data: CsvMerger):
@@ -183,33 +182,36 @@ class FileProcessingTracker():
         
         while True:
             try:
-                chunk, chunk_path, new_contents = merged_data.upload_these.pop(-1)
+                # if the upload fails we simply error out and try again later in a separate run.
+                # The type definition of items in merged_data must match the do_upload function.
+                self.do_upload(*merged_data.upload_these.pop(-1))
             except IndexError:
                 break
-            # if the upload fails we simply error out and try again later. Failure is an option.
-            self.do_upload(chunk, chunk_path, new_contents)
     
-    def do_upload(self, chunk: str|dict, chunk_path: str, compressed_file: bytes):
+    def do_upload(
+        self,
+        chunk_kwargs: dict,
+        chunk_path: str,
+        compressed_contents: FinalOutputContent,
+        create_new_chunk: bool,
+    ):
+        """ Even if the upload succeeds and then something goes wrong with the database update,
+        that's fine.  If there is an error it is raised and the FTP is not deleted.  The next time
+        file processing runs it will duplicate work, but the code deduplicates output lines, so data
+        remains intact. We briefly have a period where data size and hashes are off.  Tolerable. """
         
-        # safety check on a bug that can occur very easily due to poor design...
-        if "b'" in chunk_path:
+        if "b'" in chunk_path:  # safety check on a bug that can occur very easily due to poor design
             raise Exception(chunk_path)
         
-        # self.study saves a query for the encryption key
-        s3_upload_no_compression(chunk_path, compressed_file, self.study, raw_path=True)
+        # self.study saves a db query for the encryption key
+        s3_upload_no_compression(chunk_path, compressed_contents, self.study, raw_path=True)
         
-        # if the chunk object is a chunk registry then we are updating an old one,
-        # otherwise we are creating a new one.
-        if chunk == CHUNK_EXISTS_CASE:
-            # If the contents are being appended to an existing ChunkRegistry object
+        if create_new_chunk:  # validates, creates
+            ChunkRegistry.register_chunked_data(**chunk_kwargs, file_contents=compressed_contents)
+        else:  # update info about an existing ChunkRegistry
             ChunkRegistry.objects.filter(chunk_path=chunk_path).update(
-                file_size=len(compressed_file),
-                chunk_hash=chunk_hash(compressed_file).decode(),
-                last_updated=timezone.now()
+                last_updated=timezone.now(), **chunk_kwargs
             )
-        else:
-            assert isinstance(chunk, dict), "chunk must be a dict or CHUNK_EXISTS_CASE"
-            ChunkRegistry.register_chunked_data(**chunk, file_contents=compressed_file)
     
     #
     ## Chunkable File Processing
@@ -229,8 +231,7 @@ class FileProcessingTracker():
         if newly_binified_data:
             self.append_binified_csvs(newly_binified_data, file_for_processing.file_to_process)
         else:
-            # delete empty files from FilesToProcess
-            file_for_processing.file_to_process.delete()
+            file_for_processing.file_to_process.delete()  # delete empty files from FilesToProcess
     
     def append_binified_csvs(
         self, new_binified_rows: BinifyDict, file_for_processing: FileToProcess
@@ -282,7 +283,7 @@ class FileProcessingTracker():
                     timecode = binify_from_timecode(row[0])
                 except BadTimecodeError:
                     continue
-                ret[(self.study_object_id, self.patient_id, data_type, timecode, header)].append(row)  
+                ret[(self.study_object_id, self.patient_id, data_type, timecode, header)].append(row)
         return ret
     
     #

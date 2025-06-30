@@ -105,7 +105,7 @@ def csv_to_list_of_list_of_bytes(file_bytes: bytes) -> tuple[bytes, list[list[by
 #     while lines:
 #         yield lines.pop(-1).split(b",")
 
-def construct_csv_string(header: bytes, rows_list: list[list[bytes]]) -> bytes:
+def construct_csv_as_bytes(header: bytes, rows_list: list[list[bytes]]) -> bytes:
     """ Takes a header list and a bytes-list and returns a single string of a csv. Very performant."""
     
     def deduplicate(seq: list[bytes]):

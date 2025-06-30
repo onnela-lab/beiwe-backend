@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from django.db import models
 from django.db.models import QuerySet
-from django.utils import timezone
 
 from constants.common_constants import (API_TIME_FORMAT, CHUNKS_FOLDER,
     EARLIEST_POSSIBLE_DATA_DATETIME)
@@ -16,7 +15,6 @@ from constants.data_stream_constants import (CHUNKABLE_FILES, IDENTIFIERS,
 from constants.user_constants import OS_TYPE_CHOICES
 from database.models import TimestampedModel
 from database.user_models_participant import Participant
-from libs.utils.security_utils import chunk_hash
 
 
 if TYPE_CHECKING:
@@ -52,13 +50,13 @@ class ChunkRegistry(TimestampedModel):
     data_type = models.CharField(max_length=32, db_index=True)
     time_bin = models.DateTimeField(db_index=True)
     file_size = models.IntegerField(null=True, default=None)  # Size (in bytes) of the (uncompressed) file, off by 16 bytes because of encryption iv
-    study: Study = models.ForeignKey(
+    study: Study = models.ForeignKey(  # type: ignore
         'Study', on_delete=models.PROTECT, related_name='chunk_registries', db_index=True
     )
-    participant: Participant = models.ForeignKey(
+    participant: Participant = models.ForeignKey(  # type: ignore
         'Participant', on_delete=models.PROTECT, related_name='chunk_registries', db_index=True
     )
-    survey: Survey = models.ForeignKey(
+    survey: Survey = models.ForeignKey(  # type: ignore
         'Survey', blank=True, null=True, on_delete=models.PROTECT, related_name='chunk_registries',
         db_index=True
     )
@@ -67,33 +65,41 @@ class ChunkRegistry(TimestampedModel):
         from libs.s3 import s3_retrieve
         return s3_retrieve(self.chunk_path, self.study.object_id, raw_path=True)
     
+    register_required = {
+        "study_id": int,
+        "participant_id": int,
+        "data_type": str,
+        "chunk_path": str,
+        "chunk_hash": str|bytes,
+        "time_bin": int,
+        "survey_id": int|None,
+        "file_size": int,
+    }
+    
     @classmethod
-    def register_chunked_data(
-            cls, data_type, time_bin, chunk_path, file_contents, study_id, participant_id, survey_id=None
-    ):
-        if data_type not in CHUNKABLE_FILES:
-            raise UnchunkableDataTypeError
+    def register_chunked_data(cls, **kwargs):
+        # validate required kwargs, extra kwargs not present, data type is chunkable
+        if missing := [k for k in cls.register_required if k not in kwargs]:
+            raise ValueError(f"Missing required parameters: {missing}")
+        if unexpected:= [k for k in kwargs if k not in cls.register_required]:
+            raise ValueError(f"Unexpected parameters: {unexpected}")
+        if kwargs["data_type"] not in CHUNKABLE_FILES:
+            raise UnchunkableDataTypeError(f"Data type '{kwargs['data_type']}' is not chunkable.")
         
-        chunk_hash_str = chunk_hash(file_contents).decode()
-        time_bin = int(time_bin) * CHUNK_TIMESLICE_QUANTUM
-        time_bin = timezone.make_aware(datetime.utcfromtimestamp(time_bin), UTC)
+        time_bin = kwargs["time_bin"]  # determine time bin...
+        time_bin = int(time_bin) * CHUNK_TIMESLICE_QUANTUM  # best variable name ever...
+        time_bin = datetime.fromtimestamp(time_bin, UTC)
+        kwargs["time_bin"] = time_bin
         
-        cls.objects.create(
-            is_chunkable=True,
-            chunk_path=chunk_path,
-            chunk_hash=chunk_hash_str,
-            data_type=data_type,
-            time_bin=time_bin,
-            study_id=study_id,
-            participant_id=participant_id,
-            survey_id=survey_id,
-            file_size=len(file_contents),
-        )
+        if isinstance(kwargs["chunk_hash"], bytes):  # just fix type on chunk hash because
+            kwargs["chunk_hash"] = kwargs["chunk_hash"].decode()
+        
+        ChunkRegistry(is_chunkable=True, **kwargs).save()  # create with validation
     
     @classmethod
     def register_unchunked_data(cls, data_type, unix_timestamp, chunk_path, study_id, participant_id,
                                 file_contents, survey_id=None):
-        time_bin = timezone.make_aware(datetime.utcfromtimestamp(unix_timestamp), UTC)
+        time_bin = datetime.fromtimestamp(unix_timestamp, UTC)
         
         if data_type in CHUNKABLE_FILES:
             raise ChunkableDataTypeError
