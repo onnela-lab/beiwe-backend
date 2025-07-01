@@ -53,6 +53,26 @@ class UploadTracking(UtilityModel):
         return s3_retrieve(self.file_path, self.participant)
     
     @classmethod
+    def print_participant_data_quantities_for_study(cls, study):
+        for p in study.participants.all():
+            base = f"{study.object_id}/{p.patient_id}/"
+            chunk_base = CHUNKS_FOLDER + "/" + base
+            qs = Q(path__startswith=base) | Q(path__startswith=chunk_base)
+            comp, uncomp = S3File.fltr(qs).aggregate(
+                comp=Sum("size_compressed"), uncomp=Sum("size_uncompressed")
+            ).values()
+            print(
+                p.patient_id,
+                "-",
+                f"{numformat((comp or 0) / (uncomp or 1) * 100)}%",
+                "=",
+                f"{numformat((comp or 0) / 1024 / 1024)} MB compressed",
+                "/",
+                f"{numformat((uncomp or 0) / 1024 / 1024)} MB uncompressed",
+                
+            )
+
+    @classmethod
     def re_add_files_to_process(cls, number=100):
         """ Re-adds the most recent [number] files that have been uploaded recently to FiletToProcess.
             (this is fairly optimized because it is part of debugging file processing) """
@@ -310,7 +330,7 @@ class S3File(TimestampedModel):
     def get_object_id(self):
         # TODO: we can just logic this out of the path, we only allow study and CHUNKED_DATA and LOGS
         from database.models import Study
-
+        
         # first go through the object_ids cache, then study_id if present, then participant
         # study, populating the cache if we need to.
         
