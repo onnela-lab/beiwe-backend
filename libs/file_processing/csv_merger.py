@@ -27,6 +27,9 @@ FileToProcessPK = int
 UncompressedSize = int
 FinalOutputContent = bytes
 ChunkPath = str
+ByteCount = int
+
+Uploadable = tuple[dict, ChunkPath, FinalOutputContent, ByteCount, bool]
 
 def log(*args, **kwargs):
     """ A simple wrapper around print to make it easier to change logging later. """
@@ -52,7 +55,7 @@ class CsvMerger:
         self.ftps_to_retire = set[FileToProcessPK]()
         
         # The type definition of items in merged_data must match the do_upload function.
-        self.upload_these: list[tuple[dict, ChunkPath, FinalOutputContent, bool]] = []  # chunk, chunk_path, file content
+        self.upload_these: list[Uploadable] = []  # chunk, chunk_path, file content
         
         # Track the earliest and latest time bins, to return them at the end of the function
         self.earliest_time_bin: int|None = None
@@ -174,7 +177,7 @@ class CsvMerger:
             "survey_id": survey_id,
             "file_size": content_length,
         }
-        self.upload_these.append((chunk_params, chunk_path, new_contents, True))
+        self.upload_these.append((chunk_params, chunk_path, new_contents, content_length, True))
     
     def chunk_exists_case(
         self,
@@ -226,11 +229,12 @@ class CsvMerger:
         log(f"CsvMerger: compressed new data for {name} in {t_construct.fseconds} seconds.")
         
         # get metadata before compressing
+        content_length = len(new_contents)
         chunk_update_kwargs = dict(
-            chunk_hash=chunk_hash(new_contents).decode(), file_size=len(new_contents)
+            chunk_hash=chunk_hash(new_contents).decode(), file_size=content_length
         )
         new_contents = compress(new_contents)
-        self.upload_these.append((chunk_update_kwargs, chunk_path, new_contents, False))
+        self.upload_these.append((chunk_update_kwargs, chunk_path, new_contents, content_length, False))
     
     def validate_one_header(self, header: bytes, data_stream: str) -> bytes:
         real_header = REFERENCE_CHUNKREGISTRY_HEADERS[data_stream][self.participant.os_type]

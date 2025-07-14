@@ -67,7 +67,7 @@ class FileProcessingTracker():
         self.page_size = page_size
         
         # It is possible for devices to record data from unreasonable times, like the unix epoch
-        # start. This huristic is a safety measure to clear out bad data.
+        # start. This heuristic is a safety measure to clear out bad data.
         common_constants.LATEST_POSSIBLE_DATA_TIMESTAMP = \
             int(time.mktime((timezone.now() + timedelta(days=90)).timetuple()))
         
@@ -193,6 +193,7 @@ class FileProcessingTracker():
         chunk_kwargs: dict,
         chunk_path: str,
         compressed_contents: FinalOutputContent,
+        content_length: int,
         create_new_chunk: bool,
     ):
         """ Even if the upload succeeds and then something goes wrong with the database update,
@@ -200,11 +201,14 @@ class FileProcessingTracker():
         file processing runs it will duplicate work, but the code deduplicates output lines, so data
         remains intact. We briefly have a period where data size and hashes are off.  Tolerable. """
         
-        if "b'" in chunk_path:  # safety check on a bug that can occur very easily due to poor design
-            raise Exception(chunk_path)
-        
         # self.study saves a db query for the encryption key
-        s3_upload_no_compression(chunk_path, compressed_contents, self.study, raw_path=True)
+        s3_upload_no_compression(
+            chunk_path,
+            compressed_contents,
+            self.study,
+            raw_path=True,
+            size_uncompressed=content_length
+        )
         
         if create_new_chunk:  # validates, creates
             ChunkRegistry.register_chunked_data(**chunk_kwargs)
@@ -224,6 +228,7 @@ class FileProcessingTracker():
         # survey answers store the survey id in the file name (truly ancient design decision, its
         # bad and buggy, need to get around to fixing this).
         if file_for_processing.data_type in SURVEY_DATA_FILES:
+            assert survey_id_hash is not None, "survey_id_hash should be guaranteed for survey data files."
             self.survey_id_dict[survey_id_hash] = resolve_survey_id_from_file_name(
                 file_for_processing.file_to_process.s3_file_path
             )

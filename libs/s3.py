@@ -151,10 +151,11 @@ class S3Storage:
         # misuse
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
+        self.metadata.size_uncompressed = len(file_content)
         self.uncompressed_data = file_content
         return self
     
-    def set_file_content_compressed(self, file_content: bytes) -> S3Storage:
+    def set_file_content_compressed(self, file_content: bytes, size_uncompressed: int = None) -> S3Storage:
         # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
@@ -162,12 +163,14 @@ class S3Storage:
         if not file_content.startswith(b'(\xb5/\xfd'):
             raise ValueError(MUST_BE_ZSTD_FORMAT(file_content=file_content[:10].decode()))
         
-        # missuse cases
+        # misuse cases
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         
         self.compressed_data = file_content  # TLDR - only compressed_data should now be set
         self.metadata.size_compressed = len(self.compressed_data)
+        if size_uncompressed is not None:
+            self.metadata.size_uncompressed = size_uncompressed
         return self
     
     def pop_uncompressed_file_content(self) -> bytes:
@@ -376,9 +379,10 @@ def s3_upload(
 
 
 def s3_upload_no_compression(
-    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
+    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False, **metadata: dict[str, str]
 ):
     storage = S3Storage(key_path, obj, raw_path).set_file_content_compressed(data_string)
+    storage.update_metadata(**metadata)
     storage.push_to_storage_already_compressed_and_clear_memory()
 
 
