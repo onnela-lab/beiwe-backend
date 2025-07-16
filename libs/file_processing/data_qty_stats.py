@@ -1,8 +1,7 @@
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime, tzinfo
+from datetime import date, datetime, tzinfo
 
-from dateutil.tz import UTC
 from django.db.models.query import QuerySet
 from django.utils.timezone import make_aware
 
@@ -38,15 +37,15 @@ def timeslice_to_end_of_day(timeslice: int, tz: tzinfo):
 
 def populate_data_quantity(
     chunkregistry_query: QuerySet, study_timezone: tzinfo
-) -> dict[datetime, dict[str, int]]:
-    # Constructs a dict formatted like this: dict[date][data_type] = total_bytes
-    daily_data_quantities = defaultdict(lambda: defaultdict(int))
-    time_bin: datetime
-    chunk_data_type: str
-    file_size: int
-    fields = ('time_bin', 'data_type', 'file_size')
+) -> defaultdict[date, defaultdict[str, int]]:
+    time_bin: datetime;   chunk_data_type: str;   file_size: int
+    
+    # a dict[date][data_type] = total_bytes
+    daily_data_quantities: defaultdict[date, defaultdict[str, int]] = defaultdict(lambda: defaultdict[str, int](int))
+    the_fields = ("time_bin", "data_type", "file_size")
+    
     # get the date in the study's timezone, identify the size of that chunk, add based on data type
-    for time_bin, chunk_data_type, file_size in chunkregistry_query.values_list(*fields):
+    for time_bin, chunk_data_type, file_size in chunkregistry_query.values_list(*the_fields):
         day = time_bin.astimezone(study_timezone).date()
         file_size = 0 if file_size is None else file_size
         daily_data_quantities[day][chunk_data_type] += file_size
