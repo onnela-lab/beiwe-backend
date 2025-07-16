@@ -32,7 +32,7 @@ class GenericEvent(TimestampedModel):
 class SingletonModel(TimestampedModel):
     """ A model that destructively maintains exactly one instance. Be very careful with these
     models. """
-    class Meta:
+    class Meta:  # type: ignore
         abstract = True
     
     @classmethod
@@ -40,7 +40,7 @@ class SingletonModel(TimestampedModel):
         """ An objectively dumb way of making sure we only ever have one of these. """
         count = cls.objects.count()
         if count > 1:
-            exclude = cls.objects.order_by("created_on").first().id
+            exclude = cls.objects.order_by("created_on").first().id  # type: ignore
             cls.objects.exclude(id=exclude).delete()
             return cls.singleton()
         if count == 0:
@@ -48,7 +48,7 @@ class SingletonModel(TimestampedModel):
             ret.save()
             return ret
         # if count == 1:  # guaranteed
-        return cls.objects.first()
+        return cls.objects.first()  # type: ignore
 
 
 # todo: make this part of GlobalSettings?
