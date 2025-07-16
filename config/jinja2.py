@@ -96,7 +96,7 @@ class LocalAssets:
 # until we are reading to use minified assets on production this is debug-only
 if not settings.DEBUG or RUNNING_TESTS:
     if RUNNING_TESTS:
-        print("\nRunning tests - all css assets will be discarded.\n")
+        print("\nRunning tests - all css assets in rendered pages will be empty.\n")
     for attrname in dir(LocalAssets):
         if attrname.startswith("_"):
             continue
