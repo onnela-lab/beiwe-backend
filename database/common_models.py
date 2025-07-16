@@ -321,6 +321,7 @@ class UtilityModel(models.Model):
     
     def save(self, *args, **kwargs):
         # Raise a ValidationError if any data is invalid
+        # FIXME: uuuuuuuhhhhhh this doesn't do null checks on non-nullable fields!?
         self.full_clean()
         super().save(*args, **kwargs)
     
@@ -372,12 +373,12 @@ class UtilityModel(models.Model):
     
     def __str__(self) -> str:
         """ multipurpose object representation """
-        if hasattr(self, 'study') and self.study and hasattr(self, 'name') and self.name:
-            return f'{self.__class__.__name__} {self.pk} "{self.name}" of Study {self.study.name}'
-        elif hasattr(self, 'study') and self.study:
-            return f'{self.__class__.__name__} {self.pk} of Study {self.study.name}'
-        elif hasattr(self, 'name') and self.name:
-            return f'{self.__class__.__name__} {self.name}'
+        if hasattr(self, 'study') and self.study and hasattr(self, 'name') and self.name:  # type: ignore
+            return f'{self.__class__.__name__} {self.pk} "{self.name}" of Study {self.study.name}'  # type: ignore
+        elif hasattr(self, 'study') and self.study:  # type: ignore
+            return f'{self.__class__.__name__} {self.pk} of Study {self.study.name}'  # type: ignore
+        elif hasattr(self, 'name') and self.name:  # type: ignore
+            return f'{self.__class__.__name__} {self.name}'  # type: ignore
         else:
             return f'{self.__class__.__name__} {self.pk}'
     
@@ -388,14 +389,14 @@ class UtilityModel(models.Model):
 class CreatedOnModel(UtilityModel):
     """ CreatedOnModels record their creation time. """
     created_on = models.DateTimeField(auto_now_add=True)
-    class Meta:
+    class Meta:  # type: ignore
         abstract = True
 
 
 class TimestampedModel(CreatedOnModel):
     """ TimestampedModels record their creation time and last updated time (if they use .save()). """
     last_updated = models.DateTimeField(auto_now=True)
-    class Meta:
+    class Meta:  # type: ignore
         abstract = True
 
 
