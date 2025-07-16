@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Generator
 from os.path import join as path_join
-from time import perf_counter_ns
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -19,7 +18,7 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
     ENABLE_IOS_FILE_RECOVERY, S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
-from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException,
+from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException, Boto3Response,
     COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
     COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
     COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, IOSDataRecoveryDisabledException, MetaDotDict,
@@ -443,48 +442,38 @@ def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
 #
 ## List Files Matching Prefix
 #
-def s3_list_files(prefix: str, as_generator=False, start_at=None) -> list[str]|Generator[str]:
+def s3_list_files(prefix: str, start_at=None) -> Generator[str]:
     """ Lists s3 keys matching prefix. as generator returns a generator instead of a list.
     WARNING: passing in an empty string can be dangerous. """
-    return _do_list_files(S3_BUCKET, prefix, as_generator=as_generator, start_at=start_at)
+    return _do_list_files(S3_BUCKET, prefix, start_at=start_at)
 
 
-def smart_s3_list_study_files(prefix: str, obj: StrPartStudy, start_at=None) -> list[str]|Generator[str]:
+def smart_s3_list_study_files(prefix: str, obj: StrPartStudy, start_at=None) -> Generator[str]:
     """ Lists s3 keys matching prefix, autoinserting the study object id at start of key path. """
     return s3_list_files(s3_construct_study_key_path(prefix, obj), start_at=start_at)
 
 
-def _do_list_files(bucket_name: str, prefix: str, as_generator=False, start_at=None) -> list[str]|Generator[str]:
-    """     Possibly useful params: Bucket, Prefix, StartAfter, and maybe PaginationConfig.
+def _do_list_files(*args, **kwargs) -> Generator[str]:
+    for page in _s3_get_page_iterator(*args, **kwargs):
+        try:
+            for item in page['Contents']:
+                yield item['Key'].strip("/")  # why we strip slashes is lost to time.
+        except KeyError as e:
+            if 'Contents' not in page:
+                return  # end of returns - test is explicit because 'Key' ~could fail
+            raise KeyError("Unknown KeyError in _do_list_files_generator") from e
+
+
+def _s3_get_page_iterator(bucket_name: str, prefix: str, start_at=None) -> Paginator.PAGE_ITERATOR_CLS:
+    """ Possibly useful params: Bucket, Prefix, StartAfter, and maybe PaginationConfig.
     - PaginationConfig, a dict that accepts MaxItems (not MaxKeys, this one limits the number of
       returns not the page size), StartingToken, PageSize (I have checked the code).
     - Useless params are ContinuationToken, RequestPayer, ExpectedBucketOwner, MaxKeys, FetchOwner,
       OptionalObjectAttributes, EncodingType, and Delimiter. """
     # PAGE SIZE DEFAULT IS 1,000 AND CANNOT BE MADE LARGER.  STOP TRYING.
-    page_iterator: Paginator.PAGE_ITERATOR_CLS = conn.get_paginator('list_objects_v2').paginate(
+    return conn.get_paginator('list_objects_v2').paginate(
         Bucket=bucket_name, Prefix=prefix, **{"StartAfter": start_at} if start_at else {}
     )
-    if as_generator:
-        return _do_list_files_generator(page_iterator)
-    
-    items = []
-    for page in page_iterator:
-        if 'Contents' in page:
-            # strip() is the same speed as rstrip(), both are faster than endwith()
-            items.extend(item['Key'].strip("/") for item in page['Contents'])
-    return items
-
-
-def _do_list_files_generator(page_iterator: Paginator.PAGE_ITERATOR_CLS) -> Generator[str]:
-    # try-except is faster than checking twice, there doesn't seem to be faster option
-    for page in page_iterator:
-        try:
-            for item in page['Contents']:
-                yield item['Key'].strip("/")
-        except KeyError as e:
-            if 'Contents' not in page:
-                return
-            raise KeyError("Unknown KeyError in _do_list_files_generator") from e
 
 
 def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None]]:

@@ -171,7 +171,7 @@ def compress_study_files_matching_prefix(prefix: str, start_at: str = None):
     pool = ThreadPool(THREAD_POOL_SIZE)
     compression_args = []
     
-    for path in s3_list_files(prefix, as_generator=True, start_at=start_at):
+    for path in s3_list_files(prefix, start_at=start_at):
         if stats.number_paths_total % 100_000 == 0:  # 10,000 was too frequent..
             print(f'file {numformat(stats.number_paths_total)} for your reference: "{path}"')
             stats.stats()
@@ -239,7 +239,7 @@ def compress_logs():
     args = []
     pool = ThreadPool(THREAD_POOL_SIZE)
     
-    for path in s3_list_files(LOGS_FOLDER, as_generator=True):
+    for path in s3_list_files(LOGS_FOLDER):
         stats.number_paths_total += 1
         
         if path.endswith(".zst"):
@@ -307,7 +307,7 @@ def compress_s3_logging_logs():
     # go through paths, skip obviously wrong files, create a list, dispatch to compress
     # logs have a name starting with the isodate, a prefix of logs/2 skips compressed files.
     try:
-        for total, path in enumerate(s3_list_files("logs/2", as_generator=True)):
+        for total, path in enumerate(s3_list_files("logs/2")):
             paths.append(path)
             if len(paths) >= 1_000:
                 print("number_paths_total:", numformat(total + 1))

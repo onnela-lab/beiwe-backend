@@ -519,7 +519,7 @@ def describe_problem_uploads():
     print("counting files...")
     
     # may be hundreds of thousands of files
-    for count, path in enumerate(s3_list_files("PROBLEM_UPLOADS", as_generator=True)):
+    for count, path in enumerate(s3_list_files("PROBLEM_UPLOADS")):
         if count % 10000 == 0:
             print(count, "...", end="", sep="", flush=True)
         

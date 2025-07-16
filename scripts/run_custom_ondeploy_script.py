@@ -15,7 +15,7 @@ def main():
     else:
         raise Exception(f"Must supply either 'elasticbeanstalk' or 'processing' as an argument, found `{argv}`")
     
-    sorted_files: list[str] = s3_list_files(script_folder)
+    sorted_files: list[str] = list(s3_list_files(script_folder))
     sorted_files.sort()
     
     for file_name in sorted_files:

@@ -233,7 +233,7 @@ class FileToProcess(TimestampedModel):
         dt_end = dt_start + timedelta(hours=1)
         prior_hour_last_file = None
         file_paths_to_reprocess = []
-        for s3_file_path in s3_list_files(file_prefix, as_generator=False):
+        for s3_file_path in s3_list_files(file_prefix):
             # convert timestamp....
             if full_data_stream == IDENTIFIERS:
                 file_timestamp = float(s3_file_path.rsplit(splitter_end_char)[-1][:-4])
