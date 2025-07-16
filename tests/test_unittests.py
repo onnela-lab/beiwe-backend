@@ -59,9 +59,9 @@ COUNT_OF_PATHS_RETURNED_FROM_GET_ALL_FILE_PATH_PREFIXES = 4
 # assertion error stating that the base s3 file path is not empty, so we patch that in the rest of
 # the tests, which are database purge tests.
 def data_purge_mock_s3_calls(func):
-    s3_delete_many_versioned: MagicMock = patch('libs.participant_purge.s3_delete_many_versioned')
-    s3_list_files: MagicMock = patch('libs.participant_purge.s3_list_files')
-    s3_list_versions: MagicMock = patch('libs.participant_purge.s3_list_versions')
+    s3_delete_many_versioned: MagicMock = patch('libs.participant_purge.s3_delete_many_versioned')  # type: ignore
+    s3_list_files: MagicMock = patch('libs.participant_purge.s3_list_files')  # type: ignore
+    s3_list_versions: MagicMock = patch('libs.participant_purge.s3_list_versions')  # type: ignore
     s3_list_files.return_value = []
     s3_list_versions.return_value = []
     s3_delete_many_versioned.return_value = []
