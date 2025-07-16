@@ -6,21 +6,21 @@
 #
 amqp==5.3.1
     # via kombu
-asgiref==3.8.1
+asgiref==3.9.1
     # via django
 asttokens==3.0.0
     # via stack-data
 audioread==3.0.1
     # via librosa
-beiwe-forest @ git+https://git@github.com/onnela-lab/forest@dcb3a1954f18ce93f1a4a7c6270f8aa80609cb32
+beiwe-forest==1.0
     # via -r requirements.in
 billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.38.41
+boto3==1.39.5
     # via -r requirements.in
-botocore==1.38.41
+botocore==1.39.5
     # via
     #   boto3
     #   s3transfer
@@ -30,7 +30,7 @@ cachetools==5.5.2
     # via google-auth
 celery==5.4.0
     # via -r requirements.in
-certifi==2025.6.15
+certifi==2025.7.14
     # via
     #   pyproj
     #   requests
@@ -49,7 +49,7 @@ click==8.2.1
     #   click-repl
 click-didyoumean==0.3.1
     # via celery
-click-plugins==1.1.1
+click-plugins==1.1.1.2
     # via celery
 click-repl==0.3.0
     # via celery
@@ -59,7 +59,7 @@ decorator==5.2.1
     # via
     #   ipython
     #   librosa
-django==5.2.3
+django==5.2.4
     # via
     #   -r requirements.in
     #   django-extensions
@@ -82,7 +82,7 @@ google-api-core[grpc]==2.25.1
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.173.0
+google-api-python-client==2.176.0
     # via firebase-admin
 google-auth==2.40.3
     # via
@@ -100,7 +100,7 @@ google-cloud-core==2.4.3
     #   google-cloud-storage
 google-cloud-firestore==2.21.0
     # via firebase-admin
-google-cloud-storage==3.1.1
+google-cloud-storage==3.2.0
     # via firebase-admin
 google-crc32c==1.7.1
     # via
@@ -112,17 +112,17 @@ googleapis-common-protos==1.70.0
     # via
     #   google-api-core
     #   grpcio-status
-grpcio==1.73.0
+grpcio==1.73.1
     # via
     #   google-api-core
     #   grpcio-status
-grpcio-status==1.73.0
+grpcio-status==1.73.1
     # via google-api-core
 gunicorn==23.0.0
     # via -r requirements.in
 h3==4.3.0
     # via timezonefinder
-holidays==0.75
+holidays==0.76
     # via beiwe-forest
 httplib2==0.22.0
     # via
@@ -130,7 +130,7 @@ httplib2==0.22.0
     #   google-auth-httplib2
 idna==3.10
     # via requests
-ipython==9.3.0
+ipython==9.4.0
     # via -r requirements.in
 ipython-pygments-lexers==1.1.1
     # via ipython
@@ -193,7 +193,7 @@ packaging==25.0
     #   kombu
     #   lazy-loader
     #   pooch
-pandas==2.3.0
+pandas==2.3.1
     # via beiwe-forest
 parso==0.8.4
     # via jedi
@@ -288,7 +288,7 @@ scipy==1.16.0
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.30.0
+sentry-sdk==2.33.0
     # via cronutils
 shapely==2.1.1
     # via beiwe-forest
@@ -314,7 +314,7 @@ traitlets==5.14.3
     #   matplotlib-inline
 types-pyyaml==6.0.12.20250516
     # via django-stubs
-typing-extensions==4.14.0
+typing-extensions==4.14.1
     # via
     #   django-stubs
     #   django-stubs-ext
