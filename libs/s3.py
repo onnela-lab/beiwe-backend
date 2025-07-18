@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Generator
 from os.path import join as path_join
-from time import perf_counter_ns
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -19,7 +18,7 @@ from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SE
     ENABLE_IOS_FILE_RECOVERY, S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
-from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException,
+from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException, Boto3Response,
     COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
     COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
     COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, IOSDataRecoveryDisabledException, MetaDotDict,
@@ -46,7 +45,11 @@ conn: BaseClient = boto3.client(
     aws_secret_access_key=BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
     region_name=S3_REGION_NAME,
     endpoint_url=S3_ENDPOINT,
-    config=botocore.config.Config(max_pool_connections=100),  # type: ignore
+    config=botocore.config.Config(
+        max_pool_connections=100,
+        tcp_keepalive=True,
+        disable_request_compression=True,  # we compress AND encrypt...
+    ),
 )
 
 if RUNNING_TESTS:                       # This lets us cut out some boilerplate in tests
@@ -148,10 +151,11 @@ class S3Storage:
         # misuse
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
+        self.metadata.size_uncompressed = len(file_content)
         self.uncompressed_data = file_content
         return self
     
-    def set_file_content_compressed(self, file_content: bytes) -> S3Storage:
+    def set_file_content_compressed(self, file_content: bytes, size_uncompressed: int = None) -> S3Storage:
         # validate - handles None case
         if not isinstance(file_content, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content)}")
@@ -159,12 +163,14 @@ class S3Storage:
         if not file_content.startswith(b'(\xb5/\xfd'):
             raise ValueError(MUST_BE_ZSTD_FORMAT(file_content=file_content[:10].decode()))
         
-        # missuse cases
+        # misuse cases
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         
         self.compressed_data = file_content  # TLDR - only compressed_data should now be set
         self.metadata.size_compressed = len(self.compressed_data)
+        if size_uncompressed is not None:
+            self.metadata.size_uncompressed = size_uncompressed
         return self
     
     def pop_uncompressed_file_content(self) -> bytes:
@@ -210,25 +216,10 @@ class S3Storage:
         assert hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_AT_COMPRESSION
         self.metadata.size_uncompressed = len(self.uncompressed_data)
-        
         # sha1 is twice as fast as md5, it is 20 bytes, we care about speed here.
         self.metadata.sha1 = hashlib.sha1(self.uncompressed_data).digest()
-        
-        t_compress = perf_counter_ns()
         self.compressed_data = compress(self.uncompressed_data)
-        t_compress = perf_counter_ns() - t_compress
-        self.metadata.compression_time_ns = t_compress
         self.metadata.size_compressed = len(self.compressed_data)
-    
-    ## Decompress
-    
-    def _decompress_and_profile(self):
-        # data as optional because sometimes we want to avoid storing compressed data on the S3Storage object
-        t_decompress = perf_counter_ns()
-        self.uncompressed_data = decompress(self.compressed_data)
-        t_decompress = perf_counter_ns() - t_decompress
-        self.metadata.decompression_time_ns = t_decompress
-        self.metadata.size_uncompressed = len(self.uncompressed_data)
     
     ## Download
     
@@ -254,7 +245,8 @@ class S3Storage:
     def _download_decompress_and_profile_clearing_compressed(self):
         # This line should be the error on when there is no compressed copy
         self.compressed_data = self._s3_retrieve_zst_and_profile()
-        self._decompress_and_profile()
+        self.uncompressed_data = decompress(self.compressed_data)
+        self.metadata.size_uncompressed = len(self.uncompressed_data)
         del self.compressed_data
         self.update_s3_table()
     
@@ -275,6 +267,7 @@ class S3Storage:
     #
     
     def update_metadata(self, **kwargs):
+        """ for use if an external source has metadata to update """
         for k,v in kwargs.items():
             self.metadata[k] = v
     
@@ -323,16 +316,9 @@ class S3Storage:
         """ Manually manage these memory/reference count operations.  It matters.
         This is a critical performance path. DO NOT separate into further functions calls without
         profiling memory usage. """
-        
-        t_encrypt = perf_counter_ns()
         encrypted_compressed_data = encrypt_for_server(self.compressed_data, self.encryption_key)
-        t_encrypt = perf_counter_ns() - t_encrypt
-        self.metadata.encryption_time_ns = t_encrypt
         
-        t_upload = perf_counter_ns()
         _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
-        t_upload = perf_counter_ns() - t_upload
-        self.metadata.upload_time_ns = t_upload
         
         del encrypted_compressed_data  # 0x memory
         self.update_s3_table()
@@ -345,7 +331,6 @@ class S3Storage:
     def _s3_retrieve_zst_and_profile(self) -> bytes:
         key = self.encryption_key  # may have network/db op
         
-        t_download = perf_counter_ns()
         try:
             data = self._raw_s3_retrieve(self.s3_path_zst)
         except NoSuchKeyException:
@@ -353,14 +338,8 @@ class S3Storage:
             self.delete_s3_table_entry_zst()
             raise
         
-        t_download = perf_counter_ns() - t_download
-        self.metadata.download_time_ns = t_download
         
-        t_decrypt = perf_counter_ns()
         ret = decrypt_server(data, key)
-        t_decrypt = perf_counter_ns() - t_decrypt
-        self.metadata.decrypt_time_ns = t_decrypt
-        
         self.metadata.size_compressed = len(ret)  # after decryption, no iv or padding
         del data
         
@@ -400,9 +379,10 @@ def s3_upload(
 
 
 def s3_upload_no_compression(
-    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False
+    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False, **metadata: dict[str, str]
 ):
     storage = S3Storage(key_path, obj, raw_path).set_file_content_compressed(data_string)
+    storage.update_metadata(**metadata)
     storage.push_to_storage_already_compressed_and_clear_memory()
 
 
@@ -466,48 +446,65 @@ def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
 #
 ## List Files Matching Prefix
 #
-def s3_list_files(prefix: str, as_generator=False, start_at=None) -> list[str]|Generator[str]:
+def s3_list_files(prefix: str, start_at=None) -> Generator[str]:
     """ Lists s3 keys matching prefix. as generator returns a generator instead of a list.
     WARNING: passing in an empty string can be dangerous. """
-    return _do_list_files(S3_BUCKET, prefix, as_generator=as_generator, start_at=start_at)
+    return _do_list_files(S3_BUCKET, prefix, start_at=start_at)
 
 
-def smart_s3_list_study_files(prefix: str, obj: StrPartStudy, start_at=None) -> list[str]|Generator[str]:
+def smart_s3_list_study_files(prefix: str, obj: StrPartStudy, start_at=None) -> Generator[str]:
     """ Lists s3 keys matching prefix, autoinserting the study object id at start of key path. """
     return s3_list_files(s3_construct_study_key_path(prefix, obj), start_at=start_at)
 
 
-def _do_list_files(bucket_name: str, prefix: str, as_generator=False, start_at=None) -> list[str]|Generator[str]:
-    """     Possibly useful params: Bucket, Prefix, StartAfter, and maybe PaginationConfig.
+def s3_get_compressed_size_zst(key_path: str) -> int:
+    """ Returns the size of the file at key_path in bytes.  If the file does not exist raises
+    NoSuchKeyException.
+    TLDR: don't use this, use the S3Storage db table and make sure it is always up to date. """
+    
+    if not key_path.endswith(".zst"):
+        key_path = key_path + ".zst"
+    
+    size_dict = dict(s3_list_sizes(key_path))
+    if key_path in size_dict:
+        return size_dict[key_path]
+    else:
+        raise NoSuchKeyException(f"{key_path} not found in s3 bucket {S3_BUCKET}.")
+
+
+def s3_list_sizes(prefix: str, start_at=None) -> Generator[tuple[str, int]]:
+    """ returns list of s3 keys matching the prefix AND their sizes. """
+    for page in _s3_get_page_iterator(S3_BUCKET, prefix, start_at=start_at):
+        try:
+            for item in page['Contents']:
+                yield item['Key'].strip("/"), item['Size']
+        except KeyError as e:
+            if 'Contents' not in page:
+                return  # end of returns - test is explicit because 'Key' ~could fail
+            raise KeyError("Unknown KeyError in _do_list_files_generator") from e
+
+
+def _do_list_files(*args, **kwargs) -> Generator[str]:
+    for page in _s3_get_page_iterator(*args, **kwargs):
+        try:
+            for item in page['Contents']:
+                yield item['Key'].strip("/")  # why we strip slashes is lost to time.
+        except KeyError as e:
+            if 'Contents' not in page:
+                return  # end of returns - test is explicit because 'Key' ~could fail
+            raise KeyError("Unknown KeyError in _do_list_files_generator") from e
+
+
+def _s3_get_page_iterator(bucket_name: str, prefix: str, start_at=None) -> Paginator.PAGE_ITERATOR_CLS:
+    """ Possibly useful params: Bucket, Prefix, StartAfter, and maybe PaginationConfig.
     - PaginationConfig, a dict that accepts MaxItems (not MaxKeys, this one limits the number of
       returns not the page size), StartingToken, PageSize (I have checked the code).
     - Useless params are ContinuationToken, RequestPayer, ExpectedBucketOwner, MaxKeys, FetchOwner,
       OptionalObjectAttributes, EncodingType, and Delimiter. """
     # PAGE SIZE DEFAULT IS 1,000 AND CANNOT BE MADE LARGER.  STOP TRYING.
-    page_iterator: Paginator.PAGE_ITERATOR_CLS = conn.get_paginator('list_objects_v2').paginate(
+    return conn.get_paginator('list_objects_v2').paginate(
         Bucket=bucket_name, Prefix=prefix, **{"StartAfter": start_at} if start_at else {}
     )
-    if as_generator:
-        return _do_list_files_generator(page_iterator)
-    
-    items = []
-    for page in page_iterator:
-        if 'Contents' in page:
-            # strip() is the same speed as rstrip(), both are faster than endwith()
-            items.extend(item['Key'].strip("/") for item in page['Contents'])
-    return items
-
-
-def _do_list_files_generator(page_iterator: Paginator.PAGE_ITERATOR_CLS) -> Generator[str]:
-    # try-except is faster than checking twice, there doesn't seem to be faster option
-    for page in page_iterator:
-        try:
-            for item in page['Contents']:
-                yield item['Key'].strip("/")
-        except KeyError as e:
-            if 'Contents' not in page:
-                return
-            raise KeyError("Unknown KeyError in _do_list_files_generator") from e
 
 
 def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None]]:

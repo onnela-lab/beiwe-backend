@@ -53,6 +53,26 @@ class UploadTracking(UtilityModel):
         return s3_retrieve(self.file_path, self.participant)
     
     @classmethod
+    def print_participant_data_quantities_for_study(cls, study):
+        for p in study.participants.all():
+            base = f"{study.object_id}/{p.patient_id}/"
+            chunk_base = CHUNKS_FOLDER + "/" + base
+            qs = Q(path__startswith=base) | Q(path__startswith=chunk_base)
+            comp, uncomp = S3File.fltr(qs).aggregate(
+                comp=Sum("size_compressed"), uncomp=Sum("size_uncompressed")
+            ).values()
+            print(
+                p.patient_id,
+                "-",
+                f"{numformat((comp or 0) / (uncomp or 1) * 100)}%",
+                "=",
+                f"{numformat((comp or 0) / 1024 / 1024)} MB compressed",
+                "/",
+                f"{numformat((uncomp or 0) / 1024 / 1024)} MB uncompressed",
+                
+            )
+
+    @classmethod
     def re_add_files_to_process(cls, number=100):
         """ Re-adds the most recent [number] files that have been uploaded recently to FiletToProcess.
             (this is fairly optimized because it is part of debugging file processing) """
@@ -274,7 +294,15 @@ class UploadTracking(UtilityModel):
         return data
 
 
+# warning: this table is also huge.
 class S3File(TimestampedModel):
+    
+    class Meta:  # type: ignore
+        indexes = [
+            models.Index(fields=["created_on"], name="s3file_created_on_idx"),
+            models.Index(fields=["sha1"], name="s3file_sha1_idx"),
+        ]
+    
     study: Study = models.ForeignKey("Study", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
     participant: Participant = models.ForeignKey("Participant", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
     path = models.TextField(unique=True)
@@ -283,15 +311,9 @@ class S3File(TimestampedModel):
     # TODO: is there a way to compress this down without losing substantial precision?
     size_uncompressed = models.PositiveBigIntegerField(null=True, blank=True)
     size_compressed = models.PositiveBigIntegerField(null=True, blank=True)
-    compression_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    decompression_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    encryption_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    download_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    upload_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
-    decrypt_time_ns = models.PositiveBigIntegerField(null=True, blank=True)
     
-    # TODO: add this field maybe?
-    # glacier = models.BooleanField(default=False)
+    # TODO: add functionality to this field (big feature)
+    glacier = models.BooleanField(default=False)
     
     study_id: int
     participant_id: int
@@ -308,7 +330,7 @@ class S3File(TimestampedModel):
     def get_object_id(self):
         # TODO: we can just logic this out of the path, we only allow study and CHUNKED_DATA and LOGS
         from database.models import Study
-
+        
         # first go through the object_ids cache, then study_id if present, then participant
         # study, populating the cache if we need to.
         
@@ -454,13 +476,13 @@ class S3File(TimestampedModel):
             SURVEY_ANSWERS:   ("surveyAnswers", SURVEY_ANSWERS, ),
             SURVEY_TIMINGS:   ("surveyTimings", SURVEY_TIMINGS, ),
             TEXTS_LOG:        ("textsLog", TEXTS_LOG, ),
-            VOICE_RECORDING:  ("voiceRecording", VOICE_RECORDING, ),
+            AUDIO_RECORDING:  ("voiceRecording", AUDIO_RECORDING, ),
             WIFI:             ("wifiLog", WIFI, ),
             "key_file":       ("/keys/", ),
             "forest":         ("forest", ),
         }
         
-        not_chunked = AMBIENT_AUDIO, SURVEY_ANSWERS, VOICE_RECORDING, "key_file", "forest"
+        not_chunked = AMBIENT_AUDIO, SURVEY_ANSWERS, AUDIO_RECORDING, "key_file", "forest"
         
         for label, filters in MAPPING.items():
             path_contains = Q()

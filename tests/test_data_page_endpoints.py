@@ -133,7 +133,7 @@ class TestDashboardStream(ResearcherSessionTest):
             
             # get the byte count for the data stream, populate some html
             byte_count = byte_count_match_by_field_name[DATA_QUANTITY_FIELD_MAP[data_stream]]
-            x = f'calculateColor({byte_count})" data-number="{byte_count}">{byte_count}</td>'.encode()
+            x = f'calculateColor({byte_count})'.encode()
             
             title = COMPLETE_DATA_STREAM_DICT[data_stream]  # explodes if everything is broken
             self.assert_present(title, html)

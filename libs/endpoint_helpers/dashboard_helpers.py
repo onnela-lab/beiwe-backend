@@ -3,7 +3,7 @@ import operator
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import reduce
-from typing import Any, DefaultDict
+from typing import Any, DefaultDict, Type, TypeVar
 
 from django.db.models import Max, Min, Q
 
@@ -18,7 +18,7 @@ from database.study_models import Study
 from database.user_models_participant import Participant
 from middleware.abort_middleware import abort
 
-
+T = TypeVar('T')
 DATETIME_FORMAT_ERROR = 'Dates and times provided to this endpoint must be formatted like this: "2010-11-22"'
 
 
@@ -320,13 +320,14 @@ def extract_date_args_from_request(request: ResearcherRequest) -> tuple[date | N
     return start, end
 
 
-def argument_grabber(request: ResearcherRequest, key: str, default: Any = None) -> str | None:
+def argument_grabber(request: ResearcherRequest, key: str, default: T = None) -> str | T:
     return request.GET.get(key, request.POST.get(key, default))
 
 
 #
 ## Post request parameters, mostly colors and gradients
 #
+
 
 def extract_range_args_from_request(request: ResearcherRequest):
     """ Gets minimum and maximum arguments from GET/POST params """
@@ -348,9 +349,9 @@ def extract_flag_args_from_request(request: ResearcherRequest):
 
 
 def set_default_settings_post_request(request: ResearcherRequest, study: Study, data_stream: str):
-    all_flags_list = argument_grabber(request, "all_flags_list", "[]")
-    color_high_range = argument_grabber(request, "color_high_range", "0")
-    color_low_range = argument_grabber(request, "color_low_range", "0")
+    all_flags_list: str = argument_grabber(request, "all_flags_list", "[]").strip()
+    color_high_range: str = argument_grabber(request, "color_high_range", "0").strip()
+    color_low_range: str = argument_grabber(request, "color_low_range", "0").strip()
     
     # convert parameters from unicode to correct types
     # if they didn't save a gradient we don't want to save garbage

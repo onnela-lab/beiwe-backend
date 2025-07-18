@@ -30,7 +30,7 @@ $(document).ready(function() {
     .controller('buttonController', ['$scope', '$window', function($scope, $window) {
 
         // change when they change the input
-        $scope.calculateColor = calculateColor;
+        $scope.calculateColor = calculateColorFunc;
         $scope.setUp = setUp;
         $scope.createUrl = createUrl;
         $scope.createNewUrl = createNewUrl;
@@ -68,7 +68,7 @@ $(document).ready(function() {
             number = number.toString();
             let new_num = number.replace(/[^0-9]/,'');
             if(new_num !== ''){
-                    return new_num;
+                    return Number(new_num);
                 }
             else{
                 return false;
@@ -149,6 +149,8 @@ $(document).ready(function() {
             $scope.all_flags_list.push([$scope.flag_operator, number]);
             $scope.flag_operator = null;
             $scope.flag_value = null;
+            // calculateColor
+            setUp()
         }
 
 
@@ -220,10 +222,10 @@ $(document).ready(function() {
         }
 
         // calculate new color scheme when user changes the values
-        function calculateColor(value) {
+        function calculateColorFunc(value) {
             let amount_gradient = 0;
             let flag = false;
-            if($scope.all_flags_list !== []){
+            if($scope.all_flags_list != []){
                 for(let flag_arr of $scope.all_flags_list){
                     if(flag_arr[0] === ">"){
                         if(flag_arr[1] < value){
@@ -231,7 +233,7 @@ $(document).ready(function() {
                         }
                     }
                     else if(flag_arr[0] === "="){
-                        if(flag_arr[1] === value){
+                        if(flag_arr[1] === Number(value)){
                             flag = true;
                         }
                     }
@@ -241,6 +243,7 @@ $(document).ready(function() {
                         }
                     }
                 }
+                
             }
 
             if($scope.show_color && $scope.current_gradient[0] < $scope.current_gradient[1]) {
@@ -248,21 +251,43 @@ $(document).ready(function() {
                 const min = $scope.current_gradient[0];
                 const adjusted_max = max - min;
                 value -= min;
-                amount_gradient = value / adjusted_max;
+                if(value > 0) {
+                    amount_gradient = value / adjusted_max
+                }
             }
-
+            
+            ret = {
+                "background-color": get_color(amount_gradient)
+            };
+            
+            
+            if (amount_gradient > 0.8333333333333334) {
+                ret["color"] = "Black";
+            }
+            
+            console.log("amount_gradient: ", amount_gradient, " flag: ", flag);
             if(flag === true){
-                return{"border": "solid", "background-color": `rgba(67, 170, 54, ${amount_gradient}`};
+                ret["border"] = "solid"
+                ret["border-width"] = "1.5px"
+                ret["border-color"] = "var(--neon)"
+                ret["color"] = "#fff"
+                ret["text-shadow"] = "0px 0px 1px #fff"
             }
-            else{
-                return {"background-color": `rgba(67, 170, 54, ${amount_gradient}`};
+            
+            // when its too bright we need to make the text black - this value is decent
+            if (amount_gradient > 0.8333333333333334) {
+                ret["color"] = "#000";
+                ret["text-shadow"] = "0px 0px 1px #000"
             }
+            return ret
+        }
+        
+        function get_color(value) {
+            // return `rgba(00, 119, 139, ${value}`  // beiwe-aqua
+            // return `rgba(105, 233, 255, ${value}`  // beiwe-aqua-bright
+            // return `rgba(0, 148, 173, ${value}`  // beiwe-aqua-less-bright
+            return `rgba(255, 114, 118, ${value}`  // fire
+            
         }
     }]);
 }());
-
-
-
-
-
-

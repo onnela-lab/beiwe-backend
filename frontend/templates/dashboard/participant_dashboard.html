@@ -2,136 +2,203 @@
 {% block title %}Participant Dashboard{% endblock %}
 
 {% block head %}
-  {{ super() }}
-  <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
-  <link rel="stylesheet" href="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER_CSS }}" type="text/css"/>
-  <link rel="stylesheet" type="text/css" href="{{ ASSETS.DATATABLES_CSS }}">
-  <script type="text/javascript" charset="utf8" src="{{ ASSETS.DATATABLES }}"></script>
-  <script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
-  <script type="text/javascript" src="/static/javascript/libraries/transition.js"></script>
-  <script type="text/javascript" src="/static/javascript/libraries/collapse.js"></script>
-  <script src="/static/javascript/patient_dashboard_features.js"></script>
-  {% include 'dashboard/dashboard_participant_javascript.html' %}
+{{ super() }}
+<style> {% include LocalAssets.DATATABLES_CSS %} </style>
+<style> {% include LocalAssets.DASHBOARD_CSS %} </style>
+<script type="text/javascript" charset="utf8" src="{{ ASSETS.DATATABLES }}"></script>
+<script type="text/javascript" src="{{ ASSETS.BOOTSTRAP_DATETIMEPICKER }}"></script>
+<script> {% include LocalAssets.TRANSITION_JS %} </script>
+<script> {% include LocalAssets.COLLAPSE_JS %} </script>
+<script> {% include LocalAssets.PATIENT_DASHBOARD_FEATURES_JS %} </script>
+{% include 'dashboard/dashboard_participant_javascript.html' %}
 {% endblock %}
 
 {% block content %}
 
-  <ol class="breadcrumb">
-    <li>
-      <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
-    </li>
-    <li class="active">
-      <a href="{{ easy_url("data_page_endpoints.dashboard_page", study_id=study.id) }}">
-        Dashboard
-      </a>
-    </li>
-    <li>
-      {{ patient_id }}
-    </li>
-  </ol>
+<ol class="breadcrumb">
+  <li>
+    <a
+      href="/view_study/{{ study.id }}"
+      aria-label="view the study page for {{ study.name }}"
+    >{{ study.name }}</a>
+  </li>
+  <li class="active">
+    <a
+      href="{{ easy_url("data_page_endpoints.dashboard_page", study_id=study.id) }}"
+      aria-label="view dashbaord landing page for {{ study.name }}"
+    >
+      Dashboard
+    </a>
+  </li>
+  <li>
+    {{ patient_id }}
+  </li>
+</ol>
 
-  {# ################## TOP OF PAGE CONTENT ################# #}
-  <div class="title">
-    <h1 class="h3"> {{ participant }}
-      <div class="choose_participant">
-        {% if patient_ids %}
-          <div class="dropdown">
-            <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
-              {{ participant.patient_id }} <span class="caret"></span>
-            </button>
-            <ul class="dropdown-menu">
-{% for patient_id in patient_ids %}
-<li><a href="/dashboard/{{ study_id }}/patient/{{ patient_id }}">{{ patient_id }}</a></li>
-{% endfor %}
-            </ul>
+{# ################## TOP OF PAGE CONTENT ################# #}
+<div class="title">
+  <h1 class="h3"> {{ participant }}
+    <div class="pull-right mt-n1">
+      {% if patient_ids %}
+      <div class="dropdown">
+
+        <button
+          class="btn btn-primary dropdown-toggle"
+          type="button"
+          data-toggle="dropdown"
+          aria-label="click to select a different participant"
+        >
+          <div class="mt-n4pt">
+            {{ participant.patient_id }} <span class="caret"></span>
           </div>
-        {% endif %}
+        </button>
+        <ul class="dropdown-menu">
+          {% for patient_id in patient_ids %}
+          <li><a href="/dashboard/{{ study_id }}/patient/{{ patient_id }}">{{ patient_id }}</a></li>
+          {% endfor %}
+        </ul>
       </div>
-    </h1>
-  </div>
+      {% endif %}
+    </div>
+  </h1>
+</div>
 
-  {# ################# MIDDLE BUTTONS #################### #}
+{# ################# MIDDLE BUTTONS #################### #}
 
-  {% if times %}
-    <div class="content ng-cloak" ng-controller='buttonController' id="bctrl">
-    <div class="dates">
-      <p>Available Dates: {{ first_date_data.strftime('%m/%d/%Y') }}
-        - {{ last_date_data.strftime('%m/%d/%Y') }}
-      <span class="pull-right">
+{% if times %}
+<div
+  class="content ng-cloak"
+  ng-controller='buttonController'
+  id="bctrl"
+>
+  <div class="dates">
+    <p>Available Dates: {{ first_date_data.strftime('%m/%d/%Y') }}
+      - {{ last_date_data.strftime('%m/%d/%Y') }}
+      <span class="pull-right italic">
         (Timezone: {{ study.timezone_name }})
       </span>
-      </p>
-    </div>
+    </p>
+  </div>
 
-    <div class="date_bar">
-      <div>
+  <div class="date_bar">
+    <div>
+      <a
         {% if past_url %}
-          <a href="{{ past_url }}" class="btn btn-primary" >Older</a>
+        href="{{ past_url }}"
         {% endif %}
-      </div>
-      <div class="choose-date">
-        {# Start Date #}
-        <div class="col-sm-4">
-          <label for="start_datetime">Start Date</label>
-          <div class="input-group date" id="start_datetimepicker">
-          <input type="text" class="form-control" id="start_datetime" value="">
-          <span class="input-group-addon">
-            <span class="glyphicon glyphicon-calendar"></span>
-          </span>
-          </div>
-        </div>
-
-        {# End Date #}
-        <div class="col-sm-4">
-          <label for="end_datetime">End Date</label>
-          <div class="input-group date" id="end_datetimepicker">
-          <input type="text" class="form-control" id="end_datetime">
-          <span class="input-group-addon">
-            <span class="glyphicon glyphicon-calendar"></span>
-          </span>
-          </div>
-        </div>
-        <a ng-click="createPatientDateRangeUrl()" class="btn btn-primary">Submit</a>
-      </div>
-      <div>
-        {% if next_url %}
-          <a href="{{ next_url }}" class="btn btn-primary" >Newer</a>
+        class="btn btn-primary"
+        {% if not past_url %}
+        disabled
         {% endif %}
-      </div>
+        aria-label="click to go to the previous page of data"
+      >
+        < Previous</a>
     </div>
 
+    {# Start Date #}
+    <div class="choose-date">
+      <div class="col-sm-4 mr-n6">
+
+        <label for="start_datetime">Start Date</label>
+        <div
+          class="input-group date"
+          id="start_datetimepicker"
+        >
+
+          <input
+            type="text"
+            class="form-control"
+            id="start_datetime"
+            value=""
+            aria-label="enter a date range start date to view data"
+          >
+          <span class="input-group-addon">
+            <span class="glyphicon glyphicon-calendar"></span>
+          </span>
+        </div>
+      </div>
+
+      {# End Date #}
+      <div class="col-sm-4">
+
+        <label for="end_datetime">End Date</label>
+        <div
+          class="input-group date"
+          id="end_datetimepicker"
+        >
+
+          <input
+            type="text"
+            class="form-control"
+            id="end_datetime"
+            aria-label="enter a date range end date to view data"
+          >
+          <span class="input-group-addon">
+            <span class="glyphicon glyphicon-calendar"></span>
+          </span>
+        </div>
+      </div>
+      <a
+        ng-click="createPatientDateRangeUrl()"
+        class="btn btn-primary ml-n5"
+        aria-label="click to go to the provided date range and view data"
+      >View Date Range</a>
+
+    </div>
+
+    {# next #}
+    <div>
+      <a
+        {% if next_url %}
+        href="{{next_url}}"
+        {% endif %}
+        class="btn btn-primary"
+        {% if not next_url %}
+        disabled
+        {% endif %}
+        aria-label="click to go to the next page of data"
+      >Next > </a>
+    </div>
+
+  </div>
+  <div class="stream-table-scroll">
     {# ################# THE TABLE ################## #}
-    <table class="table table-striped table-bordered">
+    <table class="table table-bordered">
       <thead>
         <tr>
-          <th> Statistic </th>
+          <th> Data Stream</th>
 
           {% for time in range(times|length) %}<th>{{ times[time].strftime('%m/%d/%Y') }}</th>{% endfor %}
-            </tr>
-            </thead>
-{# (doing some whitespace optimization here, this element gets repeated a lot) #}
-{% for stream, byte_list in byte_streams.items() %} {# iterate over keys #}
-<div class="table_data">
-<tr>
-<th> <a href="/dashboard/{{ study_id }}/data_stream/{{ stream }}">
-{{ data_stream_dict.get(stream) }}</a>
-</th>
-{# iterate over bytes in values #}
-{% for bytes in byte_list %}
-{% if bytes == None %}
-<td class="bytes">0</td>
-{% else %}
-<td class="bytes"> {{ "{:,}".format(bytes) }} </td>
-{% endif %}
-{% endfor %}
-</tr>
-</div>
-{% endfor %}
+        </tr>
+      </thead>
+      {# (doing some whitespace optimization here, this element gets repeated a lot) #}
+      {% for stream, byte_list in byte_streams.items() %} {# iterate over keys #}
+      <div class="table_data">
+        <tr>
+          <th class="label-th2">
+            <a
+              href="/dashboard/{{ study_id }}/data_stream/{{ stream }}"
+              arial-label="go to {{ stream }} dashboard in the study {{ study.name }}"
+            >
+              {{ data_stream_dict.get(stream) }}</a>
+          </th>
+          {# iterate over bytes in values #}
+          {% for bytes in byte_list %}
+          {% if bytes == None %}
+          <td class="bytes">0</td>
+          {% else %}
+          <td class="bytes"> {{ "{:,}".format(bytes) }} </td>
+          {% endif %}
+          {% endfor %}
+        </tr>
+      </div>
+      {% endfor %}
 
     </table>
-    </div>
-  {% else %}
-    <p> There is no data currently available for {{ participant }}</p>
-  {% endif %}
+  </div>
+</div>
+{% else %}
+<p> There is no data currently available for {{ participant }}</p>
+{% endif %}
 
 {% endblock %}

@@ -1,67 +1,107 @@
 {% extends "base.html" %}
 
 {% block head %}
-  {{ super() }}
-  <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
-    <script>filterableObjects = {{ allowed_studies|tojson }}</script>
+{{ super() }}
+<script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
+<script>filterableObjects = {{ allowed_studies|tojson }}</script>
 {% endblock %}
 
 {% block title %}Manage Studies{% endblock %}
 
 {% block content %}
 
-  
+<div class="table">
+  <h3>
+    Manage Studies
+    <a
+      href="/create_study"
+      class="btn btn-success bold pull-right mr-3"
+      aria-label="click to create a new study"
+    >Create New Study</a>
+  </h3>
+</div>
 
-  <div class="table">
-    <h3>
-      All Studies
-      <a href="/create_study" class="btn btn-success bold pull-right margin-right-3">Create New Study</a>
-    </h3>
+<br>
+
+<div
+  id="filterableList"
+  ng-controller="FilterableListController"
+  class="col-lg-12 row"
+>
+
+  <div
+    class="pull-right mr-1 text-small-italic"
+    style="color: gray; font"
+  >
+    <p>This Beiwe server has {{ "{:,}".format(unprocessed_files_count) }} files waiting to be processed.</p>
   </div>
 
-  <br>
+  {# Search/filter input field #}
+  <div class="form-group col-sm-6 row">
 
-  <div id="filterableList" ng-controller="FilterableListController" class="col-lg-12 row">
-    
-    <div class="pull-right margin-right-1 text-small-italic" style="color: gray; font">
-      <p>This Beiwe server has {{ "{:,}".format(unprocessed_files_count) }} files waiting to be processed.</p>
-    </div>
-    
-    {# Search/filter input field #}
-    <div class="form-group col-sm-6 row">
-      <input type="search" class="form-control" placeholder="Find Study by Name or ID" ng-model="studyFilterText" autofocus>
-    </div>
-    
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th><h4>Study Name</h4></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="study in filterableObjects | filter:{search_text: studyFilterText}">
-          <td>
-            <a class="bold text-blackish link-fill" href="/view_study/{% raw %}{{ study.id }}{% endraw %}" >
+    <input
+      type="search"
+      class="form-control"
+      placeholder="Find Study by Name or ID"
+      ng-model="studyFilterText"
+      aria-label="Search for a study by name or ID to have it appear in the list below, you will be able to jump to its view page, edit page, or dashboard page."
+      autofocus
+    >
+  </div>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>
+          <h4>Study Name</h4>
+        </th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr ng-repeat="study in filterableObjects | filter:{search_text: studyFilterText}">
+        <td>
+          <a
+            class="btn-link bold link-fill"
+            href="/view_study/{% raw %}{{ study.id }}{% endraw %}"
+            aria-label="click to go to the view study page for {% raw %}{{ study.name }} with id {{study.object_id}}{% endraw %}"
+          >
             {% raw %}
             {{ study.name }}
-            
-            <i style="font-weight: lighter; font-size: smaller; color: gray; font-family: monospace;" class="pull-right"> {{study.object_id}} </i>
+
+            <i
+              style="font-weight: lighter; font-size: smaller; color: gray; font-family: monospace;"
+              class="pull-right"
+              aria-hidden="true"
+            > {{study.object_id}} </i>
             {% endraw %}
-            </a>
-          </td>
-          <td style="width: 6em;"><a class="link-fill" href="/edit_study/{% raw %}{{ study.id }}{% endraw %}">Edit Study</a></td>
-          <td><a class="link-fill" href="/dashboard/{% raw %}{{ study.id }}{% endraw %}">Dashboard</a></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  
-  <br><br>
-  
-  {% if session_researcher.site_admin %}
-    <div class="row">
-      <a href="/create_study" class="btn btn-success">Create new study</a>
-    </div>
-  {% endif %}
+          </a>
+        </td>
+        <td style="width: 6em;"><a
+            class="link-fill"
+            href="/edit_study/{% raw %}{{ study.id }}{% endraw %}"
+            aria-label="click to go to the edit study page {% raw %}{{ study.name }} with id {{study.object_id}}{% endraw %}"
+          >Edit Study</a></td>
+        <td><a
+            class="link-fill"
+            href="/dashboard/{% raw %}{{ study.id }}{% endraw %}"
+            aria-label="click to go to the dashboard landing page for {% raw %}{{ study.name }} with id {{study.object_id}}{% endraw %}"
+          >Dashboard</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<br><br>
+
+{% if session_researcher.site_admin %}
+<div class="row">
+  <a
+    href="/create_study"
+    class="btn btn-success"
+    aria-label="click to create a new study"
+  >Create new study</a>
+</div>
+{% endif %}
 
 {% endblock %}

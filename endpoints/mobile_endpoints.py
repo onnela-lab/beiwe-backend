@@ -18,7 +18,7 @@ from authentication.participant_authentication import (authenticate_participant,
     authenticate_participant_registration, minimal_validation, ParticipantRequest)
 from config.settings import UPLOAD_LOGGING_ENABLED
 from constants.celery_constants import ANDROID_FIREBASE_CREDENTIALS, IOS_FIREBASE_CREDENTIALS
-from constants.common_constants import API_TIME_FORMAT
+from constants.common_constants import API_TIME_FORMAT, UTC
 from constants.message_strings import (DEVICE_IDENTIFIERS_HEADER, EMPTY_FILE, FILE_ALREADY_PRESENT,
     FILE_BAD_DUE_TO_ERROR, FILE_DECRYPTION_KEY_ERROR, FILE_INVALID, FILE_NOT_PRESENT,
     INVALID_EXTENSION_ERROR, NO_FILE_ERROR, PARTICIPANT_RETIRED, STUDY_INACTIVE, UNKNOWN_ERROR)
@@ -327,7 +327,7 @@ def convert_filename_to_datetime(file_name: str):
     elif len(should_be_numbers) != 10:
         raise Exception(f"bad digit count in {file_name}: {should_be_numbers}")
     
-    return datetime.utcfromtimestamp(int(should_be_numbers))
+    return datetime.fromtimestamp(int(should_be_numbers), UTC)
 
 
 def grab_file_extension(file_name: str):

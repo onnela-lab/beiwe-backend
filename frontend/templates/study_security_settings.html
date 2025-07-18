@@ -5,11 +5,17 @@
 <ol class="breadcrumb">
 
   <li>
-    <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
+    <a
+      href="/view_study/{{ study.id }}"
+      aria-label="click to go to the study page for {{ study.name }}"
+    >{{ study.name }}</a>
   </li>
   <li class="active">
-    <a href="/edit_study/{{ study.id }}">Study Settings</a>
-    
+    <a
+      href="/edit_study/{{ study.id }}"
+      aria-label="click to edit study settings for {{ study.name }}"
+    >Study Settings</a>
+
   </li>
   <li class="active">
     <b>Study Security Settings</b>
@@ -17,25 +23,45 @@
 </ol>
 
 <div class="col-xs-12">
-  <form action="/change_study_security_settings/{{ study.id }}" method="post">
+  <form
+    action="/change_study_security_settings/{{ study.id }}"
+    method="post"
+  >
     <h2 class="text-center"> <b>Study Security Settings</b> </h2>
 
     <div class="col-xs-12 well well-sm">
-      Your study may require that user passwords conform to certain standards, like periodic password expiry or minimum password length.  You can enforce these requirements here.
+      Your study may require that user passwords conform to certain standards, like periodic password expiry or minimum
+      password length. You can enforce these requirements here.
     </div>
 
     <div class="col-xs-12 well">
       <div class="col-lg-9 ">
-        This setting will apply to all researchers authorized on this study.  Changing it will force password resets for any researchers where the new size is not a downgrade.
-        <p><p>
-        <i>Beiwe already requires that researchers use a password with lower and upper case letters, at least one number, and at least one special character.  To view the password change interface click on the manage credentials button at the top of the page.</i>
+        This setting will apply to all researchers authorized on this study. Changing it will force password resets for
+        any researchers where the new size is not a downgrade.
+        <p>
+        <p>
+          <i>Beiwe already requires that researchers use a password with lower and upper case letters, at least one
+            number, and at least one special character. To view the password change interface click on the manage
+            credentials button at the top of the page.</i>
       </div>
-        
+
       <div class="col-lg-3 col-xs-6">
-        <label for="password_minimum_length" class="control-label">Minimum Password Length:</label>
-        <select id="password_minimum_length" name="password_minimum_length" class="form-control">
+
+        <label
+          for="password_minimum_length"
+          class="control-label"
+        >Minimum Password Length:</label>
+        <select
+          id="password_minimum_length"
+          name="password_minimum_length"
+          class="form-control"
+          aria-label="select a minimum password length for researchers on this study"
+        >
           {% for i in range(8,21) %}
-            <option value="{{i}}" {% if i == study.password_minimum_length %}selected{% endif %}>{{i}}</option>
+          <option
+            value="{{i}}"
+            {% if i == study.password_minimum_length %}selected{% endif %}
+          >{{i}}</option>
           {% endfor %}
         </select>
       </div>
@@ -43,57 +69,121 @@
 
     <div class="col-xs-12 well">
       <div class="col-lg-9 col-md-12">
-         You can enable Multifactor Authentication for researchers on this study, Beiwe will then require that researchers use a second factor authentication code to log in.  Beiwe currently supports time-based one-time passwords (TOTP), which users configure with a mobile app like Google Authenticator or Authy.  This feature can also be enabled at-will by any user, it can be configured on the manage credentials page.
-         <p><p>
-         <i>(Note: if you do not have MFA configured and you enable it, you will be forcibly redirected to the manage credentials page.)
+        You can enable Multifactor Authentication for researchers on this study, Beiwe will then require that
+        researchers use a second factor authentication code to log in. Beiwe currently supports time-based one-time
+        passwords (TOTP), which users configure with a mobile app like Google Authenticator or Authy. This feature can
+        also be enabled at-will by any user, it can be configured on the manage credentials page.
+        <p>
+        <p>
+          <i>(Note: if you do not have MFA configured and you enable it, you will be forcibly redirected to the manage
+            credentials page.)
       </div>
       <div class="col-lg-3 col-md-12">
         <div class="checkbox-fix">
-          <label for="mfa_required" class="checkbox-label-fill">Require MFA:</label>
-          <input class="security-check" type="checkbox" id="mfa_required" name="mfa_required"
-            {% if study.mfa_required %}checked{% endif %} />
+
+          <label
+            for="mfa_required"
+            class="checkbox-label-fill"
+          >Require MFA:</label>
+
+          <input
+            class="security-check"
+            type="checkbox"
+            id="mfa_required"
+            name="mfa_required"
+            {% if study.mfa_required %}checked{% endif %}
+            aria-label="check to require multifactor authentication for all users on this study"
+          />
         </div>
       </div>
     </div>
 
     <div class="col-xs-12 well">
       <div class="col-lg-9 col-md-12">
-        Your study may fall under a security policy requiring periodic password resets, and Beiwe supports this feature for compliance purposes. However, best practices
-        like <a href="https://pages.nist.gov/800-63-3/sp800-63b.html">NIST's Digital Identity Guidelines</a> recommend against
-        mandatory periodic resets as they encourage the use of weak passwords.
-        <p><p>
-        We recommend you ensure researchers use a well known and supported password manager with a strong master password, and that you set a reasonably long password requirement and enable MFA on your study.
+        Your study may fall under a security policy requiring periodic password resets, and Beiwe supports this feature
+        for compliance purposes only. Best practices
+        like <a
+          href="https://pages.nist.gov/800-63-3/sp800-63b.html"
+          arial-label="click to view Nists Digital Identity Guidelines on an external site"
+        >
+          NIST's Digital Identity Guidelines</a> recommend
+        against mandatory periodic resets as they encourage the use of weak passwords.
+        <p>
+        <p>
+          We recommend you ensure researchers use a well known and supported password manager with a strong master
+          password, and that you set a reasonably long password requirement and enable MFA on your study.
       </div>
-        
+
       <div class="col-lg-3 col-md-12">
         <div class="checkbox-fix">
-          <label for="password_max_age_enabled" class="checkbox-label-fill">Enable Password Resets:</label>
-          <input class="security-check" type="checkbox" id="password_max_age_enabled" name="password_max_age_enabled"
-            {% if study.password_max_age_enabled %}checked{% endif %} />
+
+          <label
+            for="password_max_age_enabled"
+            class="checkbox-label-fill"
+          >Enable Password Resets:</label>
+
+          <input
+            class="security-check"
+            type="checkbox"
+            id="password_max_age_enabled"
+            name="password_max_age_enabled"
+            {% if study.password_max_age_enabled %}checked{% endif %}
+          />
         </div>
       </div>
     </div>
 
     <div class="col-xs-12 well">
       <div class="col-lg-9 ">
-        Set the lifetime of a password in days.  
-        <p><p>
-        This setting will apply to all researchers authorized on this study, researchers on multiple studies will use the shortest periodicity.
+        Set the lifetime of a password in days.
+        <p>
+        <p>
+          This setting will apply to all researchers authorized on this study, researchers on multiple studies will use
+          the shortest periodicity.
       </div>
-        
+
       <div class="col-xs-3">
-        <label for="password_max_age_days" class="control-label">Password Max Age:</label>
-        <select id="password_max_age_days" name="password_max_age_days" class="form-control">
-          <option value="30" {% if 30 == study.password_max_age_days %}selected{% endif %}>30 days</option>
-          <option value="60" {% if 60 == study.password_max_age_days %}selected{% endif %}>60 days</option>
-          <option value="90" {% if 90 == study.password_max_age_days %}selected{% endif %}>90 days</option>
-          <option value="180" {% if 180 == study.password_max_age_days %}selected{% endif %}>180 days</option>
-          <option value="365" {% if 365 == study.password_max_age_days %}selected{% endif %}>365 days</option>
+
+        <label
+          for="password_max_age_days"
+          class="control-label"
+        >Password Max Age:</label>
+        <select
+          id="password_max_age_days"
+          name="password_max_age_days"
+          class="form-control"
+          aria-label="Select a maximum password age for researchers on this study. Please read the notes above about periodic password resets."
+        >
+          <option
+            value="30"
+            {% if 30 == study.password_max_age_days %}selected{% endif %}
+          >30 days</option>
+          <option
+            value="60"
+            {% if 60 == study.password_max_age_days %}selected{% endif %}
+          >60 days</option>
+          <option
+            value="90"
+            {% if 90 == study.password_max_age_days %}selected{% endif %}
+          >90 days</option>
+          <option
+            value="180"
+            {% if 180 == study.password_max_age_days %}selected{% endif %}
+          >180 days</option>
+          <option
+            value="365"
+            {% if 365 == study.password_max_age_days %}selected{% endif %}
+          >365 days</option>
         </select>
       </div>
     </div>
 
-    <button class="btn btn-success btn-block h3-margins" type="submit"><b>Update Security Settings</b></button>
+    <button
+      class="btn btn-success btn-block h3-margins"
+      type="submit"
+      aria-label="click to update security settings for this study"
+    ><b>Update Security Settings</b></button>
+
   </form>
 </div>
 {% endblock %}

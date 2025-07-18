@@ -3,82 +3,171 @@
 {% block title %}Create Study{% endblock %}
 
 {% block head %}
-  {{ super() }}
-  <script>filterableObjects = {{ studies|tojson }}</script>
-  <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
+{{ super() }}
+<script>filterableObjects = {{ studies|tojson }}</script>
+<script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
 {% endblock %}
 
 {% block content %}
-
-  <div class="row">
-    <h3>Create Study</h3>
+<div class="container">
+  <div class="well col-xs-12">
+    <h3>Create A New Study</h3>
   </div>
 
-  <br>
+  <div class="well col-xs-12">
 
-  <div class="row col-md-8">
-    <form action="/create_study" method="post">
-      <div class="form-group">
-        <label for="name">Study Name</label>
-        <input type="text" name="name" id="name" class="form-control" required>
-      </div>
-      <div class="form-group">
-        <label for="encryption_key">32-Character Encryption Key</label>
-        <input type="text" name="encryption_key" id="encryption_key" class="form-control" onkeydown="return event.key != 'Enter';" pattern=".{32,32}" oninvalid="setCustomValidity('Must have at exactly 32 characters')" required>
-      </div>
-      
-      <p><i>Note: You MUST copy down the encryption key somewhere; if you lose it, you cannot access any data from this study!</i></p>
-      <p><i>We recommend you use a random string generator (like the one on <a href="https://www.random.org/strings/">random.org</a>) to create the 32-character encryption key.</i></p>
+    <br>
 
-      <div class="checkbox">
+    <div class=" col-xs-12">
+      <form
+        action="/create_study"
+        method="post"
+      >
+        <div class="form-group">
+
+          <label for="name">Study Name</label>
+
+          <input
+            type="text"
+            name="name"
+            id="name"
+            class="form-control"
+            aria-label="enter a name for the new study"
+            required
+          >
+        </div>
+        <div class="form-group">
+
+          <label for="encryption_key">32-Character Encryption Key</label>
+
+          <input
+            type="text"
+            name="encryption_key"
+            id="encryption_key"
+            class="form-control"
+            onkeydown="return event.key != 'Enter';"
+            pattern=".{32,32}"
+            oninvalid="setCustomValidity('Must have at exactly 32 characters')"
+            required
+            aria-label="enter a 32-character encryption key for the new study, make sure to read the notes below"
+          >
+        </div>
+
+        <p><i>
+            Note: You MUST copy down the encryption key somewhere; if you lose it, you cannot access any data from this
+            study!
+          </i></p>
+        <p><i>
+            We recommend you use a random string generator (like the one on <a
+              href="https://www.random.org/strings/">random.org</a>) to create the 32-character encryption key.
+          </i></p>
+        <div class="checkbox">
           {# Checkbox: enable Forest for this study? #}
+
           <label>
-            <input type="checkbox" id="forest_enabled" name="forest_enabled" value="true">
+
+            <input
+              type="checkbox"
+              id="forest_enabled"
+              name="forest_enabled"
+              value="true"
+            >
             Enable Forest on this study
           </label>
-      </div>
-
-      {# Copy settings and surveys from an existing study #}
-      <div id="filterableList" ng-controller="FilterableListController">
-        <div class="checkbox">
-          {# Checkbox: do you want to copy an existing study? #}
-          <label>
-            <input type="checkbox" name="copy_existing_study" ng-model="copy_existing_study" value="true">
-            Copy App Settings or Surveys from an existing study into this new study that you're creating
-          </label>
         </div>
-        {# Only show these inputs if they checked that yes, they do want to copy an existing study #}
-        <div ng-if="copy_existing_study == true">
-          <div class="form-group">
-            <input type="search" class="form-control" placeholder="Filter by study name" ng-model="studyFilterText">
-          </div>
-          {# Dropdown menu to select a study #}
-          <div class="form-group">
-            <select class="form-control" ng-model="existingStudy" name="existing_study_id" ng-options="study.name for study in filterableObjects | filter:{name: studyFilterText} track by study.id"></select>
-          </div>
-          {# Checkbox: copy app settings? #}
+
+        {# Copy settings and surveys from an existing study #}
+        <div
+          id="filterableList"
+          ng-controller="FilterableListController"
+        >
           <div class="checkbox">
+            {# Checkbox: do you want to copy an existing study? #}
+
             <label>
-              <input type="checkbox" name="device_settings" value="true" checked>
-              Copy {% raw %}{{ existingStudy.name }}{% endraw %} App Settings into this new study that you're creating
+
+              <input
+                type="checkbox"
+                name="copy_existing_study"
+                ng-model="copy_existing_study"
+                value="true"
+              >
+              Copy App Settings or Surveys from an existing study into this new study that you're creating
             </label>
           </div>
-          {# Checkbox: copy surveys? #}
-          <div class="checkbox">
-            <label>
-              <input type="checkbox" name="surveys" value="true" checked>
-              Copy {% raw %}{{ existingStudy.name }}{% endraw %} Surveys and Audio Surveys into this new study that you're creating
-            </label>
+          {# Only show these inputs if they checked that yes, they do want to copy an existing study #}
+          <div ng-if="copy_existing_study == true">
+            <div class="form-group">
+
+              <input
+                type="search"
+                class="form-control"
+                placeholder="Filter by study name"
+                ng-model="studyFilterText"
+                aria-label="optionsenter a study name to help search the list of studies below by "
+              >
+            </div>
+            
+            {# Dropdown menu to select a study #}
+            <div class="form-group">
+              <select
+                class="form-control"
+                ng-model="existingStudy"
+                name="existing_study_id"
+                ng-options="study.name for study in filterableObjects | filter:{name: studyFilterText} track by study.id"
+                aria-label="select a study from which to copy app settings and/or surveys"
+              ></select>
+            </div>
+            {# Checkbox: copy app settings? #}
+            <div class="checkbox">
+
+              <label>
+
+                <input
+                  type="checkbox"
+                  name="device_settings"
+                  value="true"
+                  checked
+                >
+                Copy {% raw %}{{ existingStudy.name }}{% endraw %} App Settings into this new study that you're creating
+              </label>
+            </div>
+            {# Checkbox: copy surveys? #}
+            <div class="checkbox">
+
+              <label>
+
+                <input
+                  type="checkbox"
+                  name="surveys"
+                  value="true"
+                  checked
+                >
+                Copy {% raw %}{{ existingStudy.name }}{% endraw %} Surveys and Audio Surveys into this new study that
+                you're
+                creating
+              </label>
+            </div>
           </div>
         </div>
-      </div>
-      <br>
+        <br>
 
-      <input type="submit" class="btn btn-success" value="Create Study">
+        <input
+          type="submit"
+          class="btn btn-success"
+          value="Create Study"
+          aria-label="click to create the new study with the settings you provided"
+        >
 
-      <a href="/manage_studies" class="btn btn-warning pull-right">Cancel</a>
+        <a
+          href="/manage_studies"
+          class="btn btn-warning pull-right"
+          aria-label="click to return to the manage studies page"
+        >Cancel</a>
 
-    </form>
+      </form>
+    </div>
   </div>
+</div>
 
 {% endblock %}

@@ -14,3 +14,38 @@ th, td {
 	margin-top: 1px;
 	margin-bottom: 2px;
 }
+@media (min-width: 768px) {
+  .modal-dialog {
+    width: 80%;
+  }
+}.faded {
+  opacity: 0.3;
+}
+
+.schedule-x {  /* make the x very clickable and red */
+    cursor: pointer;
+    padding-top: 4pt;
+    margin-top: -4pt;  
+    padding-bottom: 4pt;
+    margin-bottom: -4pt;
+    padding-right: 7pt;
+    margin-right: -7pt;
+    padding-left: 7pt;
+    margin-left: -7pt;
+    vertical-align:sub;
+    font-size: large;
+    color: var(--Bred-very-dark);
+    text-shadow: 1px 1px 2px var(--Bblack-half);
+	/* float: inline-end; */
+}
+
+
+.list-group-item {
+    background-color: #222;
+    color: var(--Bwhite);
+    border-color: #222;
+}
+.list-group-item:hover {
+    background-color: var(--Baqua-less-bright66);
+    border-color: var(--Baqua-less-bright66);;
+}

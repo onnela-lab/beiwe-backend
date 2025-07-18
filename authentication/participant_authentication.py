@@ -1,10 +1,12 @@
 import contextlib
 import functools
+import typing
 import uuid
+from collections.abc import Callable
 
 import orjson
 from django.http import UnreadablePostError
-from django.http.request import HttpRequest
+from django.http.request import HttpRequest as _HttpRequest
 
 from constants.user_constants import IOS_API
 from database.user_models_participant import Participant, SurveyNotificationReport
@@ -19,8 +21,15 @@ def log(*args, **kwargs):
         print("PARTICIPANT AUTH:", *args, **kwargs)
 
 
-class ParticipantRequest(HttpRequest):
-    session_participant: Participant
+
+if typing.TYPE_CHECKING:
+    class HttpRequest(_HttpRequest):
+        session_participant: Participant
+    ParticipantRequest = HttpRequest
+else:
+    ParticipantRequest = HttpRequest = _HttpRequest
+
+
 
 
 def validate_post(request: HttpRequest, require_password: bool, registration: bool) -> bool:
@@ -169,7 +178,7 @@ def extract_notification_uuids(request: HttpRequest) -> list:
 ####################################################################################################
 
 
-def minimal_validation(some_function) -> callable:
+def minimal_validation(some_function) -> Callable:
     
     @functools.wraps(some_function)
     def authenticate_and_call(*args, **kwargs):
@@ -188,7 +197,7 @@ def minimal_validation(some_function) -> callable:
     return authenticate_and_call
 
 
-def authenticate_participant(some_function) -> callable:
+def authenticate_participant(some_function) -> Callable:
     """Decorator for functions (pages) that require a user to provide identification. Returns 403
     (forbidden) or 401 (depending on beiwei-api-version) if the identifying info (usernames,
     passwords device IDs are invalid.
@@ -212,7 +221,7 @@ def authenticate_participant(some_function) -> callable:
     return authenticate_and_call
 
 
-def authenticate_participant_registration(some_function) -> callable:
+def authenticate_participant_registration(some_function) -> Callable:
     """ Decorator for functions (pages) that require a user to provide identification. Returns
     403 (forbidden) or 401 (depending on beiwe-api-version) if the identifying info (username,
     password, device ID) are invalid.

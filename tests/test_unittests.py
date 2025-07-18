@@ -1,7 +1,6 @@
 # trunk-ignore-all(bandit/B101,bandit/B106,ruff/B018,ruff/E701)
 import hashlib
 import time
-import unittest
 import uuid
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -13,7 +12,7 @@ from dateutil.tz import gettz
 from django.utils import timezone
 
 from constants.common_constants import API_TIME_FORMAT, CHUNKS_FOLDER, EASTERN, UTC
-from constants.data_stream_constants import SURVEY_ANSWERS, SURVEY_TIMINGS, VOICE_RECORDING
+from constants.data_stream_constants import AUDIO_RECORDING, SURVEY_ANSWERS, SURVEY_TIMINGS
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
@@ -26,7 +25,7 @@ from constants.s3_constants import (COMPRESSED_DATA_MISSING_AT_UPLOAD,
     UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD, UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.data_access_models import IOSDecryptionKey
-from database.models import ArchivedEvent, S3File, ScheduledEvent
+from database.models import ArchivedEvent, ForestVersion, S3File, ScheduledEvent
 from database.profiling_models import EncryptionErrorMetadata, UploadTracking
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
     DeviceStatusReportHistory, Participant, ParticipantActionLog, ParticipantDeletionEvent,
@@ -45,6 +44,7 @@ from libs.utils.forest_utils import get_forest_git_hash
 from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
     is_this_version_gte_participants, is_this_version_lt_participants,
     is_this_version_lte_participants)
+from scripts.update_forest_version import main as update_forest_version_main
 from tests.common import CommonTestCase
 
 
@@ -59,9 +59,9 @@ COUNT_OF_PATHS_RETURNED_FROM_GET_ALL_FILE_PATH_PREFIXES = 4
 # assertion error stating that the base s3 file path is not empty, so we patch that in the rest of
 # the tests, which are database purge tests.
 def data_purge_mock_s3_calls(func):
-    s3_delete_many_versioned: MagicMock = patch('libs.participant_purge.s3_delete_many_versioned')
-    s3_list_files: MagicMock = patch('libs.participant_purge.s3_list_files')
-    s3_list_versions: MagicMock = patch('libs.participant_purge.s3_list_versions')
+    s3_delete_many_versioned: MagicMock = patch('libs.participant_purge.s3_delete_many_versioned')  # type: ignore
+    s3_list_files: MagicMock = patch('libs.participant_purge.s3_list_files')  # type: ignore
+    s3_list_versions: MagicMock = patch('libs.participant_purge.s3_list_versions')  # type: ignore
     s3_list_files.return_value = []
     s3_list_versions.return_value = []
     s3_delete_many_versioned.return_value = []
@@ -71,7 +71,7 @@ def data_purge_mock_s3_calls(func):
     return wrapper
 
 
-class TestBinifyFromTimecode(unittest.TestCase):
+class TestBinifyFromTimecode(CommonTestCase):
     def test_binify_from_timecode_short_str(self):
         # str(int(time.mktime(datetime(2023, 1, 10, 2, 13, 7, 453914, tzinfo=dateutil.tz.UTC).timetuple()))
         self.assertEqual(binify_from_timecode('1673316787'), 464810)
@@ -554,13 +554,6 @@ class TestParticipantActive(CommonTestCase):
             setattr(p, field_name, less_than_a_week_ago)
         p.permanently_retired = True
         self.assertFalse(p.is_active_one_week)
-
-
-class TestForestHash(unittest.TestCase):
-    # todo: This is junk what even is this
-    def test_get_forest_git_hash(self):
-        hash = get_forest_git_hash()
-        self.assertNotEqual(hash, "")
 
 
 IOS = IOS_API
@@ -1314,12 +1307,6 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
         self.assertEqual(s3_file.study, self.default_study)
         self.assertEqual(s3_file.participant, self.default_participant)
-        self.assertIsNone(s3_file.compression_time_ns)
-        self.assertIsNone(s3_file.encryption_time_ns)
-        self.assertIsNone(s3_file.upload_time_ns)
-        self.assertIsNotNone(s3_file.decrypt_time_ns)
-        self.assertIsNotNone(s3_file.download_time_ns)
-        self.assertIsNotNone(s3_file.decompression_time_ns)
         self.assertIsNone(s3_file.sha1)
     
     def assert_correct_uploaded_s3file(self, s3_file: S3File):
@@ -1328,12 +1315,6 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
         self.assertEqual(s3_file.study, self.default_study)
         self.assertEqual(s3_file.participant, self.default_participant)
-        self.assertIsNotNone(s3_file.compression_time_ns)
-        self.assertIsNotNone(s3_file.encryption_time_ns)
-        self.assertIsNotNone(s3_file.upload_time_ns)
-        self.assertIsNone(s3_file.decrypt_time_ns)
-        self.assertIsNone(s3_file.download_time_ns)
-        self.assertIsNone(s3_file.decompression_time_ns)
         self.assertEqual(s3_file.sha1, hashlib.sha1(b"content").digest())
     
     def assert_correct_uploaded_s3file_already_compressed(self, s3_file: S3File):
@@ -1342,15 +1323,9 @@ class TestS3Storage(CommonTestCase):
         self.assertIsNotNone(s3_file.participant_id)
         self.assertIsNotNone(s3_file.study_id)
         self.assertIsNotNone(s3_file.size_compressed)
-        self.assertIsNotNone(s3_file.encryption_time_ns)
-        self.assertIsNotNone(s3_file.upload_time_ns)
         self.assertIsNotNone(s3_file.last_updated)
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
         self.assertEqual(s3_file.study, self.default_study)
-        self.assertIsNone(s3_file.compression_time_ns)
-        self.assertIsNone(s3_file.decompression_time_ns)
-        self.assertIsNone(s3_file.decrypt_time_ns)
-        self.assertIsNone(s3_file.download_time_ns)
         self.assertIsNone(s3_file.sha1)
         self.assertIsNone(s3_file.size_uncompressed)
 
@@ -1420,7 +1395,7 @@ class TestDetermineFileName(CommonTestCase):
         d = self.updated_dict(
             chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.wav",
             survey__object_id="thesurveyobjectidvalue",
-            data_type=VOICE_RECORDING,
+            data_type=AUDIO_RECORDING,
         )
         self.assertEqual(
             determine_base_file_name(d),
@@ -1431,7 +1406,7 @@ class TestDetermineFileName(CommonTestCase):
         d = self.updated_dict(
             chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.mp4",
             survey__object_id="thesurveyobjectidvalue",
-            data_type=VOICE_RECORDING,
+            data_type=AUDIO_RECORDING,
         )
         self.assertEqual(
             determine_base_file_name(d),
@@ -1441,7 +1416,7 @@ class TestDetermineFileName(CommonTestCase):
     def test_survey_id_present_in_audio_survey_without_param(self):
         d = self.updated_dict(
             chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/123456789012345678901234/1524857988384.wav",
-            data_type=VOICE_RECORDING,
+            data_type=AUDIO_RECORDING,
         )
         self.assertEqual(
             determine_base_file_name(d),
@@ -1451,7 +1426,7 @@ class TestDetermineFileName(CommonTestCase):
     def test_survey_id_present_in_without_param_or_file_path(self):
         d = self.updated_dict(
             chunk_path="5873fe38644ad7557b168e43/steve/voiceRecording/1524857988384.wav",
-            data_type=VOICE_RECORDING,
+            data_type=AUDIO_RECORDING,
         )
         self.assertEqual(
             determine_base_file_name(d),
@@ -1524,7 +1499,7 @@ class TestDetermineFileName(CommonTestCase):
         )
 
 
-class TestFileProcessingUnittests(CommonTestCase):
+class TestFileProcessingUnitTests(CommonTestCase):
     
     def test_convert_unix_to_human_readable_timestamps(self):
         rows = [
@@ -1537,3 +1512,21 @@ class TestFileProcessingUnittests(CommonTestCase):
             [b"1", b"1970-01-01T00:00:00.001", b"content"],
             [b"2", b"1970-01-01T00:00:00.002", b"more content"],
         ])
+
+
+class TestUpdateForestVersion(CommonTestCase):
+    
+    def test_update_forest_version(self):
+        a = ForestVersion.singleton()
+        self.assertEqual(a.package_version, "")
+        self.assertEqual(a.git_commit, "")
+        del a
+        update_forest_version_main()
+        
+        b = ForestVersion.singleton()
+        self.assertNotEqual(b.package_version, "", "Package version should be updated!")
+        self.assertNotEqual(b.git_commit, "", "Git commit should be updated!")
+    
+    def test_get_forest_git_hash_gets_anything_at_all(self):
+        hash = get_forest_git_hash()
+        self.assertNotEqual(hash, "")

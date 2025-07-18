@@ -102,13 +102,13 @@ def confirm_deleted(deletion_event: ParticipantDeletionEvent):
     """ Tests all locations for files and database entries, raises AssertionError if any are found. """
     deletion_event.save()  # mark the event as processing...
     keys, base, chunks_prefix, problem_uploads = get_all_file_path_prefixes(deletion_event.participant)
-    for _ in s3_list_files(keys, as_generator=True):
+    for _ in s3_list_files(keys):
         raise AssertionError(f"still files present in {keys}")
-    for _ in s3_list_files(base, as_generator=True):
+    for _ in s3_list_files(base):
         raise AssertionError(f"still files present in {base}")
-    for _ in s3_list_files(chunks_prefix, as_generator=True):
+    for _ in s3_list_files(chunks_prefix):
         raise AssertionError(f"still files present in {chunks_prefix}")
-    for _ in s3_list_files(problem_uploads, as_generator=True):
+    for _ in s3_list_files(problem_uploads):
         raise AssertionError(f"still files present in {problem_uploads}")
     
     for name in RELATED_NAMES:

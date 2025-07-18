@@ -172,6 +172,3 @@ REFERENCE_UPLOAD_HEADERS = {
         IOS_API:     b'hashed MAC, frequency, RSSI',  # android-only datastream
     }
 }
-
-
-CHUNK_EXISTS_CASE = "chunk_exists_case"

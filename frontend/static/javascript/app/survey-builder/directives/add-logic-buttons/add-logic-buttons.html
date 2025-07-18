@@ -1,15 +1,36 @@
 <div>
-  <button class="btn btn-info add-logic-button" ng-click="surveyBuilder.addNotBlock(newPath)">
-    Add "NOT" Block
+
+  <button
+    class="btn btn-info add-logic-button"
+    ng-click="surveyBuilder.addNotBlock(newPath)"
+    aria-label="Add a logical NOT block called {{ newPath }} to this block"
+  >
+    Add "NOT" Block "Add a logical NOT block called {{ newPath }} to this block"
   </button>
-  <button class="btn btn-info add-logic-button" ng-click="surveyBuilder.addOrBlock(newPath)">
-    Add "OR" Block
+
+  <button
+    class="btn btn-info add-logic-button"
+    ng-click="surveyBuilder.addOrBlock(newPath)"
+    aria-label="Add a logical OR block called {{ newPath }} to this block"
+  >
+    Add "OR" Block "Add a logical OR block called {{ newPath }} to this block"
   </button>
-  <button class="btn btn-info add-logic-button" ng-click="surveyBuilder.addAndBlock(newPath)">
-    Add "AND" Block
+
+  <button
+    class="btn btn-info add-logic-button"
+    ng-click="surveyBuilder.addAndBlock(newPath)"
+    aria-label="Add a logical AND block called {{ newPath }} to this block"
+  >
+    Add "AND" Block "Add a logical AND block called {{ newPath }} to this block"
   </button>
-  <button class="btn btn-info add-logic-button" ng-click="surveyBuilder.addConditionalBlock(newPath)" title="&gt;, &lt;, ==, etc.">
-    Add Conditional
+
+  <button
+    class="btn btn-info add-logic-button"
+    ng-click="surveyBuilder.addConditionalBlock(newPath)"
+    title="&gt;, &lt;, ==, etc."
+    aria-label="Add a conditional block called {{ newPath }} to this block"
+  >
+    Add Conditional "Add a conditional block called {{ newPath }} to this block"
   </button>
   <!-- Uncomment this code for debugging -->
   <!--<span style="color: #eaeaea; font-size: 12px; line-height: 12px;">var newPath = '{{ newPath }}';</span>-->

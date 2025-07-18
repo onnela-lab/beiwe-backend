@@ -1,30 +1,35 @@
 from __future__ import annotations
 
-from time import perf_counter
-
 from botocore.exceptions import ReadTimeoutError
 from cronutils import ErrorHandler
 
 from constants.common_constants import CHUNKS_FOLDER, RUNNING_TEST_OR_FROM_A_SHELL
-from constants.data_processing_constants import (AllBinifiedData, BinifyKey, CHUNK_EXISTS_CASE,
+from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
     CHUNK_TIMESLICE_QUANTUM, DEBUG_FILE_PROCESSING, REFERENCE_CHUNKREGISTRY_HEADERS, SurveyIDHash)
 from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry
 from database.survey_models import Survey
 from database.system_models import GenericEvent
 from database.user_models_participant import Participant
-from libs.file_processing.utility_functions_csvs import (construct_csv_string,
+from libs.file_processing.utility_functions_csvs import (construct_csv_as_bytes,
     csv_to_list_of_list_of_bytes, unix_time_to_string)
 from libs.file_processing.utility_functions_simple import (
     convert_unix_to_human_readable_timestamps, ensure_sorted_by_timestamp)
 from libs.s3 import s3_retrieve
 from libs.utils.compression import compress
+from libs.utils.dev_utils import Timer
+from libs.utils.security_utils import chunk_hash
 
 
 class ChunkFailedToExist(Exception): pass
 
 FileToProcessPK = int
+UncompressedSize = int
+FinalOutputContent = bytes
+ChunkPath = str
+ByteCount = int
 
+Uploadable = tuple[dict, ChunkPath, FinalOutputContent, ByteCount, bool]
 
 def log(*args, **kwargs):
     """ A simple wrapper around print to make it easier to change logging later. """
@@ -49,7 +54,8 @@ class CsvMerger:
         self.failed_ftps = set[FileToProcessPK]()
         self.ftps_to_retire = set[FileToProcessPK]()
         
-        self.upload_these: list[tuple[str|dict, str, bytes]] = []  # chunk, chunk_path, file content
+        # The type definition of items in merged_data must match the do_upload function.
+        self.upload_these: list[Uploadable] = []  # chunk, chunk_path, file content
         
         # Track the earliest and latest time bins, to return them at the end of the function
         self.earliest_time_bin: int|None = None
@@ -140,12 +146,18 @@ class CsvMerger:
         time_bin: int,
         rows: list[list[bytes]],
     ):
-        ensure_sorted_by_timestamp(rows)
+        name = chunk_path[38:]
         final_header = self.validate_one_header(updated_header, data_stream)
-        t1 = perf_counter()
-        new_contents = construct_csv_string(final_header, rows)
-        t2 = perf_counter()
-        log(f"CsvMerger: constructed {len(new_contents)} bytes of totally new data for {chunk_path[38:]} in {t2 - t1:.4f} seconds.")
+        
+        ensure_sorted_by_timestamp(rows)  # final data transformation, a sort.
+        
+        # build the csv, get the metadata
+        with Timer() as t:
+            new_contents = construct_csv_as_bytes(final_header, rows)
+        content_length = len(new_contents)
+        the_hash = chunk_hash(new_contents).decode()
+        new_contents = compress(new_contents)  # This file hangs around in memory, compress it asap.
+        log(f"CsvMerger: constructed {content_length} bytes (new) for {name} in {t.fseconds} seconds.")
         
         if data_stream in SURVEY_DATA_FILES:
             # We need to keep a mapping of files to survey ids, that is handled here.
@@ -154,17 +166,18 @@ class CsvMerger:
         else:
             survey_id = None
         
-        # this object will eventually get **kwarg'd into ChunkRegistry.register_chunked_data
+        # this object will get **kwargs'd into ChunkRegistry.register_chunked_data
         chunk_params = {
             "study_id": self.participant.study_id,
             "participant_id": self.participant.id,
             "data_type": data_stream,
             "chunk_path": chunk_path,
+            "chunk_hash": the_hash,
             "time_bin": time_bin,
-            "survey_id": survey_id
+            "survey_id": survey_id,
+            "file_size": content_length,
         }
-        
-        self.upload_these.append((chunk_params, chunk_path, compress(new_contents)))
+        self.upload_these.append((chunk_params, chunk_path, new_contents, content_length, True))
     
     def chunk_exists_case(
         self,
@@ -174,47 +187,54 @@ class CsvMerger:
         new_rows: list[list[bytes]],
         data_stream: str,
     ):
-        t1 = perf_counter()
-        try:
-            old_s3_file_data = s3_retrieve(chunk_path, study_object_id, raw_path=True)
-        except ReadTimeoutError as e:
-            # The following check was correct for boto 2, still need to hit with boto3 test.
-            if "The specified key does not exist." == str(e):
-                # This error can only occur if the processing gets actually interrupted and
-                # data files fail to upload after DB entries are created.
-                # Encountered this condition 11pm feb 7 2016, cause unknown, there was
-                # no python stacktrace.  Best guess is mongo blew up.
-                # If this happened, delete the ChunkRegistry and push this file upload to the next cycle
-                ChunkRegistry.objects.filter(chunk_path=chunk_path).delete()
-                raise ChunkFailedToExist(
-                    "chunk %s does not actually point to a file, deleting DB entry, should run correctly on next index."
-                    % chunk_path
-                )
-            raise  # Raise original error
-        t2 = perf_counter()
-        log(f"CsvMerger: retrieved existing data for {chunk_path[38:]} in {t2 - t1:.4f} seconds.")
-        len_old_s3_file_data = len(old_s3_file_data)
+        name = chunk_path[38:]
         
-        # get the existing data from the s3 file, merge it with the new data from the binified data
-        t1 = perf_counter()
-        s3_header, output_rows = csv_to_list_of_list_of_bytes(old_s3_file_data)
+        
+        with Timer() as t_retrieve:
+            try:
+                old_s3_file_data = s3_retrieve(chunk_path, study_object_id, raw_path=True)
+            except ReadTimeoutError as e:
+                # The following check was correct for boto 2, still need to hit with boto3 test.
+                if "The specified key does not exist." == str(e):
+                    # This error can only occur if the processing gets actually interrupted and
+                    # data files fail to upload after DB entries are created.
+                    # Encountered this condition 11pm feb 7 2016, cause unknown, there was
+                    # no python stacktrace.  Best guess is mongo blew up.
+                    # If this happened, delete the ChunkRegistry and push this file upload to the next cycle
+                    ChunkRegistry.objects.filter(chunk_path=chunk_path).delete()
+                    raise ChunkFailedToExist(
+                        "chunk %s does not actually point to a file, deleting DB entry, should run correctly on next index."
+                        % chunk_path
+                    )
+                raise  # Raise original error
+        
+        log(f"CsvMerger: retrieved existing data for {name} in {t_retrieve.fseconds} seconds.")
+        
+        with Timer() as t_unpack:  # get extant data from s3, merge with new binified data
+            s3_header, output_rows = csv_to_list_of_list_of_bytes(old_s3_file_data)
+        
+        orig_size = len(old_s3_file_data)
         del old_s3_file_data  # (large)
+        log(f"CsvMerger: merged {orig_size} bytes for {name} in {t_unpack.fseconds} seconds.")
         
         final_header = self.validate_two_headers(s3_header, updated_header, data_stream)
-        
-        # merge data together with a sort and a deduplicate
         output_rows.extend(new_rows)
-        ensure_sorted_by_timestamp(output_rows)
-        t2 = perf_counter()
-        log(f"CsvMerger: merged {len_old_s3_file_data} bytes of old data with for {chunk_path[38:]} in {t2 - t1:.4f} seconds.")
+        ensure_sorted_by_timestamp(output_rows)  # merges data together with a sort and deduplicate
+        
         # this construction ensures there is no reference to the output of construct_csv_string
         # in memory after this line.  Hopefully the gc is deterministic enough to benefit from that.
         # Construct csv string also deduplicates rows.
-        t1 = perf_counter()
-        new_contents = compress(construct_csv_string(final_header, output_rows))
-        t2 = perf_counter()
-        log(f"CsvMerger: compressed new data for {chunk_path[38:]} in {t2 - t1:.4f} seconds.")
-        self.upload_these.append((CHUNK_EXISTS_CASE, chunk_path, new_contents))
+        with Timer() as t_construct:
+            new_contents = construct_csv_as_bytes(final_header, output_rows)
+        log(f"CsvMerger: compressed new data for {name} in {t_construct.fseconds} seconds.")
+        
+        # get metadata before compressing
+        content_length = len(new_contents)
+        chunk_update_kwargs = dict(
+            chunk_hash=chunk_hash(new_contents).decode(), file_size=content_length
+        )
+        new_contents = compress(new_contents)
+        self.upload_these.append((chunk_update_kwargs, chunk_path, new_contents, content_length, False))
     
     def validate_one_header(self, header: bytes, data_stream: str) -> bytes:
         real_header = REFERENCE_CHUNKREGISTRY_HEADERS[data_stream][self.participant.os_type]

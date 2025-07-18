@@ -9,9 +9,9 @@ from math import sqrt
 from os.path import relpath
 from pprint import pprint
 from statistics import mean, stdev
-from time import perf_counter
+from time import perf_counter, perf_counter_ns
 from types import FunctionType, MethodType
-from typing import Callable
+from typing import Callable, Self
 
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 
@@ -115,6 +115,8 @@ def disambiguate_participant_survey(func: Callable) -> Callable:
         return func(*args, **kwargs)
     
     return _disambiguate_participant_survey
+
+
 
 
 class GlobalTimeTracker:
@@ -376,3 +378,53 @@ def pprint_super_vars(obj):
         print(f"{attrname}:")
         pprint(value)
         print()
+
+
+def get_identifier_n_levels_up(n: int):
+    # provide the stack layer you are, returns the frame info of the calling code
+    # filename ipython-input-1-08f9d0828de0>', lineno=1, function='<module>'
+    frameinfo = getframeinfo(stack()[n + 1][0])
+    return f"{frameinfo.filename} - {frameinfo.function}: {frameinfo.lineno}"
+
+
+class Timer:
+    """ Context manager and wrapper for timers.... """
+    start: int
+    completed: int
+    
+    @classmethod
+    def wrap(cls, name: str|None = None):
+        """ use on a function, adds a return value of the ns """
+        
+        name = name or get_identifier_n_levels_up(1)
+        
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                with cls(name) as timer:  # call using the timer as a context manager
+                    ret = func(*args, **kwargs)
+                return timer, ret  # super hard to tell what inlining this does to the timing of the 
+            return wrapper
+        
+        return decorator
+    
+    def __init__(self, name: str|None = None):
+        self.name = name or get_identifier_n_levels_up(1)
+    
+    def __enter__(self) -> Self:
+        self.start = perf_counter_ns()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.completed = perf_counter_ns()
+    
+    @property
+    def nanoseconds(self) -> int: return self.completed - self.start
+    @property
+    def microseconds(self) -> int: return (self.completed - self.start) // 1000
+    @property
+    def milliseconds(self) -> int: return (self.completed - self.start) // 1_000_000
+    @property
+    def seconds(self) -> float: return (self.completed - self.start) / 1_000_000_000
+    @property
+    def fseconds(self) -> str: return f"{round(self.seconds, 4)}"

@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 
-from constants.common_constants import API_TIME_FORMAT
+from constants.common_constants import API_TIME_FORMAT, UTC
 
 
 def insert_timestamp_single_row_csv(header: bytes, rows_list: list[list], time_stamp: bytes) -> bytes:
@@ -105,7 +105,7 @@ def csv_to_list_of_list_of_bytes(file_bytes: bytes) -> tuple[bytes, list[list[by
 #     while lines:
 #         yield lines.pop(-1).split(b",")
 
-def construct_csv_string(header: bytes, rows_list: list[list[bytes]]) -> bytes:
+def construct_csv_as_bytes(header: bytes, rows_list: list[list[bytes]]) -> bytes:
     """ Takes a header list and a bytes-list and returns a single string of a csv. Very performant."""
     
     def deduplicate(seq: list[bytes]):
@@ -127,4 +127,4 @@ def construct_csv_string(header: bytes, rows_list: list[list[bytes]]) -> bytes:
 
 
 def unix_time_to_string(unix_time: int) -> bytes:
-    return datetime.utcfromtimestamp(unix_time).strftime(API_TIME_FORMAT).encode()
+    return datetime.fromtimestamp(unix_time, UTC).strftime(API_TIME_FORMAT).encode()

@@ -22,13 +22,25 @@ DATABASES = {
         'PASSWORD': os.environ['RDS_PASSWORD'],
         'HOST': os.environ['RDS_HOSTNAME'],
         'CONN_MAX_AGE': 0,
+        'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {
             'sslmode': 'require',
+            # connection pools appear to be fully  broken, resulting in connection errors after a
+            # few hours. There are definitely options to explore, but it worked for ages without the
+            # pool, so who cares, we are done with it this.
             # "pool": {
-            #     "min_size": 5,
-            #     "max_size": 20,
-            #     "timeout": 10,
+            #     # settings of min_size: 0, max_size: 30, timeout: 10, had connection errors after 6 hours
+            #     "min_size": 0,       # scale down minimum
+            #     "max_size": 60,      # scale up maximum
+            #     "timeout": 10,       # seconds to wait for a connection in the pool before giving up.
+            #     # "open": False,       # create new connections on initialization -- ok you cannot set this to false here
+            #     "max_waiting": 0,    # number of waiting operations, set to unlimited.
+            #     # "max_lifetime": X, # seconds allowed for age of a connection, default one hour.
+            #     "max_idle": 60,      # seconds until inactive connection close, default is 10 _minutes_.
+            #     "reconnect_timeout": 5,  # seconds to wait before retrying a connection. default is 5 _minutes_
+            #     # "num_workers": 3,  # number of cleanup worker threads to use, default is 3.
             # },
+            'client_encoding': 'UTF-8',
         },
         "ATOMIC_REQUESTS": True,  # default is True, just being explicit
         'TEST': {
@@ -52,7 +64,7 @@ SESSION_COOKIE_SECURE = not DEBUG
 
 # mac os homebrew postgres has configuration complexities that are not worth the effort to resolve.
 if (not SECURE_SSL_REDIRECT and platform.system() == "Darwin") or os.environ.get("RUNNING_IN_DOCKER", False):
-    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
+    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'  # type: ignore[type checker is breaking on default or options potentially map to a str not a dict]
 
 MIDDLEWARE = [
     'middleware.downtime_middleware.DowntimeMiddleware',  # does a single database call
@@ -122,6 +134,7 @@ SHELL_PLUS_POST_IMPORTS = [
     
     # really useful constants
     ["constants.user_constants", ("ANDROID_API", "IOS_API", "NULL_OS", "ResearcherRole")],
+    ["constants.data_stream_constants", ("ALL_DATA_STREAMS", )],
 ]
 SHELL_PLUS_PRE_IMPORTS = []
 
@@ -148,9 +161,10 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.jinja2.Jinja2',
         'APP_DIRS': False,
         'DIRS': [
-            "frontend/templates/",
+            "frontend/templates",
             "frontend/static/javascript",
             "frontend/static/css",
+            "frontend/static",
         ],
         'OPTIONS': {
             'autoescape': True,

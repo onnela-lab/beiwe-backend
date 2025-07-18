@@ -5,27 +5,53 @@ import multiprocessing
 
 #
 ## Network Directives
-# 
+#
 
-
-# The server and port.
+# The server and port - we are an internal proxy server process behind apache
 bind = "127.0.0.1:8000"
 
 # Set the SO_REUSEPORT flag on the listening socket.  Default: False
-# reuse_port = 
+# documentation on what SO_REUSEPORT is: https://lwn.net/Articles/542629/
+# This port-atttachment option should allow multiple processes a more even distribution of accepting
+# connections on the same port.  This is highly desireable, but not our initially observed behavior.
+# Documentation states it must be applied the first connection (all connections?) on the socket.
+reuse_port = True
 
 
 #
 ## Worker Settings
 #
 
+# The number of worker PROCESSES. We are a synchronous django app. Observations:
+# 1) Django "opens a database connection when a request comes in".
+# 2) Django is configured to use a database connection pool, which applies to the worker _thread_.
+# 3) Gunicorn's Sync worker [threads?] hook onto a socket and then rely on the system to distribute
+#    the task to a worker that has not already accepted a connection.  The os manages this
+#    disribution -- apparently -- based order of "first accept" on the socket?
+# 4) Evidence that there is no further task distribution alorithm is that one top process gets 60%
+#    of the cpu time (request time), a second gets like 30%, a third gets 10%, and the rest get
+#    basically 0%.  This aligns with experience.
+# 5) Our setting on the connection pool is to have low 0 minimum (why not) and a high maximum of 30.
+#    Previously we did not have such a pool and got random database operational errors that we
+#    couldn't explain. Switching to the connection pool with a low maximum caused identical but
+#    differently named database operational errors. Pre-pool We would see sudden spikes in database
+#    connections count aligning with these rejections, implying active high load conditions on the
+#    webserver; similar incidents implied the same on the processing server.
+# 6) a setting on the pool of 4 min and 20 max with a timeout of 10 seconds resulted in errors on
+#    upload requests (which are ~constant) and on data download requests ([then] a long-running
+#    database query via an iterator [a database cursor]) - the specific error was that it couldn't
+#    get a database connection within the timeout period.
+# 7) On the Gthread worker the main thread decides which worker thread handles the request... so
+#    maybe that's why it is picking up tasks when there are insufficient database connections?
 
-# The number of worker PROCESSES.
-# We are a synchronous django app, more workers is probably necessary.
-workers = multiprocessing.cpu_count() * 8
+
+
+# this value is intentionally high to allow for high database connection counts, which seem to be a
+# perennial problem with django and gunicorn.  See notes above.
+workers = multiprocessing.cpu_count() * 6
 
 # Worker THREAD count - only affects gthread (and we use gthread).  Default: 1
-threads = 10
+threads = 8
 
 # The maximum number of simultaneous clients. This setting only affects the gthread, eventlet and
 # gevent.  Default: 1000
@@ -58,11 +84,16 @@ timeout = 30
 # THIS FEATURE IS BROKEN IT WILL KILL PROCESSES ACTIVELY SERVING REQUESTS CAUSING DISCONNECTIONS.
 max_requests = 0
 
-# graceful_timeout - timeout receiving restart signal (HUP? TERM?).  Default: 30
+# graceful_timeout - timeout of gunicorn generall upon receiving receiving a restart signal (HUP?
+# TERM?).  Default: 30
 graceful_timeout = 5
 
-# keepalive default is 2 - the sync worker does not support this option
-# keepalive = 
+# keepalive default is 2 - the sync worker does not support this option.
+# The number of seconds to wait for requests on a Keep-Alive connection.
+# "Generally set in the 1-5 seconds range for servers with direct connection to the client (e.g.
+# when you don’t have separate load balancer). When Gunicorn is deployed behind a load balancer, it
+# often makes sense to set this to a higher value."
+# keepalive =
 
 # The maximum number of pending connections. This refers to the number of clients that can be
 # waiting to be served. Exceeding this number results in the client getting an error when attempting
@@ -91,7 +122,7 @@ graceful_timeout = 5
 # throttling for those clients on a doubled-up process (observed ~halved data download rate).
 # Disabled - processes are used more evenly, slowly loading up the 100MB and then larger memory
 # usage states. utilization seems spread out.
-preload_app = False
+preload_app = True
 
 
 #
@@ -109,7 +140,7 @@ wsgi_app = "wsgi:application"
 
 
 # the logging level: debug info warning error critical. Default: info
-loglevel = "debug"
+loglevel = "error"
 
 # The logger you want to use to log events in Gunicorn. Default: 'gunicorn.glogging.Logger'
 # The default class handles most normal usages in logging. It provides error and access logging. You
@@ -172,11 +203,12 @@ logger_class = "gunicorn.glogging.Logger"
 # going to be running more than one instance of Gunicorn you’ll probably want to set a name to tell
 # them apart. This requires that you install the setproctitle module.  If not set, the
 # default_proc_name setting will be used.   Default: None
-proc_name = 'Gunicorn'
+# proc_name = f'Gunicorn {threading.current_thread}'  # this doesn't seem to work?
 
+# These don't work?
 
 # Default: 'gunicorn'
-# default_proc_name = 
+# default_proc_name = f'Gunicorn {threading.current_thread}'
 
 #
 ## Debugging
@@ -244,8 +276,7 @@ proc_name = 'Gunicorn'
 
 # Called to recycle workers during a reload via SIGHUP. The callable needs to accept a single
 # instance variable for the Arbiter.
-def on_reload(server):
-    print("on_reload called")
+# def on_reload(server):
     # pp(vars(server))
     # exit()
 
@@ -267,13 +298,13 @@ def on_reload(server):
 
 # Called just after a worker exited on SIGINT or SIGQUIT. The callable needs to accept one instance
 # variable for the initialized Worker.
-def worker_int(worker):
-    print("worker_int called")
+# def worker_int(worker):
+    # pass
 
 # Called when a worker received the SIGABRT signal. This call generally happens on timeout. The
 # callable needs to accept one instance variable for the initialized Worker.
-def worker_abort(worker):
-    print("worker_abort called...")
+# def worker_abort(worker):
+    # pass
 
 # Called just before a new master process is forked. The callable needs to accept a single instance
 # variable for the Arbiter.
@@ -297,8 +328,8 @@ def worker_abort(worker):
 
 # Called just before exiting Gunicorn. The callable needs to accept a single instance variable for
 # the Arbiter.
-def on_exit(server): 
-    print("Arbiter on_exit called")
+# def on_exit(server): 
+    # pass
 
 # `ssl_context`   --   there are two examples here.
 # `def ssl_context(config, default_ssl_context_factory): return default_ssl_context_factory()`

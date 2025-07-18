@@ -1,14 +1,34 @@
 <div class="form-inline">
   Answer to
-  <select class="form-control" ng-model="surveyBuilder.getValueAtPath(path)[type][0]"
-          ng-options="getQuestionNumber(questionId) for questionId in surveyBuilder.questionIds|filter: '!' + currentQuestionId">
+  <select
+    class="form-control"
+    ng-model="surveyBuilder.getValueAtPath(path)[type][0]"
+    ng-options="getQuestionNumber(questionId) for questionId in surveyBuilder.questionIds|filter: '!' + currentQuestionId"
+    aria-label="select a question to compare against in this logical statement"
+  >
   </select>
-  <select class="form-control" ng-change="surveyBuilder.updateOperatorAtPath(path, this)"
-          ng-model="type" ng-options="operator for operator in ARITHMETIC_OPERATORS">
+  <select
+    class="form-control"
+    ng-change="surveyBuilder.updateOperatorAtPath(path, this)"
+    ng-model="type"
+    ng-options="operator for operator in ARITHMETIC_OPERATORS"
+    aria-label="select the logical operator to compare the answer to the question with"
+  >
   </select>
-  <input type="number" class="form-control" ng-model="surveyBuilder.getValueAtPath(path)[type][1]">
-  <button class="close pull-right" style="line-height: 34px;"
-          ng-click="surveyBuilder.deleteBlock(path)">
+
+  <input
+    type="number"
+    class="form-control"
+    ng-model="surveyBuilder.getValueAtPath(path)[type][1]"
+    aria-label="enter a numerical value to compare the answer in the target question to"
+  >
+
+  <button
+    class="close pull-right"
+    style="line-height: 34px;"
+    ng-click="surveyBuilder.deleteBlock(path)"
+    aria-label="remove this conditional logic option"
+  >
     &times;
   </button>
   <!-- Uncomment this code for debugging -->

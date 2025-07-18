@@ -6,23 +6,21 @@
 #
 amqp==5.3.1
     # via kombu
-asgiref==3.8.1
-    # via
-    #   django
-    #   django-stubs
+asgiref==3.9.1
+    # via django
 asttokens==3.0.0
     # via stack-data
 audioread==3.0.1
     # via librosa
-beiwe-forest @ git+https://git@github.com/onnela-lab/forest@dcb3a1954f18ce93f1a4a7c6270f8aa80609cb32
+beiwe-forest==1.0
     # via -r requirements.in
 billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.38.30
+boto3==1.39.5
     # via -r requirements.in
-botocore==1.38.30
+botocore==1.39.5
     # via
     #   boto3
     #   s3transfer
@@ -32,7 +30,7 @@ cachetools==5.5.2
     # via google-auth
 celery==5.4.0
     # via -r requirements.in
-certifi==2025.4.26
+certifi==2025.7.14
     # via
     #   pyproj
     #   requests
@@ -51,19 +49,17 @@ click==8.2.1
     #   click-repl
 click-didyoumean==0.3.1
     # via celery
-click-plugins==1.1.1
+click-plugins==1.1.1.2
     # via celery
 click-repl==0.3.0
     # via celery
 cronutils==0.4.2
     # via -r requirements.in
-css-html-js-minify==2.5.5
-    # via -r requirements.in
 decorator==5.2.1
     # via
     #   ipython
     #   librosa
-django==5.2.2
+django==5.2.4
     # via
     #   -r requirements.in
     #   django-extensions
@@ -71,22 +67,22 @@ django==5.2.2
     #   django-stubs-ext
 django-extensions==4.1
     # via -r requirements.in
-django-stubs[1-15-0,1.15.0]==5.2.0
+django-stubs[1-15-0,1.15.0]==5.2.1
     # via -r requirements.in
-django-stubs-ext==5.2.0
+django-stubs-ext==5.2.1
     # via django-stubs
 executing==2.2.0
     # via stack-data
 firebase-admin==5.4.0
     # via -r requirements.in
-google-api-core[grpc]==2.25.0
+google-api-core[grpc]==2.25.1
     # via
     #   firebase-admin
     #   google-api-python-client
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.171.0
+google-api-python-client==2.176.0
     # via firebase-admin
 google-auth==2.40.3
     # via
@@ -104,7 +100,7 @@ google-cloud-core==2.4.3
     #   google-cloud-storage
 google-cloud-firestore==2.21.0
     # via firebase-admin
-google-cloud-storage==3.1.0
+google-cloud-storage==3.2.0
     # via firebase-admin
 google-crc32c==1.7.1
     # via
@@ -116,17 +112,17 @@ googleapis-common-protos==1.70.0
     # via
     #   google-api-core
     #   grpcio-status
-grpcio==1.72.1
+grpcio==1.73.1
     # via
     #   google-api-core
     #   grpcio-status
-grpcio-status==1.72.1
+grpcio-status==1.73.1
     # via google-api-core
 gunicorn==23.0.0
     # via -r requirements.in
-h3==4.2.2
+h3==4.3.0
     # via timezonefinder
-holidays==0.74
+holidays==0.76
     # via beiwe-forest
 httplib2==0.22.0
     # via
@@ -134,7 +130,7 @@ httplib2==0.22.0
     #   google-auth-httplib2
 idna==3.10
     # via requests
-ipython==9.3.0
+ipython==9.4.0
     # via -r requirements.in
 ipython-pygments-lexers==1.1.1
     # via ipython
@@ -162,7 +158,7 @@ markupsafe==3.0.2
     # via jinja2
 matplotlib-inline==0.1.7
     # via ipython
-msgpack==1.1.0
+msgpack==1.1.1
     # via
     #   cachecontrol
     #   librosa
@@ -197,7 +193,7 @@ packaging==25.0
     #   kombu
     #   lazy-loader
     #   pooch
-pandas==2.2.3
+pandas==2.3.1
     # via beiwe-forest
 parso==0.8.4
     # via jedi
@@ -240,7 +236,7 @@ pycparser==2.22
     # via cffi
 pycryptodomex==3.23.0
     # via -r requirements.in
-pygments==2.19.1
+pygments==2.19.2
     # via
     #   ipython
     #   ipython-pygments-lexers
@@ -270,7 +266,9 @@ pyzstd==0.17.0
     # via -r requirements.in
 ratelimit==2.2.1
     # via beiwe-forest
-requests==2.32.3
+rcssmin==1.2.1
+    # via -r requirements.in
+requests==2.32.4
     # via
     #   beiwe-forest
     #   cachecontrol
@@ -282,15 +280,15 @@ rsa==4.9.1
     # via google-auth
 s3transfer==0.13.0
     # via boto3
-scikit-learn==1.6.1
+scikit-learn==1.7.0
     # via librosa
-scipy==1.15.3
+scipy==1.16.0
     # via
     #   beiwe-forest
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.29.1
+sentry-sdk==2.33.0
     # via cronutils
 shapely==2.1.1
     # via beiwe-forest
@@ -316,7 +314,7 @@ traitlets==5.14.3
     #   matplotlib-inline
 types-pyyaml==6.0.12.20250516
     # via django-stubs
-typing-extensions==4.14.0
+typing-extensions==4.14.1
     # via
     #   django-stubs
     #   django-stubs-ext
@@ -332,7 +330,7 @@ tzdata==2025.2
     #   pandas
 uritemplate==4.2.0
     # via google-api-python-client
-urllib3==2.4.0
+urllib3==2.5.0
     # via
     #   botocore
     #   requests

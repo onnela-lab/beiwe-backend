@@ -1,14 +1,15 @@
 import uuid
 from datetime import date, datetime
-from typing import Tuple
 from unittest.mock import MagicMock, patch
 
 import dateutil
 from django.http import FileResponse
 
 from constants.celery_constants import ForestTaskStatus
+from constants.common_constants import EDT, UTC
 from constants.data_stream_constants import GPS
-from constants.forest_constants import FOREST_NO_TASK, FOREST_TASK_CANCELLED, TREE_TO_TASK_NAME, ForestTree
+from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED, ForestTree,
+    TREE_TO_TASK_NAME)
 from constants.testing_constants import EMPTY_ZIP, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ResearcherRole
 from database.forest_models import ForestTask, SummaryStatisticDaily
@@ -65,14 +66,14 @@ class TestForestDownloadTaskLog(ResearcherSessionTest):
     def test_single_forest_task(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
         self.default_forest_task.update(
-            created_on=datetime(2020, 1, 1, tzinfo=dateutil.tz.UTC),
+            created_on=datetime(2020, 1, 1, tzinfo=EDT),
             data_date_start=date(2020, 1, 1),
             data_date_end=date(2020, 1, 5),
             forest_tree=ForestTree.jasmine,
             forest_output_exists=True,
-            process_start_time=datetime(2020, 1, 1, tzinfo=dateutil.tz.UTC),  # midnight
-            process_download_end_time=datetime(2020, 1, 1, 1, tzinfo=dateutil.tz.UTC),  # 1am
-            process_end_time=datetime(2020, 1, 1, 2, tzinfo=dateutil.tz.UTC),  # 2am
+            process_start_time=datetime(2020, 1, 1, tzinfo=EDT),  # midnight
+            process_download_end_time=datetime(2020, 1, 1, 1, tzinfo=EDT),  # 1am
+            process_end_time=datetime(2020, 1, 1, 2, tzinfo=EDT),  # 2am
             status=ForestTaskStatus.success,
             total_file_size=123456789,
         )
@@ -85,16 +86,16 @@ class TestForestDownloadTaskLog(ResearcherSessionTest):
         # 12 columns, 11 commas
         self.assertEqual(line.count(","), 11)
         items = line.split(",")
-        self.assertEqual(items[0], "2020-01-01 00:00 (UTC)")                   # Created On
+        self.assertEqual(items[0], "2020-01-01 00:00 (EST)")                   # Created On
         self.assertEqual(items[1], "2020-01-05")                               # Data Date End
         self.assertEqual(items[2], "2020-01-01")                               # Data Date Start
         self.assertEqual(items[3], str(self.default_forest_task.external_id))  # duh
         self.assertEqual(items[4], "Jasmine")                                  # Forest Tree
         self.assertEqual(items[5], "Yes")                                      # Forest Output Exists
         self.assertEqual(items[6], "patient1")                                 # Patient Id
-        self.assertEqual(items[7], "2020-01-01 00:00 (UTC)")                   # Process Start Time
-        self.assertEqual(items[8], "2020-01-01 01:00 (UTC)")                   # Process Download End Time
-        self.assertEqual(items[9], "2020-01-01 02:00 (UTC)")                   # Process End Time
+        self.assertEqual(items[7], "2020-01-01 00:00 (EST)")                   # Process Start Time
+        self.assertEqual(items[8], "2020-01-01 01:00 (EST)")                   # Process Download End Time
+        self.assertEqual(items[9], "2020-01-01 02:00 (EST)")                   # Process End Time
         self.assertEqual(items[10], "success")                                 # Status
         self.assertEqual(items[11], "123456789")                               # Total File Size
 
@@ -189,8 +190,9 @@ class TestForestDownloadTaskData(ResearcherSessionTest):
     
     def test_site_admin_can(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
-        resp: FileResponse = self.smart_get_status_code(
+        resp: FileResponse = self.smart_get_status_code(  # type: ignore
             200, self.session_study.id, self.default_forest_task.external_id)
+        
         self.assertEqual(b"".join(resp.streaming_content), EMPTY_ZIP)
     
     def no_such_task(self):
@@ -206,12 +208,12 @@ class TestForestDownloadTaskData(ResearcherSessionTest):
         self.set_session_study_relation(ResearcherRole.site_admin)
         # make a jasmine task and a single file within the time range that should download (gps)
         self.default_forest_task.update(
-            data_date_start=datetime(2020, 1, 1, tzinfo=dateutil.tz.UTC),
-            data_date_end=datetime(2020, 1, 4, tzinfo=dateutil.tz.UTC),
+            data_date_start=datetime(2020, 1, 1, tzinfo=UTC),
+            data_date_end=datetime(2020, 1, 4, tzinfo=UTC),
             forest_tree=ForestTree.jasmine,
         )
         self.default_chunkregistry.update(
-            time_bin=datetime(2020, 1, 2, tzinfo=dateutil.tz.UTC), data_type=GPS
+            time_bin=datetime(2020, 1, 2, tzinfo=UTC), data_type=GPS
         )
         # hit endpoint, check for our SIMPLE_FILE_CONTENTS nonce
         resp = self.smart_get_status_code(

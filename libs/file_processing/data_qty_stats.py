@@ -1,11 +1,9 @@
 from collections import defaultdict
-from collections.abc import Callable
-from datetime import datetime, tzinfo
+from datetime import date, datetime, tzinfo
 
-from dateutil.tz import UTC
 from django.db.models.query import QuerySet
-from django.utils.timezone import make_aware
 
+from constants.common_constants import UTC
 from constants.data_processing_constants import CHUNK_TIMESLICE_QUANTUM
 from constants.data_stream_constants import ALL_DATA_STREAMS
 from database.data_access_models import ChunkRegistry
@@ -14,16 +12,11 @@ from database.user_models_participant import Participant
 from libs.utils.date_utils import date_to_end_of_day, date_to_start_of_day, get_timezone_shortcode
 
 
-# not importable
-utcfromtimestamp: Callable = datetime.utcfromtimestamp
-
-
 def timeslice_to_start_of_day(timeslice: int, tz: tzinfo):
     """ We use an integer to represent time, it must be multiplied by CHUNK_TIMESLICE_QUANTUM to
     yield a unix timestamp."""
     # get the date _in the local time_, then get the start of that day as a datetime
-    day = make_aware(utcfromtimestamp(timeslice * CHUNK_TIMESLICE_QUANTUM), UTC) \
-        .astimezone(tz).date()
+    day = datetime.fromtimestamp((timeslice * CHUNK_TIMESLICE_QUANTUM), UTC).astimezone(tz).date()
     return date_to_start_of_day(day, tz)
 
 
@@ -31,22 +24,21 @@ def timeslice_to_end_of_day(timeslice: int, tz: tzinfo):
     """ We use an integer to represent time, it must be multiplied by CHUNK_TIMESLICE_QUANTUM to
     yield a unix timestamp."""
     # get the date _in the local time_, then get the end of that day as a datetime
-    day = make_aware(utcfromtimestamp(timeslice * CHUNK_TIMESLICE_QUANTUM), UTC) \
-        .astimezone(tz).date()
+    day = datetime.fromtimestamp((timeslice * CHUNK_TIMESLICE_QUANTUM), UTC).astimezone(tz).date()
     return date_to_end_of_day(day, tz)
 
 
 def populate_data_quantity(
     chunkregistry_query: QuerySet, study_timezone: tzinfo
-) -> dict[datetime, dict[str, int]]:
-    # Constructs a dict formatted like this: dict[date][data_type] = total_bytes
-    daily_data_quantities = defaultdict(lambda: defaultdict(int))
-    time_bin: datetime
-    chunk_data_type: str
-    file_size: int
-    fields = ('time_bin', 'data_type', 'file_size')
+) -> defaultdict[date, defaultdict[str, int]]:
+    time_bin: datetime;   chunk_data_type: str;   file_size: int
+    
+    # a dict[date][data_type] = total_bytes
+    daily_data_quantities: defaultdict[date, defaultdict[str, int]] = defaultdict(lambda: defaultdict[str, int](int))
+    the_fields = ("time_bin", "data_type", "file_size")
+    
     # get the date in the study's timezone, identify the size of that chunk, add based on data type
-    for time_bin, chunk_data_type, file_size in chunkregistry_query.values_list(*fields):
+    for time_bin, chunk_data_type, file_size in chunkregistry_query.values_list(*the_fields):
         day = time_bin.astimezone(study_timezone).date()
         file_size = 0 if file_size is None else file_size
         daily_data_quantities[day][chunk_data_type] += file_size

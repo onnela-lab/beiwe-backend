@@ -2,47 +2,62 @@
 {% block title %}Study Dashboard{% endblock %}
 
 {% block head %}
-  {{ super() }}
-  <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
+{{ super() }}
+<link
+  rel="stylesheet"
+  href="/static/css/dashboard_pages.css"
+  type="text/css"
+/>
 {% endblock %}
 
 {% block content %}
 
-  <ol class="breadcrumb">
-    <li>
-      <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
-    </li>
-    <li class="active">
-      Dashboard
-    </li>
-  </ol>
+<ol class="breadcrumb">
+  <li>
+    <a
+      href="/view_study/{{ study.id }}"
+      aria-label="click to go to the study page for {{ study.name }}"
+    >{{ study.name }}</a>
+  </li>
+  <li class="active">
+    Dashboard
+  </li>
+</ol>
 
-  <h1 class="h2"> {{ study.name }} Study Dashboard </h1>
-  <h5 class="h5">Number of Participants: {{ participants|length }}</h5>
-  <br>
-  <p> Choose a participant or data stream to view the Dashboard. </p>
+<h1 class="h2"> {{ study.name }} Study Dashboard </h1>
+<h5 class="h5">Number of Participants: {{ participants|length }}</h5>
+<br>
+<p> Choose a participant or data stream to view the Dashboard. </p>
 
-  <div class="dashboard-options">
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item h5">Participant Data</li>
-      {% for i in range(participants|length) %}
-        <li class="list-group-item">
-          <a class="link-fill" href={{ easy_url("data_page_endpoints.dashboard_participant_page", study_id, participants[i]) }}>
-          {{participants[i]}}
-          </a>
-        </li>
-      {%  endfor %}
-    </ul>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item h5">Data Stream</li>
-      {% for stream in data_stream_dict.keys()|sort() %}
-        <li class="list-group-item">
-          <a class="link-fill" href={{ easy_url("data_page_endpoints.get_data_for_dashboard_datastream_display", study_id, stream) }}>
-          {{data_stream_dict[stream]}}
-          </a>
-        </li>
-      {%  endfor %}
-    </ul>
-  </div>
+<div class="dashboard-options">
+  <ul class="list-group col-xs-6 well min-wid-20 well-left">
+    <li class="list-group-item mt-1 bold text-center dashboard-list-rounded force-green-bg">Select Participant</li>
+    {% for i in range(participants|length) %}
+    <li class="list-group-item dashboard-list-margins dashboard-list-rounded">
+      <a
+        class="link-fill"
+        href={{ easy_url("data_page_endpoints.dashboard_participant_page", study_id, participants[i]) }}
+        aria-label="go to dashboard for {{ participants[i] }}"
+      >
+        {{participants[i]}}
+      </a>
+    </li>
+    {%  endfor %}
+  </ul>
+  <ul class="list-group col-xs-6 well min-wid-20 well-right">
+    <li class="list-group-item mt-1 bold text-center dashboard-list-rounded force-green-bg">Select Data Stream</li>
+    {% for stream in data_stream_dict.keys()|sort() %}
+    <li class="list-group-item dashboard-list-margins dashboard-list-rounded">
+      <a
+        class="link-fill"
+        href={{ easy_url("data_page_endpoints.get_data_for_dashboard_datastream_display", study_id, stream) }}
+        aria-label="go to all participant dashboard for {{ data_stream_dict[stream] }}"
+      >
+        {{data_stream_dict[stream]}}
+      </a>
+    </li>
+    {%  endfor %}
+  </ul>
+</div>
 
 {% endblock %}

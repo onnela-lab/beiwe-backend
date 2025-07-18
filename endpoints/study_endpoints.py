@@ -13,7 +13,8 @@ from markupsafe import escape
 from authentication.admin_authentication import (abort, assert_admin, assert_site_admin,
     authenticate_admin, authenticate_researcher_login, authenticate_researcher_study_access,
     get_researcher_allowed_studies_as_query_set, ResearcherRequest)
-from constants.common_constants import DT_12HR_N_TZ_N_SEC_W_PAREN, RUNNING_TEST_OR_FROM_A_SHELL
+from constants.common_constants import (DT_12HR_W_TZ_N_SEC_N_PAREN, FORCE_SITE_READ_ONLY,
+    RUNNING_TEST_OR_FROM_A_SHELL)
 from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
 from constants.user_constants import ResearcherRole
@@ -42,8 +43,8 @@ def get_researcher_allowed_studies_searchable(request: ResearcherRequest):
     studies = list(get_administerable_studies_by_name(request).values("id", "name", "object_id"))
     for s in studies:
         s["search_text"] = f"{s['name']} {s['object_id']}"
-    return studies
 
+    return studies
 
 @require_GET
 @authenticate_researcher_login
@@ -55,7 +56,7 @@ def choose_study_page(request: ResearcherRequest):
     # If the admin is authorized to view exactly 1 study, redirect to that study,
     # Otherwise, show the "Choose Study" page
     if allowed_studies.count() == 1:
-        return redirect('/view_study/{:d}'.format(allowed_studies.values_list('pk', flat=True).get()))
+        return redirect('/view_study/{:d}'.format(allowed_studies.value_get('pk')))
     
     return render(
         request,
@@ -87,15 +88,18 @@ def manage_studies_page(request: ResearcherRequest):
 def view_study_page(request: ResearcherRequest, study_id=None):
     """ The main view page for a study. """
     study: Study = Study.objects.get(pk=study_id)
-    
+    tz = study.timezone
     def get_survey_info(survey_type: str):
         survey_info = list(
             study.surveys.filter(survey_type=survey_type, deleted=False)
-            .values('id', 'object_id', 'name', "last_updated")
+            .values('id', 'object_id', 'name', "last_updated", "created_on")
         )
         for info in survey_info:
+            created = info.pop('created_on').astimezone(tz).strftime(DT_12HR_W_TZ_N_SEC_N_PAREN)
             info["last_updated"] = \
-                 info["last_updated"].astimezone(study.timezone).strftime(DT_12HR_N_TZ_N_SEC_W_PAREN)
+                info["last_updated"].astimezone(tz).strftime(DT_12HR_W_TZ_N_SEC_N_PAREN)
+            if not info["name"]:
+                info["name"] = f"(Unnamed Survey created {created})"
         return survey_info
     
     # unavoidable query, used to populate the edit study button
@@ -353,7 +357,7 @@ def toggle_study_forest_enabled(request: ResearcherRequest, study_id=None):
 
 @require_http_methods(['GET', 'POST'])
 @authenticate_researcher_study_access
-def device_settings(request: ResearcherRequest, study_id=None):
+def device_settings(request: ResearcherRequest, study_id: int):
     """ Bad Dual Endpoint Pattern - displays page for and handles post operations for updating a
     Study's Device Settings. """
     # TODO: probably rewrite this entire endpoint with django forms....
@@ -371,7 +375,7 @@ def device_settings(request: ResearcherRequest, study_id=None):
             context=dict(
                 study=study.as_unpacked_native_python(Study.STUDY_EXPORT_FIELDS),
                 settings=study.device_settings.export(),
-                readonly=readonly,
+                readonly=FORCE_SITE_READ_ONLY or readonly,
             )
         )
     if readonly:

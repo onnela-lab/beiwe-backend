@@ -5,12 +5,14 @@ import re
 from datetime import date
 from typing import Any
 
+from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import reverse
 from jinja2 import Environment
 from jinja2.ext import Extension
 
 from config.settings import SENTRY_JAVASCRIPT_DSN
+from constants.common_constants import RUNNING_TESTS
 from libs.endpoint_helpers.participant_helpers import niceish_iso_time_format
 from libs.utils.dev_utils import p
 from libs.utils.http_utils import (astimezone_with_tz, easy_url, fancy_dt_format_with_tz,
@@ -33,11 +35,11 @@ def environment(**options: dict[str, Any]) -> Environment:
         trim_blocks=True,
         lstrip_blocks=True,
         extensions=[WhiteSpaceCollapser],
-        **options
+        **options,  # type: ignore
     )
     
     env.globals.update(
-        {
+        {   # type: ignore
             "static": staticfiles_storage.url,
             "url": reverse,
             "easy_url": easy_url,
@@ -47,7 +49,8 @@ def environment(**options: dict[str, Any]) -> Environment:
             "nice_iso_dt_format": nice_iso_dt_format,
             "niceish_iso_time_format": niceish_iso_time_format,
             "p": timer,
-            "ASSETS": ASSETS,
+            "ASSETS": CdnAssets,
+            "LocalAssets": LocalAssets,
             "SENTRY_JAVASCRIPT_DSN": SENTRY_JAVASCRIPT_DSN,
             "current_year": date.today().year,
             "len": len,
@@ -65,41 +68,57 @@ def environment(**options: dict[str, Any]) -> Environment:
 
 
 class LocalAssets:
-    # These assets will be served from the server directly, and should not be minified.
-    # Make sure any assets here match the apparent versions in CdnAssets for consistent debugging.
-    # (it is very helpful to have real source code available to the IDE.)
-    ANGULARJS = "/static/javascript/libraries/angular.js"
-    BOOTSTRAP = "/static/javascript/libraries/bootstrap.js"
-    BOOTSTRAP_INTEGRITY = "sha256-Cr6N6zNN4bp0OwTQOZ6Z66M2r+2dpy/EwKMCyZ+SOMg="
-    BOOTSTRAP_CSS = "/static/css/libraries/bootstrap.css"
-    BOOTSTRAP_CSS_INTEGRITY = "7e630d90c7234b0df1729f62b8f9e4bbfaf293d91a5a0ac46df25f2a6759e39a"
-    BOOTSTRAP_TIMEPICKER = "/static/javascript/libraries/bootstrap-timepicker.js"
-    BOOTSTRAP_TIMEPICKER_CSS = "/static/css/libraries/bootstrap-timepicker.css"
-    BOOTSTRAP_DATETIMEPICKER = "/static/javascript/libraries/bootstrap-datetimepicker.js"
-    BOOTSTRAP_DATETIMEPICKER_CSS = "/static/css/libraries/bootsetrap-datetimepicker.css"
-    DATATABLES = "/static/javascript/libraries/datatables.js"
-    DATATABLES_CSS = "/static/css/libraries/datatables.css"
-    HANDLEBARS = "/static/javascript/libraries/handlebars.js"
-    JQUERY = "/static/javascript/libraries/jquery.js"
-    JQUERY_INTEGRITY = "sha256-TQrUBgXESZKk7rT8igyb7U9Y79tnhCTpKa+ryqxXaHc="
-    LODASH = "/static/javascript/libraries/lodash.js"
-    MOMENTJS = "/static/javascript/libraries/moment.js"
+    # These assets will be served from the server directly.
+    # Make sure any assets here match the apparent versions
+    
+    # Note: fonts are included in the css files but reference external assets.
+    
+    # CSS
+    BOOTSTRAP_TIMEPICKER_CSS = "css/libraries/bootstrap-timepicker.css"
+    BOOTSTRAP_DATETIMEPICKER_CSS = "css/libraries/bootstrap-datetimepicker.css"
+    DATATABLES_CSS = "css/libraries/datatables.css"
+    DARKLY = "css/libraries/bootstrap-darkly.css"
+    ADMIN = "css/admin.css"
+    DASHBOARD_CSS = "css/dashboard_pages.css"
+    
+    # JS
+    ANGULAR_APP_JS = "javascript/app/app.module.js"
+    TRANSITION_JS = "javascript/libraries/transition.js"
+    COLLAPSE_JS = "javascript/libraries/collapse.js"
+    DATA_ACCESS_WEB_FORM_CONTROLLER = "javascript/app/survey-builder/controllers/data-access-web-form-controller.js"
+    DATA_DOWNLOAD_PAGE = "javascript/data_download_page.js"
+    PARTICIPANTS_TABLE_JS = "javascript/participants_table.js"
+    PATIENT_DASHBOARD_FEATURES_JS = "javascript/patient_dashboard_features.js"
+    STREAM_DASHBOARD_FEATURES_JS = "javascript/dashboard_features.js"
+    NAVBAR_JS = "javascript/app/survey-builder/controllers/nav-bar-study-controller.js"
 
+
+# until we are reading to use minified assets on production this is debug-only
+if not settings.DEBUG or RUNNING_TESTS:
+    if RUNNING_TESTS:
+        print("\nRunning tests - all css assets in rendered pages will be empty.\n")
+    for attrname in dir(LocalAssets):
+        if attrname.startswith("_"):
+            continue
+        
+        if isinstance((attr:= getattr(LocalAssets, attrname)), str):
+            if attr.endswith(".css"):
+                setattr(LocalAssets, attrname, attr.replace(".css", ".min.css"))
+            # elif attr.endswith(".js"):
+            #     setattr(LocalAssets, attrname, attr.replace(".js", ".min.js"))
+            if RUNNING_TESTS:
+                setattr(LocalAssets, attrname, "empty_css_for_tests.css")
 
 class CdnAssets:
     # These are the assets expected to be used in normal runtime, including most development scenarios.
     # Make sure any assets here match the versions in LocalAssets whenever they are updated
     ANGULARJS = "https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"
-    BOOTSTRAP = "https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"
-    BOOTSTRAP_INTEGRITY = "sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
-    BOOTSTRAP_CSS = "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
-    BOOTSTRAP_CSS_INTEGRITY = "sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+    BOOTSTRAP = "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js"
+    BOOTSTRAP_INTEGRITY = "sha512-oBTprMeNEKCnqfuqKd6sbvFzmFQtlXS3e0C/RGFV0hD6QzhHV+ODfaQbAlmY6/q0ubbwlAM/nCJjkrgA3waLzg=="
     BOOTSTRAP_TIMEPICKER = "https://cdn.jsdelivr.net/npm/bootstrap-timepicker@0.5.2/js/bootstrap-timepicker.min.js"
-    BOOTSTRAP_TIMEPICKER_CSS = "https://cdn.jsdelivr.net/npm/bootstrap-timepicker@0.5.2/css/bootstrap-timepicker.min.css"
     BOOTSTRAP_DATETIMEPICKER = "https://cdnjs.cloudflare.com/ajax/libs/eonasdan-bootstrap-datetimepicker/4.17.49/js/bootstrap-datetimepicker.min.js"
     BOOTSTRAP_DATETIMEPICKER_CSS = "https://cdnjs.cloudflare.com/ajax/libs/eonasdan-bootstrap-datetimepicker/4.17.49/css/bootstrap-datetimepicker.min.css"
     DATATABLES = "https://cdn.datatables.net/v/dt/dt-1.13.1/cr-1.6.1/r-2.4.0/datatables.min.js"
-    DATATABLES_CSS = "https://cdn.datatables.net/v/dt/dt-1.13.1/cr-1.6.1/r-2.4.0/datatables.min.css"
     HANDLEBARS = "https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js"
     JQUERY = "https://code.jquery.com/jquery-1.12.4.min.js"
     JQUERY_INTEGRITY = "sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
@@ -107,15 +126,15 @@ class CdnAssets:
     MOMENTJS = "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"
 
 
-# set manually to use local assets for debugging purposes only
-# ASSETS = LocalAssets
-ASSETS = CdnAssets
-
-
 class WhiteSpaceCollapser(Extension):
     """ Simple Jinja2 extension that collapses whitespace on rendered pages what could possibly go wrong. """
     
     def preprocess(self, source: str, name: str | None, filename: str = None) -> str:
+        
+        # do not collapse whitespace in minified javascript files
+        if name and name.endswith(".js"):
+            return source
+        
         # collapse normal horizontal whitespace at the start and end of lines
         return re.sub(r'^[ \t]+|[ \t]+$', '', source, flags=re.MULTILINE)
         

@@ -3,629 +3,1300 @@
 
 {% block content %}
 <ol class="breadcrumb">
-
   <li>
     <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
   </li>
   <li class="active">
     <a href="/edit_study/{{ study.id }}">Study Settings</a>
-    
+
   </li>
   <li class="active">
     <b>App Settings</b>
   </li>
 </ol>
 
-{% if readonly %} <div> {% else %} <form action="/device_settings/{{ study.id }}" method="POST"> {% endif %}
+{% if readonly %} <div> {% else %} <form
+    action="/device_settings/{{ study.id }}"
+    method="POST"
+  > {% endif %}
 
-<div class="form-horizontal app-settings">
+    <div class="form-horizontal app-settings">
 
-<div class="col-xs-12 col-md-12 row text-center">
-    <h3>Data Stream Settings</h3>
-  </div>
+      <div class="col-xs-12 col-md-12 row text-center">
+        <h3>Data Stream Settings</h3>
+      </div>
 
-  <div class="col-xs-12 col-md-6 well well-sm">
-    <p>Accelerometer, GPS, Gyro, and Magnetometer are available on Android and iOS.
-    <p>Power State is present on both platforms, but the available data differs.
-  </div>
-  <div class="col-xs-12 col-md-6 well well-sm">
-    <p>Device Motion, Reachability, and Proximity are iOS-only.
-    <p>Ambient Audio, Wifi, Calls, Texts, and Bluetooth are Android-only.
-  </div>
+      <div class="col-xs-12 col-md-6 well well-sm well-left" style="min-height: 6em;">
+        <p>Accelerometer, GPS, Gyro, and Magnetometer are available on Android and iOS.
+        <p>Power State is present on both platforms, but the available data differs.
+      </div>
+      <div class="col-xs-12 col-md-6 well well-sm well-right" style="min-height: 6em;">
+        <p>Device Motion, Reachability, and Proximity are iOS-only.
+        <p>Ambient Audio, Wifi, Calls, Texts, and Bluetooth are Android-only.
+      </div>
 
-  <div class="well container-fluid"> 
-  
-    {# GPS #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-        <label for="gps" class="control-label">GPS:</label>
-        <input name="gps" id="gps" type="checkbox" {{ "checked" if settings["gps"] }} {{ "disabled" if readonly }}/>
-      </input>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="gps_on_duration_seconds" class="control-label app-settings-align-70">GPS <b>on</b> duration:</label>
-        <input id="gps_on_duration_seconds" name="gps_on_duration_seconds" class="form-control" type="number" 
-          value="{{ settings['gps_on_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="gps_off_duration_seconds" class="control-label app-settings-align-70">GPS <b>off</b> duration:</label>
-        <input id="gps_off_duration_seconds" name="gps_off_duration_seconds" class="form-control" type="number" 
-          value="{{ settings['gps_off_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
+      <div class="well container-fluid">
 
-    {# Magnetometer #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-        <label for="magnetometer" class="control-label">Magnetometer:</label>
-          <input name="magnetometer" id="magnetometer" type="checkbox" {{ "checked" if settings["magnetometer"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="magnetometer_on_duration_seconds" class="control-label app-settings-align-70">Magnetometer <b>on</b> duration:</label>
-        <input id="magnetometer_on_duration_seconds" name="magnetometer_on_duration_seconds" class="form-control" type="number"
-          value="{{ settings['magnetometer_on_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="magnetometer_off_duration_seconds" class="control-label app-settings-align-70">Magnetometer <b>off</b> duration:</label>
-        <input id="magnetometer_off_duration_seconds" name="magnetometer_off_duration_seconds" class="form-control" type="number"
-          value="{{ settings['magnetometer_off_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    
-    {# Device Motion #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-        <label for="devicemotion" class="control-label">Device Motion:</label>
-          <input name="devicemotion" id="devicemotion" type="checkbox" {{ "checked" if settings["devicemotion"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="devicemotion_on_duration_seconds" class="control-label app-settings-align-70">Device Motion <b>on</b> duration:</label>
-        <input id="devicemotion_on_duration_seconds" name="devicemotion_on_duration_seconds" class="form-control" type="number"
-          value="{{ settings['devicemotion_on_duration_seconds'] }}" {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="devicemotion_off_duration_seconds" class="control-label app-settings-align-70">Device Motion <b>off</b> duration:</label>
-        <input id="devicemotion_off_duration_seconds" name="devicemotion_off_duration_seconds" class="form-control" type="number"
-          value="{{ settings['devicemotion_off_duration_seconds'] }}" {{ "disabled" if readonly }}/>
-      </div>
-    </div>
+        {# GPS #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
 
-    {# Wifi #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-      <label for="wifi" class="control-label">WiFi:</label>
-        <input name="wifi" id="wifi" type="checkbox" {{ "checked" if settings["wifi"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-      <label for="wifi_log_frequency_seconds" class="control-label app-settings-align-70">WiFi Log <b>Frequency:</b></label>
-        <input id="wifi_log_frequency_seconds" name="wifi_log_frequency_seconds" class="form-control" type="number"
-          value="{{ settings['wifi_log_frequency_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    
-    <div class="col-xs-12">
-        <hr>
-    </div>
+            <label
+              for="gps"
+              class="control-label"
+            >GPS:</label>
 
-    {# Accelerometer #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-        <label for="accelerometer" class="control-label">Accelerometer:</label>
-            <input name="accelerometer" id="accelerometer"
-            type="checkbox" {{ "checked" if settings["accelerometer"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="accelerometer_on_duration_seconds" class="control-label app-settings-align-70">Accelerometer <b>on</b> duration:</label>
-          <input id="accelerometer_on_duration_seconds" name="accelerometer_on_duration_seconds" class="form-control" type="number" 
-          value="{{ settings['accelerometer_on_duration_seconds'] }}" {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="accelerometer_off_duration_seconds" class="control-label app-settings-align-70">Accelerometer <b>off</b> duration:</label>
-          <input id="accelerometer_off_duration_seconds" name="accelerometer_off_duration_seconds" class="form-control" type="number" 
-          value="{{ settings['accelerometer_off_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    
-    <div class="col-xs-7">
-        <hr>
-    </div>
+            <input
+              name="gps"
+              id="gps"
+              type="checkbox"
+              aria-label="Enable or disabled GPS data collection"
+              {{ "checked" if settings["gps"] }}
+              {{ "disabled" if readonly }}
+            />
+            </input>
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
 
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="accelerometer_frequency" class="control-label app-settings-align-70">Accelerometer <b>Frequency</b>:</label>
-          <input id="accelerometer_frequency" name="accelerometer_frequency" class="form-control" type="number" 
-          value="{{ settings['accelerometer_frequency'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    <div class="col-xs-12">
-        <hr>
-    </div>
+            <label
+              for="gps_on_duration_seconds"
+              class="control-label app-settings-align-70"
+            >GPS <b>on</b> duration:</label>
 
-    {# Gyro #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-        <label for="gyro" class="control-label">Gyro:</label>
-          <input name="gyro" id="gyro" type="checkbox" {{ "checked" if settings["gyro"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="gyro_on_duration_seconds" class="control-label app-settings-align-70">Gyro <b>on</b> duration:</label>
-        <input id="gyro_on_duration_seconds" name="gyro_on_duration_seconds" class="form-control" type="number"
-        value="{{ settings['gyro_on_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="gyro_off_duration_seconds" class="control-label app-settings-align-70">Gyro <b>off</b> duration:</label>
-        <input id="gyro_off_duration_seconds" name="gyro_off_duration_seconds" class="form-control" type="number"
-        value="{{ settings['gyro_off_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
+            <input
+              id="gps_on_duration_seconds"
+              name="gps_on_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of a recording session when GPS is enabled."
+              value="{{ settings['gps_on_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
 
-    <div class="col-xs-7">
-        <hr>
-    </div>
+            <label
+              for="gps_off_duration_seconds"
+              class="control-label app-settings-align-70"
+            >GPS <b>off</b> duration:</label>
 
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="gyro_frequency" class="control-label app-settings-align-70">Gyro <b>Frequency</b>:</label>
-          <input id="gyro_frequency" name="gyro_frequency" class="form-control" type="number" 
-          value="{{ settings['gyro_frequency'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    <div class="col-xs-12">
-        <hr>
-    </div>
+            <input
+              id="gps_off_duration_seconds"
+              name="gps_off_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of the sleep session when GPS is disabled"
+              value="{{ settings['gps_off_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
 
-    {# Ambient Audio #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-        <label for="ambient_audio" class="control-label">Ambient Audio:</label>
-        <input name="ambient_audio" id="ambient_audio" type="checkbox" {{ "checked" if settings["ambient_audio"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="ambient_audio_on_duration_seconds" class="control-label app-settings-align-70">Ambient Audio <b>on</b> duration:</label>
-        <input id="ambient_audio_on_duration_seconds" name="ambient_audio_on_duration_seconds" class="form-control" type="number"
-          value="{{ settings['ambient_audio_on_duration_seconds'] }}" {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="ambient_audio_off_duration_seconds" class="control-label app-settings-align-70">Ambient Audio <b>off</b> duration:</label>
-        <input id="ambient_audio_off_duration_seconds" name="ambient_audio_off_duration_seconds" class="form-control" type="number"
-          value="{{ settings['ambient_audio_off_duration_seconds'] }}" {{ "disabled" if readonly }}/>
-      </div>
-    </div>
+        {# Magnetometer #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
 
-    <div class="col-xs-12 col-md-2">
-      <hr> 
-    </div>
+            <label
+              for="magnetometer"
+              class="control-label"
+            >Magnetometer:</label>
 
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="ambient_audio_bitrate" class="control-label app-settings-align-70">Ambient Audio Bitrate:</label>
-        <select id="ambient_audio_bitrate" name="ambient_audio_bitrate" class="form-control" {{ "disabled" if readonly }}>
-          <option value="16000" {{ 'selected' if settings['ambient_audio_bitrate'] == 16000 }}>16Kbps</option>
-          <option value="24000" {{ 'selected' if settings['ambient_audio_bitrate'] == 24000 or not settings['ambient_audio_bitrate'] }}>24Kbps</option>
-          <option value="32000" {{ 'selected' if settings['ambient_audio_bitrate'] == 32000 }}>32Kbps</option>
-          <option value="48000" {{ 'selected' if settings['ambient_audio_bitrate'] == 48000 }}>48Kbps</option>
-          <option value="64000" {{ 'selected' if settings['ambient_audio_bitrate'] == 64000 }}>64Kbps</option>
-        </select>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-5">
-      <div class="form-group">
-        <label for="ambient_audio_sampling_rate" class="control-label app-settings-align-70">Ambient Audio sampling rate:</label>
-        <select id="ambient_audio_sampling_rate" name="ambient_audio_sampling_rate" class="form-control" {{ "disabled" if readonly }}>
-          <option value="16000" {{ 'selected' if settings['ambient_audio_sampling_rate'] == 16000 }}>16,000Hz</option>
-          <option value="22050" {{ 'selected' if settings['ambient_audio_sampling_rate'] == 22050 }}>22,050Hz</option>
-          <option value="44100" {{ 'selected' if settings['ambient_audio_sampling_rate'] == 44100 or not settings['ambient_audio_sampling_rate'] }}>44,100Hz</option>
-        </select>
-      </div>
-    </div>
-    
-    <div class="col-xs-12">
-        <hr>
-    </div>
-    
-    {# Power State #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-        <label for="power_state" class="control-label">Power state:</label>
-        <input name="power_state" id="power_state" type="checkbox" {{ "checked" if settings["power_state"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    
-    {# Proximity #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-      <label for="proximity" class="control-label app-settings-align-80">Proximity:</label>
-          <input name="proximity" id="proximity" type="checkbox" {{ "checked" if settings["proximity"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    
-    {# Reachability #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-      <label for="reachability" class="control-label app-settings-align-80">Reachability:</label>
-          <input name="reachability" id="reachability" type="checkbox" {{ "checked" if settings["reachability"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
+            <input
+              name="magnetometer"
+              id="magnetometer"
+              type="checkbox"
+              aria-label="Enable or disable Magnetometer data collection"
+              {{ "checked" if settings["magnetometer"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
 
-    {# Calls #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-      <label for="calls" class="control-label app-settings-align-80">Calls:</label>
-          <input name="calls" id="calls" type="checkbox" {{ "checked" if settings["calls"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div> 
-    
-    {# Texts #}
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-      <label for="texts" class="control-label app-settings-align-80">Texts:</label>
-          <input name="texts" id="texts" type="checkbox" {{ "checked" if settings["texts"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
+            <label
+              for="magnetometer_on_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Magnetometer <b>on</b> duration:</label>
 
-    <div class="col-xs-12 col-md-2">
-      <hr>&nbsp  
-    </div>
-    <div class="col-xs-12 col-md-12">
-      <hr>
-    </div>
+            <input
+              id="magnetometer_on_duration_seconds"
+              name="magnetometer_on_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of a recording session when Magnetometer is enabled."
+              value="{{ settings['magnetometer_on_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
 
-    {# Bluetooth #}
-    <div class="col-xs-12 col-md-12" style="font-style: italic;">
-      The Bluetooth data stream is synchonized across all devices in your study. It scans at a specific time 
-      within a defined period.  An On duration of 5 minutes with a Total duration of 1 hour
-      and a global offset of 15 minutes will trigger a bluetooth scan for 5 minutes once an hour,
-      every hour, at 15 minutes past the hour.
-    </div>
-    <div class="col-xs-12 col-md-12">
-      <hr>
-    </div>
+            <label
+              for="magnetometer_off_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Magnetometer <b>off</b> duration:</label>
 
-    <div class="col-xs-12 col-md-2">
-      <div class="form-group">
-      <label for="bluetooth" class="control-label">Bluetooth:</label>
-        <input class="app-setting-bluetooth" name="bluetooth" id="bluetooth" type="checkbox" {{ "checked" if settings["bluetooth"] }} {{ "disabled" if readonly }}/>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-3">
-      <div class="form-group">
-      <label for="bluetooth_on_duration_seconds" class="control-label app-settings-align-70">BT <b>on</b> duration:</label>
-        <input id="bluetooth_on_duration_seconds" name="bluetooth_on_duration_seconds" class="form-control" type="number" 
-          value="{{ settings['bluetooth_on_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-3">
-    <div class="form-group">
-      <label for="bluetooth_total_duration_seconds" class="control-label app-settings-align-70">BT <b>total</b> duration:</label>
-        <input id="bluetooth_total_duration_seconds" name="bluetooth_total_duration_seconds" class="form-control" type="number"
-          value="{{ settings['bluetooth_total_duration_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-    <div class="col-xs-12 col-md-3">
-    <div class="form-group">
-      <label for="bluetooth_global_offset_seconds" class="control-label app-settings-align-70">BT global offset:</label>
-        <input id="bluetooth_global_offset_seconds" name="bluetooth_global_offset_seconds" class="form-control" type="number" 
-          value="{{ settings['bluetooth_global_offset_seconds'] }}" {{ "disabled" if readonly }}>
-      </div>
-    </div>
-  </div>
-  
-  {% if not readonly %}
-    <button class="btn btn-primary btn-block h3-margins" type="submit"><b>Save All App Settings</b></button>
-  {% endif %}
-  
-  <div class="col-xs-12 well well-sm">
-    <div class="text-center">
-      <p> <h3> Android And Sampling Rates</h3>
-    </div>
-    <p> 
-    Values entered for sample rates of the accelerometer are not very reliable. You can and should
-    expect similar behavior with other sensor types. Your experience will vary.
-    <p> 
-    Due to the sheer extent and variation of Android devices - hardware sensors, device manufacturer
-    customization, battery life and power-saving details - our best advice is that you need to test
-    them first. To improve the experience we are working to make these values configurable after a
-    study begins, and may separate out Android's sampling rates from the iOS ones.
-    <p>
-    Here is an example from our Android developer, run on a Pixel 6 with Android 13:
-    <p> <i>
-    Only a handful of "real frequencies" exist: 1-2ms, 2-3ms, 4-5ms, 8-9ms, 18-19ms, 36-37ms, ~72ms, ~144ms, and ~288ms. The faster time brackets tend to be more reliable, but the mapping of any specific input value to expected output behavior is quite annoying. 9ms results in the 4-5ms frequency, 10ms results in the 8-9ms frequency, and any value above 18ms would mostly run at 18-19ms with occasional jumps to a slower bracket. Sometimes that jump was random, sometimes it coincided with device usage. 288ms seemed to be a power saving mode.
-    </i>
-    <p> 
-  </div>
+            <input
+              id="magnetometer_off_duration_seconds"
+              name="magnetometer_off_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of the sleep session when Magnetometer is disabled"
+              value="{{ settings['magnetometer_off_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
 
-  {% if not readonly %}
-    <button class="btn btn-primary btn-block h3-margins" type="submit"><b>Save All App Settings</b></button>
-  {% endif %}
-  <div class="col-xs-12 col-md-12 row text-center">
-    <h3>Technical Settings</h3>
-    <i>Timer values here cannot always be respected by the Apps, particularly when Low Power Mode is enabled.</i>
-    <hr>
-  </div>
-  
+        {# Device Motion #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
 
-  <div class="form-horizontal app-settings">
+            <label
+              for="devicemotion"
+              class="control-label"
+            >Device Motion:</label>
 
-    <div class="well container-fluid">
-      {# New Surveys #}
-      <div class="col-xs-12 col-md-4">
-        <div class="form-group">
-          <label for="check_for_new_surveys_frequency_seconds" class="control-label">New Survey Check Frequency:</label>
-          <input id="check_for_new_surveys_frequency_seconds" name="check_for_new_surveys_frequency_seconds" class="form-control" type="number"
-            value="{{ settings['check_for_new_surveys_frequency_seconds'] }}" {{ "disabled" if readonly }}>
+            <input
+              name="devicemotion"
+              id="devicemotion"
+              type="checkbox"
+              aria-label="Enable or disable Device Motion data collection"
+              {{ "checked" if settings["devicemotion"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="devicemotion_on_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Device Motion <b>on</b> duration:</label>
+
+            <input
+              id="devicemotion_on_duration_seconds"
+              name="devicemotion_on_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of a recording session when Device Motion is enabled."
+              value="{{ settings['devicemotion_on_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="devicemotion_off_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Device Motion <b>off</b> duration:</label>
+
+            <input
+              id="devicemotion_off_duration_seconds"
+              name="devicemotion_off_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of the sleep session when Device Motion is disabled"
+              value="{{ settings['devicemotion_off_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+
+        {# Wifi #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="wifi"
+              class="control-label"
+            >WiFi:</label>
+
+            <input
+              name="wifi"
+              id="wifi"
+              type="checkbox"
+              aria-label="Enable or disable WiFi data collection"
+              {{ "checked" if settings["wifi"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="wifi_log_frequency_seconds"
+              class="control-label app-settings-align-70"
+            >WiFi Log <b>Frequency:</b></label>
+
+            <input
+              id="wifi_log_frequency_seconds"
+              name="wifi_log_frequency_seconds"
+              class="form-control"
+              type="number"
+              value="{{ settings['wifi_log_frequency_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+
+        <div class="col-xs-12">
+          <hr>
+        </div>
+
+        {# Accelerometer #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="accelerometer"
+              class="control-label"
+            >Accelerometer:</label>
+
+            <input
+              name="accelerometer"
+              id="accelerometer"
+              type="checkbox"
+              aria-label="Enable or disable Accelerometer data collection"
+              {{ "checked" if settings["accelerometer"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="accelerometer_on_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Accelerometer <b>on</b> duration:</label>
+
+            <input
+              id="accelerometer_on_duration_seconds"
+              name="accelerometer_on_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of a recording session when Accelerometer is enabled."
+              value="{{ settings['accelerometer_on_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="accelerometer_off_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Accelerometer <b>off</b> duration:</label>
+
+            <input
+              id="accelerometer_off_duration_seconds"
+              name="accelerometer_off_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of the sleep session when Accelerometer is disabled"
+              value="{{ settings['accelerometer_off_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+
+        <div class="col-xs-7">
+          <hr>
+        </div>
+
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="accelerometer_frequency"
+              class="control-label app-settings-align-70"
+            >Accelerometer <b>Frequency</b>:</label>
+
+            <input
+              id="accelerometer_frequency"
+              name="accelerometer_frequency"
+              class="form-control"
+              type="number"
+              aria-label="Set the sample rate (frequency) of the Accelerometer during its recording session."
+              value="{{ settings['accelerometer_frequency'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+        <div class="col-xs-12">
+          <hr>
+        </div>
+
+        {# Gyro #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="gyro"
+              class="control-label"
+            >Gyro:</label>
+
+            <input
+              name="gyro"
+              id="gyro"
+              type="checkbox"
+              aria-label="Enable or disable Gyro data collection"
+              {{ "checked" if settings["gyro"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="gyro_on_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Gyro <b>on</b> duration:</label>
+
+            <input
+              id="gyro_on_duration_seconds"
+              name="gyro_on_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of a recording session when Gyro is enabled."
+              value="{{ settings['gyro_on_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="gyro_off_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Gyro <b>off</b> duration:</label>
+
+            <input
+              id="gyro_off_duration_seconds"
+              name="gyro_off_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of the sleep session when Gyro is disabled"
+              value="{{ settings['gyro_off_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+
+        <div class="col-xs-7">
+          <hr>
+        </div>
+
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="gyro_frequency"
+              class="control-label app-settings-align-70"
+            >Gyro <b>Frequency</b>:</label>
+
+            <input
+              id="gyro_frequency"
+              name="gyro_frequency"
+              class="form-control"
+              type="number"
+              aria-label="Set the sample rate (frequency) of the Gyro during its recording session."
+              value="{{ settings['gyro_frequency'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+        <div class="col-xs-12">
+          <hr>
+        </div>
+
+        {# Ambient Audio #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="ambient_audio"
+              class="control-label"
+            >Ambient Audio:</label>
+
+            <input
+              name="ambient_audio"
+              id="ambient_audio"
+              type="checkbox"
+              aria-label="Enable or disable Ambient Audio data collection"
+              {{ "checked" if settings["ambient_audio"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="ambient_audio_on_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Ambient Audio <b>on</b> duration:</label>
+
+            <input
+              id="ambient_audio_on_duration_seconds"
+              name="ambient_audio_on_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of a recording session when Ambient Audio is enabled."
+              value="{{ settings['ambient_audio_on_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="ambient_audio_off_duration_seconds"
+              class="control-label app-settings-align-70"
+            >Ambient Audio <b>off</b> duration:</label>
+
+            <input
+              id="ambient_audio_off_duration_seconds"
+              name="ambient_audio_off_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of the sleep session when Ambient Audio is disabled"
+              value="{{ settings['ambient_audio_off_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+
+        <div class="col-xs-12 col-md-2">
+          <hr>
+        </div>
+
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="ambient_audio_bitrate"
+              class="control-label app-settings-align-70"
+            >Ambient Audio Bitrate:</label>
+            <select
+              id="ambient_audio_bitrate"
+              name="ambient_audio_bitrate"
+              class="form-control"
+              aria-label="Set the bitrate of the Ambient Audio recording session."
+              {{ "disabled" if readonly }}
+            >
+              <option
+                value="16000"
+                {{ 'selected' if settings['ambient_audio_bitrate'] == 16000 }}
+              >16Kbps</option>
+              <option
+                value="24000"
+                {{ 'selected' if settings['ambient_audio_bitrate'] == 24000 or not settings['ambient_audio_bitrate'] }}
+              >24Kbps</option>
+              <option
+                value="32000"
+                {{ 'selected' if settings['ambient_audio_bitrate'] == 32000 }}
+              >32Kbps</option>
+              <option
+                value="48000"
+                {{ 'selected' if settings['ambient_audio_bitrate'] == 48000 }}
+              >48Kbps</option>
+              <option
+                value="64000"
+                {{ 'selected' if settings['ambient_audio_bitrate'] == 64000 }}
+              >64Kbps</option>
+            </select>
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-5">
+          <div class="form-group">
+
+            <label
+              for="ambient_audio_sampling_rate"
+              class="control-label app-settings-align-70"
+            >Ambient Audio sampling rate:</label>
+            <select
+              id="ambient_audio_sampling_rate"
+              name="ambient_audio_sampling_rate"
+              class="form-control"
+              aria-label="Set the audio sampling rate of the Ambient Audio recording session."
+              {{ "disabled" if readonly }}
+            >
+              <option
+                value="16000"
+                {{ 'selected' if settings['ambient_audio_sampling_rate'] == 16000 }}
+              >16,000Hz</option>
+              <option
+                value="22050"
+                {{ 'selected' if settings['ambient_audio_sampling_rate'] == 22050 }}
+              >22,050Hz</option>
+              <option
+                value="44100"
+                {{ 'selected' if settings['ambient_audio_sampling_rate'] == 44100 or not settings['ambient_audio_sampling_rate'] }}
+              >44,100Hz</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="col-xs-12">
+          <hr>
+        </div>
+
+        {# Power State #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="power_state"
+              class="control-label"
+            >Power state:</label>
+
+            <input
+              name="power_state"
+              id="power_state"
+              type="checkbox"
+              aria-label="Enable or disable Power State data collection"
+              {{ "checked" if settings["power_state"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+
+        {# Proximity #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="proximity"
+              class="control-label app-settings-align-80"
+            >Proximity:</label>
+
+            <input
+              name="proximity"
+              id="proximity"
+              type="checkbox"
+              aria-label="Enable or disable Proximity data collection"
+              {{ "checked" if settings["proximity"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+
+        {# Reachability #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="reachability"
+              class="control-label app-settings-align-80"
+            >Reachability:</label>
+
+            <input
+              name="reachability"
+              id="reachability"
+              type="checkbox"
+              aria-label="Enable or disable Reachability data collection"
+              {{ "checked" if settings["reachability"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+
+        {# Calls #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="calls"
+              class="control-label app-settings-align-80"
+            >Calls:</label>
+
+            <input
+              name="calls"
+              id="calls"
+              type="checkbox"
+              aria-label="Enable or disable Calls data collection"
+              {{ "checked" if settings["calls"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+
+        {# Texts #}
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="texts"
+              class="control-label app-settings-align-80"
+            >Texts:</label>
+
+            <input
+              name="texts"
+              id="texts"
+              type="checkbox"
+              aria-label="Enable or disable Texts data collection"
+              {{ "checked" if settings["texts"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+
+        <div class="col-xs-12 col-md-2">
+          <hr>&nbsp
+        </div>
+        <div class="col-xs-12 col-md-12">
+          <hr>
+        </div>
+
+        {# Bluetooth #}
+        <div
+          class="col-xs-12 col-md-12"
+          style="font-style: italic;"
+        >
+          The Bluetooth data stream is synchonized across all devices in your study. It scans at a specific time
+          within a defined period. An On duration of 5 minutes with a Total duration of 1 hour
+          and a global offset of 15 minutes will trigger a bluetooth scan for 5 minutes once an hour,
+          every hour, at 15 minutes past the hour.
+        </div>
+        <div class="col-xs-12 col-md-12">
+          <hr>
+        </div>
+
+        <div class="col-xs-12 col-md-2">
+          <div class="form-group">
+
+            <label
+              for="bluetooth"
+              class="control-label"
+            >Bluetooth:</label>
+
+            <input
+              class="app-setting-bluetooth"
+              name="bluetooth"
+              id="bluetooth"
+              type="checkbox"
+              aria-label="Enable or disable Bluetooth data collection"
+              {{ "checked" if settings["bluetooth"] }}
+              {{ "disabled" if readonly }}
+            />
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-3">
+          <div class="form-group">
+
+            <label
+              for="bluetooth_on_duration_seconds"
+              class="control-label app-settings-align-70"
+            >BT <b>on</b> duration:</label>
+
+            <input
+              id="bluetooth_on_duration_seconds"
+              name="bluetooth_on_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the duration of a recording session when Bluetooth is enabled."
+              value="{{ settings['bluetooth_on_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-3">
+          <div class="form-group">
+
+            <label
+              for="bluetooth_total_duration_seconds"
+              class="control-label app-settings-align-70"
+            >BT <b>total</b> duration:</label>
+
+            <input
+              id="bluetooth_total_duration_seconds"
+              name="bluetooth_total_duration_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the total duration of the Bluetooth recording session."
+              value="{{ settings['bluetooth_total_duration_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
+        </div>
+        <div class="col-xs-12 col-md-3">
+          <div class="form-group">
+
+            <label
+              for="bluetooth_global_offset_seconds"
+              class="control-label app-settings-align-70"
+            >BT global offset:</label>
+
+            <input
+              id="bluetooth_global_offset_seconds"
+              name="bluetooth_global_offset_seconds"
+              class="form-control"
+              type="number"
+              aria-label="Set the global offset in seconds for the Bluetooth recording session."
+              value="{{ settings['bluetooth_global_offset_seconds'] }}"
+              {{ "disabled" if readonly }}
+            >
+          </div>
         </div>
       </div>
 
-      {# New Files #}
-      <div class="col-xs-12 col-md-4">
-        <div class="form-group">
-          <label for="create_new_data_files_frequency_seconds" class="control-label">Create new data files frequency:</label>
-          <input id="create_new_data_files_frequency_seconds" name="create_new_data_files_frequency_seconds" class="form-control" type="number"
-            value="{{ settings['create_new_data_files_frequency_seconds'] }}" {{ "disabled" if readonly }}> 
-        </div>
-      </div>
-      
-      {# Upload Files #}
-      <div class="col-xs-12 col-md-4">
-        <div class="form-group">
-          <label for="upload_data_files_frequency_seconds" class="control-label">Upload frequency:</label>
-          <input id="upload_data_files_frequency_seconds" name="upload_data_files_frequency_seconds" class="form-control" type="number"
-            value="{{ settings['upload_data_files_frequency_seconds'] }}" {{ "disabled" if readonly }}>
-        </div>
-      </div>
+      {% if not readonly %}
 
-      <hr class="col-xs-12 col-md-12">
-        
-      {# Upload Over Cell #}
-      <div class="col-xs-12 col-md-5">
-        <div class="form-group">
-        <label for="allow_upload_over_cellular_data" class="control-label">Allow data upload over a cellular data plan: </label>
-          <input name="allow_upload_over_cellular_data" id="allow_upload_over_cellular_data" type="checkbox" {{ "checked" if settings["allow_upload_over_cellular_data"] }} {{ "disabled" if readonly }}/>
-        </div>
-      </div>
+      <button
+        class="btn btn-primary btn-block h3-margins"
+        type="submit"
+        aria-label="click to save all changes to settings"
+      ><b>Save All App Settings</b></button>
+      {% endif %}
 
-      <div class="col-xs-12 col-md-1">
-        <hr>
-      </div>
-
-      {# Anonymize #}
-      <div class="col-xs-12 col-md-6">
-        <div class="form-group">
-          <label for="use_anonymized_hashing" class="control-label">Anonymize phone number and MAC addresses:</label>
-          <input name="use_anonymized_hashing" id="use_anonymized_hashing" type="checkbox" {{ "checked" if settings["use_anonymized_hashing"] }} {{ "disabled" if readonly }}/>
-        </div>
-      </div>
-    </div>
-    
-    {% if not readonly %}
-      <button class="btn btn-primary btn-block h3-margins" type="submit"><b>Save All App Settings</b></button>
-    {% endif %}
-
-    
-    <div class="col-xs-12 col-md-12 row text-center">
-      <h3>Feature Settings</h3>
-    </div>
-    
-    <div class="well container-fluid">
-      {# Call My Clinician #}
-      <div class="col-xs-12 col-md-5">
-        <div class="form-group">
-          <label for="call_clinician_button_enabled" class="control-label">Enable the "Call My Clinician" button</label>
-          <input name="call_clinician_button_enabled" id="call_clinician_button_enabled" type="checkbox" {{ "checked" if settings["call_clinician_button_enabled"] }} {{ "disabled" if readonly }}/>
-        </div>
-      </div>
-      
-      <div class="col-xs-12 col-md-2">
-        <hr>
-      </div>
-      
-      {# Call Research Assistant #}
-      <div class="col-xs-12 col-md-5">
-        <div class="form-group">
-          <label for="call_research_assistant_button_enabled" class="control-label">Enable the "Call Research Assistant" button</label>
-          <input name="call_research_assistant_button_enabled" id="call_research_assistant_button_enabled" type="checkbox" {{ "checked" if settings["call_research_assistant_button_enabled"] }} {{ "disabled" if readonly }}/>
-        </div>
-      </div>
-    
-      {# Voice recording max duration #}
-      <div class="col-xs-12 col-md-5">
-        <div class="form-group">
-          <label for="voice_recording_max_time_length_seconds" class="control-label">Voice recording max time duration:</label>
-          <input id="voice_recording_max_time_length_seconds" name="voice_recording_max_time_length_seconds" class="form-control" type="number"
-          value="{{ settings['voice_recording_max_time_length_seconds'] }}" {{ "disabled" if readonly }}>
-        </div>
-      </div>
-      
-      <div class="col-xs-12 col-md-2">
-        <hr>
-      </div>
-      
-      {# Auto-Logout Time #}
-      <div class="col-xs-12 col-md-5">
-        <div class="form-group">
-          <label for="seconds_before_auto_logout" class="control-label">Auto-Logout Time:</label>
-          <input id="seconds_before_auto_logout" name="seconds_before_auto_logout" class="form-control" type="number"
-          value="{{ settings['seconds_before_auto_logout'] }}" {{ "disabled" if readonly }}>
-        </div>
-      </div>
-
-      {# Fuzz GPS #}
-      <div class="col-xs-12 col-md-8">
-        <div class="form-group">
-        <label for="use_gps_fuzzing" class="control-label">Fuzz/Anonymize GPS data (devices generate a random latitude and longitude offset): </label>
-          <input name="use_gps_fuzzing" id="use_gps_fuzzing" type="checkbox" {{ "checked" if settings["use_gps_fuzzing"] }} {{ "disabled" if readonly }}/>
-        </div>
-      </div>
-      
-      <hr>
-      <h3 style="text-align: center;">Participant and Survey Reminders (Times are in Minutes)</h3>
-      <hr>
-      {# Heartbeat Timer #}
-      <div class="col-xs-12">
-        <div class="form-group">
-          <label for="heartbeat_timer_minutes" class="control-label"><b>Heartbeat Timer</b>&nbsp; <i> (time to wait before and between sending the Heartbeat reminder notification)</i>:</label>
-          <input id="heartbeat_timer_minutes" name="heartbeat_timer_minutes" class="form-control" type="number"
-          value="{{ settings['heartbeat_timer_minutes'] }}" {{ "disabled" if readonly }}>
-        </div>
-      
-      <span style="font-style: italic;">
-        <p>
-        The Beiwe Apps check in with the server periodically, this is called the App Heartbeat.
-        The server sends a push notification when there has been no recent Heartbeat.
-        </p>
-        <p>
-        Note that the app may miss a Heartbeat for valid reasons, like when Low Power Mode is enabled, or if reception is poor. Be careful about setting it too aggressively.
-        </p>
-        <p>
-        You can customize the notification message in the "Text Customizations" section below.
-        </p>
-      </span>
-      </div>
-      
-      <hr>
-      
-      {# Resend Timeer #}
-      <div class="col-xs-12">
-        <div class="form-group">
-          <label for="resend_period_minutes" class="control-label"><b>iOS Survey Resend Timer</b> &nbsp;<i>(time to wait before and between sending a survey reminder notification to iOS devices. Set to 0 to disable.)</i>:</label>
-          <input id="resend_period_minutes" name="resend_period_minutes" class="form-control" type="number"
-          value="{{ settings['resend_period_minutes'] }}" {{ "disabled" if readonly }}>
-        </div>
-        <span style="font-style: italic;">
+      <div class="col-xs-12 well well-sm">
+        <div class="text-center">
           <p>
-          On iOS it is possible for the Beiwe App to "miss" a survey notification, for example if the participant deletes the notification. Confirming receipt of a notification requires opening the app, but not entering the password.
-          </p>
-          <p>
-          Set this value only as aggressively as is reasonable for your survey schedules and compliance requirements. The push notification will continue to be resent until the app reports that it has received the notification and updated the Beiwe app icon's badge count.
-          </p>
-          <p>
-          This feature requires an iOS app version of at least than 2.5.1.
-          </p>
-        </span>
-      </div>
-    </div>
-
-    {% if not readonly %}
-      <button class="btn btn-primary btn-block h3-margins" type="submit"><b>Save All App Settings</b></button>
-    {% endif %}
-
-  </div>
-
-  <div class="col-xs-12 col-md-12 row text-center">
-    <h3>Text Customizations</h3>
-  </div>
-
-  <div class="form-horizontal app-settings">
-    <div class="well container-fluid">   
-    
-      <div class="col-xs-12 col-md-12">
-        <div class="form-group">
-          <label class="control-label app-settings-align-force" for="heartbeat_message">
-            Text that appears in the push notification that is sent when the Participant's device has not checked in for a while:
-          </label>
-          <input type="text" name="heartbeat_message" id="heartbeat_message" class="form-control"
-          value="{{settings['heartbeat_message']}}" {{ "disabled" if readonly }}>
+          <h3> Android And Sampling Rates</h3>
         </div>
+        <p>
+          Values entered for sample rates of the accelerometer are not very reliable. You can and should
+          expect similar behavior with other sensor types. Your experience will vary.
+        <p>
+          Due to the sheer extent and variation of Android devices - hardware sensors, device manufacturer
+          customization, battery life and power-saving details - our best advice is that you need to test
+          them first. To improve the experience we are working to make these values configurable after a
+          study begins, and may separate out Android's sampling rates from the iOS ones.
+        <p>
+          Here is an example from our Android developer, run on a Pixel 6 with Android 13:
+        <p> <i>
+            Only a handful of "real frequencies" exist: 1-2ms, 2-3ms, 4-5ms, 8-9ms, 18-19ms, 36-37ms, ~72ms, ~144ms, and
+            ~288ms. The faster time brackets tend to be more reliable, but the mapping of any specific input value to
+            expected output behavior is quite annoying. 9ms results in the 4-5ms frequency, 10ms results in the 8-9ms
+            frequency, and any value above 18ms would mostly run at 18-19ms with occasional jumps to a slower bracket.
+            Sometimes that jump was random, sometimes it coincided with device usage. 288ms seemed to be a power saving
+            mode.
+          </i>
+        <p>
       </div>
-      
-      <div class="col-xs-12 col-md-12">
-        <div class="form-group">
-          <label class="control-label app-settings-align-force" for="call_clinician_button_text">
-            Text that appears on the app's "Call My Clinician" button:
-          </label>
-          <input type="text" name="call_clinician_button_text" id="call_clinician_button_text" class="form-control"
-          value="{{settings['call_clinician_button_text']}}" {{ "disabled" if readonly }}>
+
+      {% if not readonly %}
+
+      <button
+        class="btn btn-primary btn-block h3-margins"
+        type="submit"
+        aria-label="click to save all changes to settings"
+      ><b>Save All App Settings</b></button>
+      {% endif %}
+      <div class="col-xs-12 col-md-12 row text-center">
+        <h3>Technical Settings</h3>
+        <i>Timer values here cannot always be respected by the Apps, particularly when Low Power Mode is enabled.</i>
+        <hr>
+      </div>
+
+
+      <div class="form-horizontal app-settings">
+
+        <div class="well container-fluid">
+          {# New Surveys #}
+          <div class="col-xs-12 col-md-4">
+            <div class="form-group">
+
+              <label
+                for="check_for_new_surveys_frequency_seconds"
+                class="control-label"
+              >New Survey Check Frequency:</label>
+
+              <input
+                id="check_for_new_surveys_frequency_seconds"
+                name="check_for_new_surveys_frequency_seconds"
+                class="form-control"
+                type="number"
+                aria-label="Set the frequency in seconds for checking on new surveys."
+                value="{{ settings['check_for_new_surveys_frequency_seconds'] }}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+          </div>
+
+          {# New Files #}
+          <div class="col-xs-12 col-md-4">
+            <div class="form-group">
+
+              <label
+                for="create_new_data_files_frequency_seconds"
+                class="control-label"
+              >Create new data files frequency:</label>
+
+              <input
+                id="create_new_data_files_frequency_seconds"
+                name="create_new_data_files_frequency_seconds"
+                class="form-control"
+                type="number"
+                aria-label="Set the frequency in seconds for creating new data files."
+                value="{{ settings['create_new_data_files_frequency_seconds'] }}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+          </div>
+
+          {# Upload Files #}
+          <div class="col-xs-12 col-md-4">
+            <div class="form-group">
+
+              <label
+                for="upload_data_files_frequency_seconds"
+                class="control-label"
+              >Upload frequency:</label>
+
+              <input
+                id="upload_data_files_frequency_seconds"
+                name="upload_data_files_frequency_seconds"
+                class="form-control"
+                type="number"
+                aria-label="Set the frequency in seconds for uploading data files."
+                value="{{ settings['upload_data_files_frequency_seconds'] }}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+          </div>
+
+          <hr class="col-xs-12 col-md-12">
+
+          {# Upload Over Cell #}
+          <div class="col-xs-12 col-md-5">
+            <div class="form-group">
+
+              <label
+                for="allow_upload_over_cellular_data"
+                class="control-label"
+              >Allow data upload over a cellular data plan: </label>
+
+              <input
+                name="allow_upload_over_cellular_data"
+                id="allow_upload_over_cellular_data"
+                type="checkbox"
+                aria-label="Enable or disable data upload over a cellular data plan"
+                {{ "checked" if settings["allow_upload_over_cellular_data"] }}
+                {{ "disabled" if readonly }}
+              />
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-1">
+            <hr>
+          </div>
+
+          {# Anonymize #}
+          <div class="col-xs-12 col-md-6">
+            <div class="form-group">
+
+              <label
+                for="use_anonymized_hashing"
+                class="control-label"
+              >Anonymize phone number and MAC addresses:</label>
+
+              <input
+                name="use_anonymized_hashing"
+                id="use_anonymized_hashing"
+                type="checkbox"
+                aria-label="Enable or disable anonymization of phone numbers and MAC addresses"
+                {{ "checked" if settings["use_anonymized_hashing"] }}
+                {{ "disabled" if readonly }}
+              />
+            </div>
+          </div>
         </div>
+
+        {% if not readonly %}
+
+        <button
+          class="btn btn-primary btn-block h3-margins"
+          type="submit"
+          aria-label="click to save all changes to settings"
+        ><b>Save All App Settings</b></button>
+        {% endif %}
+
+
+        <div class="col-xs-12 col-md-12 row text-center">
+          <h3>Feature Settings</h3>
+        </div>
+
+        <div class="well container-fluid">
+          {# Call My Clinician #}
+          <div class="col-xs-12 col-md-5">
+            <div class="form-group">
+
+              <label
+                for="call_clinician_button_enabled"
+                class="control-label"
+              >Enable the "Call My Clinician" button</label>
+
+              <input
+                name="call_clinician_button_enabled"
+                id="call_clinician_button_enabled"
+                type="checkbox"
+                aria-label="Enable or disable the 'Call My Clinician' button"
+                {{ "checked" if settings["call_clinician_button_enabled"] }}
+                {{ "disabled" if readonly }}
+              />
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-2">
+            <hr>
+          </div>
+
+          {# Call Research Assistant #}
+          <div class="col-xs-12 col-md-5">
+            <div class="form-group">
+
+              <label
+                for="call_research_assistant_button_enabled"
+                class="control-label"
+              >Enable the "Call Research Assistant" button</label>
+
+              <input
+                name="call_research_assistant_button_enabled"
+                id="call_research_assistant_button_enabled"
+                type="checkbox"
+                aria-label="Enable or disable the 'Call Research Assistant' button"
+                {{ "checked" if settings["call_research_assistant_button_enabled"] }}
+                {{ "disabled" if readonly }}
+              />
+            </div>
+          </div>
+
+          {# Voice recording max duration #}
+          <div class="col-xs-12 col-md-5">
+            <div class="form-group">
+
+              <label
+                for="voice_recording_max_time_length_seconds"
+                class="control-label"
+              >Voice recording max time duration:</label>
+
+              <input
+                id="voice_recording_max_time_length_seconds"
+                name="voice_recording_max_time_length_seconds"
+                class="form-control"
+                type="number"
+                aria-label="Set the maximum duration in seconds for voice recordings."
+                value="{{ settings['voice_recording_max_time_length_seconds'] }}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-2">
+            <hr>
+          </div>
+
+          {# Auto-Logout Time #}
+          <div class="col-xs-12 col-md-5">
+            <div class="form-group">
+
+              <label
+                for="seconds_before_auto_logout"
+                class="control-label"
+              >Auto-Logout Time:</label>
+
+              <input
+                id="seconds_before_auto_logout"
+                name="seconds_before_auto_logout"
+                class="form-control"
+                type="number"
+                aria-label="Set the time in seconds before the app automatically logs out the user."
+                value="{{ settings['seconds_before_auto_logout'] }}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+          </div>
+
+          {# Fuzz GPS #}
+          <div class="col-xs-12 col-md-8">
+            <div class="form-group">
+
+              <label
+                for="use_gps_fuzzing"
+                class="control-label"
+              >Fuzz/Anonymize GPS data (devices generate a random latitude and longitude offset): </label>
+
+              <input
+                name="use_gps_fuzzing"
+                id="use_gps_fuzzing"
+                type="checkbox"
+                aria-label="Enable or disable GPS data fuzzing"
+                {{ "checked" if settings["use_gps_fuzzing"] }}
+                {{ "disabled" if readonly }}
+              />
+            </div>
+          </div>
+
+          <hr>
+          <h3 style="text-align: center;">Participant and Survey Reminders (Times are in Minutes)</h3>
+          <hr>
+          {# Heartbeat Timer - changed the user-facing name to Keepalive #}
+          <div class="col-xs-12">
+            <div class="form-group">
+
+              <label
+                for="heartbeat_timer_minutes"
+                class="control-label"
+              ><b>Keepalive Timer</b>&nbsp; <i> (time to wait before and between sending the Keepalive reminder
+                  notification)</i>:</label>
+
+              <input
+                id="heartbeat_timer_minutes"
+                name="heartbeat_timer_minutes"
+                class="form-control"
+                type="number"
+                aria-label="Set the time in minutes between sending the Keepalive reminder notification."
+                value="{{ settings['heartbeat_timer_minutes'] }}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+
+            <span style="font-style: italic;">
+              <p>
+                The Beiwe Apps check in with the server periodically, this is called the App Heartbeat.
+                The server sends a push notification when there has been no recent Heartbeat.
+              </p>
+              <p>
+                Note that the app may miss a Heartbeat for valid reasons, like when Low Power Mode is enabled, or if
+                reception is poor. Be careful about setting it too aggressively.
+              </p>
+              <p>
+                You can customize the notification message in the "Text Customizations" section below.
+              </p>
+            </span>
+          </div>
+
+          <hr>
+
+          {# Resend Timeer #}
+          <div class="col-xs-12">
+            <div class="form-group">
+
+              <label
+                for="resend_period_minutes"
+                class="control-label"
+              ><b>iOS Survey Resend Timer</b> &nbsp;<i>(time to wait before and between sending a survey reminder
+                  notification to iOS devices. Set to 0 to disable.)</i>:</label>
+
+              <input
+                id="resend_period_minutes"
+                name="resend_period_minutes"
+                class="form-control"
+                type="number"
+                value="{{ settings['resend_period_minutes'] }}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+            <span style="font-style: italic;">
+              <p>
+                On iOS it is possible for the Beiwe App to "miss" a survey notification, for example if the participant
+                deletes the notification. Confirming receipt of a notification requires opening the app, but not
+                entering the password.
+              </p>
+              <p>
+                Set this value only as aggressively as is reasonable for your survey schedules and compliance
+                requirements. The push notification will continue to be resent until the app reports that it has
+                received the notification and updated the Beiwe app icon's badge count.
+              </p>
+              <p>
+                This feature requires an iOS app version of at least than 2.5.1.
+              </p>
+            </span>
+          </div>
+        </div>
+
+        {% if not readonly %}
+
+        <button
+          class="btn btn-primary btn-block h3-margins"
+          type="submit"
+          aria-label="click to save all changes to settings"
+        ><b>Save All App Settings</b></button>
+        {% endif %}
+
       </div>
 
-    <div class="col-xs-12 col-md-12">
-      <div class="form-group">
-        <label class="control-label app-settings-align-force" for="survey_submit_success_toast_text">
-          (Android) 2-Second pop-up message that appears when a survey is completed:
-        </label>
-        <textarea name="survey_submit_success_toast_text" id="survey_submit_success_toast_text" class="form-control"
-         {{ "disabled" if readonly }}>{{settings['survey_submit_success_toast_text']}}</textarea>
+      <div class="col-xs-12 col-md-12 row text-center">
+        <h3>Text Customizations</h3>
       </div>
-    </div>
 
-    <div class="col-xs-12 col-md-12">
-      <hr> 
-    </div>
+      <div class="form-horizontal app-settings">
+        <div class="well container-fluid">
 
-    <div class="col-xs-12 col-md-6">
-      <div class="form-group">
-        <label class="control-label app-settings-align-80" for="about_page_text">Text on the app's "About" page:</label>
-        <textarea name="about_page_text" id="about_page_text" class="form-control" rows="20" 
-         {{ "disabled" if readonly }}> {{settings['about_page_text']}}</textarea>
-      </div>
-    </div>
-    
-    <div class="col-xs-12 col-md-6">
-      <div class="form-group">
-        <label class="control-label app-settings-align-80" for="consent_form_text">Text that appears in the app's consent form:</label>
-        <textarea name="consent_form_text" id="consent_form_text" class="form-control" rows="20" 
-         {{ "disabled" if readonly }}> {{settings['consent_form_text']}}</textarea>
-      </div>
-    </div>
+          <div class="col-xs-12 col-md-12">
+            <div class="form-group">
 
-    <div class="col-xs-12 col-md-12">
-      <hr> 
-    </div>
+              <label
+                class="control-label app-settings-align-force"
+                for="heartbeat_message"
+              >
+                Text that appears in the push notification that is sent when the Participant's device has not checked in
+                for a while:
+              </label>
 
-    {% for section, section_title in {
+              <input
+                type="text"
+                name="heartbeat_message"
+                id="heartbeat_message"
+                class="form-control"
+                value="{{settings['heartbeat_message']}}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-12">
+            <div class="form-group">
+
+              <label
+                class="control-label app-settings-align-force"
+                for="call_clinician_button_text"
+              >
+                Text that appears on the app's "Call My Clinician" button:
+              </label>
+
+              <input
+                type="text"
+                name="call_clinician_button_text"
+                id="call_clinician_button_text"
+                class="form-control"
+                value="{{settings['call_clinician_button_text']}}"
+                {{ "disabled" if readonly }}
+              >
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-12">
+            <div class="form-group">
+
+              <label
+                class="control-label app-settings-align-force"
+                for="survey_submit_success_toast_text"
+              >
+                (Android) 2-Second pop-up message that appears when a survey is completed:
+              </label>
+              <textarea
+                name="survey_submit_success_toast_text"
+                id="survey_submit_success_toast_text"
+                class="form-control"
+                {{ "disabled" if readonly }}
+              >{{settings['survey_submit_success_toast_text']}}</textarea>
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-12">
+            <hr>
+          </div>
+
+          <div class="col-xs-12 col-md-6">
+            <div class="form-group">
+
+              <label
+                class="control-label app-settings-align-80"
+                for="about_page_text"
+              >Text on the app's "About" page:</label>
+              <textarea
+                name="about_page_text"
+                id="about_page_text"
+                class="form-control"
+                rows="20"
+                {{ "disabled" if readonly }}
+              > {{settings['about_page_text']}}</textarea>
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-6">
+            <div class="form-group">
+
+              <label
+                class="control-label app-settings-align-80"
+                for="consent_form_text"
+              >Text that appears in the app's consent form:</label>
+              <textarea
+                name="consent_form_text"
+                id="consent_form_text"
+                class="form-control"
+                rows="20"
+                {{ "disabled" if readonly }}
+              > {{settings['consent_form_text']}}</textarea>
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-12">
+            <hr>
+          </div>
+
+          {% for section, section_title in {
       "welcome": "Welcome", "data_gathering": "Data Gathering", "privacy": "Privacy", "time_commitment": "Time Commitment", "study_survey": "Study Survey", "study_tasks": "Study Tasks", "withdrawing": "Withdrawing" 
     }.items() %}
-      
-      <div class="col-xs-12 col-md-6">
-        <div class="form-group">
-          <label class="control-label app-settings-align-80" for="{{section}}_summary">iOS consent {{section_title}} text:</label>
-          <textarea name="consent_sections.{{section}}.text" id="{{section}}_summary" class="form-control" rows="4" 
-           {{ "disabled" if readonly }}>{{settings['consent_sections'][section]['text']}}</textarea>
-        </div>
-      </div>
-      
-      <div class="col-xs-12 col-md-6">
-        <div class="form-group">
-          <label class="control-label app-settings-align-80" for="{{section}}_more">iOS consent {{section_title}} learn more:</label>
-          <textarea name="consent_sections.{{section}}.more" id="{{section}}_more" class="form-control" rows="4" 
-           {{ "disabled" if readonly }}>{{settings['consent_sections'][section]['more']}}</textarea>
-        </div>
-      </div>
-    {% endfor %}
-    </div>
-  
- 
-  
-  {% if not readonly %}
-    <button class="btn btn-primary btn-block h3-margins" type="submit"><b>Save All App Settings</b></button>
-  {% endif %}
-</div>
-  {% if readonly %} </div> {% else %} </form> {% endif %}
 
-{% endblock %}
+          <div class="col-xs-12 col-md-6">
+            <div class="form-group">
+
+              <label
+                class="control-label app-settings-align-80"
+                for="{{section}}_summary"
+              >iOS consent {{section_title}} text:</label>
+              <textarea
+                name="consent_sections.{{section}}.text"
+                id="{{section}}_summary"
+                class="form-control"
+                rows="4"
+                {{ "disabled" if readonly }}
+              >{{settings['consent_sections'][section]['text']}}</textarea>
+            </div>
+          </div>
+
+          <div class="col-xs-12 col-md-6">
+            <div class="form-group">
+
+              <label
+                class="control-label app-settings-align-80"
+                for="{{section}}_more"
+              >iOS consent {{section_title}} learn more:</label>
+              <textarea
+                name="consent_sections.{{section}}.more"
+                id="{{section}}_more"
+                class="form-control"
+                rows="4"
+                {{ "disabled" if readonly }}
+              >{{settings['consent_sections'][section]['more']}}</textarea>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+
+
+        {% if not readonly %}
+
+        <button
+          class="btn btn-primary btn-block h3-margins"
+          type="submit"
+          aria-label="click to save all changes to settings"
+        ><b>Save All App Settings</b></button>
+        {% endif %}
+      </div>
+      {% if readonly %}
+    </div> {% else %}
+
+  </form> {% endif %}
+
+  {% endblock %}

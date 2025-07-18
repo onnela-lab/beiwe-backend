@@ -2,13 +2,16 @@
 {% block title %} Participant Page {% endblock %}
 
 {% block head %}
-  {{ super() }}
-  <script src="/static/javascript/admin.js" type="text/javascript"></script>
+{{ super() }}
+<script src="/static/javascript/admin.js" type="text/javascript"></script>
 {% endblock %}
 
 {% block content %}
 <div class="container well">
-  <div class="title col-md-8" col-xs-12>
+  <div
+    class="title col-md-8"
+    col-xs-12
+  >
     <h1> Participant Experiments: <b>{{ participant.patient_id }} </b></h1>
   </div>
 </div>
@@ -23,17 +26,37 @@ All fields to list are in the form.fields list.
 
 <div class="container">
   <div class="row">
-    <div class="col-md-8" col-xs-12>
-      <form action="/view_study/{{participant.study.id}}/participant/{{participant.patient_id}}/update_experiments/" method="post">
+    <div
+      class="col-md-8"
+      col-xs-12
+    >
+      <form
+        action="/view_study/{{participant.study.id}}/participant/{{participant.patient_id}}/update_experiments/"
+        method="post"
+      >
         {% for field in form %}
-          <div class="checkbox">
-            <label>
-              <input type="checkbox" name="{{field.name}}" {% if form.instance[field.name] %} checked {% endif %}>
-              <b>{{field.label}}</b> - {{field.help_text}}
-            </label>
-          </div>
+        <div class="checkbox">
+
+          <label>
+
+            <input
+              type="checkbox"
+              name="{{field.name}}"
+              {% if form.instance[field.name] %}
+              checked
+              {% endif %}
+            >
+            <b>{{field.label}}</b> - {{field.help_text}}
+          </label>
+        </div>
         {% endfor %}
-        <input type="submit" value="Submit" class="btn btn-primary">
+
+        <input
+          type="submit"
+          value="Submit"
+          class="btn btn-primary"
+        >
+
       </form>
     </div>
   </div>

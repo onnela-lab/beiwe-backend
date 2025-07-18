@@ -113,7 +113,7 @@ def get_some_problem_uploads_by_participant() -> Generator[list[str], None, None
     
     # path is a string that looks like this, including those extra 10 characters at the end:
     #    PROBLEM_UPLOADS/5873fe38644ad7557b168e43/c3b7mk7j/gps/1664315342657.csvQWERTYUIOP
-    for count, path in enumerate(s3_list_files(S3_QUERY, as_generator=True)):
+    for count, path in enumerate(s3_list_files(S3_QUERY)):
         if count % 1000 == 0:
             print("File", count, "...")
         

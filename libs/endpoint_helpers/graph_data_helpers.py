@@ -29,13 +29,15 @@ def grab_file_names(study_id, survey_id, user_id, number_points):
     """ Takes a list, returns a list of those most recent files."""
     # this is correct - we want to convert these values to strings, not coerce them, that causes them
     # to be converted to strings with a preceeding b and in single quotes.
-
+    
     study_id = study_id if not isinstance(study_id, bytes) else study_id.decode()
     survey_id = survey_id if not isinstance(survey_id, bytes) else survey_id.decode()
     user_id = user_id if not isinstance(user_id, bytes) else user_id.decode()
-    number_points = number_points if not isinstance(number_points, bytes) else number_points.decode()
-
-    all_files = s3_list_files("%s/%s/surveyAnswers/%s" % (str(study_id), str(user_id), str(survey_id)))
+    number_points = number_points if not isinstance(number_points, bytes) else int(number_points.decode())
+    
+    all_files = list(
+        s3_list_files("%s/%s/surveyAnswers/%s" % (str(study_id), str(user_id), str(survey_id)))
+    )
     return sorted(all_files[-number_points:])
 
 

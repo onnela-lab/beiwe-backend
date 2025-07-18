@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 import functools
+import typing
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
 import bleach
 from django.contrib import messages
 from django.db.models import QuerySet
-from django.http import UnreadablePostError
-from django.http.request import HttpRequest
-from django.shortcuts import HttpResponseRedirect, redirect
+from django.http import HttpResponseRedirect, UnreadablePostError
+from django.http.request import HttpRequest as _HttpRequest
+from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.timezone import is_naive
 
@@ -34,8 +37,12 @@ def log(*args, **kwargs):
         print(*args, **kwargs)
 
 
-class ResearcherRequest(HttpRequest):
-    session_researcher: Researcher
+if typing.TYPE_CHECKING:
+    class HttpRequest(_HttpRequest):
+        session_researcher: Researcher
+    ResearcherRequest = HttpRequest
+else:
+    ResearcherRequest = HttpRequest = _HttpRequest
 
 
 # Top level authentication wrappers
@@ -186,7 +193,7 @@ def assert_researcher_under_admin(request: ResearcherRequest, researcher: Resear
         log("target researcher is a site admin")
         return abort(403)
     
-    kwargs = dict(relationship=ResearcherRole.study_admin)
+    kwargs = dict[str, Study|str](relationship=ResearcherRole.study_admin)
     if study is not None:
         kwargs['study'] = study
     

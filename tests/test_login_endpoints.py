@@ -40,7 +40,7 @@ class TestLoginPages(BasicSessionTestCase):
         response = self.client_get(reverse("login_endpoints.login_page"))
         self.assertEqual(response.status_code, 200)
         # this should uniquely identify the login page
-        self.assertIn(b'<form method="POST" action="/validate_login">', response.content)
+        self.assertIn(b'action="/validate_login"', response.content)
     
     def test_load_login_page_while_logged_in(self):
         # make sure the login page loads without logging you in when it should not
@@ -468,17 +468,25 @@ class TestDowntime(BasicSessionTestCase):
     """ Tests our very basic downtime middleware """
     
     def test_downtime(self):
+        from libs.utils.timeout_cache import THE_TIMEOUT_CACHE
         # this test emits a logging statement `ERROR:django.request:Service Unavailable: /`
         # that we want to squash, but we want to set logging level back to normal when we are done.
         previous_logging_level = logging.getLogger("django.request").level
         try:
             logging.getLogger("django.request").setLevel(logging.CRITICAL)
+            THE_TIMEOUT_CACHE.clear()
             GlobalSettings.singleton().update(downtime_enabled=False)
             self.easy_get("login_endpoints.login_page", status_code=200)
+            self.assertNotEqual(len(THE_TIMEOUT_CACHE), 0)
+            THE_TIMEOUT_CACHE.clear()
             GlobalSettings.singleton().update(downtime_enabled=True)
             self.easy_get("login_endpoints.login_page", status_code=503)
+            self.assertNotEqual(len(THE_TIMEOUT_CACHE), 0)
+            THE_TIMEOUT_CACHE.clear()
             GlobalSettings.singleton().update(downtime_enabled=False)
             self.easy_get("login_endpoints.login_page", status_code=200)
+            self.assertNotEqual(len(THE_TIMEOUT_CACHE), 0)
+            THE_TIMEOUT_CACHE.clear()
         except Exception:
             raise
         finally:
@@ -597,9 +605,9 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
                 resp.url, "/?page=/" + url.lstrip("/")
             )  # ensure there is a leading slash
             page = self.client_get(resp.url).content
-            self.assert_present( # ensure there is a leading slash
-                f'<input type="hidden" name="referrer" value="/{url.lstrip("/")}" />', page
-            )
+            # ensure there is a leading slash
+            t = f'<input type="hidden" name="referrer" value="/{url.lstrip("/")}" />'.replace(" ", "\n")
+            self.assert_present(t, page)
             # test that the negative tests be based in reality
             self.assert_present('name="referrer"', page)
         

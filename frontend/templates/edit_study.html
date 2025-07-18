@@ -3,14 +3,18 @@
 {% block title %}Edit Study {{ study.name }}{% endblock %}
 
 {% block head %}
-  {{ super() }}
-  <script src="/static/javascript/edit_study.js" type="text/javascript"></script>
-  <script src="/static/javascript/admin.js" type="text/javascript"></script>
-  {% comment %} We are using a different datepicker on this page... {% endcomment %}
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css"  type="text/css"/>
-  
-  <script type="text/javascript">
+{{ super() }}
+<script src="/static/javascript/edit_study.js" type="text/javascript"></script>
+<script src="/static/javascript/admin.js" type="text/javascript"></script>
+{% comment %} We are using a different datepicker on this page... {% endcomment %}
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css"
+  type="text/css"
+/>
+
+<script type="text/javascript">
     $(document).ready(function() {
     /* Set up Date/Time pickers */
       $('#end_datepicker').datepicker({
@@ -21,76 +25,118 @@
 {% endblock %}
 
 {% block content %}
-  <div class="container">
-    <ol class="breadcrumb">
-      <li>
-        <a href="/manage_studies">Manage Studies</a>
-      </li>
-      <li>
-        <a href={{easy_url("study_endpoints.view_study_page", study.id)}}>{{ study.name }}</a>
-      </li>
-    </ol>
+<div class="container">
 
+  <ol class="breadcrumb">
+    <li>
+      <a
+        href="/manage_studies"
+        aria-label="click to go to the Manage Studies page"
+      >Manage Studies</a>
+    </li>
+    <li>
+      <a
+        href={{easy_url("study_endpoints.view_study_page", study.id)}}
+        aria-label="click to go to the study page for {{ study.name }}"
+      >{{ study.name }}</a>
+    </li>
+  </ol>
+
+  {# this overboard formatting is required to keep the link text on one line #}
   <div class="col-xs-12 well">
-    <div class="col-xs-3" >
-      <h2>Edit App Settings</h2>
+    <div class="col-xs-4 ml-n1">
+      <h1 class="h2">Edit App Settings</h1>
     </div>
-      <div class="col-xs-9 h2-margins-vertical text-center bold" >
-        <h4>
-          <a href="/device_settings/{{ study.id }}"> 
-            Edit the types of data this study collects and the wording that study participants see in the app
-          </a>
-        </h4>
+    <div class="col-xs-9 mt-2 text-center bold ml-n5 mr-n1">
+      <a
+        href="/device_settings/{{ study.id }}"
+        class="btn-link underline h4"
+        aria-label="click to edit the study's app settings - the types of data this study collects and text that study participants see in the app"
+      >
+        Edit the types of data this study collects, and text that study participants see in the app
+      </a>
     </div>
   </div>
 
   {# easy enrollment #}
   <div class="col-xs-12 well">
-    <h2 class="pull-left col-xs-3">Easy Enrollment</h2>
-    <div class="col-xs-7 h2-middle-margins-vertical">
-      When Easy Enrollment is enabled for a study or a participant the Temporary Password that is otherwised required at registration is ignored.  Any value that passes any validation performed by the app is allowed.
-      <i>(You will be presented with a list of patient ids where Easy Enrollment is manually enabled whenever you disable a study's Easy Enrollment policy.) </i>
+    <h2 class="pull-left col-xs-3 ml-n0-5 mt-1-75">Easy Enrollment</h2>
+    <div class="col-xs-8 h2-middle-margins-vertical ml-n1 mr-n1 ">
+      When Easy Enrollment is enabled for a study or a participant the Temporary Password that is otherwise required at
+      registration is ignored. Any value that passes any validation performed by the app is allowed.
+      <i>(You will be presented with a list of patient ids where Easy Enrollment is manually enabled whenever you
+        disable a study's Easy Enrollment policy.) </i>
     </div>
-    <form action="{{ easy_url('manage_study_endpoints.toggle_easy_enrollment_study', study.id) }}" method="get">
-      <button type="submit"
-      {% if study.easy_enrollment %}
-        class="btn btn-warning large-font-size pull-right h2-margins-vertical"
-      {% else %}
-        class="btn btn-success large-font-size pull-right h2-margins-vertical"
-      {% endif %}
+    <form
+      action="{{ easy_url('manage_study_endpoints.toggle_easy_enrollment_study', study.id) }}"
+      method="get"
+    >
+
+      <button
+        {% if study.easy_enrollment %}
+        class="btn btn-warning text-large pull-right h2-margins-vertical"
+        aria-label="click to disable or disable easy enrollment for this study"
+        {% else %}
+        class="btn btn-success text-large pull-right h2-margins-vertical"
+        aria-label="click to enable easy enrollment for this study"
+        {% endif %}
       >
-      {% if study.easy_enrollment %} Disable {% else %} Enable {% endif %}
+        {% if study.easy_enrollment %} Disable {% else %} Enable {% endif %}
       </button>
+
     </form>
   </div>
 
   {# toggle forest #}
   <div class="col-xs-12 well">
-    <h2 class="pull-left col-xs-3">Toggle Forest</h2>
-    <div class="col-xs-7 h2-middle-margins-vertical text-center">
+    <h2 class="pull-left col-xs-3 mt-1">Toggle Forest</h2>
+    <div class="col-xs-7 mt-3 text-center ml-n2">
       Enable or disable whether forest analyses are runnable for this study.
     </div>
-    <form action="/toggle_study_forest_enabled/{{ study.id }}" method="post">
+    <form
+      action="/toggle_study_forest_enabled/{{ study.id }}"
+      method="post"
+    >
       {% if study.forest_enabled %}
-        <div class="pull-right h2-margins-vertical">
-          <button class="btn btn-danger large-font-size" type="submit">Disable Forest</button>
-        </div>
-        {% else %}
-        <div class="pull-right h2-margins-vertical">
-          <button class="btn btn-success large-font-size" type="submit">Enable Forest</button>
-        </div>
+      <div class="pull-right h2-margins-vertical">
+
+        <button
+          class="btn btn-danger text-large"
+          type="submit"
+          aria-label="click to disable forest for this study"
+        >Disable Forest</button>
+      </div>
+      {% else %}
+      <div class="pull-right h2-margins-vertical">
+
+        <button
+          class="btn btn-success text-large"
+          type="submit"
+          aria-label="click to enable forest for this study"
+        >Enable Forest</button>
+      </div>
       {% endif %}
+
     </form>
     {% comment %} <p>Forest is {% if study.forest_enabled %}enabled{% else %}disabled{% endif %}.</p> {% endcomment %}
   </div>
 
   {# download intervention data #}
   <div class="col-xs-12 well">
-    <h2 class="pull-left"> Intervention Data</h2>
+    <h2 class="pull-left mr-n0-5"> Intervention Data</h2>
     <div class="pull-right h2-margins-vertical">
-    <form action="{{ easy_url("manage_study_endpoints.download_study_interventions", study_id=study.id) }}" method="post">
-        <button class="btn btn-success large-font-size" type="submit">Download Interventions</button>
-      </div>
+      <form
+        action="{{ easy_url("manage_study_endpoints.download_study_interventions", study_id=study.id) }}"
+        method="post"
+      >
+
+        <button
+          class="btn btn-success text-large"
+          type="submit"
+          aria-label="click to download a JSON representation of interventions data for all users on this study"
+        >Download Interventions</button>
+    </div>
+
     </form>
     <div class="col-xs-7 h2-middle-margins-vertical text-center">
       Download a JSON representation of interventions for all users on this study.
@@ -99,104 +145,177 @@
 
   {# download history of changes to surveys #}
   <div class="col-xs-12 well">
-    <h2 class="pull-left">Survey History</h2>
+    <h2 class="pull-left mr-1">Survey History</h2>
     <div class="col-xs-7 h2-middle-margins-vertical text-center">
       Download a JSON representation of the entire history of changes to surveys.
     </div>
-    <form action="{{ easy_url("manage_study_endpoints.download_study_survey_history", study_id=study.id) }}" method="post">
+    <form
+      action="{{ easy_url("manage_study_endpoints.download_study_survey_history", study_id=study.id) }}"
+      method="post"
+    >
       <div class="pull-right h3-margins-vertical">
-        <button class="btn btn-success large-font-size" type="submit">Download Surveys</button>
+
+        <button
+          class="btn btn-success text-large"
+          type="submit"
+          aria-label="click to download a JSON representation of the entire history of changes to surveys"
+        >Download Surveys</button>
       </div>
+
     </form>
   </div>
 
   {# Study timezone #}
   <div class="col-xs-12 well">
     <h2>Set Study Timezone</h2>
-    <form action="/set_study_timezone/{{ study.id }}" method="post">
+    <form
+      action="/set_study_timezone/{{ study.id }}"
+      method="post"
+    >
       <div class="col-xs-10">
-        <select class="form-control" name="new_timezone_name">
+        <select
+          class="form-control"
+          name="new_timezone_name"
+          aria-label="select a timezone for this study - warning, read the text below before changing the timezone"
+        >
           {% for name, value in timezones %}
-          <option value="{{ name }}" {% if name == study.timezone_name %}selected{% endif %}>{{ value }} </option>
+          <option
+            value="{{ name }}"
+            {% if name == study.timezone_name %}selected{% endif %}
+          >{{ value }} </option>
           {% endfor %}
         </select>
       </div>
       <div class="col-xs-2">
-        <button class="btn btn-warning " type="submit">Update Timezone</button>
+
+        <button
+          class="btn btn-warning pull-right"
+          type="submit"
+          aria-label="click to apply the updated timezone for this study"
+        >Update Timezone</button>
       </div>
       <div class="col-xs-12">
-        <h5 class="h2-margins-vertical">
-          If you change the Study Timezone after surveys are sent to participants, Beiwe will immediately resend any previously sent absolute-date and relative-date surveys.
-        </h5>
-        <h5 class="h2-margins-vertical">
-          Additionally, Forest's daily summary statistics are calculated within the study's time zone.  Changing the time zone here will NOT recalculate existing data, that must be done manually.
-        </h5>
+        <div class="h2-margins-vertical h5">
+          If you change the Study Timezone after surveys are sent to participants, Beiwe will immediately resend any
+          previously sent absolute-date and relative-date surveys.
+        </div>
+        <div class="h2-margins-vertical h5">
+          Additionally, Forest's daily summary statistics are calculated within the study's time zone. Changing the time
+          zone here will NOT recalculate existing data, that must be done manually.
+        </div>
       </div>
+
     </form>
   </div>
-  
+
   {# Set study end date #}
   {% if site_admin %}
-  
-    <div class="col-xs-12 well">
-      <h2>Set Study End Date </h2>
-      <form action="/update_end_date/{{ study.id }}" method="post">
-        
-        <div class="col-xs-6">
-          <h5 class="h2-margins-vertical">
-            Setting a study end date will automatically stop collecting data at the end of the day on the chosen date, in the study's timezone.  This will not delete any data, but will prevent new data from being uploaded.
-            {% if study.manually_stopped %} <h4> This study has been manually stopped. </h4> {% endif %}
-            {% if study.end_date %} <h4> This study currently has an end date of {{study.end_date.isoformat()}}. </h4> {% endif %}
-            {% if study.end_date_is_in_the_past %} <h4> This study's data collection period has ended. </h4> {% endif %}
-          </h5>
+
+  <div class="col-xs-12 well">
+    <h2>Set Study End Date </h2>
+    <form
+      action="/update_end_date/{{ study.id }}"
+      method="post"
+    >
+
+      <div class="col-xs-6">
+        <div class="h2-margins-vertical h5">
+          Setting a study end date will automatically stop collecting data at the end of the day on the chosen date, in
+          the study's timezone. This will not delete any data, but will prevent new data from being uploaded.
+          {% if study.manually_stopped %} <h3 class="h4"> This study has been manually stopped. </h3> {% endif %}
+          {% if study.end_date %} <h3 class="h4"> This study currently has an end date of
+            {{study.end_date.isoformat()}}.
+          </h3>
+          {% endif %}
+          {% if study.end_date_is_in_the_past %} <h3 class="h4"> This study's data collection period has ended. </h3>
+          {% endif %}
         </div>
-        
-        <div class="col-xs-4">
-          <div class="form-group">
-            <label for="end_date">End Date <i>(clear and submit to remove end date)</i></label>
-            <div class="input-group date" data-provide="end_datepicker" id="end_datepicker">
-              <input type="text" class="form-control" name="end_date" id="end_date" value="{{ '' if not study.end_date else study.end_date.isoformat() }}">
-              <div class="input-group-addon">
-                <span class="glyphicon glyphicon-th"></span>
-              </div>
+      </div>
+
+      <div class="col-xs-4">
+        <div class="form-group">
+
+          <label for="end_date">End Date <i>(clear and submit to remove end date)</i></label>
+          <div
+            class="input-group date"
+            data-provide="end_datepicker"
+            id="end_datepicker"
+          >
+
+            <input
+              type="text"
+              class="form-control"
+              name="end_date"
+              id="end_date"
+              value="{{ '' if not study.end_date else study.end_date.isoformat() }}"
+              aria-label="enter an end date for this study"
+            >
+            <div class="input-group-addon">
+              <span class="glyphicon glyphicon-th"></span>
             </div>
           </div>
         </div>
-        
-        <div class="col-xs-2">
-          <button class="btn btn-danger pull-right h2-margins-vertical" type="submit">
-            Update End Date
-          </button>
-        </div>
-      </form>
-    </div>
-    
+      </div>
+
+      <div class="col-xs-2">
+
+        <button
+          class="btn btn-danger pull-right h2-margins-vertical"
+          type="submit"
+          aria-label="click to update the end date for this study"
+        >
+          Update End Date
+        </button>
+      </div>
+
+    </form>
+  </div>
+
   {% endif %}
-  
+
   {# study security policies #}
   <div class="col-xs-12 well">
-    <div class="col-xs-3" >
+    <div class="col-xs-3">
       <h2>Security Policies</h2>
     </div>
-      <div class="col-xs-9 h2-margins-vertical text-center bold" >
-        <h4>
-          <a href="/edit_study_security/{{ study.id }}"> 
-            Edit various settings related to security policies and compliance required for your study.
-          </a>
-        </h4>
+    <div class="col-xs-9 h2-margins-vertical text-center bold underline h4">
+      <div>
+        <a
+          href="/edit_study_security/{{ study.id }}"
+          aria-label="click to go to the study security policies page for study {{ study.name }}"
+        >
+          Edit various settings related to security policies and compliance required for your study.
+        </a>
+      </div>
     </div>
   </div>
 
   {# Rename study #}
   <div class="col-xs-12 well">
     <h2 class="col-xs-12">Rename study</h2>
-    <form action="/rename_study/{{ study.id }}" method="post">
+    <form
+      action="/rename_study/{{ study.id }}"
+      method="post"
+    >
       <div class="col-md-10">
-        <input type="text" name="new_study_name" value="{{ study['name'] }}" class="form-control">
+
+        <input
+          type="text"
+          name="new_study_name"
+          value="{{ study['name'] }}"
+          class="form-control"
+          aria-label="enter a new name for this study"
+        >
       </div>
       <div class="col-md-2">
-        <button class="btn btn-warning" type="submit">Update Name</button>
+
+        <button
+          class="btn btn-warning"
+          type="submit"
+          aria-label="click to update the name of this study"
+        >Update Name</button>
       </div>
+
     </form>
   </div>
 
@@ -204,149 +323,305 @@
   <div class="col-xs-12 well">
     <h2>Authorized researchers on this study</h2>
     <div>
-      <table class="list-group table table-striped table-hover" width="100%">
+      <table
+        class="list-group table  table-condensed"
+        width="100%"
+      >
         {% if not study.get_researchers() %}
-          <p><i>No researchers are authorized to view or edit this study.</i></p>
+        <p><i>No researchers are authorized to view or edit this study.</i></p>
         {% else %}
-          <tr>
-            <th>Researcher Username</th>
-            <th>Permissions/Role</th>
-            <th>Actions</th>
-          </tr>
+        <tr>
+          <th>Researcher Username</th>
+          <th>Permissions/Role</th>
+          <th>Actions</th>
+        </tr>
 
-          {% for researcher_id, researcher_username, relationship, edit_researcher_is_site_admin in listed_researchers %}
-            <tr>
-              <td>
-                <b>{{ researcher_username }}</b>
-              </td>
-              <td>
-                {{ relationship }} &nbsp;&nbsp;
-                {% if not edit_researcher_is_site_admin and not relationship == "Study Admin"%}
-                  <form action="/elevate_researcher" class="oneline" method="post">
-                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                    <button class="btn btn-link no-padding">
-                      (Elevate to Study Admin
-                      <span class="glyphicon glyphicon-arrow-up"></span>)
-                    </button>
-                  </form>
-                {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
-                  <form action="/demote_researcher" class="oneline" method="post">
-                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                    <button class="btn btn-link no-padding">
-                      (Demote to Researcher
-                      <span class="glyphicon glyphicon-arrow-down"></span>)
-                    </button>
-                  </form>
-                {% endif %}
-              </td>
-              <td>
-                {% if not edit_researcher_is_site_admin and not relationship == "Study Admin" and researcher_id != session_researcher.id %}
-                  <form action="/remove_researcher_from_study" method="post">
-                    <input type="hidden" name="study_id" value="{{ study.id }}"/>
-                    <input type="hidden" name="researcher_id" value="{{ researcher_id }}"/>
-                    <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-                    <button class="btn btn-link no-padding">
-                      <span class="glyphicon glyphicon-remove"></span>
-                      Remove from study
-                    </button>
-                  </form>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
+        {% for researcher_id, researcher_username, relationship, edit_researcher_is_site_admin in listed_researchers %}
+        <tr>
+          <td>
+            <b>{{ researcher_username }}</b>
+          </td>
+          <td>
+            {{ relationship }} &nbsp;&nbsp;
+            {% if not edit_researcher_is_site_admin and not relationship == "Study Admin"%}
+            <form
+              action="/elevate_researcher"
+              class="oneline"
+              method="post"
+            >
+
+              <input
+                type="hidden"
+                name="study_id"
+                value="{{ study.id }}"
+              />
+
+              <input
+                type="hidden"
+                name="researcher_id"
+                value="{{ researcher_id }}"
+              />
+
+              <input
+                type="hidden"
+                name="redirect_url"
+                value="{{ redirect_url }}"
+              />
+
+              <button
+                class="btn btn-link no-padding"
+                aria-label="click to elevate this {{researcher_username}} to be a study admin"
+              >
+                (Elevate to Study Admin
+                <span class="glyphicon glyphicon-arrow-up"></span>)
+              </button>
+
+            </form>
+            {% elif not edit_researcher_is_site_admin and researcher_id != session_researcher.id %}
+            <form
+              action="/demote_researcher"
+              class="oneline"
+              method="post"
+            >
+
+              <input
+                type="hidden"
+                name="study_id"
+                value="{{ study.id }}"
+              />
+
+              <input
+                type="hidden"
+                name="researcher_id"
+                value="{{ researcher_id }}"
+              />
+
+              <input
+                type="hidden"
+                name="redirect_url"
+                value="{{ redirect_url }}"
+              />
+
+              <button
+                class="btn btn-link no-padding"
+                aria-label="click to demote {{researcher_username}} to be a researcher"
+              >
+                (Demote to Researcher
+                <span class="glyphicon glyphicon-arrow-down"></span>)
+              </button>
+
+            </form>
+            {% endif %}
+          </td>
+          <td>
+            {% if not edit_researcher_is_site_admin and not relationship == "Study Admin" and researcher_id != session_researcher.id %}
+            <form
+              action="/remove_researcher_from_study"
+              method="post"
+            >
+
+              <input
+                type="hidden"
+                name="study_id"
+                value="{{ study.id }}"
+              />
+
+              <input
+                type="hidden"
+                name="researcher_id"
+                value="{{ researcher_id }}"
+              />
+
+              <input
+                type="hidden"
+                name="redirect_url"
+                value="{{ redirect_url }}"
+              />
+
+              <button
+                class="btn btn-link no-padding"
+                aria-label="click to remove {{researcher_username}} from this study entirely"
+              >
+                <span class="glyphicon glyphicon-remove"></span>
+                Remove from study
+              </button>
+
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
         {% endif %}
       </table>
     </div>
-  </div>
-
-  <div class="col-xs-12 well">
-    <h5 >Authorize an additional researcher on this study:</h5>
-    <form action="/add_researcher_to_study" method="post">
-      <div class="form-inline">
-        <select class="form-control" name="researcher_id">
-          {% for researcher in administerable_researchers %}
+    <div class="col-xs-4 marg-top-3 h5">
+      Authorize additional researchers on this study:
+    </div>
+    <div class="col-xs-8">
+      <form
+        action="/add_researcher_to_study"
+        method="post"
+      >
+        <div class="form-inline">
+          <select
+            class="form-control"
+            name="researcher_id"
+            aria-label="select a researcher to add to this study"
+          >
+            {% for researcher in administerable_researchers %}
             <option value="{{ researcher.id }}">{{ researcher.username }}</option>
-          {% endfor %}
-        </select>
-        <input type="hidden" name="study_id" value="{{ study.id }}"/>
-        <input type="hidden" name="redirect_url" value="{{ redirect_url }}"/>
-        <button type="submit" class="btn btn-info add_researcher_to_study_button">Add researcher to study</button>
-      </div>
-    </form>
+            {% endfor %}
+          </select>
+
+          <input
+            type="hidden"
+            name="study_id"
+            value="{{ study.id }}"
+          />
+
+          <input
+            type="hidden"
+            name="redirect_url"
+            value="{{ redirect_url }}"
+          />
+
+          <button
+            class="btn btn-info add_researcher_to_study_button"
+            aria-label="add the selected researcher to this study"
+          >Add researcher to study</button>
+        </div>
+
+      </form>
+    </div>
   </div>
 
-    <div class="col-xs-12 well well-lcm">
-      <h2 class="col-xs-12">Export/Import study settings</h2>
-      <div class="col-md-6 ">
-        <h4>Export {{ study['name'] }}'s App Settings and Surveys</h4>
-        <p>Download a JSON file that contains {{ study['name'] }}'s App Settings (which data streams are turned on, what the timer durations and frequencies are, and what text appears in the app) and copies of all Surveys (including schedules, questions, and skip logic) and Audio Surveys (including schedules and voice recording prompts).</p>
-      <a class="btn btn-success h3-margins" href="/export_study_settings_file/{{ study.id }}">Export study settings JSON file</a>
+  <div class="col-xs-12 well well-lcm">
+    <h2 class="col-xs-12">Export/Import study settings</h2>
+    <div class="col-md-6 ">
+      <h3 class="h4">Export {{ study['name'] }}'s App Settings and Surveys</h3>
+      <p>Download a JSON file that contains {{ study['name'] }}'s App Settings (which data streams are turned on, what
+        the timer durations and frequencies are, and what text appears in the app) and copies of all Surveys (including
+        schedules, questions, and skip logic) and Audio Surveys (including schedules and voice recording prompts).</p>
+      <a
+        class="btn btn-success h3-margins"
+        href="/export_study_settings_file/{{ study.id }}"
+        aria-label="click to download a JSON file that contains this study's App Settings and Surveys"
+      >Export study settings JSON file</a>
     </div>
 
     <div class="col-md-6">
-      <h4>Import another study's App Settings and/or Surveys into {{ study['name'] }}</h4>
-      <form action="/import_study_settings_file/{{ study.id }}" method="post" enctype="multipart/form-data">
-        <input class="" type="file" name="upload" id="file_upload_selector">
-        <div class="checkbox  ">
-          <label>
-            <input type="checkbox" name="device_settings" value="true" checked>
+      <h3 class="h4">Import another study's App Settings and/or Surveys into {{ study['name'] }}</h3>
+      <form
+        action="/import_study_settings_file/{{ study.id }}"
+        method="post"
+        enctype="multipart/form-data"
+      >
+
+        <input
+          class="form-control"
+          type="file"
+          name="upload"
+          id="file_upload_selector"
+          aria-label="select a file to upload that contains the App Settings and Surveys you want to import into this study"
+        >
+        <div class="checkbox">
+
+          <label for="device_settings">
+
+            <input
+              type="checkbox"
+              name="device_settings"
+              id="device_settings"
+              value="true"
+              checked
+            >
             Overwrite {{ study['name'] }}'s App Settings with the App Settings in the file you upload
           </label>
         </div>
         <div class="checkbox">
-          <label>
-            <input type="checkbox" name="surveys" value="true" checked>
-            Add new Surveys and Audio Surveys to {{ study['name'] }} that are copies of all the Surveys and Audio Surveys in the file you upload
+
+          <label for="surveys">
+
+            <input
+              type="checkbox"
+              name="surveys"
+              id="surveys"
+              value="true"
+              checked
+            >
+            Add new Surveys and Audio Surveys to {{ study['name'] }} that are copies of all the Surveys and Audio
+            Surveys in the file you upload
           </label>
         </div>
-        <button type="submit" id="file_upload_button " class="btn btn-warning pull-right">Import study settings file</button>
+
+        <button
+          id="file_upload_button "
+          class="btn btn-warning pull-right"
+          aria-label="click to upload the file you selected and import the App Settings and Surveys into this study"
+        >Import study settings file</button>
+
       </form>
     </div>
   </div>
-  
+
   {% if site_admin %}
-  
-    {# Manually end study #}
-    <div class="col-xs-12 well">
-      <h2 class="col-xs-3">
-        {% if study.manually_stopped %} Reopen Study {% else %} End Study {% endif %}
-      </h2>
-      <div class="col-xs-7 h2-margins-vertical">
-        {% if study.manually_stopped %}
-          Reopening a study will allow new data to be collected.  This will not affect any existing data.
-        {% else %}
-          Ending a study will prevent any new data from being collected, but will not delete any existing data.  You will still be able to access all collected data.
-        {% endif %}
-        {% if study.end_date_is_in_the_past %} <h4> This study's data collection period has ended. </h4> {% endif %}
-      </div>
-      
-      {# if study is past end date this button is disabled #}
-      <form action="/toggle_end_study/{{ study.id }}" method="post">
-        <div class="col-xs-2">
-          <button class="btn btn-danger pull-right h2-margins-vertical" type="submit" {% if study.end_date_is_in_the_past %}disabled{% endif %}>
-            {% if study.manually_stopped %} Reopen Study {% else %} End Study {% endif %}
-          </button>
-        </div>
-      </form>
+
+  {# Manually end study #}
+  <div class="col-xs-12 well">
+    <h2 class="col-xs-3">
+      {% if study.manually_stopped %} Reopen Study {% else %} End Study {% endif %}
+    </h2>
+    <div class="col-xs-7 h2-margins-vertical">
+      {% if study.manually_stopped %}
+      Reopening a study will allow new data to be collected. This will not affect any existing data.
+      {% else %}
+      Ending a study will prevent any new data from being collected, but will not delete any existing data. You will
+      still be able to access all collected data.
+      {% endif %}
+      {% if study.end_date_is_in_the_past %} <h4> This study's data collection period has ended. </h4> {% endif %}
     </div>
-      
-    {# delete study, only site admins. Note that this merely marks a study id does not delete data #}
-    <div class="col-xs-12 well well-sm">
-      <h2 class="col-xs-4 ">Permanantly Hide Study</h2>
-      <div class="col-xs-5 h2-margins-vertical">
-        The study will be entirely hidden. Only your System Administrator will be able to restore this study. Data will not be deleted. Hiding a study also manually ends the study.
+
+    {# if study is past end date this button is disabled #}
+    <form
+      action="/toggle_end_study/{{ study.id }}"
+      method="post"
+    >
+      <div class="col-xs-2">
+
+        <button
+          class="btn btn-danger pull-right h2-margins-vertical"
+          type="submit"
+          {% if study.end_date_is_in_the_past %}disabled{% endif %}
+          {% if study.manually_stopped %}
+          aria-label="click to reopen this study and allow new data to be collected"
+          {% else %}
+          aria-label="click to end this study and prevent new data from being collected"
+          {% endif %}
+        >
+          {% if study.manually_stopped %} Reopen Study {% else %} End Study {% endif %}
+        </button>
       </div>
-      <div class="col-xs-3">
-        <a class="btn btn-danger h2-margins-vertical pull-right" 
-          onclick="confirm_hide_study('{{ study.name|replace("'", "")|replace('"', "") }}', '{{ study.id }}')">
-            Hide Study
-        </a>
-      </div>
+
+    </form>
+  </div>
+
+  {# delete study, only site admins. Note that this merely marks a study id does not delete data #}
+  <div class="col-xs-12 well well-sm">
+    <h2 class="col-xs-5 ">Permanantly Hide Study</h2>
+    <div class="col-xs-5 h2-margins-vertical">
+      The study will be entirely hidden. Only your System Administrator will be able to restore this study. Data will
+      not be deleted. Hiding a study also manually ends the study.
     </div>
+    <div class="col-xs-2">
+      <a
+        class="btn btn-danger h2-margins-vertical pull-right"
+        onclick="confirm_hide_study('{{ study.name|replace("'", "")|replace('"', "") }}', '{{ study.id }}')"
+        aria-label="click to hide this study - you will be presented with a browser-controlled prompt to confirm this action"
+      >
+        Hide Study
+      </a>
+    </div>
+  </div>
   {% endif %}
 
 </div>

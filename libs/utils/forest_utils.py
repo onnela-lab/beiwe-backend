@@ -61,15 +61,30 @@ def download_output_file(task: ForestTask) -> bytes:
 
 # our extremely fragile mechanism to get the git commit of the "current" forest version
 def get_forest_git_hash() -> str:
-    that_git_prefix = "beiwe-forest @ git+https://git@github.com/onnela-lab/forest@"
+    shibboleth = "current_forest_git_hash"
+    HASH_MALFORMED = "(Git Hash Malformed)"
+    HASH_MISSING = "(Git Hash Missing)"
     
     with open(path_join(BEIWE_PROJECT_ROOT, "requirements.txt")) as f:
         requirements_file_lines = f.read().splitlines()
     
-    git_version = ""
     for line in requirements_file_lines:
         # in the insane case of multiple matches we are getting the first instance, not the last.
-        if line.startswith(that_git_prefix):
-            git_version = line.split(that_git_prefix)[-1]
-            break
-    return git_version
+        if shibboleth in line:
+            
+            git_hash = line.split(shibboleth)[1]  # second after current_forest_git_hash
+            git_hash = git_hash.strip()           # remove whitespace, its fine just do it....
+            if not git_hash.startswith(":"):      # if there is no colon it is wrong.
+                print("Forest git hash is malformed")
+                return HASH_MALFORMED
+            
+            git_hash = git_hash[1:]
+            git_hash = git_hash.strip()  # remove any intermediate whitespace
+            
+            if len(git_hash) == 40:
+                return git_hash
+            else:
+                print(f"Forest git hash is not 40 characters long, it was only {len(git_hash)}")
+                return HASH_MALFORMED
+    
+    return HASH_MISSING

@@ -10,6 +10,8 @@ To create a "script" just wrap it in @CeleryScriptTask(), name it to start with 
 reporting, warning of long runs, etc. etc.
 """
 
+
+# trunk-ignore(ruff/E402)
 from libs.celery_control import scripts_celery_app  # must be in the namespace for celery to work.
 
 

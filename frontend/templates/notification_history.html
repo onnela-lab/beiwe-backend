@@ -3,83 +3,125 @@
 
 {% block content %}
 
-  <div class="title row">
-    <h1>Notification history for <a href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}">{{ participant.patient_id }}</a></h1>
-    <div class="well well-sm ">
+<div class="container">
+  <div class="well well-sm">
+    <h1>Notification history for <a
+        href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}">{{ participant.patient_id }}</a></h1>
+
     <ol class="breadcrumb">
       <li>
         <a href="/view_study/{{ study.id }}">{{ study.name }}</a>
       </li>
       <li class="active">
         {# <a href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}">{{ participant.patient_id }} #}
-        <a href="{{ easy_url("participant_endpoints.participant_page", participant.study_id, participant.patient_id) }}">{{ participant.patient_id }}
-        Edit and View Attributes of Participant <b>{{ participant.patient_id }}</b>
+        <a
+          href="{{ easy_url("participant_endpoints.participant_page", participant.study_id, participant.patient_id) }}">{{ participant.patient_id }}
+          Edit and View Attributes of Participant <b>{{ participant.patient_id }}</b>
         </a>
       </li>
       <li>
         Participant Notification history
       </li>
     </ol>
-    </div>
+  </div>
 
-<div class="well">
+  <div class="well">
     {# add a url to load the page without the message notifications #}
     {% if include_keepalive %}
-      {# INCLUDE the keepalive parameter on the page links #}
-      {% set keepalive_param = "include_keepalive=true&" %}
-      Seeing too many keepalive notifications?
-      {# DON'T include the parameter to tho swap mode link #}
-      <a href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}/notification_history?page={{page.number}}">Hide Keepalive Notifications</a>
+    {# INCLUDE the keepalive parameter on the page links #}
+    {% set keepalive_param = "include_keepalive=true&" %}
+    Seeing too many keepalive notifications?
+    {# DON'T include the parameter to the swap mode link #}
+    <a
+      href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}/notification_history?page={{page.number}}"
+      aria-label="click to hide keepalive notifications in the notification history for this participant"
+    >Hide Keepalive Notifications</a>
+
     {% else %}
-      {# DON'T include the keepalive parameter on the page links #}
-      {% set keepalive_param = "" %}
-      Want to include all keepalive notifications?
-      {# INCLUDE the parameter to tho swap mode link #}
-      <a href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}/notification_history?include_keepalive=true&page={{page.number}}">Show keepalive notifications</a>
+    {# DON'T include the keepalive parameter on the page links #}
+    {% set keepalive_param = "" %}
+    Want to include all keepalive notifications?
+    {# INCLUDE the parameter to tho swap mode link #}
+    <a
+      href="/view_study/{{ study.id }}/participant/{{ participant.patient_id }}/notification_history?include_keepalive=true&page={{page.number}}"
+      aria-label="click to include keepalive notifications in the notification history for this participant"
+    >Show
+      keepalive notifications</a>
     {% endif %}
-    
+
     {% include "basic_paginator.html" %}
-    
+
     <table class="table table-bordered table-notifications">
       <thead>
-        <th style="width: 220px">Time Sent</th>
-        <th style="width: 220px">Confirmed At</th>
+        <th style="width: 120px">Time Sent</th>
+        <th style="width: 120px">Confirmed At</th>
         <th>Schedule type</th>
         <th>Status</th>
         <th style="width: 220px"> Action</th>
       </thead>
       <tbody>
         {% for attempt in notification_attempts %}
-          {% if len(attempt) == 1 %}
-            <tr>
-              <th colspan="5" class="text-center text-regular">
-                {{attempt[0] | safe}}
-              </th>
-            </tr>
-          {% else %}
-            <tr class="{{attempt.css_class}}"  title="{{attempt.hover_text}}">
-              <td>{{ attempt.attempted_time|safe }}</td>
-              <td>{{ attempt.confirmed_time|safe }}</td>
-              <td>{{ attempt.schedule_type }}</td>
-              <td>{{ attempt.status }}</td>
-              <td>
-              {# we need to only show this button for real push notifications, which we will detect #}
-              {# by checking if the scheduled_time field is a dash #}
-              {% if attempt.scheduled_time != "-" %}
-                {% if attempt.survey_deleted %}
-                  (Survey Deleted)
-                {% else %}
-                  <form action="{{ easy_url("participant_endpoints.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}" method="post">
-                    <input type="hidden" name="survey_id" value="{{ attempt.survey_id }}">
-                    <button class="btn btn-sm btn-group btn-warning" type="submit" {% if locked %} disabled {% endif %}>
-                      Send as Manual Push Notification
-                    </button>
-                  </form>
+        {% if len(attempt) == 1 %}
+        <tr class="tableRowTitle">
+          <th
+            colspan="5"
+            class="tableRowTitle"
+          >
+            <br>
+            {# this survey name is bleached #}
+            {{attempt[0] | safe}}
+          </th>
+        </tr>
+        {% else %}
+        <tr
+          class="{{attempt.css_class}}"
+          title="{{attempt.hover_text}}"
+        >
+          <td>
+            {{ attempt.attempted_time[0]|safe }} <br> {{ attempt.attempted_time[1]|safe }}
+          </td>
+          <td>
+            {% if attempt.confirmed_time != "-" %} {{ attempt.confirmed_time[0]|safe }} <br>
+            {{ attempt.confirmed_time[1]|safe }} {% else %} - {% endif %}
+          </td>
+
+          <td>{{ attempt.schedule_type }}</td>
+          <td>{{ attempt.status }}</td>
+          <td>
+            {# we need to only show this button for real push notifications, which we will detect #}
+            {# by checking if the scheduled_time field is a dash #}
+            {% if attempt.scheduled_time != "-" %}
+            {% if attempt.survey_deleted %}
+            (Survey Deleted)
+            {% else %}
+            <form
+              action="{{ easy_url("participant_endpoints.resend_push_notification", study_id=study.id, patient_id=participant.patient_id) }}"
+              method="post"
+            >
+
+              <input
+                type="hidden"
+                name="survey_id"
+                value="{{ attempt.survey_id }}"
+              >
+
+              <button
+                class="btn btn-sm btn-group btn-warning"
+                type="submit"
+                aria-label="click to resend this push notification, it will be sent as a manual push notification"
+                {% if locked %}
+                disabled
                 {% endif %}
-              {% endif %}
-              </td>
-            </tr>
-          {% endif %}
+              >
+                Send as Manual Push Notification
+              </button>
+
+            </form>
+            {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>

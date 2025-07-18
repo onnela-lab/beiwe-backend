@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from constants.common_constants import EARLIEST_POSSIBLE_DATA_DATE, EARLIEST_POSSIBLE_DATA_DATETIME
-from constants.data_stream_constants import AMBIENT_AUDIO, VOICE_RECORDING
+from constants.data_stream_constants import AMBIENT_AUDIO, AUDIO_RECORDING
 from database.data_access_models import ChunkRegistry
 from database.forest_models import SummaryStatisticDaily
 
@@ -12,7 +12,7 @@ from database.forest_models import SummaryStatisticDaily
 def review_data():
     """ This is complex to put together, sticking it in an (unused) function."""
     query = ChunkRegistry.objects.filter(time_bin__lt=EARLIEST_POSSIBLE_DATA_DATETIME) \
-        .exclude(data_type__in=[AMBIENT_AUDIO, VOICE_RECORDING])
+        .exclude(data_type__in=[AMBIENT_AUDIO, AUDIO_RECORDING])
     
     bad_chunks = []
     print("\nSearching for clearly corrupted ChunkRegistries...\n")

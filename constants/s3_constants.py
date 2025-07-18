@@ -43,17 +43,9 @@ Boto3Response = dict[str, Readable]
 
 METADATA_FIELDS = {
     "last_updated",
-    
     "size_compressed",
     "size_uncompressed",
-    "compression_time_ns",
-    "decompression_time_ns",
-    "encryption_time_ns",
-    "download_time_ns",
-    "upload_time_ns",
-    "decrypt_time_ns",
     "sha1",
-    
     "participant_id",
     "study_id",
 }

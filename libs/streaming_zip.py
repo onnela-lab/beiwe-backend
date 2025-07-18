@@ -5,7 +5,7 @@ from multiprocessing.pool import ThreadPool
 from zipfile import ZIP_STORED, ZipFile
 
 from constants.data_stream_constants import (AMBIENT_AUDIO, SURVEY_ANSWERS, SURVEY_TIMINGS,
-    VOICE_RECORDING)
+    AUDIO_RECORDING)
 from constants.forest_constants import AMBIENT_AUDIO
 from database.study_models import Study
 from libs.s3 import s3_retrieve, s3_retrieve_no_decompress
@@ -56,7 +56,7 @@ def determine_base_file_name(chunk: dict) -> str:
         survey_id = get_survey_id(chunk)
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
     
-    elif data_stream == VOICE_RECORDING:
+    elif data_stream == AUDIO_RECORDING:
         # Audio surveys are also not chunkable, they have a history of file naming issues.
         # - survey__object_id may not be populated in the provided dict.
         # - iirc there are some SUPER old files that are missing a survey id entirely.

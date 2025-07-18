@@ -8,6 +8,7 @@ from django.db import models
 
 from database.common_models import TimestampedModel
 from database.user_models_researcher import Researcher
+from libs.utils.timeout_cache import timeout_cache
 
 
 class FileAsText(TimestampedModel):
@@ -31,7 +32,7 @@ class GenericEvent(TimestampedModel):
 class SingletonModel(TimestampedModel):
     """ A model that destructively maintains exactly one instance. Be very careful with these
     models. """
-    class Meta:
+    class Meta:  # type: ignore
         abstract = True
     
     @classmethod
@@ -39,7 +40,7 @@ class SingletonModel(TimestampedModel):
         """ An objectively dumb way of making sure we only ever have one of these. """
         count = cls.objects.count()
         if count > 1:
-            exclude = cls.objects.order_by("created_on").first().id
+            exclude = cls.objects.order_by("created_on").first().id  # type: ignore
             cls.objects.exclude(id=exclude).delete()
             return cls.singleton()
         if count == 0:
@@ -47,7 +48,7 @@ class SingletonModel(TimestampedModel):
             ret.save()
             return ret
         # if count == 1:  # guaranteed
-        return cls.objects.first()
+        return cls.objects.first()  # type: ignore
 
 
 # todo: make this part of GlobalSettings?
@@ -70,6 +71,12 @@ class GlobalSettings(SingletonModel):
     # notification feature can be activated.  (this defines a check on historical ArchivedEvent
     # created_on times.)
     push_notification_resend_enabled: datetime = models.DateTimeField(default=None, null=True, blank=True)
+    
+    @classmethod
+    @timeout_cache(seconds=60)
+    def cached_downtime_enabled(cls) -> bool:
+        """ Returns the cached value of downtime_enabled. """
+        return cls.singleton().downtime_enabled
 
 
 class DataAccessRecord(TimestampedModel):

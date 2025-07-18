@@ -73,7 +73,7 @@ def main():
     stats.reset()
     pool = ThreadPool(25)
     
-    for path in s3_list_files("", as_generator=True):
+    for path in s3_list_files(""):
         if stats.number_paths_total % 100_000 == 0:  # We have a lot of files.
             stats.stats()
             print("invalid_root_folders:", stats.invalid_root_folders)

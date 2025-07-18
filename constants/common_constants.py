@@ -36,8 +36,9 @@ T_24HR_W_TZ_W_SEC_N_PAREN = "%H:%M:%S %Z"
 DT_12HR_N_TZ_N_SEC_N_PAREN = "%Y-%m-%d %-I:%M %p"
 DT_24HR_N_TZ_N_SEC_N_PAREN = "%Y-%m-%d %H:%M"
 
-DT_12HR_N_TZ_N_SEC_W_PAREN = "%Y-%m-%d %-I:%M%p (%Z)"
-DT_24HR_N_TZ_N_SEC_W_PAREN = "%Y-%m-%d %H:%M %Z"
+DT_12HR_W_TZ_N_SEC_W_PAREN = "%Y-%m-%d %-I:%M%p (%Z)"
+DT_12HR_W_TZ_N_SEC_N_PAREN = "%Y-%m-%d %-I:%M%p %Z"
+DT_24HR_W_TZ_N_SEC_N_PAREN = "%Y-%m-%d %H:%M %Z"
 
 DT_24HR_N_TZ_W_SEC_N_PAREN = "%Y-%m-%d %H:%M:%S %Z"
 
@@ -86,7 +87,6 @@ RUNNING_SHELL = any(key in _argv for key in ("shell_plus", "--ipython", "ipython
 RUNNING_TESTS = "test" in _argv
 RUNNING_RUNSERVER_CLI = "runserver" in _argv
 RUNNING_TEST_OR_FROM_A_SHELL = RUNNING_SHELL or RUNNING_TESTS or RUNNING_RUNSERVER_CLI
-RUNNING_TESTS = "test" in _argv
 
 # roughly one month before the initial deploy of the first Beiwe instance.
 EARLIEST_POSSIBLE_DATA_DATE = date(2014, 8, 1)
@@ -98,3 +98,7 @@ EARLIEST_POSSIBLE_DATA_TIMESTAMP = 1406851200
 # corrupted data, we need a sanity check inside data processing.  This value is updated at runtime,
 # just in case 90 days somehow isn't enough.
 LATEST_POSSIBLE_DATA_TIMESTAMP = int(time.mktime((datetime.utcnow() + timedelta(days=90)).timetuple()))
+
+## these are debugging constants for the website
+FORCE_SITE_READ_ONLY = False
+FORCE_SITE_NON_ADMIN = False

@@ -1,12 +1,22 @@
 <script>navBarStudies = {{ allowed_studies|tojson }}</script>
-<script src="/static/javascript/app/survey-builder/controllers/nav-bar-study-controller.js"></script>
+<script>{% include LocalAssets.NAVBAR_JS %}</script>
 
-<nav class="navbar navbar-default">
+<nav class="navbar navbar-inverse">
   <div class="container-fluid">
 
     {# This "Open the navbar menu" toggle appears on narrow (mobile) screens when the rest of the navbar is hidden #}
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#main-navbar-menu" aria-expanded="false">
+    <div
+      class="navbar-header"
+      aria-label="Top Navigation Bar"
+    >
+
+      <button
+        class="navbar-toggle collapsed"
+        data-toggle="collapse"
+        data-target="#main-navbar-menu"
+        aria-expanded="false"
+        aria-label="Toggles the study search menu"
+      >
         <span class="sr-only">Toggle navigation</span>
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
@@ -14,116 +24,254 @@
       </button>
     </div>
 
-    <div id="main-navbar-menu" ng-controller="NavBarStudyController" class="collapse navbar-collapse" style="background-color: transparent;" max-width="10px">
-      <ul class="nav navbar-nav navbar-left">
+    <div
+      id="main-navbar-menu"
+      ng-controller="NavBarStudyController"
+      class="collapse navbar-collapse"
+      style="background-color: transparent;"
+      max-width="10px"
+    >
+      <ul class="nav navbar-nav navbar-left ml-n2">
         {# If the current admin is authorized to view more than one study, give them a drop-down menu to switch studies #}
-        <li ng-if="navBarStudies.length > 1" class="dropdown hover-pulse" role="presentation">
-          <a class="dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-              Studies <span class="caret"></span>
+        <li
+          ng-if="navBarStudies.length > 1"
+          class="dropdown pulse-text-hover"
+          role="presentation"
+        >
+          <a
+            class="dropdown-toggle"
+            type="button"
+            id="dropdownMenu1"
+            data-toggle="dropdown"
+            aria-haspopup="true"
+            aria-expanded="true"
+            alia-label="Click to open the study search menu"
+          >
+            Studies <span class="caret"></span>
           </a>
           {# The dropdown menu is an AngularJS app that's searchable/filterable #}
-          <ul id="searchableStudyList" class="dropdown-menu dropdown-menu-left dropdown-translucent noanimation" aria-labelledby="dropdownMenu1">
+          <ul
+            id="searchableStudyList"
+            class="dropdown-menu dropdown-menu-left dropdown-translucent noanimation"
+            aria-labelledby="dropdownMenu1"
+          >
             {# Search/filter input field #}
-            <li class="dropdown_search_field noanimation">
+            <li class="dropdown-item-nice noanimation">
               <div class="form-group noanimation">
-                <input type="search" class="form-control noanimation"
-                placeholder="Find Study by Name or ID"
-                ng-model="searchText"
-                ng-click="$event.stopPropagation()"
-                autofocus>
+
+                <input
+                  type="search"
+                  class="form-control noanimation"
+                  placeholder="Find Study by Name or ID"
+                  ng-model="searchText"
+                  ng-click="$event.stopPropagation()"
+                  aria-label="Search for studies by name or by ID."
+                  autofocus
+                >
               </div>
             </li>
             {# Filtered list of studies #}
-            <li class="noanimation" ng-repeat="study in navBarStudies | filter:{search_text: searchText}">
-              <a class="noanimation" href="/view_study/{% raw %}{{ study.id }}{% endraw %}">{% raw %}{{ study.name }}{% endraw %}</a></li>
+            <li
+              class="noanimation"
+              ng-repeat="study in navBarStudies | filter:{search_text: searchText}"
+            >
+              <a
+                class="noanimation current-text-green"
+                href="/view_study/{% raw %}{{ study.id }}{% endraw %}"
+                aria-label="Go to Study {% raw %}{{ study.name }}{% endraw %} with ID {% raw %}{{ study.object_id }}{% endraw %}"
+              >{% raw %}{{ study.name }}{% endraw %}</a>
+            </li>
           </ul>
         </li>
         {# If the current admin is authorized to view only one study, give them a "Home" button to view that study #}
-        <li ng-if="navBarStudies.length <= 1" role="presentation" class="hover-pulse"><a href="{{ easy_url("study_endpoints.choose_study_page") }}">Home</a></li>
-        
+        <li
+          ng-if="navBarStudies.length <= 1"
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url("study_endpoints.choose_study_page") }}"
+            aria-label="Go to main study"
+          > Home </a>
+        </li>
+
         {% if study and request.session_researcher %}
-          {% if page_location != 'edit_study' and request.session_researcher.is_site_admin_or_study_admin(study.id) %}
-            <li role="presentation" class="hover-pulse">
-              <a href="{{ easy_url('study_endpoints.edit_study', study_id=study.id) }}">Edit Study</a>
-            </li>
-          {% endif %}
+        {% if page_location != 'edit_study' and request.session_researcher.is_site_admin_or_study_admin(study.id) %}
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url('study_endpoints.edit_study', study_id=study.id) }}"
+            aria-label="Edit settings for {{study.name}}"
+          >Edit Study</a>
+        </li>
+        {% endif %}
 
-          {% if page_location != 'view_study' %}
-            <li role="presentation" class="hover-pulse">
-              <a href="{{ easy_url('study_endpoints.view_study_page', study_id=study.id) }}">View Study</a>
-            </li>
-          {% endif %}
+        {% if page_location != 'view_study' %}
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url('study_endpoints.view_study_page', study_id=study.id) }}"
+            arial-label="go to main study page for {{study.name}}"
+          >View Study</a>
+        </li>
+        {% endif %}
 
-          {% if page_location != 'dashboard_landing' %}
-            <li role="presentation" class="hover-pulse">
-              <a href="{{ easy_url('data_page_endpoints.dashboard_page', study_id=study.id) }}">Dashboard</a>
-            </li>
-          {% endif %}
-          
-          {% if page_location == 'dashboard_patient' %}
-            <li class="active" role="presentation"><a href="">{{ patient_id }}</a></li>
-          {% elif page_location == 'dashboard_data' %}
-            <li class="active" role="presentation"><a href="">{{ data_stream }}</a></li>
-          {% endif %}
+        {% if page_location != 'dashboard_landing' %}
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url('data_page_endpoints.dashboard_page', study_id=study.id) }}"
+            aria-label="Go to the dashboard data view landing page for {{study.name}}"
+          >Go To Dashboard</a>
+        </li>
+        {% endif %}
+
         {% endif %}
 
         {% if study and study.forest_enabled %}
-          <li role="presentation" class="hover-pulse">
-          
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+
+          <a
+            href="#"
+            class="dropdown-toggle dropdown-nice fix-forest-dropdown-focus"
+            data-toggle="dropdown"
+            role="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-label="click to open the menu for Forest Data Processing"
+          >
             Forest <span class="caret"></span>
           </a>
-          
-          <ul class="dropdown-menu dropdown-translucent noanimation">
-            <li class="noanimation"><a class="noanimation" href="{{ easy_url('forest_endpoints.create_tasks', study_id=study.id) }}">Create Forest Tasks</a></li>
-            <li class="noanimation"><a class="noanimation" href="{{ easy_url('forest_endpoints.task_log', study_id=study.id) }}">View Forest Task Log</a></li>
+
+          <ul class="dropdown-menu dropdown-translucent noanimation dropdown-item-nice ">
+            <li class="noanimation">
+              <a
+                class="noanimation current-text-green"
+                href="{{ easy_url('forest_endpoints.create_tasks', study_id=study.id) }}"
+                aria-label="Click to go to the create Forest Tasks page {{study.name}}"
+              >Create Forest Tasks
+              </a>
+            </li>
+            <li class="noanimation">
+              <a
+                class="noanimation current-text-green"
+                href="{{ easy_url('forest_endpoints.task_log', study_id=study.id) }}"
+                aria-label="Click to go to the Forest Task Log page for {{study.name}}"
+              >View Forest Task Log
+              </a>
+            </li>
             {% if site_admin %}
             <li class="noanimation">
-              <a class="noanimation" href="{{ easy_url('forest_endpoints.download_task_log', study_id=study.id) }}">
-                <i>Download Forest Task Log As CSV</i>
+              <a
+                class="noanimation current-text-green"
+                href="{{ easy_url('forest_endpoints.download_task_log', study_id=study.id) }}"
+                aria-label="Click to download the Forest Task Log as a CSV file for {{study.name}}"
+              >
+                <i class="noanimation">Download Forest Task Log As CSV</i>
               </a>
             </li>
             {% endif %}
           </ul>
-          </li>
+        </li>
         {% endif %}
       </ul>
 
-      <ul class="nav navbar-nav navbar-right text-small text-center" style="margin-bottom: -0.8em; margin-top: -0.8em;">
-        <li role="presentation" class="hover-pulse">
-          <a href="{{ easy_url("data_page_endpoints.data_api_web_form_page") }}" class="margin-left-neg-1">
-            Download <br> <span class="hover-pulse">Data</span>
-          </a></li>
-        
-        <li role="presentation" class="hover-pulse">
-          <a href="{{ easy_url("manage_researcher_endpoints.self_manage_credentials_page") }}" class="margin-left-neg-1">
+      <ul
+        class="nav navbar-nav navbar-right text-small text-center"
+        style="margin-bottom: -0.8em; margin-top: -0.8em;"
+      >
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url("data_page_endpoints.data_api_web_form_page") }}"
+            class="ml-n1"
+            aria-label="Click to go to the Data Download API Web Form"
+          >
+            Download <br> Data
+          </a>
+        </li>
+
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url("manage_researcher_endpoints.self_manage_credentials_page") }}"
+            class="ml-n1"
+            aria-label="Click to go to the Manage Credentials page."
+          >
             Manage <br> Credentials
-          </a></li>
-        
+          </a>
+        </li>
+
         {# Give the System Admin an extra link here to manage researchers #}
         {% if is_admin %}
-          <li role="presentation" class="hover-pulse">
-            <a href="{{ easy_url("manage_researcher_endpoints.administrator_manage_researchers_page") }}" class="margin-left-neg-1">
-              Manage <br> Researchers
-            </a></li>
-        
-          <li role="presentation" class="hover-pulse">
-            <a href="{{ easy_url("study_endpoints.manage_studies_page") }}" class="margin-left-neg-1">
-              Manage <br> Studies
-            </a></li>
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url("manage_researcher_endpoints.administrator_manage_researchers_page") }}"
+            class="ml-n1"
+            aria-label="Click to go to the Manage Researchers page."
+          >
+            Manage <br> Researchers
+          </a>
+        </li>
+
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url("study_endpoints.manage_studies_page") }}"
+            class="ml-n1"
+            aria-label="Click to go to the Manage Studies page."
+          >
+            Manage <br> Studies
+          </a>
+        </li>
         {% endif %}
-        
+
         {% if request.session_researcher.site_admin %}
-          <li role="presentation" class="hover-pulse">
-            <a href="{{ easy_url("system_admin_endpoints.manage_firebase_credentials") }}" class="margin-left-neg-1">
+        <li
+          role="presentation"
+          class="pulse-text-hover"
+        >
+          <a
+            href="{{ easy_url("system_admin_endpoints.manage_firebase_credentials") }}"
+            class="ml-n1"
+            aria-label="Click to go to the Firebase Credentials management page."
+          >
             Firebase <br> Credentials
-            </a></li>
+          </a>
+        </li>
         {% endif %}
-        
-        <li role="presentation" class="hover-pulse">
-          <a href="{{ easy_url("login_endpoints.logout_page") }}" class="" style="font-size: medium; margin-top: 0.6em;">
+
+        <li
+          role="presentation"
+          class="pulse-text-hover mr-n1"
+        >
+          <a
+            href="{{ easy_url("login_endpoints.logout_page") }}"
+            class=""
+            style="font-size: medium; margin-top: 0.6em;"
+            aria-label="Click to log out of this Beiwe Website"
+          >
             Log Out
-          </a></li>
+          </a>
+        </li>
       </ul>
     </div>
   </div>
