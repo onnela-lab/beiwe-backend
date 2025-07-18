@@ -1,10 +1,9 @@
 from collections import defaultdict
-from collections.abc import Callable
 from datetime import date, datetime, tzinfo
 
 from django.db.models.query import QuerySet
-from django.utils.timezone import make_aware
 
+from constants.common_constants import UTC
 from constants.data_processing_constants import CHUNK_TIMESLICE_QUANTUM
 from constants.data_stream_constants import ALL_DATA_STREAMS
 from database.data_access_models import ChunkRegistry
@@ -13,16 +12,11 @@ from database.user_models_participant import Participant
 from libs.utils.date_utils import date_to_end_of_day, date_to_start_of_day, get_timezone_shortcode
 
 
-# not importable
-utcfromtimestamp: Callable = datetime.utcfromtimestamp
-
-
 def timeslice_to_start_of_day(timeslice: int, tz: tzinfo):
     """ We use an integer to represent time, it must be multiplied by CHUNK_TIMESLICE_QUANTUM to
     yield a unix timestamp."""
     # get the date _in the local time_, then get the start of that day as a datetime
-    day = make_aware(utcfromtimestamp(timeslice * CHUNK_TIMESLICE_QUANTUM), UTC) \
-        .astimezone(tz).date()
+    day = datetime.fromtimestamp((timeslice * CHUNK_TIMESLICE_QUANTUM), UTC).astimezone(tz).date()
     return date_to_start_of_day(day, tz)
 
 
@@ -30,8 +24,7 @@ def timeslice_to_end_of_day(timeslice: int, tz: tzinfo):
     """ We use an integer to represent time, it must be multiplied by CHUNK_TIMESLICE_QUANTUM to
     yield a unix timestamp."""
     # get the date _in the local time_, then get the end of that day as a datetime
-    day = make_aware(utcfromtimestamp(timeslice * CHUNK_TIMESLICE_QUANTUM), UTC) \
-        .astimezone(tz).date()
+    day = datetime.fromtimestamp((timeslice * CHUNK_TIMESLICE_QUANTUM), UTC).astimezone(tz).date()
     return date_to_end_of_day(day, tz)
 
 

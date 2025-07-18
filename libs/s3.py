@@ -457,6 +457,33 @@ def smart_s3_list_study_files(prefix: str, obj: StrPartStudy, start_at=None) -> 
     return s3_list_files(s3_construct_study_key_path(prefix, obj), start_at=start_at)
 
 
+def s3_get_compressed_size_zst(key_path: str) -> int:
+    """ Returns the size of the file at key_path in bytes.  If the file does not exist raises
+    NoSuchKeyException.
+    TLDR: don't use this, use the S3Storage db table and make sure it is always up to date. """
+    
+    if not key_path.endswith(".zst"):
+        key_path = key_path + ".zst"
+    
+    size_dict = dict(s3_list_sizes(key_path))
+    if key_path in size_dict:
+        return size_dict[key_path]
+    else:
+        raise NoSuchKeyException(f"{key_path} not found in s3 bucket {S3_BUCKET}.")
+
+
+def s3_list_sizes(prefix: str, start_at=None) -> Generator[tuple[str, int]]:
+    """ returns list of s3 keys matching the prefix AND their sizes. """
+    for page in _s3_get_page_iterator(S3_BUCKET, prefix, start_at=start_at):
+        try:
+            for item in page['Contents']:
+                yield item['Key'].strip("/"), item['Size']
+        except KeyError as e:
+            if 'Contents' not in page:
+                return  # end of returns - test is explicit because 'Key' ~could fail
+            raise KeyError("Unknown KeyError in _do_list_files_generator") from e
+
+
 def _do_list_files(*args, **kwargs) -> Generator[str]:
     for page in _s3_get_page_iterator(*args, **kwargs):
         try:
