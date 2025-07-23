@@ -167,9 +167,8 @@ def setup_python():
 
 
 def run_custom_ondeploy_script():
-    python = "/home/ubuntu/.pyenv/versions/beiwe/bin/python"
     with cd(REMOTE_PROJECT_DIR):
-        run(f'{python} ./run_task.sh run_custom_ondeploy_script processing >> {LOG_FILE}')
+        run(f'bash ./run_task.sh run_custom_ondeploy_script processing >> {LOG_FILE}')
 
 
 def setup_celery_worker():
