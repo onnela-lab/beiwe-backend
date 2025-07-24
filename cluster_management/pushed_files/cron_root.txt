@@ -22,5 +22,5 @@
 # 
 # m h  dom mon dow   command
 
-# if the server ever restarts we need to update this server 
-*/30 * * * * : swapon /
+# restart supervisord once a day at 4:29am (utc?)
+29 4 * * *: supervisorctl restart all

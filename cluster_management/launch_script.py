@@ -25,20 +25,21 @@ from deployment_helpers.constants import (APT_MANAGER_INSTALLS, APT_SINGLE_SERVE
     CREATE_WORKER_HELP, DEPLOYMENT_ENVIRON_SETTING_REMOTE_FILE_PATH,
     DEPLOYMENT_SPECIFIC_CONFIG_FOLDER, DEV_HELP, DEV_MODE, DO_CREATE_CLONE, DO_CREATE_ENVIRONMENT,
     DO_SETUP_EB_UPDATE_OPEN, ENVIRONMENT_NAME_RESTRICTIONS, EXTANT_ENVIRONMENT_PROMPT,
-    FILES_TO_PUSH_EARLY, FILES_TO_PUSH_LATE, FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP,
-    get_beiwe_environment_variables_file_path, get_db_credentials_file_path,
-    get_finalized_settings_file_path, get_finalized_settings_variables, get_global_config,
-    GET_MANAGER_IP_ADDRESS_HELP, get_pushed_full_processing_server_env_file_path,
-    get_server_configuration_variables, get_server_configuration_variables_path,
-    GET_WORKER_IP_ADDRESS_HELP, HELP_SETUP_NEW_ENVIRONMENT, HELP_SETUP_NEW_ENVIRONMENT_END,
-    HELP_SETUP_NEW_ENVIRONMENT_HELP, LOCAL_AMI_ENV_CONFIG_FILE_PATH, LOCAL_APACHE_CONFIG_FILE_PATH,
-    LOCAL_CRONJOB_MANAGER_FILE_PATH, LOCAL_CRONJOB_WORKER_FILE_PATH, LOCAL_INSTALL_CELERY_WORKER,
-    LOCAL_RABBIT_MQ_CONFIG_FILE_PATH, LOG_FILE, MANAGER_SERVER_INSTANCE_TYPE, PURGE_COMMAND_BLURB,
-    PURGE_INSTANCE_PROFILES_HELP, PUSHED_FILES_FOLDER, RABBIT_MQ_PORT,
-    REMOTE_APACHE_CONFIG_FILE_PATH, REMOTE_CRONJOB_FILE_PATH, REMOTE_HOME_DIR,
-    REMOTE_INSTALL_CELERY_WORKER, REMOTE_PROJECT_DIR, REMOTE_RABBIT_MQ_CONFIG_FILE_PATH,
-    REMOTE_RABBIT_MQ_FINAL_CONFIG_FILE_PATH, REMOTE_RABBIT_MQ_PASSWORD_FILE_PATH, REMOTE_USERNAME,
-    STAGED_FILES, TERMINATE_PROCESSING_SERVERS_HELP, WORKER_SERVER_INSTANCE_TYPE)
+    FILES_TO_PUSH_EARLY, FILES_TO_PUSH_LATE, FILES_TO_PUSH_ROOT,
+    FIX_HEALTH_CHECKS_BLOCKING_DEPLOYMENT_HELP, get_beiwe_environment_variables_file_path,
+    get_db_credentials_file_path, get_finalized_settings_file_path,
+    get_finalized_settings_variables, get_global_config, GET_MANAGER_IP_ADDRESS_HELP,
+    get_pushed_full_processing_server_env_file_path, get_server_configuration_variables,
+    get_server_configuration_variables_path, GET_WORKER_IP_ADDRESS_HELP, HELP_SETUP_NEW_ENVIRONMENT,
+    HELP_SETUP_NEW_ENVIRONMENT_END, HELP_SETUP_NEW_ENVIRONMENT_HELP, LOCAL_AMI_ENV_CONFIG_FILE_PATH,
+    LOCAL_APACHE_CONFIG_FILE_PATH, LOCAL_CRONJOB_MANAGER_FILE_PATH, LOCAL_CRONJOB_SUDO_FILE_PATH,
+    LOCAL_CRONJOB_WORKER_FILE_PATH, LOCAL_INSTALL_CELERY_WORKER, LOCAL_RABBIT_MQ_CONFIG_FILE_PATH,
+    LOG_FILE, MANAGER_SERVER_INSTANCE_TYPE, PURGE_COMMAND_BLURB, PURGE_INSTANCE_PROFILES_HELP,
+    PUSHED_FILES_FOLDER, RABBIT_MQ_PORT, REMOTE_APACHE_CONFIG_FILE_PATH, REMOTE_CRONJOB_FILE_PATH,
+    REMOTE_HOME_DIR, REMOTE_INSTALL_CELERY_WORKER, REMOTE_PROJECT_DIR,
+    REMOTE_RABBIT_MQ_CONFIG_FILE_PATH, REMOTE_RABBIT_MQ_FINAL_CONFIG_FILE_PATH,
+    REMOTE_RABBIT_MQ_PASSWORD_FILE_PATH, REMOTE_USERNAME, STAGED_FILES,
+    TERMINATE_PROCESSING_SERVERS_HELP, WORKER_SERVER_INSTANCE_TYPE)
 from deployment_helpers.general_utils import current_time_string, do_zip_reduction, EXIT, log, retry
 from fabric.api import cd, env as fabric_env, put, run, sudo
 
@@ -108,16 +109,26 @@ def push_manager_private_ip_and_password(eb_environment_name):
 
 
 def push_home_directory_files1():
+    run("mkdir -p /home/ubuntu/.config/htop")  # wow it took forever to work this out....
+    sudo("mkdir -p /root/.config/htop")
+    
     for local_relative_file, remote_relative_file in FILES_TO_PUSH_EARLY:
         local_file_path = path_join(PUSHED_FILES_FOLDER, local_relative_file)
         remote_file_path = path_join(REMOTE_HOME_DIR, remote_relative_file)
+        log.info(f"pushing '{local_file_path}' to '{remote_file_path}'")
         put(local_file_path, remote_file_path)
+    
+    for local_relative_file, remote_absolute_file in FILES_TO_PUSH_ROOT:
+        local_file_path = path_join(PUSHED_FILES_FOLDER, local_relative_file)
+        log.info(f"pushing '{local_file_path}' to '{remote_absolute_file}'")
+        put(local_file_path, remote_absolute_file, use_sudo=True)
 
 
 def push_home_directory_files2():
     for local_relative_file, remote_relative_file in FILES_TO_PUSH_LATE:
         local_file_path = path_join(PUSHED_FILES_FOLDER, local_relative_file)
         remote_file_path = path_join(REMOTE_HOME_DIR, remote_relative_file)
+        log.info(f"pushing '{local_file_path}' to '{remote_file_path}'")
         put(local_file_path, remote_file_path)
 
 
@@ -175,8 +186,7 @@ def setup_celery_worker():
     # Copy the script from the local repository onto the remote server,
     # make it executable and execute it.
     put(LOCAL_INSTALL_CELERY_WORKER, REMOTE_INSTALL_CELERY_WORKER)
-    run(f'chmod +x {REMOTE_INSTALL_CELERY_WORKER}')
-    sudo(f'{REMOTE_INSTALL_CELERY_WORKER} >> {LOG_FILE}')
+    sudo(f'bash {REMOTE_INSTALL_CELERY_WORKER} >> {LOG_FILE}')
 
 
 def manager_fix():
@@ -199,23 +209,25 @@ def manager_fix():
     )
     sleep(10)
     retry(run, "# waiting for server to reboot, this might take a while... ")
-    
-    # we need to re-enable the swap after the reboot, then we can finally start supervisor without
-    # creating zombie celery threads.
-    sudo("swapon /swapfile")
-    sudo("swapon -s")
 
 
 def setup_worker_cron():
     # Copy the cronjob file onto the remote server and add it to the remote crontab
     put(LOCAL_CRONJOB_WORKER_FILE_PATH, REMOTE_CRONJOB_FILE_PATH)
     run(f'crontab -u {REMOTE_USERNAME} {REMOTE_CRONJOB_FILE_PATH}')
+    setup_sudo_cron()
 
 
 def setup_manager_cron():
     # Copy the cronjob file onto the remote server and add it to the remote crontab
     put(LOCAL_CRONJOB_MANAGER_FILE_PATH, REMOTE_CRONJOB_FILE_PATH)
     run(f'crontab -u {REMOTE_USERNAME} {REMOTE_CRONJOB_FILE_PATH}')
+    setup_sudo_cron()
+
+
+def setup_sudo_cron():
+    put(LOCAL_CRONJOB_SUDO_FILE_PATH, REMOTE_CRONJOB_FILE_PATH)
+    sudo(f'crontab -u root {REMOTE_CRONJOB_FILE_PATH}')
 
 
 def setup_rabbitmq(eb_environment_name):
@@ -298,6 +310,7 @@ def create_swap():
     sudo("mkswap /swapfile")
     sudo("swapon /swapfile")
     sudo("swapon -s")
+    sudo("echo '/swapfile none swap sw 0 0' >> /etc/fstab")
 
 
 ####################################################################################################
@@ -507,7 +520,6 @@ def do_create_manager():
     setup_celery_worker()  # run setup worker last.
     run_custom_ondeploy_script()
     manager_fix()
-    run("supervisord")
     push_home_directory_files2()
     
     log.info("======== Server is up and running! ========")
@@ -551,7 +563,7 @@ def do_create_worker():
     run_custom_ondeploy_script()
     log.warning("Server is almost up.  Waiting 20 seconds to avoid a race condition...")
     sleep(20)
-    run("supervisord")
+    sudo("service supervisor restart")
     push_home_directory_files2()
 
 

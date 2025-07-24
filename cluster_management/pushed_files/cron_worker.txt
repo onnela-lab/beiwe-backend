@@ -21,12 +21,9 @@
 #
 # m h  dom mon dow   command
 
-# Celery generally has some issues keeping memory usage down, so we periodically restart it.
-# When supervisord receives the HUP signal it will stop all processes, reload the configuration from the first config
-# file it finds, and start all processes.
+# see notes in cron_manager.txt
 
 # at 4:29am restart celery by restarting supervisord
-29 4 * * *: pkill -HUP supervisord
 @daily : daily; journalctl --vacuum-time=1w
 @daily : daily; cd $PROJECT_PATH; chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python run_script.py upload_logs.py
 @daily : daily; apt autoclean

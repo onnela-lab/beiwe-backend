@@ -91,12 +91,16 @@ APT_SINGLE_SERVER_AMI_INSTALLS.extend([
 FILES_TO_PUSH_EARLY = [
     ('known_hosts', '.ssh/known_hosts'),  # allows git clone without further prompting
     ('.inputrc', '.inputrc'),  # modifies what up-arrow, tab etc. do
+    ('htoprc', '/home/ubuntu/.config/htop/htoprc'),  # standard htop profile
 ]
 
 FILES_TO_PUSH_LATE = [
     ('bash_profile.sh', '.profile'),  # standard bash profile
 ]
 
+FILES_TO_PUSH_ROOT = [  # files for root target absolute paths
+    ('htoprc', '/root/.config/htop/htoprc'),  # standard htop profile
+]
 
 ## Errors
 class DBInstanceNotFound(Exception): pass
@@ -190,6 +194,7 @@ def get_aws_access_policy():
 # (files with the prefix LOCAL are on this machine, REMOTE files are file paths on the remote server)
 LOCAL_CRONJOB_WORKER_FILE_PATH = path_join(PUSHED_FILES_FOLDER, 'cron_worker.txt')
 LOCAL_CRONJOB_MANAGER_FILE_PATH = path_join(PUSHED_FILES_FOLDER, 'cron_manager.txt')
+LOCAL_CRONJOB_SUDO_FILE_PATH = path_join(PUSHED_FILES_FOLDER, 'cron_root.txt')
 REMOTE_CRONJOB_FILE_PATH = path_join(REMOTE_HOME_DIR, 'cronjob.txt')
 LOCAL_INSTALL_CELERY_WORKER = path_join(PUSHED_FILES_FOLDER, 'install_celery_worker.sh')
 REMOTE_INSTALL_CELERY_WORKER = path_join(REMOTE_HOME_DIR, 'install_celery_worker.sh')
