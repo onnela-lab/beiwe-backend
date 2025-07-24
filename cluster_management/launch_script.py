@@ -258,7 +258,7 @@ def apt_installs(manager=False, single_server_ami=False):
         try:
             # export DEBIAN_FRONTEND=noninteractive disables interactive prompts in apt
             sudo(f'export DEBIAN_FRONTEND=noninteractive; apt-get -yq update >> {LOG_FILE}')
-            sudo(f'export DEBIAN_FRONTEND=noninteractive; apt-get -yq install {installs_string} >> {LOG_FILE}')
+            sudo(f'export DEBIAN_FRONTEND=noninteractive; apt-get -yq install {installs_string} >> {LOG_FILE} 2>&1')
             installs_failed = False
             break
         except FabricExecutionError:
