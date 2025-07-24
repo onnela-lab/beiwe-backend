@@ -23,7 +23,6 @@
 
 # see notes in cron_manager.txt
 
-# at 4:29am restart celery by restarting supervisord
 @daily : daily; journalctl --vacuum-time=1w
 @daily : daily; cd $PROJECT_PATH; chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python run_script.py upload_logs.py
 @daily : daily; apt autoclean
