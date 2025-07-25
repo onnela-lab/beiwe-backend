@@ -52,7 +52,6 @@ def s3_encrypt_eb_bucket():
     s3_encrypt_bucket(s3_eb_bucket)
 
 
-
 def s3_require_tls(bucket_name):
     """ This enforces encryption of data in transit for any calls. """
     

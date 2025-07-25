@@ -12,7 +12,7 @@ maintainers = [
   { name = "Eli Jones", email = "biblicabeiwe@gmail.com" }  
 ]
 
-authors = [
+authors = [  # Contributors
   # Eli Jones is the primary architect and maintainer of The Beiwe Platform.  He is a major contributor to the backend and the apps, and occasionally dabbles in the Forest repository.  He has been involved since the platform's inception.
   { name = "Eli Jones" },
   
@@ -38,6 +38,7 @@ authors = [
   { name = "Leila Minowada" },
   { name = "Noah Houghton" },
   { name = "Sean Esterkin" },
+  { name = "Zonglin Leon He" },
 ]
 
 readme = "README.md"
