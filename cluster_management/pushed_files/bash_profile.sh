@@ -79,12 +79,12 @@ alias b='cd ~/beiwe-backend/'
 alias beiwe='cd ~/beiwe-backend/'
 
 #Supervisord (data processing)
-alias processing-start="supervisord"
-alias processing-stop="killall supervisord > /dev/null 2>&1"
-alias processing-restart="pkill -HUP supervisord 2> /dev/null"
+alias processing-start="sudo supervisorctl start all"
+alias processing-stop="sudo supervisorctl stop all"
+alias processing-restart="sudo supervisorctl restart all"
 
 #Watch Logs Live
-alias log='sudo tail -f /home/ubuntu/celery*.log /home/ubuntu/supervisord.log /var/log/rabbitmq/*.log'
+alias log='sudo tail -f /home/ubuntu/celery*.log /var/log/supervisor/supervisord.log /var/log/rabbitmq/*.log'
 alias logr='sudo tail -f /var/log/rabbitmq/*.log' 
 alias logs='logs'
 alias logd='tail -f /home/ubuntu/supervisor.log'
@@ -92,7 +92,7 @@ alias logd='tail -f /home/ubuntu/supervisor.log'
 #Configuration files
 alias conf='sudo nano ~/beiwe-backend/config/settings.py'
 alias settings='conf'
-alias superconf='sudo nano /etc/supervisord.conf'
+alias superconf='sudo nano /etc/supervisor/conf.d/beiwe.conf'
 
 #Developer tools
 alias db="cd ~/beiwe-backend/; python manage.py shell_plus"

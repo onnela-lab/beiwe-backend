@@ -124,7 +124,7 @@ jobs:
             /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip uninstall forest beiwe-forest -y; \
             /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip install --upgrade pip setuptools wheel; \
             /home/ubuntu/.pyenv/versions/beiwe/bin/python -m pip install -r requirements.txt; \
-            sudo pkill -HUP supervisord;'; \
+            sudo supervisorctl restart all;'; \
           then \
             exit 1; \
           fi

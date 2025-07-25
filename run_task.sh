@@ -4,7 +4,9 @@
 # if you provide a parameter to this script we just blindly run that script via the taskrunner
 # without any extra checks or prompts and then exit with that status code.
 if [ -n "$1" ]; then
-    python -u scripts/taskrunner.py $1 $2 $3 $4 $5 $6 $7 $8 $9
+    # (this is the hard-coded path to the beiwe python environment, which is not in the PATH, 
+    # because we use pyenv to manage python versions.)
+    /home/ubuntu/.pyenv/versions/beiwe/bin/python -u scripts/taskrunner.py $1 $2 $3 $4 $5 $6 $7 $8 $9
     exit $?  # exit with that status code
 fi
 

@@ -43,7 +43,7 @@ TASKS = {
         ],
     HOURLY: [enqueue_hourly_scripts_tasks],
     FOUR_HOURLY: [],
-    DAILY: [enqueue_daily_script_tasks],
+    DAILY: [enqueue_daily_script_tasks],  # THE SERVER RESTARTS 4hrs 29min AFTER THIS TASK RUNS
     WEEKLY: [],
     MONTHLY: [],
 }

@@ -27,9 +27,12 @@ def get_security_group_by_id(sec_grp_id):
         raise
 
 
+# This implementation just iterates through all security groups.  This is not ideal but is more
+# compatible.  Note that deploying to a non-default VPC is not the targetted configuration of the primary
+# consumers of the beiwe-backend so it may be brittle.
 def get_security_group_by_name(sec_grp_name):
     try:
-        return create_ec2_client().describe_security_groups(GroupNames=[sec_grp_name])['SecurityGroups'][0]
+        grps = create_ec2_client().describe_security_groups(MaxResults=1000)['SecurityGroups']
     except ClientError as e:
         # Boto3 throws unimportable errors.
         if "InvalidGroup.NotFound" in str(e):
@@ -38,6 +41,27 @@ def get_security_group_by_name(sec_grp_name):
         else:
             log.error(str(e))
         raise
+    
+    for grp in grps:
+        if grp['GroupName'] == sec_grp_name:
+            log.info(f"Found security group {sec_grp_name} with id {grp['GroupId']}")
+            return grp
+    raise InvalidSecurityGroupNameException(sec_grp_name)
+
+
+# This is the old version of the function, which was not compatible with non-default vpcs. The api
+# call on non-default vpcs requires the GroupID, we query _for_ the GroupID.
+# def get_security_group_by_name(sec_grp_name):
+#     try:
+#         return create_ec2_client().describe_security_groups(GroupNames=[sec_grp_name])['SecurityGroups'][0]
+#     except ClientError as e:
+#         # Boto3 throws unimportable errors.
+#         if "InvalidGroup.NotFound" in str(e):
+#             log.debug(str(e))
+#             raise InvalidSecurityGroupNameException(sec_grp_name)
+#         else:
+#             log.error(str(e))
+#         raise
 
 
 def create_sec_grp_rule_parameters_allowing_traffic_from_another_security_group(

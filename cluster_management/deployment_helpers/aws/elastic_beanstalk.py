@@ -17,7 +17,7 @@ from deployment_helpers.constants import (AWS_EB_ENHANCED_HEALTH, AWS_EB_MULTICO
     EB_INSTANCE_PROFILE_NAME, EB_INSTANCE_PROFILE_ROLE, EB_SEC_GRP_COUNT_ERROR, EB_SERVICE_ROLE,
     get_elasticbeanstalk_assume_role_policy_document, get_finalized_settings_variables,
     get_global_config, get_instance_assume_role_policy_document, get_server_configuration_variables)
-from deployment_helpers.general_utils import current_time_string, log, retry
+from deployment_helpers.general_utils import current_time_string, log, retry, retry_with_backoff
 
 
 def construct_eb_environment_variables(eb_environment_name):
@@ -195,37 +195,43 @@ def get_or_create_eb_application():
 
 
 def get_environment(eb_environment_name):
+    """ Cets the AWS environment configuration for the given environment name."""
     eb_client = create_eb_client()
     return eb_client.describe_configuration_settings(
-        ApplicationName="beiwe-application",
-        EnvironmentName=eb_environment_name
+        ApplicationName="beiwe-application", EnvironmentName=eb_environment_name
     )['ConfigurationSettings'][0]
 
 
+@retry_with_backoff
 def get_eb_instance_security_group_identifier(eb_environment_name):
+    """ Gets server instance's security group info for the environment, errors if none is found. """
     for option in get_environment(eb_environment_name)['OptionSettings']:
         if (
-                option['OptionName'] == 'SecurityGroups' and
-                option['Namespace'] == 'aws:autoscaling:launchconfiguration' and
-                option['ResourceName'] == 'AWSEBAutoScalingLaunchConfiguration'
+            option['OptionName'] == 'SecurityGroups' and
+            option['Namespace'] == 'aws:autoscaling:launchconfiguration' and
+            option['ResourceName'] in ['AWSEBAutoScalingLaunchConfiguration', 'AWSEBEC2LaunchTemplate']
         ):
             groups = option['Value'].split(",")
             if len(groups) > 1:
                 raise Exception(EB_SEC_GRP_COUNT_ERROR % eb_environment_name)
             return option['Value']
+    raise Exception(f"Could not find the Instance security group for `{eb_environment_name}`")
 
 
-def get_eb_load_balancer_security_group_identifier(eb_environment_name):
+@retry_with_backoff
+def get_eb_load_balancer_security_group_identifier(eb_environment_name: str):
+    """ Gets load balancer security group info for the environment, errors if none is found. """
     for option in get_environment(eb_environment_name)['OptionSettings']:
         if (
-                option['OptionName'] == 'SecurityGroups' and
-                option['Namespace'] == 'aws:elb:loadbalancer' and
-                option['ResourceName'] == 'AWSEBLoadBalancer'
+            option['OptionName'] == 'SecurityGroups' and
+            option['Namespace'] == 'aws:elb:loadbalancer' and
+            option['ResourceName'] == 'AWSEBLoadBalancer'
         ):
             groups = option['Value'].split(",")
             if len(groups) > 1:
                 raise Exception(EB_SEC_GRP_COUNT_ERROR % eb_environment_name)
             return option['Value']
+    raise Exception(f"Could not find the load balancer security group for `{eb_environment_name}`")
 
 
 def allow_443_traffic_to_load_balancer(eb_environment_name):
