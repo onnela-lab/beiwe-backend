@@ -296,7 +296,7 @@ def create_new_rds_instance(eb_environment_name):
         log.info('%s: RDS instance status is %s, waiting until status is "Ready"'
                  % (current_time_string(), db['DBInstanceStatus']))
         # RDS spinup goes creating > backing up > available.
-        if db['DBInstanceStatus'] in ["creating", 'backing-up']:
+        if db['DBInstanceStatus'] in ["creating", 'backing-up', "configuring-enhanced-monitoring"]:
             sleep(5)
         elif db['DBInstanceStatus'] == "available":
             log.info("Database status is no longer 'creating', it is '%s'" % db['DBInstanceStatus'])
