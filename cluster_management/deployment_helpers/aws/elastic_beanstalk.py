@@ -209,7 +209,7 @@ def get_eb_instance_security_group_identifier(eb_environment_name):
         if (
             option['OptionName'] == 'SecurityGroups' and
             option['Namespace'] == 'aws:autoscaling:launchconfiguration' and
-            option['ResourceName'] == 'AWSEBAutoScalingLaunchConfiguration'
+            option['ResourceName'] in ['AWSEBAutoScalingLaunchConfiguration', 'AWSEBEC2LaunchTemplate']
         ):
             groups = option['Value'].split(",")
             if len(groups) > 1:
