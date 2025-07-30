@@ -6,7 +6,12 @@
 if [ -n "$1" ]; then
     # (this is the hard-coded path to the beiwe python environment, which is not in the PATH, 
     # because we use pyenv to manage python versions.)
-    /home/ubuntu/.pyenv/versions/beiwe/bin/python -u scripts/taskrunner.py $1 $2 $3 $4 $5 $6 $7 $8 $9
+    
+    if [ -e "/home/ubuntu/.pyenv/versions/beiwe/bin/python" ]; then
+        /home/ubuntu/.pyenv/versions/beiwe/bin/python -u scripts/taskrunner.py $1 $2 $3 $4 $5 $6 $7 $8 $9
+    else
+        python -u scripts/taskrunner.py $1 $2 $3 $4 $5 $6 $7 $8 $9
+    fi
     exit $?  # exit with that status code
 fi
 
