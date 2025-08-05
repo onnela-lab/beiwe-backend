@@ -1,5 +1,11 @@
 # run ipython -i manage_shell.py for an interactive shell session with most of the useful functions
 # imported.
+
+# to suppress a message out of a required library we need to run this before importing paramiko.
+import warnings
+warnings.filterwarnings(action='ignore', module='.*paramiko.*')
+
+
 from pprint import pprint
 from deployment_helpers.configuration_utils import *
 from deployment_helpers.general_utils import *
@@ -10,6 +16,7 @@ from deployment_helpers.aws.iam import *
 from deployment_helpers.aws.rds import *
 from deployment_helpers.aws.security_groups import *
 from deployment_helpers.aws.s3 import *
+warnings.resetwarnings()
 
 print("")
 log.info("validating AWS credentials and global configuration...")

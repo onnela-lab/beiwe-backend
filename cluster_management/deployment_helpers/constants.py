@@ -273,7 +273,6 @@ def get_env(param_name, default):
     """ Tiny helper function, gets environment variable if present, otherwise returns default. """
     return environ.get(param_name, default)
 
-
 # IAM names
 BEIWE_AUTOMATION_POLICY_NAME = get_env(
     "BEIWE_AUTOMATION_POLICY_NAME", "beiwe_automation_policy"
@@ -312,13 +311,6 @@ AWS_EB_WORKER_TIER = get_env(
     "AWS_EB_WORKER_TIER", "arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier"
 )
 
-OVERRIDE_PROCESSING_SERVER_STORAGE_GB = get_env("OVERRIDE_PROCESSING_SERVER_STORAGE_GB", None)
-try:
-    if OVERRIDE_PROCESSING_SERVER_STORAGE_GB is not None:
-        # If the environment variable is set, convert it to an integer
-        OVERRIDE_PROCESSING_SERVER_STORAGE_GB = int(OVERRIDE_PROCESSING_SERVER_STORAGE_GB)
-except (TypeError, ValueError):
-    raise AssertionError("OVERRIDE_PROCESSING_SERVER_STORAGE_SIZE_GB must be an integer if set.")
 
 ####################################################################################################
 ###################################### RDS Strings #################################################
@@ -327,6 +319,18 @@ except (TypeError, ValueError):
 RDS_NAME_OVERRIDE = get_env("RDS_NAME_OVERRIDE", None)
 RDS_INSTANCE_SEC_GROUP_NAME_OVERRIDE = get_env("RDS_INSTANCE_SEC_GROUP_NAME_OVERRIDE", None)
 RDS_DATABASE_SEC_GROUP_NAME_OVERRIDE = get_env("RDS_DATABASE_SEC_GROUP_NAME_OVERRIDE", None)
+
+####################################################################################################
+################################### Processing Server Overrides ####################################
+####################################################################################################
+
+OVERRIDE_PROCESSING_SERVER_STORAGE_GB = get_env("OVERRIDE_PROCESSING_SERVER_STORAGE_GB", None)
+try:
+    if OVERRIDE_PROCESSING_SERVER_STORAGE_GB is not None:
+        # If the environment variable is set, convert it to an integer
+        OVERRIDE_PROCESSING_SERVER_STORAGE_GB = int(OVERRIDE_PROCESSING_SERVER_STORAGE_GB)
+except (TypeError, ValueError):
+    raise AssertionError("OVERRIDE_PROCESSING_SERVER_STORAGE_SIZE_GB must be an integer if set.")
 
 
 ####################################################################################################

@@ -1,3 +1,6 @@
+import warnings  # run this to suppress a message out of a required library before importing it.
+warnings.filterwarnings(action='ignore', module='.*paramiko.*')
+
 import argparse
 import json
 import os
@@ -44,14 +47,21 @@ from deployment_helpers.general_utils import current_time_string, do_zip_reducti
 from fabric.api import cd, env as fabric_env, put, run, sudo
 
 
-# Fabric configuration
-class FabricExecutionError(Exception): pass
+warnings.resetwarnings()  # and then we can reset the warnings filter
 
 
+class FabricExecutionError(Exception): pass  # Fabric configuration
 fabric_env.abort_exception = FabricExecutionError
 fabric_env.abort_on_prompts = False
 
-parser = argparse.ArgumentParser(description="interactive set of commands for deploying a Beiwe Cluster")
+greetings = "An interactive set of commands for deploying a Beiwe Cluster."
+epilog = """  
+(If you have issues with limited storage on your manager or worker
+server you can can set a custom size for the root volume by setting
+    `export OVERRIDE_PROCESSING_SERVER_STORAGE_GB=XX`
+in GB before running this script.  The default is 20GB.)
+"""  # aaand it collapses whitespace
+parser = argparse.ArgumentParser(description=greetings, epilog=epilog)
 
 
 ####################################################################################################
