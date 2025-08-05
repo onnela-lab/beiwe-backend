@@ -3,14 +3,15 @@ from time import sleep
 from botocore.exceptions import ClientError
 
 from deployment_helpers.aws.boto_helpers import create_ec2_client, create_ec2_resource
-
-from deployment_helpers.aws.rds import (get_rds_security_groups_by_eb_name)
+from deployment_helpers.aws.rds import get_rds_security_groups_by_eb_name
 from deployment_helpers.aws.security_groups import (
     create_sec_grp_rule_parameters_allowing_traffic_from_another_security_group,
-    create_security_group, get_security_group_by_name, InvalidSecurityGroupNameException,
-    open_tcp_port, get_security_group_by_id)
-from deployment_helpers.constants import get_global_config, RABBIT_MQ_PORT
+    create_security_group, get_security_group_by_id, get_security_group_by_name,
+    InvalidSecurityGroupNameException, open_tcp_port)
+from deployment_helpers.constants import (get_global_config, OVERRIDE_PROCESSING_SERVER_STORAGE_GB,
+    RABBIT_MQ_PORT)
 from deployment_helpers.general_utils import log
+
 
 GLOBAL_CONFIGURATION = get_global_config()
 
@@ -52,12 +53,12 @@ def get_worker_public_ips(eb_environment_name):
 def get_manager_instance_by_eb_environment_name(eb_environment_name):
     """ Get a manager dictionary of the currently running manager server. """
     managers = get_instances_by_name(PROCESSING_MANAGER_NAME % eb_environment_name)
-
+    
     if len(managers) > 1:
         msg = "Discovered multiple manager servers. This configuration is not supported and should be corrected."
         log.error(msg)
         raise Exception(msg)
-
+    
     if managers:
         return managers[0]
     else:
@@ -79,15 +80,15 @@ def get_instances_by_name(instance_name):
                  'Values': ['running']},
             ]
     )['Reservations']
-
+    
     # need to concatenate all instances from every "reservation", whatever that is.
     instances = []
     for reservation in reservations:
         instances.extend(reservation['Instances'])
-
+    
     if not instances:
         log.error("Could not find any instances matching the name '%s'" % instance_name)
-
+    
     return instances
 
 
@@ -174,17 +175,18 @@ def create_server(eb_environment_name, aws_server_type, security_groups=None):
         security_groups = []
     if not isinstance(security_groups, list):
         raise Exception("security_groups must be a list, received '%s'" % type(security_groups))
-
+    
+    volume_size = 20 if OVERRIDE_PROCESSING_SERVER_STORAGE_GB is None else OVERRIDE_PROCESSING_SERVER_STORAGE_GB
     ebs_parameters = {
         'DeviceName': '/dev/sda1',  # boot drive...
         'Ebs': {
             'DeleteOnTermination': True,
             'Encrypted': True,
-            'VolumeSize': 20,
-        # gigabytes, No storage is required on any ubuntu machines, 8 is default
-            'VolumeType': 'gp2'}  # SSD...
+            'VolumeSize': volume_size,
+            'VolumeType': 'gp3'
+        }
     }
-
+    
     instance = ec2_client.run_instances(
             ImageId=get_most_recent_ubuntu()['ImageId'],
             MinCount=1,
@@ -209,7 +211,6 @@ def create_server(eb_environment_name, aws_server_type, security_groups=None):
             #           },
             # IamInstanceProfile={'Arn': 'string',
             #                    'Name': 'string'},
-
             # NetworkInterfaces=[ {
             #         'AssociatePublicIpAddress': True|False,
             #         'DeleteOnTermination': True|False,
@@ -257,10 +258,10 @@ def create_processing_server(eb_environment_name, aws_server_type):
 def create_processing_control_server(eb_environment_name, aws_server_type):
     """ The differences between a data processing worker server and a processing controller
     server is that the controller needs to allow connections from the processors. """
-
+    
     # this will fail if there are no security groups (safety check against out of order operations.)
     _ = get_rds_security_groups_by_eb_name(eb_environment_name)["instance_sec_grp"]['GroupId']
-
+    
     manager_info = get_manager_instance_by_eb_environment_name(eb_environment_name)
     if manager_info is not None:
         if manager_info['InstanceType'] == aws_server_type:
@@ -272,17 +273,17 @@ def create_processing_control_server(eb_environment_name, aws_server_type):
         log.error(msg)
         sleep(0.1)  # sometimes log has problems if you don't give it a second, the error messages above are critical
         raise Exception(msg)
-
+    
     rabbit_mq_sec_grp_id = get_or_create_rabbit_mq_security_group(eb_environment_name)['GroupId']
     instance_sec_grp_id = get_rds_security_groups_by_eb_name(eb_environment_name)["instance_sec_grp"]['GroupId']
-
+    
     try:
         open_tcp_port(instance_sec_grp_id, 22)
     except ClientError:
         # we need to open the ssh port for future worker servers, but it blows up with duplicate
         # if a user ever creates two managers during the life of the environment.
         pass
-
+        
     instance_info = create_server(eb_environment_name, aws_server_type,
                                   security_groups=[rabbit_mq_sec_grp_id, instance_sec_grp_id])
     instance_resource = create_ec2_resource().Instance(instance_info["InstanceId"])
@@ -296,12 +297,12 @@ def create_processing_control_server(eb_environment_name, aws_server_type):
 def terminate_all_processing_servers(eb_environment_name):
     ec2_client = create_ec2_client()
     worker_ids = [worker['InstanceId'] for worker in get_worker_instances(eb_environment_name)]
-
+    
     # don't optimize, we want the log statements
     for instance_id in worker_ids:
         ec2_client.terminate_instances(InstanceIds=[instance_id])
         log.info(f"Terminating worker instance {instance_id}")
-
+    
     manager_info = get_manager_instance_by_eb_environment_name(eb_environment_name)
     if manager_info:
         log.info(f"Terminating manager instance {manager_info['InstanceId']}")
