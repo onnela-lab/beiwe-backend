@@ -141,8 +141,8 @@ def get_or_create_eb_instance_profile_role():
 
 
 def get_or_create_eb_instance_profile():
-    #     """ This function creates the appropriate roles that apply to the instances in an elastic
-    #     beanstalk environment, based of of the roles created when using the online AWS console. """
+    """ This function creates the appropriate roles that apply to the instances in an elastic
+    beanstalk environment, based of of the roles created when using the online AWS console. """
     iam_client = create_iam_client()
     try:
         return iam_find_instance_profile(iam_client, EB_INSTANCE_PROFILE_NAME)
@@ -158,9 +158,7 @@ def get_or_create_eb_instance_profile():
 
 
 def get_or_create_eb_application():
-    """
-    https://docs.aws.amazon.com/elasticbeanstalk/latest/api/API_CreateApplication.html
-    """
+    """ https://docs.aws.amazon.com/elasticbeanstalk/latest/api/API_CreateApplication.html """
     eb_client = create_eb_client()
     
     applications = eb_client.describe_applications().get('Applications', None)
