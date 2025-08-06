@@ -24,7 +24,7 @@ from libs.file_processing.file_for_processing import FileForProcessing
 from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
     clean_java_timecode, resolve_survey_id_from_file_name)
 from libs.s3 import s3_upload_no_compression
-from libs.sentry import make_error_sentry, SentryTypes
+from libs.sentry import SentryUtils
 from libs.utils.dev_utils import Timer
 
 
@@ -54,8 +54,8 @@ class FileProcessingTracker():
     def __init__(
         self, participant: Participant, page_size: int = FILE_PROCESS_PAGE_SIZE,
     ) -> None:
-        self.error_handler: ErrorHandler = make_error_sentry(
-            sentry_type=SentryTypes.data_processing, tags={'patient_id': participant.patient_id}
+        self.error_handler: ErrorHandler = SentryUtils.report_data_processing(
+            tags={'patient_id': participant.patient_id}
         )
         
         self.participant = participant

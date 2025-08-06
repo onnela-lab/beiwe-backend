@@ -9,7 +9,7 @@ from constants.security_constants import BASE64_GENERIC_ALLOWED_CHARACTERS, OBJE
 from database.security_models import ApiKey
 from database.study_models import Study
 from database.user_models_researcher import Researcher, StudyRelation
-from libs.sentry import make_error_sentry, SentryTypes
+from libs.sentry import SentryUtils
 from middleware.abort_middleware import abort
 
 
@@ -106,7 +106,7 @@ def api_get_and_validate_researcher(request: HttpRequest) -> Researcher:
     except ApiKey.DoesNotExist:
         # this case should be unreachable, report it if it happens I guess?
         log("researcher has no such key - unreachable??")
-        with make_error_sentry(SentryTypes.elastic_beanstalk):
+        with SentryUtils.report_webserver():
             raise IncorrectAPIAuthUsage("Researcher has no such key")
         return abort(500)  # error sentry swallows errors, this code runs when the error is raised.
     

@@ -6,7 +6,7 @@ from database.user_models_participant import Participant
 from libs.celery_control import (CeleryDataProcessingTask, get_processing_active_job_ids,
     safe_apply_async)
 from libs.file_processing.file_processing_core import easy_run
-from libs.sentry import make_error_sentry, SentryTypes
+from libs.sentry import SentryUtils
 
 
 from libs.celery_control import processing_celery_app;  # required in the file namespace for celery to work.
@@ -28,7 +28,7 @@ def create_file_processing_tasks():
     # minutely cron task. This way all tasks will be revoked at the same, and well-known, instant.
     expiry = (timezone.now() + timedelta(minutes=5)).replace(second=30, microsecond=0)
     
-    with make_error_sentry(sentry_type=SentryTypes.data_processing):
+    with SentryUtils.report_data_processing():
         participant_set = set(
             Participant.objects.filter(files_to_process__isnull=False)
                 .distinct()

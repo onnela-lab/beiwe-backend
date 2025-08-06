@@ -24,8 +24,7 @@ from database.schedule_models import ArchivedEvent
 from database.study_models import Study
 from database.survey_models import Survey
 from database.user_models_participant import Participant, ParticipantFCMHistory
-from libs.celery_control import make_error_sentry
-from libs.sentry import SentryTypes
+from libs.sentry import SentryUtils
 
 
 # same logger as in celery_push_notifications
@@ -102,7 +101,7 @@ class ErrorSentryCache:
         if cache_invalid():
             with cls.lock:
                 if cache_invalid():
-                    cls.error_sentry = SentryTypes.error_handler_push_notifications()
+                    cls.error_sentry = SentryUtils.report_push_notifications()
                     cls.lock_time = perf_counter()
     
     @classmethod

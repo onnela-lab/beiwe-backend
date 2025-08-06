@@ -11,7 +11,7 @@ from django.utils import timezone
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
     send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
 
-from authentication.data_access_authentication import SentryTypes
+from authentication.data_access_authentication import SentryUtils
 from config.settings import BLOCK_QUOTA_EXCEEDED_ERROR, PUSH_NOTIFICATION_ATTEMPT_COUNT
 from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
@@ -25,7 +25,7 @@ from database.user_models_participant import (Participant, ParticipantFCMHistory
     PushNotificationDisabledEvent)
 from libs.firebase_config import BackendFirebaseAppState
 from libs.push_notification_helpers import ParticipantCache, slowly_get_stopped_study_ids
-from libs.sentry import SentryTypes
+from libs.sentry import SentryUtils
 from services.resend_push_notifications import (
     get_all_unconfirmed_notification_schedules_for_bundling)
 
@@ -64,7 +64,7 @@ SurveyReturn = dict[str, list[str]]     # a dictionary of fcm tokens to lists of
 SchedulesReturn = dict[str, list[int]]  # a dictionary of fcm tokens to lists of schedule pks
 PatientsReturn = dict[str, str]         # a dictionary of fcm tokens to (individual) patient ids
 
-@SentryTypes.timer_warning_push_notifications("push notification query logic took over 30 seconds", 30)
+@SentryUtils.timer_warning_push_notifications("push notification query logic took over 30 seconds", 30)
 def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> tuple[SurveyReturn, SchedulesReturn, PatientsReturn]:
     """ Mostly this function exists to reduce mess. returns:
     a mapping of fcm tokens to list of survey object ids

@@ -32,7 +32,7 @@ from libs.endpoint_helpers.study_helpers import (conditionally_display_study_sta
     get_administerable_studies_by_name, notify_changes, trim_whitespace, try_update_device_settings,
     unflatten_consent_sections)
 from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
-from libs.sentry import make_error_sentry, SentryTypes
+from libs.sentry import SentryUtils
 from libs.timezone_dropdown import ALL_TIMEZONES_DROPDOWN
 from libs.utils.http_utils import (easy_url, list_of_checkbox_strings_to_booleans,
     list_of_intlike_strings_to_int)
@@ -234,7 +234,7 @@ def create_study(request: ResearcherRequest):
     
     if len(name) > 5000:
         if not RUNNING_TEST_OR_FROM_A_SHELL:
-            with make_error_sentry(SentryTypes.elastic_beanstalk):
+            with SentryUtils.report_webserver():
                 raise Exception("Someone tried to create a study with a suspiciously long name.")
         messages.error(request, 'the study name you provided was too long and was rejected, please try again.')
         return redirect('/create_study')
@@ -244,7 +244,7 @@ def create_study(request: ResearcherRequest):
     
     if escape(name) != name:
         if not RUNNING_TEST_OR_FROM_A_SHELL:
-            with make_error_sentry(SentryTypes.elastic_beanstalk):
+            with SentryUtils.report_webserver():
                 raise Exception("Someone tried to create a study with unsafe characters in its name.")
         messages.error(request, 'the study name you provided contained unsafe characters and was rejected, please try again.')
         return redirect('/create_study')

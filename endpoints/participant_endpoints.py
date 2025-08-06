@@ -41,7 +41,7 @@ from libs.participant_purge import add_participant_for_deletion
 from libs.rsa import create_participant_key_pair
 from libs.s3 import s3_upload
 from libs.schedules import repopulate_all_survey_scheduled_events
-from libs.sentry import make_error_sentry, SentryTypes
+from libs.sentry import SentryUtils
 from libs.streaming_io import StreamingStringsIO
 from libs.utils.http_utils import easy_url
 from middleware.abort_middleware import abort
@@ -372,7 +372,7 @@ def resend_push_notification(request: ResearcherRequest, study_id: int, patient_
             unscheduled_archive.update(status=MESSAGE_SEND_FAILED_UNKNOWN + " (2)")  # presumably a bug
             messages.error(request, error_message)
             if not RUNNING_TEST_OR_FROM_A_SHELL:
-                with make_error_sentry(SentryTypes.elastic_beanstalk):
+                with SentryUtils.report_webserver():
                     raise
         else:
             # normal case, firebase or unregistered error
@@ -380,13 +380,13 @@ def resend_push_notification(request: ResearcherRequest, study_id: int, patient_
             messages.error(request, error_message)
             # don't report unregistered
             if not RUNNING_TEST_OR_FROM_A_SHELL and not isinstance(e, UnregisteredError):
-                with make_error_sentry(SentryTypes.elastic_beanstalk):
+                with SentryUtils.report_webserver():
                     raise
     except Exception:
         unscheduled_archive.update(status=MESSAGE_SEND_FAILED_UNKNOWN)  # presumably a bug
         messages.error(request, error_message)
         if not RUNNING_TEST_OR_FROM_A_SHELL:
-            with make_error_sentry(SentryTypes.elastic_beanstalk):
+            with SentryUtils.report_webserver():
                 raise
     return return_redirect
 

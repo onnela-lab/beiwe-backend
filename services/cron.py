@@ -8,7 +8,7 @@ path.insert(0, abspath(__file__).rsplit('/', 2)[0])  # let us import the project
 
 from cronutils import run_tasks
 
-from libs.sentry import SentryTypes
+from libs.sentry import SentryUtils
 from services.celery_data_processing import create_file_processing_tasks
 from services.celery_forest import create_forest_celery_tasks
 from services.celery_push_notifications import (create_heartbeat_tasks,
@@ -58,22 +58,22 @@ KILL_TIMES = TIME_LIMITS = {
 
 if __name__ == "__main__":
     cron_type = "None"
-    error_handler = SentryTypes.error_handler_data_processing(cron_script=cron_type)
+    error_handler = SentryUtils.report_data_processing(cron_script=cron_type)
     
     if len(argv) <= 1:
         # this is quite
-        with SentryTypes.error_handler_data_processing(cron_script=cron_type) as error_handler:
+        with SentryUtils.report_data_processing(cron_script=cron_type) as error_handler:
             raise CronException("Not enough arguments to cron\n")
     
     elif (cron_type:=argv[1]) in VALID_ARGS:
         
         # Run tasks in some nice wrappers to tell us when things break.
         
-        run_tasks_wrapped_in_a_warning_timer = SentryTypes.timer_warning_data_processing(
+        run_tasks_wrapped_in_a_warning_timer = SentryUtils.timer_warning_data_processing(
             message=OVERTIME_MESSAGE, seconds=5 * 60, cron_script=cron_type
         )(run_tasks)
         
-        with SentryTypes.error_handler_data_processing(cron_script=cron_type) as error_handler:
+        with SentryUtils.report_data_processing(cron_script=cron_type) as error_handler:
             run_tasks_wrapped_in_a_warning_timer(
                 TASKS[cron_type], TIME_LIMITS[cron_type], cron_type, KILL_TIMES[cron_type]
             )
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         error_handler.raise_errors()
     
     else:
-        with SentryTypes.error_handler_data_processing(cron_script=cron_type) as error_handler:
+        with SentryUtils.report_data_processing(cron_script=cron_type) as error_handler:
             raise CronException("Invalid argument to cron\n")
     
     error_handler.raise_errors()

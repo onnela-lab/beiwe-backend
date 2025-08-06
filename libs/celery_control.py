@@ -19,7 +19,7 @@ from constants.celery_constants import (CELERY_CONFIG_LOCATION, DATA_PROCESSING_
     DATA_PROCESSING_CELERY_SERVICE, FOREST_SERVICE, PUSH_NOTIFICATION_SEND_SERVICE, SCRIPTS_QUEUE,
     SCRIPTS_SERVICE)
 from constants.common_constants import RUNNING_TESTS
-from libs.sentry import make_error_sentry, SentryTimerWarning, SentryTypes
+from libs.sentry import SentryTimerWarning, SentryUtils
 
 
 FORCE_CELERY_OFF = False  ##  Flag to force use of our DebugCeleryTask.
@@ -416,7 +416,6 @@ class AbstractQueueWrapper:
         logi(f"Running {self.original_name} as {self.task_frequency} task.")
         from libs.push_notification_helpers import ErrorSentryCache
         try:
-            # with make_error_sentry(self.sentry_type, tags={"task_name": self.original_name}):
             with ErrorSentryCache.get_sentry_processing():
                 self.task_function(*task_args, **task_kwargs)
         finally:
@@ -430,8 +429,8 @@ class AbstractQueueWrapper:
             timeout_seconds=self.WARNING_TIMEOUTS[self.task_frequency],
             task_name=self.original_name,
         ) (self.wrap_task_with_sentry_etc) (*task_args, **task_kwargs)
-        # -----------wrap in timer------ ----execute sentry_etc-----
-        
+        # -----------wrap in timer-------- ----execute sentry_etc-----
+    
     def generate_correct_looking_function(self) -> Callable:
         # this use of functools _makes the task have the correct original name and location_
         # in the context of the Celery Worker (and ... queuer)
@@ -488,7 +487,7 @@ class CeleryScriptTask(AbstractQueueWrapper):
     queueable_tasks = []
     celery_app = scripts_celery_app
     target_queue = SCRIPTS_QUEUE
-    sentry_type = SentryTypes.script_runner
+    sentry_type = SentryUtils.types.script_runner
     ERRORS = {
         SIX_MINUTELY: "Script '{}' took more than 5 minutes to run.",
         HOURLY: "Script '{}' took more than 55 minutes to run.",
@@ -500,7 +499,7 @@ class CeleryDataProcessingTask(AbstractQueueWrapper):
     queueable_tasks = []
     celery_app = processing_celery_app
     target_queue = DATA_PROCESSING_CELERY_QUEUE
-    sentry_type = SentryTypes.data_processing
+    sentry_type = SentryUtils.types.data_processing
     ERRORS = {
         SIX_MINUTELY: "Data Processing task '{}' took more than 5 minutes to run.",  # dumb, whatver
         HOURLY: "Data Processing task '{}' took more than 55 minutes to run.",

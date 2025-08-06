@@ -1,129 +1,131 @@
 from __future__ import annotations
 
 # WARNING: THIS FILE IS IMPORTED IN THE DJANGO CONF FILE. BE CAREFUL WITH IMPORTS.
-import functools
 from threading import Thread
 from time import sleep
+from typing import Callable
 
 import sentry_sdk
 from cronutils.error_handler import ErrorSentry, null_error_handler
 from django.utils import timezone
-from sentry_sdk import capture_message, Client as SentryClient, set_tag
+from sentry_sdk import capture_message, set_tag
 from sentry_sdk.transport import HttpTransport
 
 from config.settings import SENTRY_DATA_PROCESSING_DSN, SENTRY_ELASTIC_BEANSTALK_DSN
 from constants.common_constants import RUNNING_TEST_OR_FROM_A_SHELL
 
 
-#### when running in a shell we force sentry off and force the use of the null_error_handler ####
+##### when running in a shell we force sentry off and force the use of the null_error_handler ######
+FORCE_NULL_ERROR_HANDLER = False
 
+####################################################################################################
 
-class SentryTypes:
-    javascript = "javascript"  # mostly ignore
+def normalize_sentry_dsn(dsn: str) -> str:
+    """ Sentry DSNs may be in a couple weird forms, solve that. """
+    if not dsn or "xxxxx" in dsn.lower():  # xxxxx is because sometimes people don't set the DSN
+        return ""
     
-    # These dictate the sentry DSN used for the error sentry, and tags that are automatically added.
-    data_processing = "data_processing"
-    elastic_beanstalk = "elastic_beanstalk"
-    forest = "forest"
-    push_notifications = "push_notifications"
-    script_runner = "script_runner"
-    
-    # populate this dict with the sentry dsn for each type of error sentry.
-    TYPE_CHECK = {
-        elastic_beanstalk: SENTRY_ELASTIC_BEANSTALK_DSN,
-        data_processing: SENTRY_DATA_PROCESSING_DSN,
-        forest: SENTRY_DATA_PROCESSING_DSN,
-        push_notifications: SENTRY_DATA_PROCESSING_DSN,
-        script_runner: SENTRY_DATA_PROCESSING_DSN,
-    }
-    
-    # Error Sentry context managers
-    # wrap a block with a context manager to send any errors to sentry
-    @classmethod
-    def error_handler_data_processing(cls, null_error_handler=False, **tags):
-        return make_error_sentry(cls.data_processing, null_error_handler, **tags)
-    @classmethod
-    def error_handler_elastic_beanstalk(cls, null_error_handler=False, **tags):
-        return make_error_sentry(cls.elastic_beanstalk, null_error_handler, **tags)
-    @classmethod
-    def error_handler_forest(cls, null_error_handler=False, **tags):
-        return make_error_sentry(cls.forest, null_error_handler, **tags)
-    @classmethod
-    def error_handler_push_notifications(cls, null_error_handler=False, **tags):
-        return make_error_sentry(cls.push_notifications, null_error_handler, **tags)
-    @classmethod
-    def error_handler_script_runner(cls, null_error_handler=False, **tags):
-        return make_error_sentry(cls.script_runner, null_error_handler, **tags)
-    
-    # as decorators
-    # wrap a function with a decorator to send any errors to sentry
-    @classmethod
-    def error_decor_data_processing(cls, null_error_handler=False, **tags):
-        return SentryDecorator(cls.data_processing, null_error_handler, **tags)
-    @classmethod
-    def error_decor_elastic_beanstalk(cls, null_error_handler=False, **tags):
-        return SentryDecorator(cls.elastic_beanstalk, null_error_handler, **tags)
-    @classmethod
-    def error_decor_forest(cls, null_error_handler=False, **tags):
-        return SentryDecorator(cls.forest, null_error_handler, **tags)
-    @classmethod
-    def error_decor_push_notifications(cls, null_error_handler=False, **tags):
-        return SentryDecorator(cls.push_notifications, null_error_handler, **tags)
-    @classmethod
-    def error_decor_script_runner(cls, null_error_handler=False, **tags):
-        return SentryDecorator(cls.script_runner, null_error_handler, **tags)
-    
-    # Timer Warnings Decorators
-    # wrap a function with a timer that sends a warning to sentry if the function takes too long
-    @classmethod
-    def timer_warning_data_processing(cls, message: str, seconds: int, **tags):
-        return SentryTimerWarning(cls.data_processing, message, seconds, **tags)
-    @classmethod
-    def timer_warning_elastic_beanstalk(cls, message: str, seconds: int, **tags):
-        return SentryTimerWarning(cls.elastic_beanstalk, message, seconds, **tags)
-    @classmethod
-    def timer_warning_forest(cls, message: str, seconds: int, **tags):
-        return SentryTimerWarning(cls.forest, message, seconds, **tags)
-    @classmethod
-    def timer_warning_push_notifications(cls, message: str, seconds: int, **tags):
-        return SentryTimerWarning(cls.push_notifications, message, seconds, **tags)
-    @classmethod
-    def timer_warning_script_runner(cls, message: str, seconds: int, **tags):
-        return SentryTimerWarning(cls.script_runner, message, seconds, **tags)
-
-
-def normalize_sentry_dsn(dsn: str):
-    if not dsn:
-        return dsn
     # "https://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "sub.domains.sentry.io/yyyyyy"
     prefix, sentry_io = dsn.split("@")
     if sentry_io.count(".") > 1:
         # sub.domains.sentry.io/yyyyyy -> sentry.io/yyyyyy
         sentry_io = ".".join(sentry_io.rsplit(".", 2)[-2:])
-    # https://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx + @ + sentry.io/yyyyyy"
-    return prefix + "@" + sentry_io
+    
+    return prefix + "@" + sentry_io  # https://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx + @ + sentry.io/yyyyyy
 
 
 def get_dsn_from_string(sentry_type: str):
     """ Returns a DSN, even if it is incorrectly formatted. """
     try:
-        return normalize_sentry_dsn(SentryTypes.TYPE_CHECK[sentry_type])  # type: ignore
+        return normalize_sentry_dsn(SentryUtils.TYPE_CHECK[sentry_type])  # type: ignore
     except KeyError:
-        raise Exception(f'Invalid sentry type, use {SentryTypes.__module__}.SentryTypes') from None
+        raise Exception(f'Invalid sentry type, use {SentryUtils.__module__}.SentryTypes') from None
+
+####################################################################################################
 
 
-def get_sentry_client(sentry_type: str):
-    return SentryClient(dsn=get_dsn_from_string(sentry_type), transport=HttpTransport)
-
-
-def make_error_sentry(sentry_type: str, force_null_error_handler=False, **tags) -> ErrorSentry:
-    """ Creates an ErrorSentry, defaults to error limit 10. """
+class _SentryUtils:
+    """ One stop shop for all sentry usage in the codebase. (Use the instantiation below) """
     
-    if RUNNING_TEST_OR_FROM_A_SHELL or force_null_error_handler:
-        return null_error_handler  # type: ignore[return-value]
+    javascript = "javascript"  # mostly ignore
+    
+    # These dictate the sentry DSN used for the error sentry, and tags that are automatically added.
+    class types:
+        data_processing = "data_processing"
+        webserver = "webserver"
+        forest = "forest"
+        push_notifications = "push_notifications"
+        script_runner = "script_runner"
+    
+    # populate this dict with the sentry dsn for each type of error sentry.
+    TYPE_CHECK = {
+        types.webserver: SENTRY_ELASTIC_BEANSTALK_DSN,
+        types.data_processing: SENTRY_DATA_PROCESSING_DSN,
+        types.forest: SENTRY_DATA_PROCESSING_DSN,
+        types.push_notifications: SENTRY_DATA_PROCESSING_DSN,
+        types.script_runner: SENTRY_DATA_PROCESSING_DSN,
+    }
+    
+    # Error Sentry context managers
+    # wrap a block with a context manager to send any errors to sentry
+    def report_data_processing(self, **tags) -> ErrorSentry:
+        return make_error_sentry(self.types.data_processing, **tags)
+    def report_webserver(self, **tags) -> ErrorSentry:
+        return make_error_sentry(self.types.webserver, **tags)
+    def report_forest(self, **tags) -> ErrorSentry:
+        return make_error_sentry(self.types.forest, **tags)
+    def report_push_notifications(self, **tags) -> ErrorSentry:
+        return make_error_sentry(self.types.push_notifications, **tags)
+    def report_script_runner(self, **tags) -> ErrorSentry:
+        return make_error_sentry(self.types.script_runner, **tags)
+    
+    # as decorators
+    # wrap a function with a decorator to send any errors to sentry
+    def decoreport_data_processing(self, **tags) -> Callable:
+        return SentryDecorator(self.types.data_processing, **tags)
+    def decoreport_webserver(self, **tags) -> Callable:
+        return SentryDecorator(self.types.webserver, **tags)
+    def decoreport_forest(self, **tags) -> Callable:
+        return SentryDecorator(self.types.forest, **tags)
+    def decoreport_push_notifications(self, **tags) -> Callable:
+        return SentryDecorator(self.types.push_notifications, **tags)
+    def decoreport_script_runner(self, **tags) -> Callable:
+        return SentryDecorator(self.types.script_runner, **tags)
+    
+    # Timer Warnings Decorators
+    # wrap a function with a timer that sends a warning to sentry if the function takes too long
+    def timer_warning_data_processing(self, message: str, seconds: int, **tags) -> SentryTimerWarning:
+        return SentryTimerWarning(self.types.data_processing, message, seconds, **tags)
+    def timer_warning_webserver(self, message: str, seconds: int, **tags) -> SentryTimerWarning:
+        return SentryTimerWarning(self.types.webserver, message, seconds, **tags)
+    def timer_warning_forest(self, message: str, seconds: int, **tags) -> SentryTimerWarning:
+        return SentryTimerWarning(self.types.forest, message, seconds, **tags)
+    def timer_warning_push_notifications(self, message: str, seconds: int, **tags) -> SentryTimerWarning:
+        return SentryTimerWarning(self.types.push_notifications, message, seconds, **tags)
+    def timer_warning_script_runner(self, message: str, seconds: int, **tags) -> SentryTimerWarning:
+        return SentryTimerWarning(self.types.script_runner, message, seconds, **tags)
+
+
+SentryUtils = _SentryUtils()  # using singleton to reduce some boilerplate
+
+
+####################################################################################################
+###################################### Sentry Error Reporting ######################################
+####################################################################################################
+
+
+# def get_sentry_client(sentry_type: str):
+#     return SentryClient(dsn=get_dsn_from_string(sentry_type), transport=HttpTransport)
+
+
+def make_error_sentry(sentry_type: str, **tags) -> ErrorSentry:
+    """ Creates an ErrorSentry, defaults to error limit 10. """
     
     if "tags" in tags and isinstance(tags["tags"], dict):  # fix tags in a named dict
         tags.update(tags.pop("tags"))
+    
+    if RUNNING_TEST_OR_FROM_A_SHELL or FORCE_NULL_ERROR_HANDLER or "force_null_error_handler" in tags:
+        return null_error_handler  # type: ignore[return-value]
     
     tags["code_type"] = sentry_type
     for tagk, tagv in tags.items():  # (how does this work?)

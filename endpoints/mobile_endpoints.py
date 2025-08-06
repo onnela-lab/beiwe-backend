@@ -12,7 +12,6 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 from firebase_admin.messaging import Message, send as send_push_notification
-from sentry_sdk import set_tag
 
 from authentication.participant_authentication import (authenticate_participant,
     authenticate_participant_registration, minimal_validation, ParticipantRequest)
@@ -36,7 +35,7 @@ from libs.rsa import get_participant_public_key_string
 from libs.s3 import s3_upload
 from libs.schedules import (decompose_datetime_to_device_weekly_timings,
     export_weekly_survey_timings, repopulate_all_survey_scheduled_events)
-from libs.sentry import get_sentry_client, SentryTypes
+from libs.sentry import send_sentry_warning
 from libs.utils.http_utils import determine_os_api
 from middleware.abort_middleware import abort
 
@@ -166,11 +165,7 @@ def make_upload_error_report(patient_id: str, file_name: str):
         error_message += INVALID_EXTENSION_ERROR
     else:
         error_message += UNKNOWN_ERROR
-    
-    sentry_client = get_sentry_client(SentryTypes.elastic_beanstalk)
-    set_tag("upload_error", "upload error")
-    set_tag("user_id", patient_id)
-    sentry_client.captureMessage(error_message)
+    send_sentry_warning(error_message, upload_error="upload error", patient_id=patient_id)
     log(400, error_message, "(upload error report)")
     # error message needs to be a byte string
     return HttpResponse(content=error_message.encode(), status=400)

@@ -31,7 +31,7 @@ from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.intervention_utils import intervention_survey_data
 from libs.s3 import s3_retrieve
-from libs.sentry import make_error_sentry, SentryTypes
+from libs.sentry import SentryUtils
 from libs.streaming_zip import determine_base_file_name
 from libs.utils.date_utils import get_timezone_shortcode, legible_time
 from libs.utils.forest_utils import (save_all_bv_set_bytes, save_all_memory_dict_bytes,
@@ -91,7 +91,7 @@ def enqueue_forest_task(**kwargs):
 def create_forest_celery_tasks():
     """ Basic entrypoint, does what it says """
     pending_tasks = ForestTask.objects.filter(status=ForestTaskStatus.queued)
-    with make_error_sentry(sentry_type=SentryTypes.data_processing):
+    with SentryUtils.report_forest():
         for task in pending_tasks:
             # always print
             print(
@@ -172,7 +172,7 @@ def run_forest_task(task: ForestTask, start: datetime, end: datetime):
                 # merging stack traces, handling null case, then conditionally report with tags
                 task.update_only(stacktrace=((task.stacktrace or "") + CLN_ERR + traceback.format_exc()))
                 log("task.stacktrace 2:", task.stacktrace)
-                with make_error_sentry(SentryTypes.data_processing, tags=task.sentry_tags):
+                with SentryUtils.report_forest(**task.sentry_tags):
                     raise e from None
 
 
@@ -193,12 +193,12 @@ def _run_forest_task(task: ForestTask, start: datetime, end: datetime):
         # only report errors that are not our special cases.
         if not isinstance(e, NoSentryException):
             print("task.stacktrace 1:\n", error_repr)
-            with make_error_sentry(SentryTypes.data_processing, tags=task.sentry_tags):
+            with SentryUtils.report_forest(**task.sentry_tags):
                 raise
     
     finally:
         # there won't be anything to run generate report on if there was no data.
-        error_sentry = make_error_sentry(SentryTypes.data_processing, tags=task.sentry_tags)
+        error_sentry = SentryUtils.report_forest(**task.sentry_tags)
         
         if not task.stacktrace or NO_DATA_ERROR not in task.stacktrace:
             
@@ -219,7 +219,7 @@ def _run_forest_task(task: ForestTask, start: datetime, end: datetime):
                     raise
     
     ## this is functionally a try-except block because all the above real try-except blocks
-    ## re-raise their error inside a reporting with-statement, e.g. make_error_sentry.
+    ## re-raise their error inside an error sentry
     log("task.status:", task.status)
     log("deleting files 1")
     clean_up_files(task)  # if this fails you probably have server oversubscription issues.
@@ -382,7 +382,7 @@ def batch_create_file(task_and_chunk_tuple: tuple[ForestTask, dict]):
         # While we want information on this exact exception in the specific error is something we
         # can ignore and the running code can continue. (This error occurred in the wild because of
         # an old data bug where b' was present inside the chunk path, underlying cause was in 2019.)
-        with make_error_sentry(SentryTypes.data_processing, tags={**forest_task.sentry_tags, "file_name": file_name}):
+        with SentryUtils.report_forest(file_name=file_name, **forest_task.sentry_tags):
             raise
 
 

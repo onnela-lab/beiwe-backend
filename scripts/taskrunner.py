@@ -12,7 +12,7 @@ from time import sleep
 from django.utils import timezone
 
 import database  # this loads the database, don't remove it.
-from libs.sentry import get_sentry_client, SentryTypes
+from libs.sentry import SentryUtils
 from libs.utils.http_utils import fancy_dt_format_with_tz_and_seconds
 
 
@@ -25,7 +25,7 @@ def main():
     print("\nStarting script: ", script, "on", t_start, "\n\n")
     
     try:
-        with get_sentry_client(SentryTypes.script_runner):
+        with SentryUtils.report_script_runner():
             a_module = __import__(f"{script}")
             if not hasattr(a_module, "main"):
                 raise TaskRunnerError(f"Module {script} does not have a main function.")

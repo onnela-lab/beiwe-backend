@@ -13,7 +13,7 @@ from constants.user_constants import IOS_API, IOS_APP_MINIMUM_PUSH_NOTIFICATION_
 from database.models import (ArchivedEvent, GlobalSettings, Participant, ScheduledEvent, Study,
     SurveyNotificationReport)
 from libs.push_notification_helpers import fcm_for_pushable_participants
-from libs.sentry import SentryTypes
+from libs.sentry import SentryUtils
 from libs.utils.participant_app_version_comparison import (is_participants_version_gte_target,
     VersionError)
 
@@ -38,7 +38,7 @@ loge = logger.error
 logd = logger.debug
 
 
-@SentryTypes.timer_warning_push_notifications("Warning: resend logic took over 30 seconds", 30)
+@SentryUtils.timer_warning_push_notifications("Warning: resend logic took over 30 seconds", 30)
 def restore_scheduledevents_logic():
     """
     Participants upload a list of uuids of their received notifications, these uuids are stashed in

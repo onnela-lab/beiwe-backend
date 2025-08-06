@@ -192,9 +192,6 @@ APPEND_SLASH = False
 # We need this to be fairly large, if users ever encounter a problem with this please report it
 DATA_UPLOAD_MAX_MEMORY_SIZE = 128 * 1024 * 1024  # 128 MB
 
-# enable Sentry error reporting
-our_sentry_dsn = normalize_sentry_dsn(SENTRY_ELASTIC_BEANSTALK_DSN)
-
 # We encounter the starlette integration bug _at least_ when running tasks in celery.
 # https://github.com/getsentry/sentry-python/issues/1603
 # None of the fixes work, so we are going with the nuclear option of purging the integration from
@@ -214,7 +211,7 @@ _AUTO_ENABLING_INTEGRATIONS.remove("sentry_sdk.integrations.starlette.StarletteI
 
 # Ok now we can
 sentry_sdk.init(
-    dsn=our_sentry_dsn,
+    dsn=normalize_sentry_dsn(SENTRY_ELASTIC_BEANSTALK_DSN),
     enable_tracing=False,
     ignore_errors=["WorkerLostError", "DisallowedHost"],
     # auto_enabling_integrations=False,  # this was one of the fixes for the starlette bug that didn't work.
