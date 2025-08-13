@@ -3,16 +3,44 @@ import platform
 
 import sentry_sdk
 from django.core.exceptions import ImproperlyConfigured
+from sentry_sdk.integrations import _AUTO_ENABLING_INTEGRATIONS
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.types import Event, Hint
 
 from config.settings import DOMAIN_NAME, FLASK_SECRET_KEY, SENTRY_ELASTIC_BEANSTALK_DSN
 from libs.sentry import normalize_sentry_dsn
 
+# before anything else, determine if we are running in debug / development mode based off the domain
+DEBUG = 'localhost' in DOMAIN_NAME or '127.0.0.1' in DOMAIN_NAME or '::1' in DOMAIN_NAME
 
-# SECRET KEY is required by the django management commands, using the flask key is fine because
-# we are not actually using it in any server runtime capacity.
-SECRET_KEY = FLASK_SECRET_KEY
+####################################################################################################
+################################### General Web Connections ########################################
+####################################################################################################
+
+# We need this to be fairly large, if users ever encounter a problem with this please report it
+DATA_UPLOAD_MAX_MEMORY_SIZE = 128 * 1024 * 1024  # 128 MB
+
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # (when running on Elastic Beanstalk)
+
+####################################################################################################
+##################################### Django Session Backend #######################################
+####################################################################################################
+
+# json serializer crashes with module object does not have attribute .dumps
+# or it cannot serialize a datetime object.
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
+SESSION_ENGINE = "database.user_models_researcher"
+
+SECRET_KEY = FLASK_SECRET_KEY  # "~FLASK~" is because we started as a flask app many years ago
+
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+
+####################################################################################################
+#################################### Database Configuration ########################################
+####################################################################################################
 
 DATABASES = {
     'default': {
@@ -49,52 +77,21 @@ DATABASES = {
     },
 }
 
-# database primary key setting
-DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-
-DEBUG = 'localhost' in DOMAIN_NAME or '127.0.0.1' in DOMAIN_NAME or '::1' in DOMAIN_NAME
-
-# if DEBUG:
-#     DATABASES['default']['OPTIONS']['pool']['min_size'] = 1
-
-SECURE_SSL_REDIRECT = not DEBUG
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SECURE = not DEBUG
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"  # database primary key setting
 
 # mac os homebrew postgres has configuration complexities that are not worth the effort to resolve.
 if (not SECURE_SSL_REDIRECT and platform.system() == "Darwin") or os.environ.get("RUNNING_IN_DOCKER", False):
-    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'  # type: ignore[type checker is breaking on default or options potentially map to a str not a dict]
+    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'  # type: ignore
 
-MIDDLEWARE = [
-    'middleware.downtime_middleware.DowntimeMiddleware',  # does a single database call
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
-    # 'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'middleware.abort_middleware.AbortMiddleware',
-    # "middleware.request_to_curl.CurlMiddleware",  # uncomment to enable a debugging tool
-]
+# This is from testing postgres connection pools, which caused too many issues.
+# if DEBUG:
+#     DATABASES['default']['OPTIONS']['pool']['min_size'] = 1  # single connection pool
 
-TIME_ZONE = 'UTC'
-USE_TZ = True
-
-INSTALLED_APPS = [
-    'database.apps.DatabaseConfig',
-    'django.contrib.sessions',
-    'django_extensions',
-    'django.contrib.staticfiles'
-    # 'static_files',
-]
+####################################################################################################
+##################################### Shell Plus Config ############################################
+####################################################################################################
 
 SHELL_PLUS = "ipython"
-# if we enable sql printing, don't truncate the output.
-RUNSERVER_PLUS_PRINT_SQL_TRUNCATE = None
-SHELL_PLUS_PRINT_SQL_TRUNCATE = None
-# SHELL_PLUS_PRINT_SQL = True
 
 SHELL_PLUS_POST_IMPORTS = [
     # generic
@@ -138,23 +135,64 @@ SHELL_PLUS_POST_IMPORTS = [
 ]
 SHELL_PLUS_PRE_IMPORTS = []
 
-# Using the default test runner
-TEST_RUNNER = 'django.test.runner.DiscoverRunner'
+# if we enable sql printing, don't truncate the output.
+RUNSERVER_PLUS_PRINT_SQL_TRUNCATE = None
+SHELL_PLUS_PRINT_SQL_TRUNCATE = None
+# SHELL_PLUS_PRINT_SQL = True
 
-# server settings....
+####################################################################################################
+######################################## Testing Settings ##########################################
+####################################################################################################
+
+# TEST_RUNNER = 'django.test.runner.DiscoverRunner'  # default test runner
+TEST_RUNNER = "redgreenunittest.django.runner.RedGreenDiscoverRunner"  # colored output!
+
+####################################################################################################
+#################################### Django Core Settings ##########################################
+####################################################################################################
+
 if DEBUG:
-    ALLOWED_HOSTS = ("*",)
+    ALLOWED_HOSTS = ("*",)  # when running in development allow any domain name
 else:
-    # we only allow the domain name to be the referrer
-    ALLOWED_HOSTS = [DOMAIN_NAME]
+    ALLOWED_HOSTS = [DOMAIN_NAME]  # when a server only allow the real domain name
 
 PROJECT_ROOT = "."
-ROOT_URLCONF = "urls"
+
+TIME_ZONE = 'UTC'
+USE_TZ = True
+
+INSTALLED_APPS = [
+    'database.apps.DatabaseConfig',
+    'django.contrib.sessions',
+    'django_extensions',
+    'django.contrib.staticfiles'
+    # 'static_files',
+]
+
+MIDDLEWARE = [
+    'middleware.downtime_middleware.DowntimeMiddleware',  # does a single database call
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.contrib.auth.middleware.AuthenticationMiddleware',  
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'middleware.abort_middleware.AbortMiddleware',
+    # "middleware.request_to_curl.CurlMiddleware",  # uncomment to enable a debugging tool
+]
+
+####################################################################################################
+################################### Django Static Files ############################################
+####################################################################################################
+
 STATIC_ROOT = "staticfiles"
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [
-    "frontend/static/"
-]
+STATICFILES_DIRS = ["frontend/static/"]
+
+####################################################################################################
+################################ Django Template Configuration #####################################
+####################################################################################################
 
 TEMPLATES = [
     {
@@ -177,30 +215,25 @@ TEMPLATES = [
     },
 ]
 
-# json serializer crashes with module object does not have attribute .dumps
-# or it cannot serialize a datetime object.
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
-SESSION_ENGINE = "database.user_models_researcher"
-
-# https-only
-# SESSION_COOKIE_SECURE = True
+####################################################################################################
+###################################### URL Routing #################################################
+####################################################################################################
 
 # Changing this causes a runtime warning, but has no effect. Enabling this feature is not equivalent
-# to the feature in urls.py.
+# to the feature in urls.py.  Leave False.
 APPEND_SLASH = False
 
-# We need this to be fairly large, if users ever encounter a problem with this please report it
-DATA_UPLOAD_MAX_MEMORY_SIZE = 128 * 1024 * 1024  # 128 MB
+ROOT_URLCONF = "urls"
 
-# We encounter the starlette integration bug _at least_ when running tasks in celery.
-# https://github.com/getsentry/sentry-python/issues/1603
-# None of the fixes work, so we are going with the nuclear option of purging the integration from
-# _AUTO_ENABLING_INTEGRATIONS inside the integrations code. This is very bad form, but without it
-# file processing errors in a weird/unpredictable way. (Possibly after the first page of data? it's
-# not clear.)
-from sentry_sdk.integrations import _AUTO_ENABLING_INTEGRATIONS
+####################################################################################################
+############################################# Sentry ###############################################
+####################################################################################################
 
-
+# We encounter this starlette integration bug _at least_ when running tasks in celery.
+#   https://github.com/getsentry/sentry-python/issues/1603
+# No fixes work, but purging the it from _AUTO_ENABLING_INTEGRATIONS in the integrations code does.
+# (This is ... bad, but without it file processing errors in a weird/unpredictable way. (Possibly
+# after the first page of data? It's not clear.)
 if "sentry_sdk.integrations.starlette.StarletteIntegration" not in _AUTO_ENABLING_INTEGRATIONS:
     raise ImproperlyConfigured(
         "We have a bug where the starlette integration is getting auto enabling and then raising "
@@ -209,12 +242,31 @@ if "sentry_sdk.integrations.starlette.StarletteIntegration" not in _AUTO_ENABLIN
     )
 _AUTO_ENABLING_INTEGRATIONS.remove("sentry_sdk.integrations.starlette.StarletteIntegration")
 
-# Ok now we can
+
+def filter_junk_errors(event: Event, hint: Hint) -> Event | None:
+    """ Docs: https://docs.sentry.io/platforms/python/configuration/filtering/ """
+    if 'exc_info' not in hint:  # we only care about errors
+        return event
+    
+    exception: Exception = hint['exc_info'][1]  # unfathomable but docs say this is what you do.
+    
+    print("exception name!")
+    print(exception)
+    print("exception name!")
+    
+    if "was sent code 134!" in str(exception):  # when gunicorn kills a slow worker thread on deploy
+        return None
+    
+    return event
+
+
+
 sentry_sdk.init(
-    dsn=normalize_sentry_dsn(SENTRY_ELASTIC_BEANSTALK_DSN),
+    dsn=normalize_sentry_dsn(SENTRY_ELASTIC_BEANSTALK_DSN),  # type: ignore - this can take a None
     enable_tracing=False,
     ignore_errors=["WorkerLostError", "DisallowedHost"],
     # auto_enabling_integrations=False,  # this was one of the fixes for the starlette bug that didn't work.
+    before_send=filter_junk_errors,
     integrations=[
         DjangoIntegration(
             transaction_style='url',
@@ -225,10 +277,14 @@ sentry_sdk.init(
         CeleryIntegration(
             propagate_traces=False,
             monitor_beat_tasks=False,
-            exclude_beat_tasks=True,
+            exclude_beat_tasks=True,  # type: ignore - this value seems to work fine
         )
     ],
 )
+####################################################################################################
+######################################### Django Logging ###########################################
+####################################################################################################
+
 
 # I don't know what this does after replacing raven with sentry_sdk...
 if not DEBUG and SENTRY_ELASTIC_BEANSTALK_DSN:
@@ -274,11 +330,12 @@ if not DEBUG and SENTRY_ELASTIC_BEANSTALK_DSN:
             },
     }
 
-TEST_RUNNER = "redgreenunittest.django.runner.RedGreenDiscoverRunner"
-
+####################################################################################################
+############################### Ensure Assertions Are Enabled ######################################
+####################################################################################################
 
 def assert_assertions_not_disabled():
-    """ stick in function to keep namespace clear. """
+    """ Keep that success variable out of the namespace """
     success = False
     try:
         assert False
