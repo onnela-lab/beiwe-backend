@@ -243,30 +243,35 @@ if "sentry_sdk.integrations.starlette.StarletteIntegration" not in _AUTO_ENABLIN
 _AUTO_ENABLING_INTEGRATIONS.remove("sentry_sdk.integrations.starlette.StarletteIntegration")
 
 
-def filter_junk_errors(event: Event, hint: Hint) -> Event | None:
-    """ Docs: https://docs.sentry.io/platforms/python/configuration/filtering/ """
-    if 'exc_info' not in hint:  # we only care about errors
-        return event
+# def filter_junk_errors(event: Event, hint: Hint) -> Event | None:
+#     """ Docs: https://docs.sentry.io/platforms/python/configuration/filtering/ """
     
-    exception: Exception = hint['exc_info'][1]  # unfathomable but docs say this is what you do.
+#     if 'exc_info' not in hint:  # we only care about errors
+#         from pprint import pprint, pp, pformat
+#         pprint(hint)
+#         return event
     
-    print("exception name!")
-    print(exception)
-    print("exception name!")
+#     exception: Exception = hint['exc_info'][1]  # unfathomable but docs say this is what you do.
     
-    if "was sent code 134!" in str(exception):  # when gunicorn kills a slow worker thread on deploy
-        return None
+#     # this never prints
+#     # 
+#     print("exception name!")
+#     print(exception)
+#     print("exception name!")
     
-    return event
+#     if "was sent code 134!" in str(exception):  # when gunicorn kills a slow worker thread on deploy
+#         return None
+    
+#     return event
 
-
+# TODO: get error filtering working, the above never prints
 
 sentry_sdk.init(
     dsn=normalize_sentry_dsn(SENTRY_ELASTIC_BEANSTALK_DSN),  # type: ignore - this can take a None
     enable_tracing=False,
     ignore_errors=["WorkerLostError", "DisallowedHost"],
     # auto_enabling_integrations=False,  # this was one of the fixes for the starlette bug that didn't work.
-    before_send=filter_junk_errors,
+    # before_send=filter_junk_errors,
     integrations=[
         DjangoIntegration(
             transaction_style='url',
