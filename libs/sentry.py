@@ -167,8 +167,7 @@ def SentryDecorator(sentry_type: str, *sentry_args, **tags):
 
 class SentryTimerWarning():
     """ Wrap a function with a timer that sends a warning to sentry if the function takes too long.
-    (uses a thread and adds up to one-half second of time to the function execution time.)
-    """
+    (uses a thread and adds up to one-half second of time to the function execution time.) """
     
     def __init__(self, sentry_type: str, message: str, timeout_seconds: int, **tags):
         self.message = message
@@ -179,17 +178,17 @@ class SentryTimerWarning():
         tags["code_type"] = sentry_type
         tags["JUST_A_WARNING"] = True
         self.tags = tags
-        
-        # todo: work out and document why this is in the __init__?
+        # todo: work out and document why this is in the __init__? (oorrr here at all?).
+        # specifically this one is HttpTransport and the django_settings one is not. I think we need
+        # this because it runs during a static context.... but there's no way to get here without
+        # importing django settings... maybe because its actually in celery_control...?
         sentry_sdk.init(get_dsn_from_string(sentry_type), transport=HttpTransport)
     
     def __call__(self, some_function):
         self.finished = False
         self.name = some_function.__name__
         
-        # @functools.wraps(some_function)  # currently disabled, do stack traces get worse?
-        def wrapper(*args, **kwargs):
-            
+        def wrapper(*args, **kwargs):  # don't @functools.wraps, it made debugging harder.
             thread = Thread(target=self.live_warn, name=f"timer thread for {self.name} {id(self)}")
             thread.start()
             t = timezone.now()
@@ -201,8 +200,7 @@ class SentryTimerWarning():
                 thread.join()  # may be slow
                 if (t_total:= (timezone.now() - t).total_seconds()) > self.timeout_seconds:
                     more = f" - call `{self.name}` took {t_total} seconds to run."
-                    self.send_warning(more)
-                    #TODO: um, do we need a sleep here? that gets weird with post-celery-task-sleep
+                    self.send_warning(more)  # no extra sleep statement, HttpTransport is synchronous
         
         return wrapper
     
@@ -213,7 +211,7 @@ class SentryTimerWarning():
         # wait for finished to be set to true, if we go over timeout_seconds send a warning.
         t = timezone.now()
         while not self.finished:
-            sleep(0.5)  # can't get out of a dangling join above, hope try-finally is robust
+            sleep(0.5)  # we depend on a python `finally` clause
             if (timezone.now() - t).total_seconds() > self.timeout_seconds:
                 self.send_warning(f" - call `{self.name}` is currently running over its limit.")
                 return
