@@ -440,6 +440,8 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .text-black { color: black !important; }
 .text-green { color: var(--Baqua-bright) !important; }
 .text-green-hover:hover { color: var(--Baqua-lt1) !important; }
+.text-sea-foam { color: var(--sea-foam) !important; }
+.text-actual-white { color: #fff !important; }
 
 
 .table.table-notifications td {

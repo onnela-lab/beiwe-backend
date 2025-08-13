@@ -63,13 +63,14 @@
             <label
               for="gps_on_duration_seconds"
               class="control-label app-settings-align-70"
-            >GPS <b>on</b> duration:</label>
+            >GPS <b class="text-medium text-actual-white">on</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="gps_on_duration_seconds"
               name="gps_on_duration_seconds"
               class="form-control"
               type="number"
+              
               aria-label="Set the duration of a recording session when GPS is enabled."
               value="{{ settings['gps_on_duration_seconds'] }}"
               {{ "disabled" if readonly }}
@@ -82,7 +83,7 @@
             <label
               for="gps_off_duration_seconds"
               class="control-label app-settings-align-70"
-            >GPS <b>off</b> duration:</label>
+            >GPS <b class="text-medium text-actual-white">off</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="gps_off_duration_seconds"
@@ -121,7 +122,7 @@
             <label
               for="magnetometer_on_duration_seconds"
               class="control-label app-settings-align-70"
-            >Magnetometer <b>on</b> duration:</label>
+            >Magnetometer <b class="text-medium text-actual-white">on</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="magnetometer_on_duration_seconds"
@@ -140,7 +141,7 @@
             <label
               for="magnetometer_off_duration_seconds"
               class="control-label app-settings-align-70"
-            >Magnetometer <b>off</b> duration:</label>
+            >Magnetometer <b class="text-medium text-actual-white">off</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="magnetometer_off_duration_seconds"
@@ -179,7 +180,7 @@
             <label
               for="devicemotion_on_duration_seconds"
               class="control-label app-settings-align-70"
-            >Device Motion <b>on</b> duration:</label>
+            >Device Motion <b class="text-medium text-actual-white">on</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="devicemotion_on_duration_seconds"
@@ -198,7 +199,7 @@
             <label
               for="devicemotion_off_duration_seconds"
               class="control-label app-settings-align-70"
-            >Device Motion <b>off</b> duration:</label>
+            >Device Motion <b class="text-medium text-actual-white">off</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="devicemotion_off_duration_seconds"
@@ -237,7 +238,7 @@
             <label
               for="wifi_log_frequency_seconds"
               class="control-label app-settings-align-70"
-            >WiFi Log <b>Frequency:</b></label>
+            >WiFi Log <b>Frequency <i class="text-sea-foam">(seconds):</i></b></label>
 
             <input
               id="wifi_log_frequency_seconds"
@@ -279,7 +280,7 @@
             <label
               for="accelerometer_on_duration_seconds"
               class="control-label app-settings-align-70"
-            >Accelerometer <b>on</b> duration:</label>
+            >Accelerometer <b class="text-medium text-actual-white">on</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="accelerometer_on_duration_seconds"
@@ -298,7 +299,7 @@
             <label
               for="accelerometer_off_duration_seconds"
               class="control-label app-settings-align-70"
-            >Accelerometer <b>off</b> duration:</label>
+            >Accelerometer <b class="text-medium text-actual-white">off</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="accelerometer_off_duration_seconds"
@@ -322,17 +323,19 @@
             <label
               for="accelerometer_frequency"
               class="control-label app-settings-align-70"
-            >Accelerometer <b>Frequency</b>:</label>
+            >Accelerometer <b>Frequency</b> <i class="text-sea-foam">(Hz):</i></label>
 
             <input
               id="accelerometer_frequency"
               name="accelerometer_frequency"
               class="form-control"
               type="number"
+              title="ehllo"
               aria-label="Set the sample rate (frequency) of the Accelerometer during its recording session."
               value="{{ settings['accelerometer_frequency'] }}"
               {{ "disabled" if readonly }}
             >
+            
           </div>
         </div>
         <div class="col-xs-12">
@@ -364,7 +367,7 @@
             <label
               for="gyro_on_duration_seconds"
               class="control-label app-settings-align-70"
-            >Gyro <b>on</b> duration:</label>
+            >Gyro <b class="text-medium text-actual-white">on</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="gyro_on_duration_seconds"
@@ -383,7 +386,7 @@
             <label
               for="gyro_off_duration_seconds"
               class="control-label app-settings-align-70"
-            >Gyro <b>off</b> duration:</label>
+            >Gyro <b class="text-medium text-actual-white">off</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="gyro_off_duration_seconds"
@@ -407,7 +410,7 @@
             <label
               for="gyro_frequency"
               class="control-label app-settings-align-70"
-            >Gyro <b>Frequency</b>:</label>
+            >Gyro <b>Frequency</b> <i class="text-sea-foam">(Hz):</i></label>
 
             <input
               id="gyro_frequency"
@@ -449,7 +452,7 @@
             <label
               for="ambient_audio_on_duration_seconds"
               class="control-label app-settings-align-70"
-            >Ambient Audio <b>on</b> duration:</label>
+            >Ambient Audio <b class="text-medium text-actual-white">on</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="ambient_audio_on_duration_seconds"
@@ -468,7 +471,7 @@
             <label
               for="ambient_audio_off_duration_seconds"
               class="control-label app-settings-align-70"
-            >Ambient Audio <b>off</b> duration:</label>
+            >Ambient Audio <b class="text-medium text-actual-white">off</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="ambient_audio_off_duration_seconds"
@@ -703,7 +706,7 @@
             <label
               for="bluetooth_on_duration_seconds"
               class="control-label app-settings-align-70"
-            >BT <b>on</b> duration:</label>
+            >BT <b class="text-medium text-actual-white">on</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="bluetooth_on_duration_seconds"
@@ -722,7 +725,7 @@
             <label
               for="bluetooth_total_duration_seconds"
               class="control-label app-settings-align-70"
-            >BT <b>total</b> duration:</label>
+            >BT <b>total</b> duration <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="bluetooth_total_duration_seconds"
@@ -741,7 +744,7 @@
             <label
               for="bluetooth_global_offset_seconds"
               class="control-label app-settings-align-70"
-            >BT global offset:</label>
+            >BT global offset <i class="text-sea-foam">(seconds):</i></label>
 
             <input
               id="bluetooth_global_offset_seconds"
@@ -802,6 +805,7 @@
       <div class="col-xs-12 col-md-12 row text-center">
         <h3>Technical Settings</h3>
         <i>Timer values here cannot always be respected by the Apps, particularly when Low Power Mode is enabled.</i>
+        (Units are in <i class="text-sea-foam">seconds.</i>)
         <hr>
       </div>
 
@@ -941,7 +945,7 @@
               <label
                 for="call_clinician_button_enabled"
                 class="control-label"
-              >Enable the "Call My Clinician" button</label>
+              >Enable the "Call My Clinician" Button</label>
 
               <input
                 name="call_clinician_button_enabled"
@@ -985,7 +989,7 @@
               <label
                 for="voice_recording_max_time_length_seconds"
                 class="control-label"
-              >Voice recording max time duration:</label>
+              >Voice recording max time duration <i class="text-sea-foam">(seconds):</i></label>
 
               <input
                 id="voice_recording_max_time_length_seconds"
@@ -1010,7 +1014,7 @@
               <label
                 for="seconds_before_auto_logout"
                 class="control-label"
-              >Auto-Logout Time:</label>
+              >Auto-Logout Time <i class="text-sea-foam">(seconds)</i>:</label>
 
               <input
                 id="seconds_before_auto_logout"
@@ -1169,7 +1173,7 @@
                 class="control-label app-settings-align-force"
                 for="call_clinician_button_text"
               >
-                Text that appears on the app's "Call My Clinician" button:
+                Text that appears on the app's "Call My Clinician" Button:
               </label>
 
               <input
