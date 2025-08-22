@@ -203,3 +203,6 @@ DEVICE_SETTINGS_RESEND_FROM_0 = "Warning: the survey notification resend period 
 
 # Download data page
 DATA_DOWNLOAD_NO_CREDS = "You need to generate an Access Key and a Secret Key before you can download data. Click the Manage Credentials button above."
+
+
+BAD_LOGIN_DB_STATE = "A complex situation has occurred with your user account, please contact your system administrator to have them reset your password to restore access."

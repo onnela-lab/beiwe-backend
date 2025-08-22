@@ -15,7 +15,7 @@ from django.utils import timezone
 from config.settings import REQUIRE_SITE_ADMIN_MFA
 from constants.common_constants import RUNNING_TEST_OR_FROM_A_SHELL
 from constants.user_constants import ResearcherRole, SESSION_NAME
-from database.models import TimestampedModel
+from database.models import MaxValueValidator, TimestampedModel
 from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
 from database.validators import B32_VALIDATOR
@@ -50,6 +50,8 @@ class Researcher(AbstractPasswordUser):
     most_recent_page = models.TextField(null=True, blank=True)
     
     last_login_time = models.DateTimeField(null=True, blank=True)
+    bad_login_attempts = models.SmallIntegerField(default=0, validators=[MaxValueValidator(10)])
+    lockout_until = models.DateTimeField(null=True, blank=True)
     
     # related field typings (IDE halp)
     api_keys: Manager[ApiKey]

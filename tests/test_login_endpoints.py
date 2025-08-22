@@ -8,9 +8,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from constants.common_constants import UTC
-from constants.message_strings import (MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING,
-    MFA_CODE_WRONG, MFA_CONFIGURATION_REQUIRED, MFA_CONFIGURATION_SITE_ADMIN, PASSWORD_EXPIRED,
-    PASSWORD_RESET_FORCED, PASSWORD_RESET_SITE_ADMIN, PASSWORD_RESET_TOO_SHORT,
+from constants.message_strings import (BAD_LOGIN_DB_STATE, MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY,
+    MFA_CODE_MISSING, MFA_CODE_WRONG, MFA_CONFIGURATION_REQUIRED, MFA_CONFIGURATION_SITE_ADMIN,
+    PASSWORD_EXPIRED, PASSWORD_RESET_FORCED, PASSWORD_RESET_SITE_ADMIN, PASSWORD_RESET_TOO_SHORT,
     PASSWORD_WILL_EXPIRE)
 from constants.url_constants import LOGIN_REDIRECT_SAFE, urlpatterns
 from constants.user_constants import EXPIRY_NAME, ResearcherRole
@@ -365,20 +365,19 @@ class TestLoginPages(BasicSessionTestCase):
         self.assertFalse(self.session_researcher.password_force_reset)
     
     def test_password_too_short_bad_state(self):
-        # we got an error report from the Researcher.check_password call inside the validate_login
-        # function, a validation error password too short message.  Cannot reproduce.
+        # when the password is too short it fails validation in the login process, we catch it.
         self.session_researcher._force_set_password("2short")
-        # have to bypass the password min length check validator to set up bad database state.
+        # bypass the password min length check validator to set up bad database state.
         # default password minimum length is 8, 7 is the highest number to cause the redirect.
         Researcher.objects.filter(id=self.session_researcher.id).update(password_min_length=7)
-        self.do_login(self.DEFAULT_RESEARCHER_NAME, "2short")
+        resp = self.do_login(self.DEFAULT_RESEARCHER_NAME, "2short")
         
         # random endpoint that will trigger a redirect
-        resp = self.simple_get(easy_url("study_endpoints.choose_study_page"))
+        # resp = self.simple_get(easy_url("study_endpoints.choose_study_page"))
         self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp.url, reverse("manage_researcher_endpoints.self_manage_credentials_page"))
+        self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
         page = self.simple_get(resp.url, status_code=200).content
-        self.assert_present(PASSWORD_RESET_TOO_SHORT, page)
+        self.assert_present(BAD_LOGIN_DB_STATE, page)
         # assert that this behavior does not rely on the force reset flag
         self.assertFalse(self.session_researcher.password_force_reset)
     
@@ -462,6 +461,80 @@ class TestLoginPages(BasicSessionTestCase):
         r3 = self.simple_get(r2.url, status_code=200)  # page loads as normal
         self.assert_present(MFA_CONFIGURATION_REQUIRED, r3.content)
         self.assert_present(MFA_CONFIGURATION_SITE_ADMIN, r3.content)
+    
+    def test_10_logins_lockout(self):
+        
+        r = self.session_researcher
+        self.assertEqual(r.bad_login_attempts, 0)
+        orig_password = self.DEFAULT_RESEARCHER_PASSWORD
+        self.DEFAULT_RESEARCHER_PASSWORD = "nope"
+        
+        first_lockout = None
+        for i in range(1, 15):
+            # print(i)
+            resp = self.do_default_login()
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
+            r.refresh_from_db()
+            
+            if first_lockout is None and r.lockout_until is not None:
+                first_lockout = r.lockout_until
+            
+            self.assertIsNone(r.last_login_time)
+            
+            # after triggering the lockout the lockout period doesn't update, and the count 0
+            if i >= 10:  # counting note - this is the 10th _bad attempt_
+                self.assertEqual(r.bad_login_attempts, 0)
+                self.assertIsNotNone(r.lockout_until)
+                self.assertEqual(r.lockout_until, first_lockout)
+            else:
+                self.assertEqual(r.bad_login_attempts, i)
+                self.assertIsNone(r.lockout_until)
+        
+        first_lockout = r.lockout_until  # typing library annoyance....
+        
+        self.DEFAULT_RESEARCHER_PASSWORD = orig_password
+        resp = self.do_default_login()  # this must fail!
+        self.DEFAULT_RESEARCHER_PASSWORD = "nope"
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
+        r.refresh_from_db()
+        self.assertEqual
+        self.assertEqual(r.bad_login_attempts, 0)  # can't go up
+        self.assertIsNone(r.last_login_time)       # no login
+        
+        
+        # lockout period not over
+        with time_machine.travel(first_lockout - timedelta(seconds=1)):
+            resp = self.do_default_login()
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
+            r.refresh_from_db()
+            self.assertEqual(r.bad_login_attempts, 0)
+            self.assertIsNotNone(r.lockout_until)
+            self.assertEqual(r.lockout_until, first_lockout)
+            self.assertIsNone(r.last_login_time)
+        
+        # lockout period over, count begins again
+        with time_machine.travel(first_lockout):
+            resp = self.do_default_login()
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
+            r.refresh_from_db()
+            self.assertEqual(r.bad_login_attempts, 1)
+            self.assertIsNotNone(r.lockout_until)    # (removing this clutters the code needlessly)
+            self.assertIsNone(r.last_login_time)  # still no.
+            
+            # but login works now!
+            self.DEFAULT_RESEARCHER_PASSWORD = orig_password
+            resp = self.do_default_login()
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.url, reverse("study_endpoints.choose_study_page"))
+            r.refresh_from_db()
+            self.assertEqual(r.bad_login_attempts, 0)  # reset to 0
+            self.assertIsNotNone(r.last_login_time)    # something here
+            self.assertIsNone(r.lockout_until)         # gone.
+
 
 
 class TestDowntime(BasicSessionTestCase):
@@ -469,6 +542,7 @@ class TestDowntime(BasicSessionTestCase):
     
     def test_downtime(self):
         from libs.utils.timeout_cache import THE_TIMEOUT_CACHE
+
         # this test emits a logging statement `ERROR:django.request:Service Unavailable: /`
         # that we want to squash, but we want to set logging level back to normal when we are done.
         previous_logging_level = logging.getLogger("django.request").level

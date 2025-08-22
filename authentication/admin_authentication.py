@@ -81,7 +81,7 @@ def logout_researcher(request: HttpRequest):
         del request.session[SESSION_NAME]
 
 
-def log_in_researcher(request: ResearcherRequest, username: str):
+def log_in_researcher(request: HttpRequest, username: str):
     """ Populate session for a researcher - should only be called from  validate_login endpoint. """
     request.session[SESSION_UUID] = generate_easy_alphanumeric_string()
     request.session[EXPIRY_NAME] = ((timezone.now() + timedelta(hours=SESSION_TIMEOUT_HOURS))).isoformat()
@@ -103,7 +103,7 @@ def check_is_logged_in(request: ResearcherRequest):
         log("no session key present")
         return False
     
-    if handle_session_expiry(request):
+    if validate_session_expiry(request):
         return True
     else:
         log("session had expired")
@@ -111,7 +111,7 @@ def check_is_logged_in(request: ResearcherRequest):
     return False
 
 
-def handle_session_expiry(request: ResearcherRequest):
+def validate_session_expiry(request: ResearcherRequest):
     # Sometimes the datetime is naive, probably a development environment bug? We force a timezone
     # in updating the expiry later, this is a safety check.
     expiry_time_str: str = request.session[EXPIRY_NAME]
@@ -141,7 +141,7 @@ def handle_session_expiry(request: ResearcherRequest):
 
 
 def populate_session_researcher(request: ResearcherRequest):
-    # this function defines the ResearcherRequest, which is purely for IDE assistence
+    # this function defines the ResearcherRequest, which is purely for IDE assistance
     username = request.session.get(SESSION_NAME, None)
     if username is None:
         log("researcher username was not present in session")
@@ -159,8 +159,8 @@ def assert_admin(request: ResearcherRequest, study_id: int):
         directly raises the 403 error, if we don't hit that return True. """
     session_researcher = request.session_researcher
     if not session_researcher.site_admin and not session_researcher.check_study_admin(study_id):
-        # messages.warning("This user does not have admin privilages on this study.")
-        log("no admin privilages")
+        # messages.warning("This user does not have admin privileges on this study.")
+        log("no admin privileges")
         return abort(403)
     
     # allow usage in if statements
