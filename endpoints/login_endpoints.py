@@ -1,16 +1,92 @@
+import functools
+from collections.abc import Callable
+from datetime import timedelta
+
 import bleach
+import django
 from django.contrib import messages
-from django.http.request import HttpRequest
+from django.db.transaction import atomic
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from authentication import admin_authentication
-from authentication.admin_authentication import ResearcherRequest
-from constants.message_strings import (MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING,
-    MFA_CODE_WRONG)
+from authentication.admin_authentication import HttpRequest, ResearcherRequest
+from constants.message_strings import (BAD_LOGIN_DB_STATE, MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY,
+    MFA_CODE_MISSING, MFA_CODE_WRONG)
 from database.user_models_researcher import Researcher
 from libs.utils.security_utils import verify_mfa
+
+
+DEBUG_LOGIN = False
+
+def log(*args, **kwargs):
+    if DEBUG_LOGIN:
+        print(*args, **kwargs)
+
+
+####################################################################################################
+###################################### Login Tools #################################################
+####################################################################################################
+
+MAX_LOGIN_ATTEMPTS_BEFORE_LOCKOUT = 10
+
+
+def lockout_message(researcher: Researcher):
+    # we don't have timezones for researchers
+    return f"researcher `{researcher.username}` has had 10+ failed login attempts "\
+           "and is locked out for 10 minutes."
+
+
+@atomic
+def increment_failed_password_attempts(request: HttpRequest, username: str|None):
+    try:
+        researcher = Researcher.objects.get(username=username)
+    except Researcher.DoesNotExist:
+        return  # junk researcher, ignore.
+    
+    researcher.bad_login_attempts += 1
+    
+    # set the lockout to start only at exactly 10 attempts and notify the user.
+    if researcher.bad_login_attempts == MAX_LOGIN_ATTEMPTS_BEFORE_LOCKOUT:
+        researcher.lockout_until = timezone.now() + timedelta(minutes=10)
+        msg = lockout_message(researcher)
+        log(msg)
+        messages.error(request, msg)
+    
+    # case: there was a lockout, it ended, there's a new bad password attempt.  We need to reset the
+    # count because we intentionally only set the timer on the 10th failure to avoid a DOS where a
+    # malicious user keeps trying passwords. So, reset the count ANY time we have a lockout,
+    # including just after starting the lockout.
+    if researcher.lockout_until and researcher.lockout_until > timezone.now():
+        researcher.bad_login_attempts = 0
+    
+    researcher.save()
+
+
+@atomic
+def reset_failed_login_attempts(researcher: Researcher):
+    researcher.bad_login_attempts = 0
+    researcher.lockout_until = None
+    researcher.save()
+
+
+def catch_invalid_database_password(func: Callable):
+    @functools.wraps(func)
+    def inner_function(request, *args, **kwargs  ):
+        try:
+            return func(request, *args, **kwargs)
+        except django.core.exceptions.ValidationError as e:  #type: ignore - analysis cannot see core
+            log(f"Invalid database password: {e}")
+            messages.error(request, BAD_LOGIN_DB_STATE)
+            return redirect(reverse("login_endpoints.login_page"))
+    return inner_function
+
+
+####################################################################################################
+################################ Login Endpoints ###################################################
+####################################################################################################
 
 
 @require_GET
@@ -43,6 +119,7 @@ def logout_page(request: ResearcherRequest):
 
 
 @require_POST
+@catch_invalid_database_password
 def validate_login(request: HttpRequest):
     """ Authenticates administrator login, redirects to login page if authentication fails. """
     username = request.POST.get("username", None)
@@ -57,10 +134,20 @@ def validate_login(request: HttpRequest):
     # successful password challenge with that state, but does not trigger such an error.
     if not (username and password and Researcher.check_password(username, password)):
         messages.warning(request, "Incorrect username & password combination; try again.")
+        increment_failed_password_attempts(request, username)
         return redirect(reverse("login_endpoints.login_page"))
     
     # login has succeeded, researcher is safe to get
     researcher = Researcher.objects.get(username=username)
+    
+    # check too-many-login-attempt-lockout, always run reset when not in lockout.
+    if researcher.lockout_until and researcher.lockout_until > timezone.now():
+        msg = lockout_message(researcher)
+        log(msg)
+        messages.error(request, msg)
+        return redirect(reverse("login_endpoints.login_page"))
+    else:
+        reset_failed_login_attempts(researcher)
     
     # case: mfa is not required, but was provided
     if not researcher.mfa_token and mfa_code:
