@@ -77,9 +77,10 @@ class BadForestField(Exception): pass
 ## Celery and dev helpers
 #
 def enqueue_forest_task(**kwargs):
+    expiry = (timezone.now().astimezone(UTC) + timedelta(minutes=5)).replace(second=30, microsecond=0)
     safe_apply_async(
         celery_run_forest,
-        expires=(datetime.utcnow() + timedelta(minutes=5)).replace(second=30, microsecond=0, tzinfo=UTC),
+        expires=expiry,
         max_retries=0,
         retry=False,
         task_publish_retry=False,

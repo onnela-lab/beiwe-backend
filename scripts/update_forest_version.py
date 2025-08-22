@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="scripts.update_forest_version")
+# Deprecated, see https://setuptools.pypa.io/en/latest/pkg_resources.html
 import pkg_resources
 
 from database.system_models import ForestVersion
