@@ -39,7 +39,8 @@ from urls import urlpatterns
 # /lib/python3.12/unittest/case.py:580: RuntimeWarning: TestResult has no addDuration method
 # warnings.warn("TestResult has no addDuration method",
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="unittest.case", message="TestResult has no addDuration method")
-
+# DeprecationWarning: The `enable_tracing` parameter is deprecated. Please use `traces_sample_rate` instead.
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # we need to do some magic to make these fake typing classes not break due to MRO issues
 # TLDR we have magic return types so that we don't want a thousand type errors on when accessing
