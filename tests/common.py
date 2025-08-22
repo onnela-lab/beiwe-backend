@@ -2,6 +2,7 @@
 import logging
 import os
 import traceback
+import warnings
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
@@ -33,6 +34,11 @@ from libs.shell_support import tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
 from urls import urlpatterns
+
+# this spams us and is dumb
+# /lib/python3.12/unittest/case.py:580: RuntimeWarning: TestResult has no addDuration method
+# warnings.warn("TestResult has no addDuration method",
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="unittest.case", message="TestResult has no addDuration method")
 
 
 # we need to do some magic to make these fake typing classes not break due to MRO issues
