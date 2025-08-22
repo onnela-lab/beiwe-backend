@@ -27,16 +27,16 @@ jobs:
             worker_hostname: PROD_WORKER_HOSTNAME
             worker_security_group: PROD_WORKER_SECURITY_GROUP
             ssh_key: PROD_SSH_KEY
-          - environment: NHS_DEPLOYMENT
-            aws_access_key_id: NHS_AWS_ACCESS_KEY_ID
-            # trunk-ignore(checkov/CKV_SECRET_6)
-            aws_secret_access_key: NHS_AWS_SECRET_ACCESS_KEY
-            aws_region: NHS_AWS_REGION
-            application_name: NHS_APPLICATION_NAME
-            environment_name: NHS_ENVIRONMENT_NAME
-            worker_hostname: NHS_WORKER_HOSTNAME
-            worker_security_group: NHS_WORKER_SECURITY_GROUP
-            ssh_key: NHS_SSH_KEY
+          # - environment: NHS_DEPLOYMENT
+          #   aws_access_key_id: NHS_AWS_ACCESS_KEY_ID
+          #   # trunk-ignore(checkov/CKV_SECRET_6)
+          #   aws_secret_access_key: NHS_AWS_SECRET_ACCESS_KEY
+          #   aws_region: NHS_AWS_REGION
+          #   application_name: NHS_APPLICATION_NAME
+          #   environment_name: NHS_ENVIRONMENT_NAME
+          #   worker_hostname: NHS_WORKER_HOSTNAME
+          #   worker_security_group: NHS_WORKER_SECURITY_GROUP
+          #   ssh_key: NHS_SSH_KEY
           - environment: EU_DEPLOYMENT
             aws_access_key_id: EU_AWS_ACCESS_KEY_ID
             # trunk-ignore(checkov/CKV_SECRET_6)
