@@ -1,15 +1,16 @@
 import os
 import platform
+import warnings
 
 import sentry_sdk
 from django.core.exceptions import ImproperlyConfigured
 from sentry_sdk.integrations import _AUTO_ENABLING_INTEGRATIONS
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.types import Event, Hint
 
 from config.settings import DOMAIN_NAME, FLASK_SECRET_KEY, SENTRY_ELASTIC_BEANSTALK_DSN
 from libs.sentry import normalize_sentry_dsn
+
 
 # before anything else, determine if we are running in debug / development mode based off the domain
 DEBUG = 'localhost' in DOMAIN_NAME or '127.0.0.1' in DOMAIN_NAME or '::1' in DOMAIN_NAME
@@ -264,8 +265,8 @@ _AUTO_ENABLING_INTEGRATIONS.remove("sentry_sdk.integrations.starlette.StarletteI
     
 #     return event
 
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="sentry_sdk.client")
 # TODO: get error filtering working, the above never prints
-
 sentry_sdk.init(
     dsn=normalize_sentry_dsn(SENTRY_ELASTIC_BEANSTALK_DSN),  # type: ignore - this can take a None
     enable_tracing=False,
