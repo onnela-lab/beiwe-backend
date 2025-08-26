@@ -8,6 +8,7 @@ import multiprocessing
 #
 
 # The server and port - we are an internal proxy server process behind apache
+# bind = ["127.0.0.1:8000","127.0.0.1:8001"]
 bind = "127.0.0.1:8000"
 
 # Set the SO_REUSEPORT flag on the listening socket.  Default: False
