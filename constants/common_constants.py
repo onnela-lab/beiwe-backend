@@ -4,7 +4,6 @@ from posixpath import abspath
 from sys import argv as _argv
 
 from dateutil.tz import gettz
-from django.utils import timezone
 
 from config.settings import DEVELOPER_TIMEZONE
 
@@ -97,8 +96,9 @@ EARLIEST_POSSIBLE_DATA_TIMESTAMP = 1406851200
 
 # in order to solve a nasty problem that is stalling all data processing in rare cases due to
 # corrupted data, we need a sanity check inside data processing.  This value is updated at runtime,
+
 # just in case 90 days somehow isn't enough.
-LATEST_POSSIBLE_DATA_TIMESTAMP = int(time.mktime((timezone.now() + timedelta(days=90)).timetuple()))
+LATEST_POSSIBLE_DATA_TIMESTAMP = int(time.mktime((datetime.now().astimezone(UTC) + timedelta(days=90)).timetuple()))
 
 ## these are debugging constants for the website
 FORCE_SITE_READ_ONLY = False

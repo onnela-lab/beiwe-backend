@@ -176,7 +176,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     # 'django.middleware.csrf.CsrfViewMiddleware',
-    # 'django.contrib.auth.middleware.AuthenticationMiddleware',  
+    # 'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'middleware.abort_middleware.AbortMiddleware',
@@ -246,23 +246,23 @@ _AUTO_ENABLING_INTEGRATIONS.remove("sentry_sdk.integrations.starlette.StarletteI
 
 # def filter_junk_errors(event: Event, hint: Hint) -> Event | None:
 #     """ Docs: https://docs.sentry.io/platforms/python/configuration/filtering/ """
-    
+
 #     if 'exc_info' not in hint:  # we only care about errors
 #         from pprint import pprint, pp, pformat
 #         pprint(hint)
 #         return event
-    
+
 #     exception: Exception = hint['exc_info'][1]  # unfathomable but docs say this is what you do.
-    
+
 #     # this never prints
-#     # 
+#     #
 #     print("exception name!")
 #     print(exception)
 #     print("exception name!")
-    
+
 #     if "was sent code 134!" in str(exception):  # when gunicorn kills a slow worker thread on deploy
 #         return None
-    
+
 #     return event
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="sentry_sdk.client")
@@ -335,6 +335,7 @@ if not DEBUG and SENTRY_ELASTIC_BEANSTALK_DSN:
                 },
             },
     }
+
 
 ####################################################################################################
 ############################### Ensure Assertions Are Enabled ######################################
