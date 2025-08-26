@@ -22,15 +22,11 @@ def main():
         if file_name.endswith(".py"):
             # with error_sentry():
             python_file_contents = s3_retrieve_plaintext(file_name).decode()
-            print()
-            print(f"Running {file_name}")
-            print()
-            print(python_file_contents)
-            print()
+            print(f"\nRunning {file_name}")
+            # print("\n"*5, python_file_contents, "\n"*5)
+            # this code needs to run in the current context with code assets loaded
             exec(python_file_contents, globals())
-            print()
-            print(f"Done running {file_name}")
-            print()
+            print(f"\nDone running {file_name}\n")
         
         if error_sentry.errors:
             error_sentry.raise_errors()  # stop execution if there are errors

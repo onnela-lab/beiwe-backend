@@ -49,8 +49,10 @@ log, logs - watch all logs
 
 #Watch Logs Live
 alias logs='log'
-alias log='sudo tail -f /var/log/httpd/access_log /var/log/httpd/error_log /var/log/messages /var/log/web.stdout.log /var/log/cfn-init-cmd.log /var/log/cfn-init.log /var/log/eb-engine.log /var/log/eb-cfn-init.log /var/log/eb-publish.log'
-alias logw='sudo tail -f /var/log/httpd/access_log /var/log/httpd/error_log /var/log/web.stdout.log'  # mostly the web stuff
+alias log='sudo tail -f /var/log/httpd/access_log /var/log/httpd/error_log /var/log/messages /var/log/cfn-init-cmd.log /var/log/cfn-init.log /var/log/eb-engine.log /var/log/eb-cfn-init.log /var/log/eb-publish.log'  # removed web because it was always redundant with messages
+
+# use logw to log the web stuff, specifically not messages because it contains other items
+alias logw='sudo tail -f /var/log/httpd/access_log /var/log/httpd/error_log /var/log/web.stdout.log'
 
 alias logaws="logeb"
 alias logdeploy="logeb"
