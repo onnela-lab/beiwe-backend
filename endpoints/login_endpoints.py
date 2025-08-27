@@ -9,7 +9,7 @@ from django.db.transaction import atomic
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from authentication import admin_authentication
 from authentication.admin_authentication import HttpRequest, ResearcherRequest
@@ -108,10 +108,15 @@ def login_page(request: HttpRequest):
     
     # and finally, final_referrer is then also passed through the global sanitization filter when
     # embedded as the hidden value on the page.
-    return render(request, 'admin_login.html', context={"redirect_page": final_referrer})
+    return render(
+        request, 'admin_login.html', context={
+            "redirect_page": final_referrer,
+            "is_login_page": True,
+        }
+    )
 
 
-@require_GET
+@require_http_methods(["GET", "POST"])
 def logout_page(request: ResearcherRequest):
     """ Technically not a page, but its a url target that clears session information for a researcher. """
     admin_authentication.logout_researcher(request)

@@ -112,6 +112,18 @@
     border-radius: 10pt;
 }
 
+.logout-alert {
+    animation: pulse-outline-red 2s infinite !important;
+    position: fixed;
+    top: 4.5em;
+    left: 5%;
+    /* left: 25%; */
+    /* transform: translateX(-25%); */
+    z-index: 1050;
+    width: 90%;
+}
+
+
 .panel {
     border: 1px solid transparent;
     background: var(--Bblack-half);
@@ -656,6 +668,13 @@ td.custom-field-value:hover span.custom-field-edit-link {
     50% { outline: solid 1pt var(--Bwhite); }
     100% { outline: solid 1pt var(--Baqua-bright); }
 }
+@keyframes pulse-outline-red {
+    0% { outline: solid 2pt var(--Bred) ; }
+    50% { outline: solid 2pt var(--Baqua-bright); }
+    100% { outline: solid 2pt var(--Bred); }
+}
+
+
 @keyframes pulse-text-red {
     0% { animation-timing-function: ease-in-out; }
     50% {text-shadow: 0 0 4px var(--Bred);
