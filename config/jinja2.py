@@ -91,6 +91,7 @@ class LocalAssets:
     PATIENT_DASHBOARD_FEATURES_JS = "javascript/patient_dashboard_features.js"
     STREAM_DASHBOARD_FEATURES_JS = "javascript/dashboard_features.js"
     NAVBAR_JS = "javascript/app/survey-builder/controllers/nav-bar-study-controller.js"
+    AUTOLOGOUT = "javascript/autologout.js"
 
 
 # until we are reading to use minified assets on production this is debug-only

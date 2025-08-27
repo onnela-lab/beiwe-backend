@@ -9,3 +9,15 @@
     {{ message }}
   </div>
 {% endfor %}
+
+{# don't render if this is the login page #}
+{% if not is_login_page %}
+  <div
+    id="logout_alert"
+    class="alert alert-warning alert-dismissible center-text logout-alert text-large text-bold"
+    role="alert"
+    hidden
+    >
+    You will be Logged out in 60 seconds due to inactivity.
+  </div>
+{% endif %}
