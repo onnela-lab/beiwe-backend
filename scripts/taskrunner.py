@@ -1,6 +1,6 @@
 import os
 import sys
-
+import traceback
 
 # hack that inserts the root of the project folder into the python path so we can import the codebase
 repo_root = os.path.abspath(__file__).rsplit('/', 2)[0]
@@ -26,10 +26,15 @@ def main():
     
     try:
         with SentryUtils.report_script_runner():
-            a_module = __import__(f"{script}")
-            if not hasattr(a_module, "main"):
-                raise TaskRunnerError(f"Module {script} does not have a main function.")
-            a_module.main()
+            try:
+                a_module = __import__(f"{script}")
+                if not hasattr(a_module, "main"):
+                    raise TaskRunnerError(f"Module {script} does not have a main function.")
+                
+                a_module.main()
+            except Exception:
+                traceback.print_exc()
+                raise
     finally:
         t_end = fancy_dt_format_with_tz_and_seconds(timezone.now(), "UTC")
         print("\n\nFinished script: ", script, "on", t_start, "\n\n")
