@@ -272,7 +272,7 @@ class TestLoginPages(BasicSessionTestCase):
         # set up the current time, then we will travel into the future to test the session expiry
         # in a loop, hour by hour, testing that we redirect to the login page after 18 hours
         self.session_researcher
-        THE_TIMEOUT_HOURS_VARIABLE_YOU_ARE_LOOKING_FOR = 2
+        THE_TIMEOUT_HOURS_VARIABLE_YOU_ARE_LOOKING_FOR = 1
         start = datetime.now()
         check_1_happened = False
         check_2_happened = False
@@ -301,8 +301,8 @@ class TestLoginPages(BasicSessionTestCase):
         self.do_default_login()
         original_expiry = datetime.fromisoformat(self.client.session[EXPIRY_NAME])
         # assert session is currently 2 hours in the future (yep you have to update this test too)
-        self.assertGreater(original_expiry, timezone.now() + timedelta(hours=1, minutes=59))
-        self.assertLess(original_expiry, timezone.now() + timedelta(hours=2, minutes=1))
+        self.assertGreater(original_expiry, timezone.now() + timedelta(hours=0, minutes=59))
+        self.assertLess(original_expiry, timezone.now() + timedelta(hours=1, minutes=1))
         # NOPE you can't do this
         # This doesn't work, manipulating the ssession directly is hard the assertEqual fails.
         #  within_ten_second_expiry = timezone.now() + timedelta(seconds=9)
