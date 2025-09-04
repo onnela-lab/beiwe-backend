@@ -113,7 +113,6 @@
 }
 
 .logout-alert {
-    animation: pulse-outline-red 2s infinite !important;
     position: fixed;
     top: 4.5em;
     left: 5%;
@@ -121,6 +120,11 @@
     /* transform: translateX(-25%); */
     z-index: 1050;
     width: 90%;
+    outline: solid 2pt var(--Bred);
+    opacity: 0.95;
+}
+.logout-animate {
+    animation: pulse-outline-red 2s infinite;
 }
 
 
