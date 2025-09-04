@@ -1,3 +1,5 @@
+# trunk-ignore-all(ruff/B018,bandit/B101)
+
 import logging
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
@@ -18,10 +20,8 @@ from database.study_models import Study
 from database.system_models import GlobalSettings
 from database.user_models_researcher import Researcher, ResearcherSession
 from libs.utils.http_utils import easy_url
-from tests.common import BasicSessionTestCase
+from tests.common import BasicSessionTestCase, HttpResponse2
 
-
-# trunk-ignore-all(ruff/B018,bandit/B101)
 
 #
 ## login_endpoints
@@ -626,7 +626,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
     def a_valid_redirect_url(self):
         return f"/edit_study/{self.default_study.id}"
     
-    def assert_url_match(self, url: str, resp: HttpResponse):
+    def assert_url_match(self, url: str, resp: HttpResponse2):
         try:
             self._assertEqual(url, resp.url)
         except AssertionError:
@@ -769,7 +769,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
         self.session_researcher.update_only(most_recent_page=None)  # disable
         # test that every url actually works with the redirect.
         for url in self.urls:
-            resp = self.do_default_login(referrer=url)
+            resp = self.do_default_login(referrer=url)  # type: ignore - referrer is a str
             self.do_researcher_logout()
             # starting slashes get inserted by the redirect logic, assert exact or missing slash matches
             self.assert_url_match(url, resp)
@@ -779,7 +779,7 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
         self.session_researcher.update_only(most_recent_page=self.a_valid_redirect_url)
         # test that every url actually works with the redirect.
         for url in self.urls:
-            resp = self.do_default_login(referrer=url)
+            resp = self.do_default_login(referrer=url)  # type: ignore - referrer is a str
             self.do_researcher_logout()
             self.assert_url_match(url, resp)
     
@@ -788,27 +788,27 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
         self.session_researcher.update_only(most_recent_page=None)
         
         # test junk doesn't crash it
-        resp = self.do_default_login(referrer="literally junk")
+        resp = self.do_default_login(referrer="literally junk")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, "/choose_study")
         
         # test blank
-        resp = self.do_default_login(referrer="")
+        resp = self.do_default_login(referrer="")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, "/choose_study")
         
         # test '/' ('/' is a valid url that shouldn't redirect but is also a weird one I guess?)
-        resp = self.do_default_login(referrer="/")
+        resp = self.do_default_login(referrer="/")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, "/choose_study")
         
         # test for an endpoint that DOESN'T redirect because its on the redirects-ignore list
-        resp = self.do_default_login(referrer="/manage_credentials/")
+        resp = self.do_default_login(referrer="/manage_credentials/")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, "/choose_study")
         
         # test a valid url that doesn't redirect because its not on the whitelist
-        resp = self.do_default_login(referrer="/reset_download_api_credentials/")
+        resp = self.do_default_login(referrer="/reset_download_api_credentials/")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, "/choose_study")
     
@@ -818,26 +818,26 @@ class TestResearcherRedirectionLogic(BasicSessionTestCase):
         self.session_researcher.update_only(most_recent_page=redirect_page)
         
         # test junk doesn't crash it
-        resp = self.do_default_login(referrer="literally junk")
+        resp = self.do_default_login(referrer="literally junk")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, redirect_page)
         
         # test blank
-        resp = self.do_default_login(referrer="")
+        resp = self.do_default_login(referrer="")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, redirect_page)
         
         # test '/' ('/' is a valid url that shouldn't redirect but is also a weird one I guess?)
-        resp = self.do_default_login(referrer="/")
+        resp = self.do_default_login(referrer="/")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, redirect_page)
         
         # test for an endpoint that DOESN'T redirect because its on the redirects-ignore list
-        resp = self.do_default_login(referrer="/manage_credentials/")
+        resp = self.do_default_login(referrer="/manage_credentials/")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, redirect_page)
         
         # test a valid url that doesn't redirect because its not on the whitelist
-        resp = self.do_default_login(referrer="/reset_download_api_credentials/")
+        resp = self.do_default_login(referrer="/reset_download_api_credentials/")  # type: ignore - referrer is a str
         self.do_researcher_logout()
         self.assertEqual(resp.url, redirect_page)
