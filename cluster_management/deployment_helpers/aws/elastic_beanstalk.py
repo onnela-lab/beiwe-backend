@@ -3,7 +3,8 @@
 from pprint import pprint
 from time import sleep
 
-from deployment_helpers.aws.boto_helpers import create_eb_client, create_iam_client
+from deployment_helpers.aws.boto_helpers import (create_eb_client, create_ec2_client,
+    create_iam_client)
 from deployment_helpers.aws.elastic_beanstalk_configuration import (DynamicParameter,
     get_base_eb_configuration)
 from deployment_helpers.aws.iam import (EnvironmentDeploymentFailure,
@@ -11,7 +12,9 @@ from deployment_helpers.aws.iam import (EnvironmentDeploymentFailure,
     iam_find_instance_profile, iam_find_role, IamEntityMissingError, PythonPlatformDiscoveryError)
 from deployment_helpers.aws.rds import add_eb_environment_to_rds_database_security_group
 from deployment_helpers.aws.s3 import s3_encrypt_eb_bucket
-from deployment_helpers.aws.security_groups import get_security_group_by_name, open_tcp_port
+from deployment_helpers.aws.security_groups import (
+    create_sec_grp_rule_parameters_allowing_traffic_from_another_security_group,
+    get_security_group_by_name, open_tcp_port)
 from deployment_helpers.constants import (AWS_EB_ENHANCED_HEALTH, AWS_EB_MULTICONTAINER_DOCKER,
     AWS_EB_SERVICE, AWS_EB_WEB_TIER, AWS_EB_WORKER_TIER, BEIWE_APPLICATION_NAME,
     EB_INSTANCE_PROFILE_NAME, EB_INSTANCE_PROFILE_ROLE, EB_SEC_GRP_COUNT_ERROR, EB_SERVICE_ROLE,
@@ -238,6 +241,27 @@ def allow_443_traffic_to_load_balancer(eb_environment_name):
     open_tcp_port(sec_grp_id, 443)
 
 
+def allow_443_traffic_from_load_balancer_to_instances(eb_environment_name):
+    """ Allow TCP 443 traffic between load balancer and the EB instances """
+    instance_sec_grp_id = get_eb_instance_security_group_identifier(eb_environment_name)
+    # oh-khaaay, this returns the group name?
+    instance_sec_grp_id = get_security_group_by_name(instance_sec_grp_id)['GroupId']
+    
+    load_balancer_sec_grp_id = get_eb_load_balancer_security_group_identifier(eb_environment_name)
+    ingress_params = create_sec_grp_rule_parameters_allowing_traffic_from_another_security_group(
+        tcp_port=443, sec_grp_id=load_balancer_sec_grp_id
+    )
+    egress_params = create_sec_grp_rule_parameters_allowing_traffic_from_another_security_group(
+        tcp_port=443, sec_grp_id=instance_sec_grp_id
+    )
+    
+    client = create_ec2_client()
+    log.info("creating ingress security group rule added to EB instances from the load balancer", ingress_params)
+    client.authorize_security_group_ingress(GroupId=instance_sec_grp_id, **ingress_params)
+    log.info("creating egress security group rule added to load balancer from the EB instances", egress_params)
+    client.authorize_security_group_egress(GroupId=load_balancer_sec_grp_id, **egress_params)
+
+
 def allow_eb_environment_database_access(eb_environment_name):
     """ This requires that the database be up and running with its own security groups finalized. """
     eb_sec_grp_name = get_eb_instance_security_group_identifier(eb_environment_name)
@@ -316,6 +340,7 @@ def create_eb_environment(eb_environment_name, without_db=False):
     s3_encrypt_eb_bucket()
     allow_eb_environment_database_access(eb_environment_name)
     allow_443_traffic_to_load_balancer(eb_environment_name)
+    allow_443_traffic_from_load_balancer_to_instances(eb_environment_name)
     return env
 
 

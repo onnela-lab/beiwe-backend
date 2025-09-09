@@ -346,6 +346,8 @@ EXTANT_ENVIRONMENT_PROMPT = "Enter the name of the Elastic Beanstalk Environment
 
 DO_CREATE_ENVIRONMENT = "Please enter the name of the environment for which you have filled out the required settings:"
 
+DO_UPDATE_OLD_ENVIRONMENT_443 = "Please enter the name of the existing environment you wish to update to allow last-leg encryption:"
+
 DO_CREATE_CLONE = "Please enter the name of the environment for which you have populated settings and wish to clone:"
 
 CLONE_NAME = "Please enter the name of the environment for which you have populated settings and wish to clone:"
@@ -365,6 +367,8 @@ Note 2: You may have to go and manually delete a Service Role if you are intent 
 """
 
 CREATE_ENVIRONMENT_HELP = "Creates new Elastic Beanstalk environment with the provided environment name"
+
+DO_UPDATE_OLD_ENVIRONMENT_443 = "Updates an existing Elastic Beanstalk environment to allow last-leg encryption (HTTPS between load balancer and instances).  Make sure to follow the deployment directions on the Beiwe-Backend github wiki after running this command."
 
 CLONE_ENVIRONMENT_HELP = "Copies an existing Elastic Beanstalk environment and deploys it, the database will be shared. (Run this command to upgrade from Python 3.6 to 3.8. There is a catch-22 if you try upgrading the beiwe-backend environment directly, so you have to clone and swap the URL.)"
 
