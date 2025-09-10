@@ -18,9 +18,9 @@ billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.39.5
+boto3==1.40.27
     # via -r requirements.in
-botocore==1.39.5
+botocore==1.40.27
     # via
     #   boto3
     #   s3transfer
@@ -30,7 +30,7 @@ cachetools==5.5.2
     # via google-auth
 celery==5.4.0
     # via -r requirements.in
-certifi==2025.7.14
+certifi==2025.8.3
     # via
     #   pyproj
     #   requests
@@ -39,7 +39,7 @@ cffi==1.17.1
     # via
     #   soundfile
     #   timezonefinder
-charset-normalizer==3.4.2
+charset-normalizer==3.4.3
     # via requests
 click==8.2.1
     # via
@@ -59,7 +59,7 @@ decorator==5.2.1
     # via
     #   ipython
     #   librosa
-django==5.2.4
+django==5.2.6
     # via
     #   -r requirements.in
     #   django-extensions
@@ -67,14 +67,16 @@ django==5.2.4
     #   django-stubs-ext
 django-extensions==4.1
     # via -r requirements.in
-django-stubs[1-15-0,1.15.0]==5.2.1
+django-stubs[1-15-0,1.15.0]==5.2.2
     # via -r requirements.in
-django-stubs-ext==5.2.1
+django-stubs-ext==5.2.2
     # via django-stubs
-executing==2.2.0
+executing==2.2.1
     # via stack-data
 firebase-admin==5.4.0
     # via -r requirements.in
+flatbuffers==25.2.10
+    # via timezonefinder
 google-api-core[grpc]==2.25.1
     # via
     #   firebase-admin
@@ -82,7 +84,7 @@ google-api-core[grpc]==2.25.1
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.176.0
+google-api-python-client==2.181.0
     # via firebase-admin
 google-auth==2.40.3
     # via
@@ -100,7 +102,7 @@ google-cloud-core==2.4.3
     #   google-cloud-storage
 google-cloud-firestore==2.21.0
     # via firebase-admin
-google-cloud-storage==3.2.0
+google-cloud-storage==3.3.1
     # via firebase-admin
 google-crc32c==1.7.1
     # via
@@ -112,25 +114,25 @@ googleapis-common-protos==1.70.0
     # via
     #   google-api-core
     #   grpcio-status
-grpcio==1.73.1
+grpcio==1.74.0
     # via
     #   google-api-core
     #   grpcio-status
-grpcio-status==1.73.1
+grpcio-status==1.74.0
     # via google-api-core
 gunicorn==23.0.0
     # via -r requirements.in
-h3==4.3.0
+h3==4.3.1
     # via timezonefinder
-holidays==0.76
+holidays==0.80
     # via beiwe-forest
-httplib2==0.22.0
+httplib2==0.30.0
     # via
     #   google-api-python-client
     #   google-auth-httplib2
 idna==3.10
     # via requests
-ipython==9.4.0
+ipython==9.5.0
     # via -r requirements.in
 ipython-pygments-lexers==1.1.1
     # via ipython
@@ -142,7 +144,7 @@ jmespath==1.0.1
     # via
     #   boto3
     #   botocore
-joblib==1.5.1
+joblib==1.5.2
     # via
     #   librosa
     #   scikit-learn
@@ -193,17 +195,17 @@ packaging==25.0
     #   kombu
     #   lazy-loader
     #   pooch
-pandas==2.3.1
+pandas==2.3.2
     # via beiwe-forest
-parso==0.8.4
+parso==0.8.5
     # via jedi
 pexpect==4.9.0
     # via ipython
-platformdirs==4.3.8
+platformdirs==4.4.0
     # via pooch
 pooch==1.8.2
     # via librosa
-prompt-toolkit==3.0.51
+prompt-toolkit==3.0.52
     # via
     #   click-repl
     #   ipython
@@ -211,14 +213,14 @@ proto-plus==1.26.1
     # via
     #   google-api-core
     #   google-cloud-firestore
-protobuf==6.31.1
+protobuf==6.32.0
     # via
     #   google-api-core
     #   google-cloud-firestore
     #   googleapis-common-protos
     #   grpcio-status
     #   proto-plus
-psycopg[pool]==3.2.9
+psycopg[pool]==3.2.10
     # via -r requirements.in
 psycopg-pool==3.2.6
     # via psycopg
@@ -232,7 +234,7 @@ pyasn1==0.6.1
     #   rsa
 pyasn1-modules==0.4.2
     # via google-auth
-pycparser==2.22
+pycparser==2.23
     # via cffi
 pycryptodomex==3.23.0
     # via -r requirements.in
@@ -246,7 +248,7 @@ pyparsing==3.2.3
     # via httplib2
 pypng==0.20220715.0
     # via -r requirements.in
-pyproj==3.7.1
+pyproj==3.7.2
     # via beiwe-forest
 pyqrcode==1.2.1
     # via -r requirements.in
@@ -268,7 +270,7 @@ ratelimit==2.2.1
     # via beiwe-forest
 rcssmin==1.2.1
     # via -r requirements.in
-requests==2.32.4
+requests==2.32.5
     # via
     #   beiwe-forest
     #   cachecontrol
@@ -278,17 +280,17 @@ requests==2.32.4
     #   pooch
 rsa==4.9.1
     # via google-auth
-s3transfer==0.13.0
+s3transfer==0.14.0
     # via boto3
-scikit-learn==1.7.0
+scikit-learn==1.7.2
     # via librosa
-scipy==1.16.0
+scipy==1.16.1
     # via
     #   beiwe-forest
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.33.0
+sentry-sdk==2.37.1
     # via cronutils
 shapely==2.1.1
     # via beiwe-forest
@@ -296,25 +298,25 @@ six==1.17.0
     # via python-dateutil
 soundfile==0.13.1
     # via librosa
-soxr==0.5.0.post1
+soxr==1.0.0
     # via librosa
 sqlparse==0.5.3
     # via django
-ssqueezepy==0.6.5
+ssqueezepy==0.6.6
     # via beiwe-forest
 stack-data==0.6.3
     # via ipython
 threadpoolctl==3.6.0
     # via scikit-learn
-timezonefinder==6.5.9
+timezonefinder==8.0.0
     # via beiwe-forest
 traitlets==5.14.3
     # via
     #   ipython
     #   matplotlib-inline
-types-pyyaml==6.0.12.20250516
+types-pyyaml==6.0.12.20250822
     # via django-stubs
-typing-extensions==4.14.1
+typing-extensions==4.15.0
     # via
     #   django-stubs
     #   django-stubs-ext
