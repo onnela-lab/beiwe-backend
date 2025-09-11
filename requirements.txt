@@ -18,9 +18,9 @@ billiard==4.2.1
     # via celery
 bleach==6.2.0
     # via -r requirements.in
-boto3==1.40.27
+boto3==1.40.28
     # via -r requirements.in
-botocore==1.40.27
+botocore==1.40.28
     # via
     #   boto3
     #   s3transfer
@@ -126,7 +126,7 @@ h3==4.3.1
     # via timezonefinder
 holidays==0.80
     # via beiwe-forest
-httplib2==0.30.0
+httplib2==0.31.0
     # via
     #   google-api-python-client
     #   google-auth-httplib2
@@ -220,10 +220,8 @@ protobuf==6.32.0
     #   googleapis-common-protos
     #   grpcio-status
     #   proto-plus
-psycopg[pool]==3.2.10
+psycopg==3.2.10
     # via -r requirements.in
-psycopg-pool==3.2.6
-    # via psycopg
 ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.3
@@ -323,7 +321,6 @@ typing-extensions==4.15.0
     #   librosa
     #   mypy
     #   psycopg
-    #   psycopg-pool
     #   pyzstd
 tzdata==2025.2
     # via

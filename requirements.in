@@ -35,7 +35,7 @@ cronutils==0.4.2
 bleach>=4.1.0
 
 # server requirement
-psycopg[pool]
+psycopg
 
 # ipython can exhibit weird issues that make it look like the codebase is broken.  Most issues
 # are resolved by forcing this relatively new version of ipython.
