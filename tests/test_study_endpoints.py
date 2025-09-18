@@ -6,9 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import orjson
 from django.db import models
-from django.http.response import FileResponse, HttpResponse, HttpResponseRedirect
+from django.http.response import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 
+from constants.copy_study_constants import (DEVICE_SETTINGS_KEY, INTERVENTIONS_KEY,
+    STUDY_TIME_ZONE_KEY, SURVEYS_KEY)
 from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.testing_constants import ADMIN_ROLES, ALL_TESTING_ROLES
 from constants.user_constants import ResearcherRole
@@ -336,7 +338,7 @@ class TestCreateStudy(ResearcherSessionTest):
             resp = self.client.get(target_url)
             self.assertEqual(resp.status_code, 200)
             self.assert_present(
-                f"Successfully created study {self.get_the_new_study.name}.", resp.content
+                f"Successfully created study `{self.get_the_new_study.name}`.", resp.content
             )
             self.assertEqual(study_count + 1, Study.objects.count())
             self.assertEqual(device_settings_count + 1, DeviceSettings.objects.count())
@@ -741,27 +743,36 @@ class TestToggleForest(ResearcherSessionTest):
 ## copy study api
 #
 
-# FIXME: add interventions and surveys to the export tests
 class TestExportStudySettingsFile(ResearcherSessionTest):
     ENDPOINT_NAME = "study_endpoints.export_study_settings_file"
     
     def test(self):
         self.set_session_study_relation(ResearcherRole.study_admin)
-        # FileResponse objects stream, which means you need to iterate over `resp.streaming_content``
-        resp: FileResponse = self.smart_get(self.session_study.id)
-        # sanity check...
-        resp_string = b"".join(resp.streaming_content)
+        self.default_intervention
+        resp_string = b"".join(self.smart_get(self.session_study.id).streaming_content)
+        
         self.assertNotEqual(len(resp_string), 0)
+        
         # get survey, check device_settings, surveys, interventions are all present
-        output_survey: dict = orjson.loads(resp_string)
-        self.assertIn("device_settings", output_survey)
-        self.assertIn("surveys", output_survey)
-        self.assertIn("interventions", output_survey)
-        output_device_settings: dict = output_survey["device_settings"]
+        output_study: dict = orjson.loads(resp_string)
+        
+        self.assertIn(SURVEYS_KEY, output_study)
+        self.assertIn(DEVICE_SETTINGS_KEY, output_study)
+        self.assertIn(INTERVENTIONS_KEY, output_study)
+        self.assertIn(STUDY_TIME_ZONE_KEY, output_study)
+        self.assertEqual(len(output_study), 4)
+        
+        self.assertEqual(output_study[STUDY_TIME_ZONE_KEY], "America/New_York")
+        
+        output_device_settings: dict = output_study[DEVICE_SETTINGS_KEY]
         real_device_settings = self.session_device_settings.export()
+        
         # confirm that all elements are equal for the dicts
         for k, v in output_device_settings.items():
             self.assertEqual(v, real_device_settings[k])
+        
+        output_interventions: list = output_study[INTERVENTIONS_KEY]
+        self.assertEqual(output_interventions, ["default_intervention_name"])
 
 
 # FIXME: add interventions and surveys to the import tests

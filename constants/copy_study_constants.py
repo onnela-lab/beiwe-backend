@@ -9,6 +9,7 @@ STUDY_KEY = 'study'
 SURVEY_CONTENT_KEY = 'content'
 # SURVEY_SETTINGS_KEY = 'settings'
 SURVEYS_KEY = 'surveys'
+STUDY_TIME_ZONE_KEY = 'study_time_zone'
 
 # "_id" is legacy, pk shouldn't occur naturally.  This list applies to Surveys and Studies.
 NEVER_EXPORT_THESE = ('_id', 'id', 'pk', 'created_on', 'last_updated', 'object_id', "deleted")

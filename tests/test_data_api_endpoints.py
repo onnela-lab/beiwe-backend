@@ -10,6 +10,8 @@ from django.utils import timezone
 from authentication.tableau_authentication import (check_tableau_permissions,
     TableauAuthenticationFailed, TableauPermissionDenied, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
 from constants.common_constants import EST
+from constants.copy_study_constants import (DEVICE_SETTINGS_KEY, INTERVENTIONS_KEY,
+    STUDY_TIME_ZONE_KEY, SURVEYS_KEY)
 from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MESSAGE
 from constants.schedule_constants import ScheduleTypes
@@ -574,10 +576,10 @@ class TestDownloadParticipantTableData(DataApiTest, ParticipantTableHelperMixin)
         # convert to bytes
         header_bytes = ",".join(header_row).encode() + b"\r\n"
         row_bytes = ",".join(csv_values).encode() + b"\r\n"
-        correct = header_bytes + row_bytes        
+        correct = header_bytes + row_bytes
         
         resp = self._do_one_participant("csv")
-        self.assertEqual(resp.content, correct)    
+        self.assertEqual(resp.content, correct)
     
     def test_one_participant_json(self):
         self.default_participant.update_only(unknown_timezone=True)

@@ -15,7 +15,7 @@ from authentication.admin_authentication import (abort, assert_admin, assert_sit
     get_researcher_allowed_studies_as_query_set, ResearcherRequest)
 from constants.common_constants import (DT_12HR_W_TZ_N_SEC_N_PAREN, FORCE_SITE_READ_ONLY,
     RUNNING_TEST_OR_FROM_A_SHELL)
-from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
+from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0, SET_STUDY_TIMEZONE_REMINDER
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
 from constants.user_constants import ResearcherRole
 from database.data_access_models import FileToProcess
@@ -240,9 +240,10 @@ def create_study(request: ResearcherRequest):
         return redirect('/create_study')
     
     # normalize all sequences of whitespace to a single space
-    name = re.sub(r"\s", " ", name)
+    name = re.sub(r"\s", " ", name).strip()
     
-    if escape(name) != name:
+    bleached_name = bleach.clean(name)
+    if escape(name) != name or bleached_name != name:
         if not RUNNING_TEST_OR_FROM_A_SHELL:
             with SentryUtils.report_webserver():
                 raise Exception("Someone tried to create a study with unsafe characters in its name.")
@@ -255,7 +256,8 @@ def create_study(request: ResearcherRequest):
         )
         if duplicate_existing_study:
             do_duplicate_step(request, new_study)
-        messages.success(request, f'Successfully created study {name}.')
+        messages.success(request, f"Successfully created study `{name}`.  Review your study's device settings below.")
+        messages.info(request, SET_STUDY_TIMEZONE_REMINDER(new_study.timezone_name))
         return redirect(f'/device_settings/{new_study.pk}')
     
     except ValidationError as ve:

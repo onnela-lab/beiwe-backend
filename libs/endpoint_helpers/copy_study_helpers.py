@@ -8,8 +8,8 @@ from django.http.response import FileResponse
 
 from authentication.admin_authentication import ResearcherRequest
 from constants.copy_study_constants import (ABSOLUTE_SCHEDULE_KEY, DEVICE_SETTINGS_KEY,
-    INTERVENTIONS_KEY, NEVER_EXPORT_THESE, RELATIVE_SCHEDULE_KEY, STUDY_KEY, SURVEY_CONTENT_KEY,
-    SURVEYS_KEY, WEEKLY_SCHEDULE_KEY)
+    INTERVENTIONS_KEY, NEVER_EXPORT_THESE, RELATIVE_SCHEDULE_KEY, STUDY_KEY, STUDY_TIME_ZONE_KEY,
+    SURVEY_CONTENT_KEY, SURVEYS_KEY, WEEKLY_SCHEDULE_KEY)
 from database.common_models import JSONTextField
 from database.schedule_models import (AbsoluteSchedule, Intervention, RelativeSchedule,
     WeeklySchedule)
@@ -60,7 +60,8 @@ def format_study(study: Study) -> bytes:
         {
             SURVEYS_KEY: format_surveys(study),
             DEVICE_SETTINGS_KEY: device_settings,
-            INTERVENTIONS_KEY: list(study.interventions.values_list("name", flat=True))
+            INTERVENTIONS_KEY: list(study.interventions.values_list("name", flat=True)),
+            STUDY_TIME_ZONE_KEY: study.timezone_name,
         }
     )
 
