@@ -255,6 +255,10 @@ path(
     forest_endpoints.download_task_data
 )
 
+## Weird system status endpoint
+# data_api_endpoints.background_processing_status
+path("background_processing_status", data_api_endpoints.background_processing_status, login_redirect=IGNORE)
+
 ## Endpoints related to the Apps
 
 # Mobile api (includes ios targets, which require custom names)

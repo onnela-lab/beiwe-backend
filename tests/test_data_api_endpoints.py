@@ -18,7 +18,7 @@ from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST
 from constants.user_constants import ANDROID_API, ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
 from database.forest_models import SummaryStatisticDaily
-from database.models import ArchivedEvent
+from database.models import ArchivedEvent, DataProcessingStatus
 from database.profiling_models import UploadTracking
 from database.security_models import ApiKey
 from database.study_models import Study
@@ -1691,3 +1691,34 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
         # test that someone has updated this test if the fields ever change
         for field in self.LOCAL_COPY_FIELD_NAMES:
             self.assert_present(field, content)
+
+
+class TestBackgroundProcessingStatus(DataApiTest):
+    ENDPOINT_NAME = "data_api_endpoints.background_processing_status"
+    REDIRECT_ENDPOINT_NAME = None
+    
+    def test_non_admin_500(self):
+        resp = self.smart_post_status_code(500)
+        self.assertEqual(resp.content, b"invalid user")
+    
+    def test_admin_500(self):
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        resp = self.smart_post_status_code(500)
+        self.assertEqual(resp.content, b"invalid user")
+    
+    def test_site_admin_500(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        resp = self.smart_post_status_code(500)
+        self.assertEqual(resp.content, b"")
+    
+    def test_site_admin_200(self):
+        DataProcessingStatus.singleton().update(last_run=timezone.now())
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        resp = self.smart_post_status_code(200)
+        self.assertEqual(resp.content, b"")
+    
+    def test_actually_down(self):
+        DataProcessingStatus.singleton().update(last_run=timezone.now()-timedelta(minutes=20))
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        resp = self.smart_post_status_code(500)
+        self.assertEqual(resp.content, b"")

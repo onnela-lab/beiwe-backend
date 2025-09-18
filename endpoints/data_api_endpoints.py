@@ -1,5 +1,5 @@
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import StringIO
 
 import bleach
@@ -10,6 +10,7 @@ from django.db.models.functions import Substr
 from django.http import FileResponse, StreamingHttpResponse
 from django.http.response import HttpResponse
 from django.shortcuts import render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from authentication.data_access_authentication import (api_credential_check,
@@ -19,9 +20,7 @@ from config.jinja2 import easy_url
 from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MISSING_JSON_CSV_MESSAGE
 from constants.user_constants import TABLEAU_TABLE_FIELD_TYPES
-from database.forest_models import SummaryStatisticDaily
-from database.study_models import Study
-from database.user_models_researcher import StudyRelation
+from database.models import DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.endpoint_helpers.copy_study_helpers import study_settings_fileresponse
 from libs.endpoint_helpers.data_api_helpers import (check_request_for_omit_keys_param,
@@ -32,6 +31,21 @@ from libs.endpoint_helpers.participant_table_helpers import (common_data_extract
 from libs.endpoint_helpers.study_summaries_helpers import get_participant_data_upload_summary
 from libs.endpoint_helpers.summary_statistic_helpers import summary_statistics_request_handler
 from libs.intervention_utils import intervention_survey_data, survey_history_export
+
+
+#
+## Weird system status endpoint
+#
+
+@api_credential_check
+def background_processing_status(request: ApiResearcherRequest):
+    if not request.api_researcher.site_admin:
+        return HttpResponse("invalid user", status=500)
+    
+    # the timer gets updated every 6 minutes, so a time substantially between two runs is best.
+    last_run = DataProcessingStatus.singleton().last_run
+    status = 500 if last_run is None or last_run < timezone.now() - timedelta(minutes=20) else 200
+    return HttpResponse("", status=status)
 
 
 ## Study Data API Endpoints
@@ -168,12 +182,12 @@ def get_tableau_participant_table_data(request: TableauRequest, study_object_id:
     # information or not.  Tableau explicitly does not support timezone-aware datetimes, or at least
     # we could not find a format it supported _generally_. IT DOES support 00:00Z style timezone,\
     # or at least it does puke like it does with 00:00+00:00 style timezonses, but doesn't do
-    # anything with that information (as far as we can tell).  There is an app-global setting to 
+    # anything with that information (as far as we can tell).  There is an app-global setting to
     # set your timezone, but we don't want to interact with that because we want these to _be in
     # the study timezone_ -- So, we remove the timezone information and leave it as numeric.
     for i, row in enumerate(table_data):
         table_data[i] = [
-            (x if not isinstance(x, datetime) else x.replace(tzinfo=None)) for x in row 
+            (x if not isinstance(x, datetime) else x.replace(tzinfo=None)) for x in row
         ]
     
     datums = [dict(zip(column_names, row)) for row in table_data]

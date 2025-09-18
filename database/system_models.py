@@ -92,3 +92,9 @@ class DataAccessRecord(TimestampedModel):
     time_end: datetime = models.DateTimeField(null=True, blank=True)
     # bytes is never populated
     bytes = models.PositiveBigIntegerField(null=True, blank=True)
+
+
+class DataProcessingStatus(SingletonModel):
+    """ Very simple model for tracking the last background processing run. (on, not works.) """
+    
+    last_run = models.DateTimeField(null=True, blank=True)

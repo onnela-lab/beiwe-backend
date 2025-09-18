@@ -1,3 +1,6 @@
+from django.utils import timezone
+
+from database.system_models import DataProcessingStatus
 from libs.celery_control import CeleryScriptTask, DAILY, HOURLY, SIX_MINUTELY
 from scripts import (purge_participant_data, repopulate_push_notifications,
     script_that_compresses_s3_data, script_that_deletes_known_junk_uploads,
@@ -24,6 +27,10 @@ from libs.celery_control import scripts_celery_app  # must be in the namespace f
 def six_minutes_update_forest_version():
     update_forest_version.main()
 
+
+@CeleryScriptTask()
+def six_minutes_update_background_last_run():
+    DataProcessingStatus.singleton().update_only(last_run=timezone.now())
 
 ######################################### Hourly ###################################################
 
