@@ -147,23 +147,6 @@ class Researcher(AbstractPasswordUser):
         except StudyRelation.DoesNotExist:
             return ResearcherRole.no_access
     
-    ## Access Credentials
-    def validate_access_credentials(self, proposed_secret_key: str) -> bool:
-        """ Extract the current credential info, run comparison, will in-place-upgrade the existing
-        password hash if there is a match """
-        proposed_secret_key = proposed_secret_key.encode()  # needs to be a bytestring twice
-        try:
-            algorithm, iterations, current_password_hash, salt = django_password_components(self.access_key_secret)
-        except BadDjangoKeyFormatting:
-            return False
-        
-        it_matched = compare_password(algorithm, iterations, proposed_secret_key, current_password_hash, salt)
-        # whenever we encounter an older password (THAT PASSES OLD-STYLE VALIDATION DUHURR!)
-        # use the now-known-correct password value to apply the new-style password.
-        if it_matched and (iterations != self.DESIRED_ITERATIONS or algorithm != self.DESIRED_ALGORITHM):
-            self.set_access_credentials(self.access_key_id, proposed_secret_key)
-        return it_matched
-    
     ## Logic
     def is_study_admin(self) -> bool:
         return self.get_admin_study_relations().exists()
