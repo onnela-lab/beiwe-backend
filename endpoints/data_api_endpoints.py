@@ -7,7 +7,7 @@ import orjson
 from dateutil.tz import UTC
 from django.db.models.fields import Field
 from django.db.models.functions import Substr
-from django.http import FileResponse, StreamingHttpResponse
+from django.http import FileResponse, HttpRequest, StreamingHttpResponse
 from django.http.response import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -37,11 +37,7 @@ from libs.intervention_utils import intervention_survey_data, survey_history_exp
 ## Weird system status endpoint
 #
 
-@api_credential_check
-def background_processing_status(request: ApiResearcherRequest):
-    if not request.api_researcher.site_admin:
-        return HttpResponse("invalid user", status=500)
-    
+def background_processing_status(request: HttpRequest):
     # the timer gets updated every 6 minutes, so a time substantially between two runs is best.
     last_run = DataProcessingStatus.singleton().last_run
     status = 500 if last_run is None or last_run < timezone.now() - timedelta(minutes=20) else 200

@@ -26,7 +26,6 @@ from database.user_models_researcher import StudyRelation
 from libs.utils.compression import compress
 from tests.common import DataApiTest, SmartRequestsTestCase, TableauAPITest
 from tests.helpers import compare_dictionaries, ParticipantTableHelperMixin
-from urls import settings
 
 
 #
@@ -1692,50 +1691,24 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
             self.assert_present(field, content)
 
 
-# debug True causes django to print a stupid error message
-def disable_debug(*args, **kwargs):
-    def inner(func):
-        def wrapper(*args, **kwargs):
-            old_debug = settings.DEBUG
-            settings.DEBUG = False
-            try:
-                return func(*args, **kwargs)
-            finally:
-                settings.DEBUG = old_debug
-        return wrapper
-    return inner
-
-
 class TestBackgroundProcessingStatus(DataApiTest):
     ENDPOINT_NAME = "data_api_endpoints.background_processing_status"
     
-    @disable_debug
-    def test_non_admin_500(self):
-        resp = self.smart_post_status_code(500)
-        self.assertEqual(resp.content, b"invalid user")
-    
-    @disable_debug
-    def test_admin_500(self):
-        self.set_session_study_relation(ResearcherRole.study_admin)
-        resp = self.smart_post_status_code(500)
-        self.assertEqual(resp.content, b"invalid user")
-    
-    @disable_debug
-    def test_site_admin_500(self):
-        self.set_session_study_relation(ResearcherRole.site_admin)
+    def test_500_never(self):
         resp = self.smart_post_status_code(500)
         self.assertEqual(resp.content, b"")
     
-    @disable_debug
-    def test_site_admin_200(self):
+    def test_200(self):
         DataProcessingStatus.singleton().update(last_run=timezone.now())
-        self.set_session_study_relation(ResearcherRole.site_admin)
         resp = self.smart_post_status_code(200)
         self.assertEqual(resp.content, b"")
     
-    @disable_debug
+    def test_200_19_minutes_ago(self):
+        DataProcessingStatus.singleton().update(last_run=timezone.now()-timedelta(minutes=19))
+        resp = self.smart_post_status_code(200)
+        self.assertEqual(resp.content, b"")
+    
     def test_actually_down(self):
         DataProcessingStatus.singleton().update(last_run=timezone.now()-timedelta(minutes=20))
-        self.set_session_study_relation(ResearcherRole.site_admin)
         resp = self.smart_post_status_code(500)
         self.assertEqual(resp.content, b"")
