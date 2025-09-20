@@ -551,6 +551,7 @@ def diff_strings(s1: str|bytes, s2: str|bytes):
         s2 = s2.decode("utf-8")
     
     print()
+    i = 0
     for i, (char_s1, char_s2) in enumerate(zip(s1, s2)):
         if char_s1 == char_s2:
             print(char_s1.encode('unicode_escape').decode(), end="")

@@ -10,8 +10,6 @@ from django.utils import timezone
 from authentication.tableau_authentication import (check_tableau_permissions,
     TableauAuthenticationFailed, TableauPermissionDenied, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
 from constants.common_constants import EST
-from constants.copy_study_constants import (DEVICE_SETTINGS_KEY, INTERVENTIONS_KEY,
-    STUDY_TIME_ZONE_KEY, SURVEYS_KEY)
 from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MESSAGE
 from constants.schedule_constants import ScheduleTypes
@@ -28,6 +26,7 @@ from database.user_models_researcher import StudyRelation
 from libs.utils.compression import compress
 from tests.common import DataApiTest, SmartRequestsTestCase, TableauAPITest
 from tests.helpers import compare_dictionaries, ParticipantTableHelperMixin
+from urls import settings
 
 
 #
@@ -1693,30 +1692,48 @@ class TestWebDataConnectorParticipantTable(SmartRequestsTestCase):
             self.assert_present(field, content)
 
 
+# debug True causes django to print a stupid error message
+def disable_debug(*args, **kwargs):
+    def inner(func):
+        def wrapper(*args, **kwargs):
+            old_debug = settings.DEBUG
+            settings.DEBUG = False
+            try:
+                return func(*args, **kwargs)
+            finally:
+                settings.DEBUG = old_debug
+        return wrapper
+    return inner
+
+
 class TestBackgroundProcessingStatus(DataApiTest):
     ENDPOINT_NAME = "data_api_endpoints.background_processing_status"
-    REDIRECT_ENDPOINT_NAME = None
     
+    @disable_debug
     def test_non_admin_500(self):
         resp = self.smart_post_status_code(500)
         self.assertEqual(resp.content, b"invalid user")
     
+    @disable_debug
     def test_admin_500(self):
         self.set_session_study_relation(ResearcherRole.study_admin)
         resp = self.smart_post_status_code(500)
         self.assertEqual(resp.content, b"invalid user")
     
+    @disable_debug
     def test_site_admin_500(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
         resp = self.smart_post_status_code(500)
         self.assertEqual(resp.content, b"")
     
+    @disable_debug
     def test_site_admin_200(self):
         DataProcessingStatus.singleton().update(last_run=timezone.now())
         self.set_session_study_relation(ResearcherRole.site_admin)
         resp = self.smart_post_status_code(200)
         self.assertEqual(resp.content, b"")
     
+    @disable_debug
     def test_actually_down(self):
         DataProcessingStatus.singleton().update(last_run=timezone.now()-timedelta(minutes=20))
         self.set_session_study_relation(ResearcherRole.site_admin)
