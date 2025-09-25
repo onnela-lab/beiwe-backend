@@ -31,7 +31,6 @@
 @property --Baqua-dark-desat { initial-value: #264F56; syntax: "<color>"; inherits: true;}
 @property --Baqua-dark-desat66 { initial-value: #264F5666; syntax: "<color>"; inherits: true;}
 
-
 @property --Byellow { initial-value: #B5B920; syntax: "<color>"; inherits: true;}
 @property --Byellow-desat { initial-value: #999A59; syntax: "<color>"; inherits: true;}
 @property --Byellow-dark { initial-value: #979A1B; syntax: "<color>"; inherits: true;}
@@ -67,7 +66,7 @@
 @property --forest-green-dark66 { initial-value: #0a414566; syntax: "<color>"; inherits: true;}
 
 @property --forest-green-dark-dd { initial-value: #0a4145dd; syntax: "<color>"; inherits: true;}
-@property --forest-green-dark-desat { initial-value: #1F3739dd; synt: "<color>"; inherits: true;}
+@property --forest-green-dark-desat { initial-value: #1F3739dd; syntax: "<color>"; inherits: true;}
 @property --forest-green-very-dark { initial-value: #001114; syntax: "<color>"; inherits: true;}
 @property --forest-green-very-dark-desat { initial-value: #060E0F; syntax: "<color>"; inherits: true;}
 
@@ -77,39 +76,45 @@
 @property --text-on-fire-desat {initial-value:#1A1B1B; syntax: "<color>"; inherits: true;}
 
 
-
 /* for list groups */
 @property --list-group-bg { initial-value: #375a7f; syntax: "<color>"; inherits: true;}
 @property --list-group-bg-desat { initial-value: #535A61; syntax: "<color>"; inherits: true;}
 
+/* this is some super dark forest green I think...  */
+@property --well-color { initial-value: #005e6f22; syntax: "<color>"; inherits: true;}
+
 /* customize base theming backgrounds */
+
+/* x offset 0 for symmetry, y offset to make top surfaces not overlap with precisely placed objects */
+/*                        x   y  spread blur   */
+.container  { box-shadow: 0pt 5pt 5pt 5pt var(--Bblack-half); }
+.well       { box-shadow: 0pt 0pt 5pt 5pt var(--well-color); }
+.breadcrumb { box-shadow: 0pt 5pt 5pt 5pt var(--aqua-dark); }
 
 .container {
     background: var(--Bblack-half);
-    /* x offset 0 for symmetry, y offset to make top surfaces not overlap with precisely placed objects */
-    box-shadow: 0pt 5pt 5pt 5pt var(--Bblack-half);
     border-radius: 10pt;
     padding: 0.5em; /* reduces squeezing */
+    padding-left: 0.25em;
 }
-
 .well {
-    background: #005e6f22;
-    box-shadow: 0pt 0pt 5pt 5pt #005e6f22;
+    /* box-shadow: 0pt 0pt 5pt 5pt var(--well-color); */
+    background: var(--well-color);
     border-radius: 10pt;
 }
-.well-left{
-    inset: 0px 0px 0px -6px;
-    /* right: 4pt */
-}
-.well-right {
-    inset: 0px 0px 0px 6px;
-    /* left: 4pt */
+.breadcrumb {
+    /* box-shadow: 0pt 5pt 5pt 5pt var(--aqua-dark); */
+    background: var(--aqua-dark);
+    border-radius: 10pt;
 }
 
-.breadcrumb {
-    background: var(--aqua-dark);
-    box-shadow: 0pt 5pt 5pt 5pt var(--aqua-dark);
-    border-radius: 10pt;
+@media (min-width: 992px){
+    .well-left{
+        inset: 0px 0px 0px -5pt;
+    }
+    .well-right {
+        inset: 0px 0px 0px 5pt;
+    }
 }
 
 .logout-alert {
@@ -187,7 +192,7 @@ input[type=date]:focus-within { outline: solid 2pt var(--Bwhite); border-radius:
 
 
 textarea {
-    background: #005e6f22 !important;
+    background: var(--well-color) !important;
     color: lightgray !important;
     outline: solid 1pt var(--Baqua);
     
@@ -762,8 +767,6 @@ td.custom-field-value:hover span.custom-field-edit-link {
  */
 
 
-
-
 /* btn-link just uses the link... stuff */
 .btn-link{ color: var(--Baqua-bright) }
 .btn-link:focus { color: var(--Baqua-lt1) }
@@ -792,3 +795,4 @@ td.custom-field-value:hover span.custom-field-edit-link {
 .pt-n-0{padding-top:0em;}.pt-n-0-5{padding-top:-0.5em;}.pt-n-1{padding-top:-1em;}.pt-n-2{padding-top:-2em;}.pt-n-3{padding-top:-3em;}.pt-n-4{padding-top:-4em;}.pt-n-5{padding-top:-5em;}.pt-n-6{padding-top:-6em;}.pt-n-12{padding-top:-12em;}
 .pb-0{padding-bottom:0em;}.pb-0-5{padding-bottom:0.5em;}.pb-1{padding-bottom:1em;}.pb-2{padding-bottom:2em;}.pb-3{padding-bottom:3em;}.pb-4{padding-bottom:4em;}.pb-5{padding-bottom:5em;}.pb-6{padding-bottom:6em;}.pb-12{padding-bottom:12em;}
 .pb-n-0{padding-bottom:0em;}.pb-n-0-5{padding-bottom:-0.5em;}.pb-n-1{padding-bottom:-1em;}.pb-n-2{padding-bottom:-2em;}.pb-n-3{padding-bottom:-3em;}.pb-n-4{padding-bottom:-4em;}.pb-n-5{padding-bottom:-5em;}.pb-n-6{padding-bottom:-6em;}.pb-n-12{padding-bottom:-12em;}
+.p-0{padding: 0}
