@@ -31,7 +31,9 @@
     </a>
   </li>
   <li>
-    {{ patient_id }}
+    <a href="{{ easy_url("participant_endpoints.participant_page", study_id=study.id, patient_id=patient_id) }}">
+      {{ patient_id }}
+    </a>
   </li>
 </ol>
 
