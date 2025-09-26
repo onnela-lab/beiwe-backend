@@ -142,14 +142,17 @@
               class="input-group date"
               id="start_datetimepicker"
             >
+              <i>
 
-              <input
-                type="text"
-                class="form-control"
-                name="time_start"
-                id="start_datetime"
-                aria-label="Select the start date and time for the data download"
-              />
+                <input
+                  type="text"
+                  class="form-control"
+                  id="start_datetime"
+                  aria-label="Select the start date and time for the data download (or leave empty)"
+                  placeholder="Select a 24-hour Date and Time (or leave empty)"
+                  onclick="$('#start_datetimepicker').datetimepicker('show');"
+                />
+              </i>
               <span class="input-group-addon">
                 <span class="glyphicon glyphicon-calendar"></span>
               </span>
@@ -158,7 +161,10 @@
         </div>
 
         {# End Datetime #}
-        <div class="col-sm-6">
+        <div
+          class="col-sm-6"
+          id="end-date-column"
+        >
           <div class="form-group">
 
             <label for="end_datetime">End Date and Time</label>
@@ -166,14 +172,17 @@
               class="input-group date"
               id="end_datetimepicker"
             >
+              <i>
 
-              <input
-                type="text"
-                class="form-control"
-                name="time_end"
-                id="end_datetime"
-                aria-label="Select the end date and time for the data download"
-              />
+                <input
+                  type="text"
+                  class="form-control"
+                  id="end_datetime"
+                  aria-label="Select the end date and time for the data download"
+                  placeholder="Select a 24-hour Date and Time (or leave empty)"
+                  onclick="$('#end_datetimepicker').datetimepicker('show');"
+                />
+              </i>
               <span class="input-group-addon">
                 <span class="glyphicon glyphicon-calendar"></span>
               </span>
@@ -187,6 +196,18 @@
           type="hidden"
           name="web_form"
           value="true"
+        >
+
+        <input
+          type="hidden"
+          id="secret1"
+          name="time_start"
+        >
+
+        <input
+          type="hidden"
+          id="secret2"
+          name="time_end"
         >
 
         <div
@@ -212,8 +233,8 @@
         >
 
           <button
-            class="btn btn-warning text-smaller"
-            onmousedown="enable_submit_button()"
+            class="btn btn-warning"
+            onmousedown="toggle_ready_submit_button()"
           >
             Ready to Download More Data </button>
         </div>

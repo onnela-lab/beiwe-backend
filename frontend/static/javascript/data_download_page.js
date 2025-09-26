@@ -1,12 +1,24 @@
 $(document).ready(function() {
 	/* Set up Date/Time pickers */
-	$('#start_datetimepicker').datetimepicker()
-	$('#end_datetimepicker').datetimepicker()
+	settings = {
+		format: 'YYYY-MM-DD  HH:00',
+		// stepping: 60,
+		sideBySide: true,
+		toolbarPlacement: "bottom",
+		showClear: true,
+		showClose: true,
+		icons:{
+			clear: 'glyphicon glyphicon-trash text-danger',
+			close: 'glyphicon glyphicon-check text-success',
+		},
+		minDate: moment("2016-08-01"),  // 2016-8-1 there can be no data before this.
+	}
+	$("#start_datetimepicker").datetimepicker(settings)
+	$('#end_datetimepicker').datetimepicker(settings)
 	
 	/* When the form gets submitted, reformat the DateTimes into ISO UTC format */
 	$('#data_download_parameters_form').submit(submit_clicked)
 })
-
 
 function submit_clicked() {
 	format_datetimepickers()
@@ -18,7 +30,7 @@ function toggle_compress() {
 	$('#compress_info').toggle()
 	form = $('#data_download_parameters_form')
 	
-	if (form.attr("action") == "/get-data/v1") {
+	if (form.attr("action") == "/get-data/v1") {  // change the target url to download compressed data.
 		form.attr("action", "/get-data/v2")
 	} else {
 		form.attr("action", "/get-data/v1")
@@ -32,42 +44,22 @@ function toggle_ready_submit_button() {
 	$('#compress_div').toggle()
 }
 
-function enable_submit_button() {
-	toggle_ready_submit_button()
-	$('#start_datetime').attr('disabled', false)
-	$('#end_datetime').attr('disabled', false)
-	if (prior_end) {
-		$('#end_datetime').val(prior_end)
-	}
-	if (prior_start) {
-		$('#start_datetime').val(prior_start)
-	}
+function format_datetimepickers() {
+	extract_date_for_submit($('#start_datetime'), $('#secret1'))
+	extract_date_for_submit($('#end_datetime'), $('#secret2'))
 }
 
-// we need to toggle these between different states
-var prior_start = ""
-var prior_end = ""
-
-function format_datetimepickers() {
-	var start = $('#start_datetime')
-	var end = $('#end_datetime')
-	// stash to restore
-	prior_start = start.val()
-	prior_end = end.val()
+// The datetime fields can't be present if they contain "", so we load/hide the value from a hidden
+// input field. We do the same thing if the user enters a bad value.
+function extract_date_for_submit(picker, secret_input) {
+	var prior_str = picker.val()
 	
-	// set format to match api, disable editing
-	start.val(moment(start.val()).format('YYYY-MM-DDTHH:mm:ss'))
-	end.val(moment(end.val()).format('YYYY-MM-DDTHH:mm:ss'))
-	start.attr('disabled', 'disabled')
-	end.attr('disabled', 'disabled')
-	
-	// handle case of empty (and forced-bad) dates
-	if (start.val() == "Invalid date") {
-		start.val("")
-		prior_start = ""
-	}
-	if (end.val() == "Invalid date") {
-		end.val("")
-		prior_end = ""
+	if (!prior_str || prior_str == "Invalid date") {
+		secret_input.val("")
+		secret_input.attr('disabled', 'disabled')  // it doesn't want even an empty string
+	} else {
+		var prior_formatted = moment(prior_str).format('YYYY-MM-DDTHH:00:00')  // parse
+		secret_input.val(prior_formatted)
+		secret_input.removeAttr('disabled')
 	}
 }
