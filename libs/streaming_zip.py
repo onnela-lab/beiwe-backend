@@ -1,5 +1,6 @@
 import json
 from collections.abc import Generator, Iterable
+from contextlib import suppress
 from multiprocessing.pool import ThreadPool
 from zipfile import ZIP_STORED, ZipFile
 
