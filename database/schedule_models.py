@@ -185,6 +185,8 @@ class WeeklySchedule(TimestampedModel):
 
 
 class ScheduledEvent(TimestampedModel):
+    survey_id: int;  participant_id: int  # IDE halp, foreign key objects
+    
     survey: Survey = models.ForeignKey('Survey', on_delete=models.CASCADE, related_name='scheduled_events')
     participant: Participant = models.ForeignKey('Participant', on_delete=models.PROTECT, related_name='scheduled_events')
     weekly_schedule: WeeklySchedule = models.ForeignKey('WeeklySchedule', on_delete=models.CASCADE, related_name='scheduled_events', null=True, blank=True)

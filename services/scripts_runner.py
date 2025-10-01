@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.utils import timezone
 
+from database.models import IOSDecryptionKey
 from database.system_models import DataProcessingStatus
 from libs.celery_control import CeleryScriptTask, DAILY, HOURLY, SIX_MINUTELY
 from scripts import (purge_participant_data, repopulate_push_notifications,
@@ -78,6 +81,12 @@ def daily_compress_bucket_access_logs():
 @CeleryScriptTask()
 def daily_clear_s3_known_junk_uploads():
     script_that_deletes_known_junk_uploads.main()
+
+
+@CeleryScriptTask()
+def daily_clear_legacy_ios_decryption_keys():
+    thirty_days = timezone.now() - timedelta(days=30)
+    IOSDecryptionKey.objects.filter(created_on__lt=thirty_days).delete()
 
 
 ####################################################################################################

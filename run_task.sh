@@ -23,10 +23,8 @@ echo "This action WILL NOT STOP THE SCRIPT, it will just stop following the outp
 echo
 echo "Available Scripts:"
 
-
-# Only scripts that start with "script_that_" will be listed.
-# Other scripts are for internal use
-SCRIPTS=$(find "./scripts" -maxdepth 1 -type f -name "script_that_*.py")
+SCRIPTS=$(find "./scripts" -maxdepth 1 -type f -name "*.py" ! -name "taskrunner.py")
+SCRIPTS=`printf "%s\n" "${SCRIPTS[@]}" | sort`  # sort it
 
 # Dynamically filter scripts based on the exclusion list
 select SCRIPT in $(basename -a $SCRIPTS); do
