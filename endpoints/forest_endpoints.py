@@ -210,7 +210,7 @@ def task_log(request: ResearcherRequest, study_id=None):
             status_choices=ForestTaskStatus,
             page=page,
             LAST_PAGE_NUMBER=paginator.page_range.stop - 1,
-            PAGING_WINDOW=13,
+            PAGING_WINDOW=11,
             PAGINATOR_URL_BASE=easy_url("forest_endpoints.task_log", study_id=study_id),
             forest_log=orjson.dumps(tasks).decode(),  # orjson is very fast and handles the remaining date objects
             forest_commit=forest_info.git_commit or "commit not found",

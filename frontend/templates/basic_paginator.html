@@ -34,7 +34,7 @@
   {# hardcode a "first" link as << if page at -PAGING_WINDOW out of range #}
   {% if page.number - PAGING_WINDOW > 1 %}
   <li class="active"><a href="{{ SUFFIXED_BASE_URL }}1">
-      <<< /a>
+      << </a>
   </li>
   {% endif %}
 
@@ -56,7 +56,7 @@
 
   {# hardcode a last link #}
   {% if page.number + PAGING_WINDOW < LAST_PAGE_NUMBER %}
-  <li class="active"><a href="{{ SUFFIXED_BASE_URL }}{{ LAST_PAGE_NUMBER }}">>></a></li>
+  <li class="active"><a href="{{ SUFFIXED_BASE_URL }}{{ LAST_PAGE_NUMBER }}"> >> </a> </li>
   {% endif %}
 
   {% endif %}

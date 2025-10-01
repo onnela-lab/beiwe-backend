@@ -446,7 +446,7 @@ def notification_history(request: ResearcherRequest, study_id: int, patient_id: 
             locked=participant.is_dead,
             include_keepalive=include_keepalive,
             PAGINATOR_URL_BASE=base_url,
-            PAGING_WINDOW=13,
+            PAGING_WINDOW=11,
         )
     )
 
