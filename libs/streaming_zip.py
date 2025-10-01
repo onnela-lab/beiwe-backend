@@ -1,13 +1,14 @@
 import json
 from collections.abc import Generator, Iterable
-from contextlib import suppress
 from multiprocessing.pool import ThreadPool
 from zipfile import ZIP_STORED, ZipFile
 
-from constants.data_stream_constants import (AMBIENT_AUDIO, SURVEY_ANSWERS, SURVEY_TIMINGS,
-    AUDIO_RECORDING)
+from constants.data_stream_constants import (AMBIENT_AUDIO, AUDIO_RECORDING, SURVEY_ANSWERS,
+    SURVEY_TIMINGS)
 from constants.forest_constants import AMBIENT_AUDIO
+from constants.s3_constants import NoSuchKeyException
 from database.study_models import Study
+from endpoints.participant_endpoints import SentryUtils
 from libs.s3 import s3_retrieve, s3_retrieve_no_decompress
 from libs.streaming_io import StreamingBytesIO
 
@@ -104,13 +105,23 @@ class ZipGenerator:
         self.study = study
         self.batch_retrive_func = self._retrieve_no_decompress if as_compressed else self._retrieve_decompress
     
-    def _retrieve_decompress(self, chunk: dict) -> tuple[dict, bytes]:
+    def _retrieve_decompress(self, chunk: dict) -> tuple[dict, bytes|None]:
         """ Data is returned in the form (chunk_object, file_data), as the decompressed file. """
-        return chunk, s3_retrieve(chunk["chunk_path"], self.study, raw_path=True)
+        try:
+            return chunk, s3_retrieve(chunk["chunk_path"], self.study, raw_path=True)
+        except NoSuchKeyException:
+            with SentryUtils.report_webserver():
+                raise
+            return chunk, None
     
-    def _retrieve_no_decompress(self, chunk: dict) -> tuple[dict, bytes]:
+    def _retrieve_no_decompress(self, chunk: dict) -> tuple[dict, bytes|None]:
         """ Data is returned in the form (chunk_object, file_data), as a .zst file. """
-        return chunk, s3_retrieve_no_decompress(chunk["chunk_path"], self.study, raw_path=True)
+        try:
+            return chunk, s3_retrieve_no_decompress(chunk["chunk_path"], self.study, raw_path=True)
+        except NoSuchKeyException:
+            with SentryUtils.report_webserver():
+                raise
+            return chunk, None
     
     def get_file_name_from_chunk(self, chunk: dict) -> str:
         file_name = determine_base_file_name(chunk)
@@ -146,6 +157,9 @@ class ZipGenerator:
             chunks_and_content = pool.imap_unordered(self.batch_retrive_func, self.files_list, chunksize=1)
             
             for chunk, file_contents in chunks_and_content:
+                if file_contents is None:
+                    continue
+                
                 if self.file_registry is not None:
                     self.file_registry[chunk['chunk_path']] = chunk["chunk_hash"]
                 
