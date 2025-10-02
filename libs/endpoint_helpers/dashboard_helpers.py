@@ -195,15 +195,17 @@ def get_first_and_last_days_of_data(
     
     # Performance notes on this query after a bunch of testing:
     # - There is a .union method, you do `q1[:1].union(q2[:1]).values_list("date", flat=True)`
-    #     but it is simply slower than every other method.
+    #     but it is simply slower than every other method. (somehow multiple table scans?)
     # - The really hard testing was done on ChunkRegistry, SummaryStatisticDaily is filtering
     #     a more complex query on the all data stream case, but it is much faster, it is:
     #        number_of_participants*number_of_days e.g.: 100 * 365 = 36,500
     #     vs
     #        number_of_participants*number_of_hours*number_of_streams: 100 * (24*365) * 19 = 16,644,000
-    #     which is a 456x reduction in record count, plus we had to deal with a timezone conversion.
-    # - !!!!! When these numbers (again, as ChunkRegistry) get very large it became faster to
-    #     PULL IN ALL THE VALUES and get the min and max in Python.  I don't know why.
+    #     a 456x reduction in record count, plus we had to deal with a timezone conversion.
+    # - !!!!! When the row count (ChunkRegistry) gets very large it becomes faster to PULL IN ALL 
+    #     THE VALUES and then calculate the min and max here in Python. I guess that must be one
+    #     table walk vs two because postgres isn't smart enough to do min and max together, and the
+    #     table walk is storage io bound.
     
     # (min, max, Min, Max, MIN, MAX - this namespace is getting crowded)
     MIN, MAX = (
