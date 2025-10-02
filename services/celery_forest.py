@@ -380,11 +380,11 @@ def batch_create_file(task_and_chunk_tuple: tuple[ForestTask, dict]):
         with open(file_name, "xb") as f:
             f.write(contents)
     except FileExistsError:
-        # While we want information on this exact exception in the specific error is something we
-        # can ignore and the running code can continue. (This error occurred in the wild because of
-        # an old data bug where b' was present inside the chunk path, underlying cause was in 2019.)
-        with SentryUtils.report_forest(file_name=file_name, **forest_task.sentry_tags):
-            raise
+        # we used to track this, it happens when someone uploads duplicate files, which we handle
+        # but at some point we started deduplicating the file names so it retriggered. Silencing.
+        # with SentryUtils.report_forest(file_name=file_name, **forest_task.sentry_tags):
+        #     raise
+        pass
 
 
 def get_interventions_data(forest_task: ForestTask):
