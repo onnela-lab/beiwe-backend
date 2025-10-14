@@ -16,10 +16,10 @@ from constants.forest_constants import (DEFAULT_FOREST_PARAMETERS, FOREST_PICKLI
     PARAMETER_ALL_MEMORY_DICT, PARAMETER_CONFIG_PATH, PARAMETER_INTERVENTIONS_FILEPATH,
     ROOT_FOREST_TASK_PATH, SYCAMORE_DATE_FORMAT)
 from database.common_models import TimestampedModel
+from database.study_models import Study
 from database.user_models_participant import Participant
 from libs.utils.date_utils import datetime_to_list
 from libs.utils.forest_utils import get_jasmine_all_bv_set_dict, get_jasmine_all_memory_dict_dict
-
 
 #
 ## GO READ THE MULTILINE STATEMENT AT THE TOP OF services/celery_forest.py
@@ -27,7 +27,8 @@ from libs.utils.forest_utils import get_jasmine_all_bv_set_dict, get_jasmine_all
 
 class ForestTask(TimestampedModel):
     # All forest tasks are defined to be associated with a single participant
-    participant: Participant = models.ForeignKey('Participant', on_delete=models.PROTECT, db_index=True)
+    the_study: Study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name="forest_tasks")
+    participant: Participant = models.ForeignKey(Participant, on_delete=models.PROTECT, db_index=True)
     
     forest_tree = models.TextField(choices=ForestTree.choices())
     forest_version = models.CharField(blank=True, max_length=10, null=False, default="")
@@ -280,18 +281,22 @@ class ForestTask(TimestampedModel):
 
 
 class SummaryStatisticDaily(TimestampedModel):
+    the_study: Study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name="summary_statistics_daily")
     participant: Participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     date = models.DateField(db_index=True)
     timezone = models.CharField(max_length=10, null=False, blank=False)  # abbreviated time zone names are max 4 chars.
     
     @classmethod
     def default_summary_statistic_daily_cheatsheet(cls) -> dict:
+        
         # this is used to populate default values in a SummaryStatisticDaily in a way that creates
         # legible output when something goes wrong in a test.
         field_dict = {}
         for i, field in enumerate(cls._meta.fields):
+            i=i-1  # we added "the_study" field and it changes tests... just offsetting here instead.
             if isinstance(field, (ForeignKey, DateField, AutoField)):
                 continue
+            
             elif isinstance(field, IntegerField):
                 field_dict[field.name] = i
             elif isinstance(field, FloatField):

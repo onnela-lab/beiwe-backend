@@ -116,6 +116,7 @@ def copy_forest_task(request: ResearcherRequest, study_id=None):
     
     new_task = ForestTask(
         participant=task_to_copy.participant,
+        the_study=task_to_copy.participant.study,
         forest_tree=task_to_copy.forest_tree,
         data_date_start=task_to_copy.data_date_start,
         data_date_end=task_to_copy.data_date_end,
@@ -383,7 +384,7 @@ def download_participant_tree_data(request: ResearcherRequest, study_id: int, fo
 def download_summary_statistics_csv(request: ResearcherRequest, study_id):
     study = Study.objects.get(pk=study_id)  # study id already validated in authenticate_admin()
     # we need to rename two fields like we do over in the tableau api
-    query = SummaryStatisticDaily.objects.filter(participant__study_id=study.id)\
+    query = SummaryStatisticDaily.objects.filter(the_study=study)\
         .order_by("participant__patient_id", "date")\
         .annotate(
             study_id=F("participant__study__object_id"),

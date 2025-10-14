@@ -800,8 +800,11 @@ class DatabaseHelperMixin:
         forest_tree: str = ForestTree.jasmine,
         **kwargs
     ):
+        if participant is None:
+            participant = self.default_participant
         task = ForestTask(
-            participant=participant or self.default_participant,
+            participant=participant,
+            the_study=participant.study,
             data_date_start=data_date_start,
             data_date_end=data_date_end,
             forest_tree=forest_tree,
@@ -868,17 +871,22 @@ class DatabaseHelperMixin:
             return self._default_summary_statistic_daily
     
     def generate_summary_statistic_daily(self, a_date: date = None, participant: Participant = None) -> SummaryStatisticDaily:
+        if participant is None:
+            participant = self.default_participant
+        
         field_dict = SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet()
         params = {}
         for field in SummaryStatisticDaily._meta.fields:
-            if field.name in ["id", "created_on", "last_updated", "jasmine_task", "willow_task", "sycamore_task", "oak_task"]:
+            if field.name in ["id", "the_study", "created_on", "last_updated", "jasmine_task", "willow_task", "sycamore_task", "oak_task"]:
                 continue
             elif field.name == "participant":
-                params[field.name] = participant or self.default_participant
+                params[field.name] = participant
             elif field.name == "date":
                 params[field.name] = a_date or date.today()
             else:
                 params[field.name] = field_dict[field.name]
+        
+        params["the_study"] = participant.study
         stats = SummaryStatisticDaily(**params)
         stats.save()
         return stats

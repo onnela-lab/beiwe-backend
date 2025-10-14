@@ -319,7 +319,7 @@ def csv_parse_and_consume(task: ForestTask, csv_reader: csv.DictReader) -> bool:
         
         # TODO: this is probably slow, can we do a bulk update_or_create?
         SummaryStatisticDaily.objects.update_or_create(
-            date=summary_date, defaults=updates, participant=task.participant,
+            date=summary_date, defaults=updates, participant=task.participant, the_study=task.participant.study
         )
         rows_processed += 1
     
