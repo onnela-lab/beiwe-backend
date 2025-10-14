@@ -1,5 +1,5 @@
-""" Original Document sourced from 
-https://samuh.medium.com/using-jinja2-with-django-1-8-onwards-9c58fe1204dc """
+from __future__ import annotations
+
 
 import re
 from datetime import date
@@ -19,6 +19,7 @@ from libs.utils.http_utils import (astimezone_with_tz, easy_url, fancy_dt_format
     nice_iso_dt_format, time_with_tz)
 
 
+# Original Document was sourced from  https://samuh.medium.com/using-jinja2-with-django-1-8-onwards-9c58fe1204dc
 #
 ## The entrypoint into Jinja. This gets called by django at application load.
 #
@@ -63,15 +64,11 @@ def environment(**options: dict[str, Any]) -> Environment:
 
 
 ## Local and CDN Javascript/CSS libraries.
-#  In order to codify the libraries in use we have these two classes.  All templates use these
-#  variables to populate any necessary assets loaded onto the page.
 
 
 class LocalAssets:
-    # These assets will be served from the server directly.
-    # Make sure any assets here match the apparent versions
-    
-    # Note: fonts are included in the css files but reference external assets.
+    # These assets are served from the server directly, and should be embedded directly in the page.
+    # Note: fonts are included in the css files and reference (cached) external assets.
     
     # CSS
     BOOTSTRAP_TIMEPICKER_CSS = "css/libraries/bootstrap-timepicker.css"
@@ -138,6 +135,7 @@ class WhiteSpaceCollapser(Extension):
         
         # collapse normal horizontal whitespace at the start and end of lines
         return re.sub(r'^[ \t]+|[ \t]+$', '', source, flags=re.MULTILINE)
+        # print(f"WhiteSpaceCollapser: collapsed {len(source) - len(x)} characters in template {name}")
         
         # collapse sequences of 2+ whitespace characters to a nothing.
         # return re.sub(r'[ \t][ \t]+|\n\n+', '', source, flags=re.MULTILINE)
@@ -191,7 +189,7 @@ def timer(more_label: Any, *args, **kwargs):
 
 class COUNTER:
     """ To improve the time function we need a counter that tracks some Global-ish state. """
-    the_counter = None  # global reference
+    the_counter: COUNTER
     
     def __init__(self):
         self.count = 1
@@ -199,5 +197,5 @@ class COUNTER:
     def increment(self):
         self.count += 1
 
-# initialize the counter
-COUNTER.the_counter = COUNTER()
+
+COUNTER.the_counter = COUNTER()  # initialize the counter
