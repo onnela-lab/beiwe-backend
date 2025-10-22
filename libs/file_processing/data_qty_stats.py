@@ -72,7 +72,7 @@ def calculate_data_quantity_stats(
     # For each date, create a DataQuantity object
     for day, day_data in populate_data_quantity(query, study_timezone).items():
         data_quantity = {
-            "study": participant.study_id,
+            "the_study_id": participant.study_id,
             "participant_id": participant.pk,
             "date": day,
             "defaults": {"timezone": get_timezone_shortcode(day, study_timezone)}
