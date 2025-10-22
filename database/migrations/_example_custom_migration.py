@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from database.models import Researcher as _Researcher
 
 def do_a_thing(apps: StateApps, schema_editor):
+    # the typing isn't actually a good idea because it isn't a UtilityModel
     Researcher: _Researcher = apps.get_model('database', 'Researcher')
     DataAccessRecord: _DataAccessRecord = apps.get_model('database', 'DataAccessRecord')
     
