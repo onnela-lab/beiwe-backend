@@ -203,13 +203,7 @@ class UtilityModel(models.Model):
         return count
     
     @property
-    def pprint(self):
-        """ shortcut for very common cli usage. """
-        d = self._pprint()
-        pprint(d)
-        return lambda: None # so that you can call it accidentially without a crash
-    
-    def _pprint(self) -> dict[str, Any]:
+    def pprint(self) -> dict[str, Any]:
         """ Provides a dictionary representation of the object, with some special formatting. """
         d = self.as_dict()
         for k, v in d.items():
@@ -217,7 +211,7 @@ class UtilityModel(models.Model):
                 d[k] = localtime(v, EASTERN).strftime(DEV_TIME_FORMAT3)
             elif isinstance(v, date):
                 d[k] = v.isoformat()
-        return d
+        pprint(d)
     
     @classmethod
     def summary(cls):
@@ -247,11 +241,6 @@ class UtilityModel(models.Model):
         return {field.name: getattr(self, field.name) for field in self._meta.fields}
     
     @property
-    def _contents(self):
-        """ Convenience purely because this is the syntax used on some other projects """
-        return self.as_dict()
-    
-    @property
     def _related(self):
         """ Gets all related objects for this database object (warning: probably huge).
             This is intended for debugging only. """
@@ -277,13 +266,6 @@ class UtilityModel(models.Model):
                 ret[related_field.related_name] = [x for x in related_manager.all().values()]
                 entities_returned += len(ret[related_field.related_name])
         
-        return ret
-    
-    @property
-    def _everything(self):
-        """ Gets _related and _contents. Will probably be huge. Debugging only. """
-        ret = self._contents
-        ret.update(self._related)
         return ret
     
     def as_unpacked_native_python(self, field_names: tuple[str]) -> dict[str, Any]:
