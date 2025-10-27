@@ -115,7 +115,6 @@ class UtilityModel(models.Model):
         all_pairings = product(*choice_field_options)
         # copy the field_dict, inject the pairing, inject the kwargs
         return [{**field_dict, **dict(pairing), **kwargs} for pairing in all_pairings]  
-        
     
     @classmethod
     def m(cls):

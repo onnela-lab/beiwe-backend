@@ -393,7 +393,7 @@ class Participant(AbstractPasswordUser):
             "last_get_latest_device_settings": f"{(now - self.last_get_latest_device_settings).total_seconds() // 60} minutes ago" if self.last_get_latest_device_settings else None,
         }
     
-    def get_data_summary(self) -> dict[str, str | int]:
+    def get_data_summary(self):
         """ Assembles a summary of data quantities for the participant, for debugging. """
         data = {stream: 0 for stream in ALL_DATA_STREAMS}
         for data_type, size in self.chunk_registries.values_list("data_type", "file_size").iterator():
@@ -409,9 +409,9 @@ class Participant(AbstractPasswordUser):
     def logs_heartbeats_sent(self):
         return self._logs(HEARTBEAT_PUSH_NOTIFICATION_SENT)
     
-    def _logs(self, action: str = None)  -> QuerySet[tuple[datetime, str]]:
+    def _logs(self, action: str = None) -> list[str]:
         # this is for terminal debugging - so most recent LAST.
-        query: QuerySet[tuple[datetime, str]] = self.action_logs.order_by("timestamp").values_list("timestamp", "action")
+        query = self.action_logs.order_by("timestamp").values_list("timestamp", "action")
         if action:
             query = query.filter(action=action)
         tz = self.timezone
