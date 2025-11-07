@@ -45,11 +45,11 @@ for root, _dirs, paths in walk(css_folder):
         full_path = path_join(root, path)
         
         if path.endswith(".min.css"):  # skip already minified files
-            print("Skipping already minified file:", relpath(full_path))  
+            print("Skipping already minified file:", full_path)
             continue
         
         out_path = full_path.replace(".css", ".min.css")
-        print("Minifying:", relpath(full_path), " -> ", relpath(out_path))
+        print("Minifying:", full_path, " -> ", out_path)
         
         # read, minify, write
         with open(full_path, "r", encoding="utf-8") as f:
