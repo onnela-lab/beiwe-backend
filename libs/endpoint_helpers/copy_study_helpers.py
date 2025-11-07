@@ -2,6 +2,7 @@ import json
 from io import BytesIO
 from os import path
 
+import bleach
 import orjson
 from django.contrib import messages
 from django.http.response import FileResponse
@@ -93,7 +94,8 @@ def allowed_file_extension(filename: str):
 
 
 def copy_study_from_json(
-    new_study: Study, old_device_settings: dict, surveys_to_copy: list[dict], interventions: list[str]
+    new_study: Study, old_device_settings: dict, surveys_to_copy: list[dict],
+    interventions: list[str]
 ):
     """ Takes the JSON-deserialized data structures (from unpack_json_study) and creates all
     underlying database structures and relations. """
@@ -108,7 +110,7 @@ def copy_study_from_json(
         extant_interventions = set(new_study.interventions.values_list("name", flat=True))
         Intervention.objects.bulk_create(
             [Intervention(name=name, study=new_study)
-                for name in interventions if name not in extant_interventions]
+             for name in interventions if name not in extant_interventions]
         )
     
     if surveys_to_copy:
@@ -166,7 +168,7 @@ def add_new_surveys(study: Study, new_survey_settings: list[dict]):
         repopulate_all_survey_scheduled_events(study)
 
 
-def create_relative_schedules_by_name(timings: list[list[int]], survey: Survey) -> bool:
+def create_relative_schedules_by_name(timings: list[list[int]], survey: Survey):
     """ This function is based off RelativeSchedule.create_relative_schedules, but contains special
     casing to maintain forwards compatibility with data exported from older versions of Beiwe. """
     survey.relative_schedules.all().delete()  # should always be empty
@@ -205,10 +207,17 @@ def create_relative_schedules_by_name(timings: list[list[int]], survey: Survey) 
 
 def do_duplicate_step(request: ResearcherRequest, new_study: Study):
     """ Everything you need to copy a study directly - used in study creation, not json upload. """
+    
+    if not (clone_study_id := request.POST.get('existing_study_id')):
+        messages.error(request, "No study matched the provided study id to copy from.")
+        return
+    
+    existing_study_id = bleach.clean(clone_study_id)
+    
     # surveys are always provided, there is a checkbox about whether to import them
-    copy_device_settings = request.POST.get('device_settings', None) == 'true'
-    copy_surveys = request.POST.get('surveys', None) == 'true'
-    old_study = Study.objects.get(pk=request.POST.get('existing_study_id', None))
+    copy_device_settings = request.POST.get('device_settings', False) == 'true'
+    copy_surveys = request.POST.get('surveys', False) == 'true'
+    old_study = Study.objects.get(pk=clone_study_id)
     device_settings, surveys, interventions = unpack_json_study(format_study(old_study))
     
     copy_study_from_json(
@@ -225,8 +234,6 @@ def do_duplicate_step(request: ResearcherRequest, new_study: Study):
         f"Audio Surveys from {old_study.name} to {new_study.name}.",
     )
     if copy_device_settings:
-        messages.success(
-            request, f"Overwrote {new_study.name}'s App Settings with custom values."
-        )
+        messages.success(request, f"Overwrote {new_study.name}'s App Settings with custom values.")
     else:
         messages.success(request, f"Did not alter {new_study.name}'s App Settings.")
