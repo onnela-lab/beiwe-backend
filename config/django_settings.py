@@ -180,6 +180,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'middleware.abort_middleware.AbortMiddleware',
+    'middleware.minified_css_bug_middleware.MinifiedCSSMiddleware',
     # "middleware.request_to_curl.CurlMiddleware",  # uncomment to enable a debugging tool
 ]
 
