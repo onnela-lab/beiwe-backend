@@ -7,7 +7,8 @@ from jinja2.exceptions import TemplateNotFound
 
 class MissingMinifiedCSSError(Exception): pass
 
-
+css_bug_log = logging.getLogger("celery_runtime")
+css_bug_log.setLevel(logging.ERROR)
 
 ERROR_MESSAGE = b"""
 <style>html, body{background-color: #121212; color: #ffffff;} </style>
@@ -52,10 +53,9 @@ class MinifiedCSSMiddleware:
         return self.get_response(request)
     
     def process_exception(self, request: HttpRequest, exception: Exception):
-        print(exception)
-        logging.error(f"MinifiedCSSMiddleware caught exception: {exception}")
         if isinstance(exception, TemplateNotFound):
             if ".min.css" in str(exception):
+                css_bug_log.error(f"MinifiedCSSMiddleware caught exception: {exception}")
                 return HttpResponse(content=ERROR_MESSAGE, status=500)
                 # raise Exception("Minified CSS file not found.") from None
         
