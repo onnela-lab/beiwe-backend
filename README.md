@@ -106,8 +106,10 @@ RDS_PASSWORD - database password
 RDS_HOSTNAME - database IP address or url
 S3_ACCESS_CREDENTIALS_USER - the user id for s3 access for your deployment
 S3_ACCESS_CREDENTIALS_KEY - the secret key for s3 access for your deployment
-SYSADMIN_EMAILS - (This item is in the process of being deprecated and has no effect)
+SYSADMIN_EMAILS - The email address pointed at by the System Administrator link in the footer of the website.
 ```
+
+_Note that SYSADMIN_EMAILS is plural, but currently only the first email address will be used. a comma separated list of email addresses may be provided and may be used in the future._
 
 ### Optional Settings
 There are additional settings that you will find documented directly in the [`config/settings.py`](config/settings.py) file.
@@ -147,7 +149,7 @@ Summary: the Beiwe Backend requires a PostgreSQL database,
     export DOMAIN_NAME="localhost://8080"
     export FLASK_SECRET_KEY="asdf"
     export S3_BUCKET="a"
-    export SYSADMIN_EMAILS="sysadmin@localhost"
+    export SYSADMIN_EMAILS="sysadmin@example.com"
     ```
 I usually store it at `private/environment.sh`.  Load up these environment variables by running `source private/environment.sh` at the Bash prompt.
 

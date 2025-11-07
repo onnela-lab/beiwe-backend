@@ -11,7 +11,7 @@ from django.urls import reverse
 from jinja2 import Environment
 from jinja2.ext import Extension
 
-from config.settings import SENTRY_JAVASCRIPT_DSN
+from config.settings import SENTRY_JAVASCRIPT_DSN, SYSADMIN_EMAILS
 from constants.common_constants import RUNNING_TESTS
 from libs.endpoint_helpers.participant_helpers import niceish_iso_time_format
 from libs.utils.dev_utils import p
@@ -24,9 +24,16 @@ from libs.utils.http_utils import (astimezone_with_tz, easy_url, fancy_dt_format
 ## The entrypoint into Jinja. This gets called by django at application load.
 #
 
+SYSADMIN_EMAIL = SYSADMIN_EMAILS.split(",")[0].strip()
+if not SYSADMIN_EMAIL or "@" not in SYSADMIN_EMAIL:
+    SYSADMIN_EMAIL = ""
+
 def environment(**options: dict[str, Any]) -> Environment:
     # always, always check for autoescape
     assert "autoescape" in options and options["autoescape"] is True
+    
+    
+    
     
     # trunk-ignore(bandit/B701): no bandit, jinja autoescape is enabled
     env = Environment(
@@ -58,6 +65,7 @@ def environment(**options: dict[str, Any]) -> Environment:
             "min": min,
             "max": max,
             "abs": abs,
+            "SYSADMIN_EMAIL": SYSADMIN_EMAIL,
         }
     )
     return env

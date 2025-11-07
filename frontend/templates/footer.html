@@ -2,18 +2,19 @@
 
 <div class="well text-center mb-1">
   <span class="pull-left">
-    Contact: <a href="mailto:onnela.lab@gmail.com">onnela.lab@gmail.com</a>
+    SysAdmin: <a href="mailto:{{ SYSADMIN_EMAIL }}">{{ SYSADMIN_EMAIL }}</a>
   </span>
   <span>
-    {# TODO: Make this automatically update to the current year #}
-    &copy; 2014-{{ current_year }} Harvard University.
-    Built by <a href="https://zagaran.com">Zagaran, Inc.</a>
-    and <a href="https://www.hsph.harvard.edu/onnela-lab/">Onnela Lab</a>
+    &copy;2014-{{ current_year }} Harvard University.
+    Built by
+    <a href="https://www.hsph.harvard.edu/onnela-lab/">Onnela Lab</a>
+    &
+    <a href="https://zagaran.com">Zagaran, Inc.</a>
   </span>
   <span class="pull-right">
     Looking for the Android App? <a
       aria-label="click here to download the android app"
       href="/download"
-    >click here</a>.
+    >click here to download.</a>
   </span>
 </div>

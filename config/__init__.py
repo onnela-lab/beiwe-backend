@@ -56,9 +56,7 @@ settings.FILE_PROCESS_PAGE_SIZE = int(settings.FILE_PROCESS_PAGE_SIZE)
 
 # email addresses are parsed from a comma separated list, strip whitespace.
 if settings.SYSADMIN_EMAILS:
-    settings.SYSADMIN_EMAILS = [
-        _email_address.strip() for _email_address in settings.SYSADMIN_EMAILS.split(",")
-    ]
+    settings.SYSADMIN_EMAILS = settings.SYSADMIN_EMAILS.strip().strip(",")
 
 # DATA_DELETION_USERTYPE must be a specific usertype.
 if settings.DATA_DELETION_USERTYPE not in ("study_researcher", "study_admin", "site_admin"):

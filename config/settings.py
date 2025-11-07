@@ -45,10 +45,10 @@ S3_REGION_NAME: str = getenv("S3_REGION_NAME", "us-east-1")
 #  the frontend server.
 DOMAIN_NAME: str = getenv("DOMAIN_NAME")
 
-# A list of email addresses that will receive error emails. This value must be a comma separated
-#  list; whitespace before and after addresses will be stripped.
-# (This variable may be removed entirely or replaced with a database setting in the future.)
-SYSADMIN_EMAILS: str = getenv("SYSADMIN_EMAILS")
+# The email address to place in the footer of the website as your system administrator contact.
+# This setting accepts a comma-separated list of email addresses, but currently only the first
+# address will be used.
+SYSADMIN_EMAILS: str = getenv("SYSADMIN_EMAILS", "")
 
 # Sentry DSNs for error reporting
 # While technically optional, we strongly recommended creating a sentry account populating
