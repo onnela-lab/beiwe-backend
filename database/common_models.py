@@ -202,15 +202,18 @@ class UtilityModel(models.Model):
         return count
     
     @property
-    def pprint(self) -> dict[str, Any]:
+    def pprint(self):
         """ Provides a dictionary representation of the object, with some special formatting. """
+        pprint(self._pprint())
+    
+    def _pprint(self) -> dict[str, Any]:
         d = self.as_dict()
         for k, v in d.items():
             if isinstance(v, datetime):
                 d[k] = localtime(v, EASTERN).strftime(DEV_TIME_FORMAT3)
             elif isinstance(v, date):
                 d[k] = v.isoformat()
-        pprint(d)
+        return d
     
     @classmethod
     def summary(cls):
