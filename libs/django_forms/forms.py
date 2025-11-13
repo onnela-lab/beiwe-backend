@@ -57,7 +57,6 @@ class CreateTasksForm(forms.Form):
             self.add_error("date_end", error_message)
         
         if not cleaned_data.get("participant_ids"):
-            print("patient ids error", cleaned_data.get("participant_patient_ids"))
             self.add_error(
                 "participant_patient_ids",
                 "At least one valid participant must be provided."
