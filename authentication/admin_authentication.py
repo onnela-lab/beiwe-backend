@@ -87,6 +87,7 @@ def log_in_researcher(request: HttpRequest, username: str):
     request.session[EXPIRY_NAME] = ((timezone.now() + timedelta(hours=SESSION_TIMEOUT_HOURS))).isoformat()
     request.session[SESSION_NAME] = username
     Researcher.objects.filter(username=username).update(last_login_time=timezone.now())
+    log(f"logged in researcher {username}")
 
 
 def check_is_logged_in(request: ResearcherRequest):
