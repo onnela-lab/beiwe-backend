@@ -552,6 +552,12 @@ def s3_delete_versioned(key_path: str, version_id: str) -> bool:
     return resp["DeleteMarker"]
 
 
+# just this is the syntax for delete many, which we don't currently use.
+# def delete_many(paths: list[str]) -> None:
+#     objects = [{'Key': k} for k in paths]
+#     old_nhs.delete_objects(Bucket=OLD_BUCKET, Delete={'Objects': objects, 'Quiet': False})
+
+
 def s3_delete_many_versioned(paths_version_ids: list[tuple[str, str]]):
     """ Takes a list of (key_path, version_id) and deletes them all using the boto3 delete_objects
     API.  Returns the number of files deleted, raises errors with reasonable clarity inside an
