@@ -74,9 +74,8 @@ def create_tasks(request: ResearcherRequest, study_id=None):
     # FIXME: remove this double endpoint pattern, it is bad.
     if request.method == "GET":
         return render_create_tasks(request, study)
-    form = CreateTasksForm(data=request.POST, study=study)
     
-    if not form.is_valid():
+    if not (form:= CreateTasksForm(data=request.POST, study=study)).is_valid():
         error_messages = [
             f'"{field}": {message}'
             for field, messages in form.errors.items()

@@ -1,3 +1,5 @@
+import logging
+
 import bleach
 from django import forms
 
@@ -8,6 +10,9 @@ from database.forest_models import ForestTask
 from database.study_models import Study
 from database.user_models_participant import Participant
 from libs.django_forms.form_fields import CommaSeparatedListCharField, CommaSeparatedListChoiceField
+
+
+log = logging.getLogger(__name__)
 
 
 class NewApiKeyForm(forms.Form):
@@ -36,7 +41,7 @@ class CreateTasksForm(forms.Form):
         super().__init__(*args, **kwargs)
     
     def clean(self):
-        cleaned_data = super().clean()
+        cleaned_data: dict = super().clean()
         
         # handle cases of missing fields.
         if "date_end" not in cleaned_data:
@@ -50,6 +55,19 @@ class CreateTasksForm(forms.Form):
             error_message = "Start date must be before or the same as end date."
             self.add_error("date_start", error_message)
             self.add_error("date_end", error_message)
+        
+        if not cleaned_data.get("participant_ids"):
+            print("patient ids error", cleaned_data.get("participant_patient_ids"))
+            self.add_error(
+                "participant_patient_ids",
+                "At least one valid participant must be provided."
+            )
+        
+        if not cleaned_data.get("trees"):
+            self.add_error(
+                "trees",
+                "At least one forest tree must be selected."
+            )
     
     def clean_trees(self):
         # trees is required,  this code doesn't execute when it is missing. validity is already
@@ -73,7 +91,9 @@ class CreateTasksForm(forms.Form):
     def save(self):
         # generates forest task objects for each selected option.
         forest_tasks = []
-        for participant_id in self.cleaned_data["participant_ids"]:
+        participant_ids = self.cleaned_data["participant_ids"]
+        
+        for participant_id in participant_ids:
             for tree in self.cleaned_data["trees"]:
                 forest_tasks.append(
                     ForestTask(
@@ -82,9 +102,13 @@ class CreateTasksForm(forms.Form):
                         data_date_start=self.cleaned_data["date_start"],
                         data_date_end=self.cleaned_data["date_end"],
                         status=ForestTaskStatus.queued,
+                        the_study=self.study,
                     )
                 )
-        ForestTask.objects.bulk_create(forest_tasks)
+        
+        if not ForestTask.objects.bulk_create(forest_tasks):
+            log.error("Failed to create forest tasks")
+
 
 
 class ApiQueryForm(forms.Form):

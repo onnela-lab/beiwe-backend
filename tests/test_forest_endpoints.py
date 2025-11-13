@@ -22,11 +22,59 @@ from tests.helpers import CURRENT_TEST_DATE_BYTES, DummyThreadPool
 #
 
 
-# class TestForestCreateTasks(ResearcherSessionTest):
-#     ENDPOINT_NAME = "forest_endpoints.create_tasks"
-#     def test(self):
-#         self.smart_get()
-
+class TestForestCreateTasks(ResearcherSessionTest):
+    ENDPOINT_NAME = "forest_endpoints.create_tasks"
+    REDIRECT_ENDPOINT_NAME = "forest_endpoints.task_log"
+    
+    def test_page_render(self):
+        self.session_researcher
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.smart_get(self.default_study.pk)
+    
+    def test_basic_task_creation(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.smart_post_redirect(
+            self.session_study.id,
+            trees=f'jasmine',
+            date_start="2020-01-01",
+            date_end="2020-01-05",
+            participant_patient_ids=f'{self.default_participant.patient_id}',
+        )
+        self.assertEqual(ForestTask.objects.count(), 1)
+    
+    def test_bad_participant_list(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        resp = self.smart_post(
+            self.session_study.id,
+            trees=f'jasmine',
+            date_start="2020-01-01",
+            date_end="2020-01-05",
+            participant_patient_ids=f'{self.default_participant.patient_id},',  # trailing comma
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assert_present(
+            'At least one valid participant must be provided.',
+            resp.content,
+        )
+        self.assertEqual(ForestTask.objects.count(), 0)
+    
+    # cannot work out what is going on when there is a second patient id.  The backend seems to receive
+    # the field parsed into a python list object before our code accesses it inside request.POST.
+    # def test_bad_participant_list2(self):
+    #     self.set_session_study_relation(ResearcherRole.site_admin)
+    #     resp = self.smart_post(
+    #         self.session_study.id,
+    #         trees=f'jasmine',
+    #         date_start="2020-01-01",
+    #         date_end="2020-01-05",
+    #         participant_patient_ids=f'["{self.default_participant.patient_id}","invalid_id"]',  # invalid id
+    #     )
+    #     self.assertEqual(resp.status_code, 200)
+    #     self.assert_present(
+    #         'At least one valid participant patient id must be provided.',
+    #         resp.content,
+    #     )
+    #     self.assertEqual(ForestTask.objects.count(), 0)
 
 # class TestForestTaskLog(ResearcherSessionTest):
 #     ENDPOINT_NAME = "forest_endpoints.task_log"
