@@ -75,6 +75,39 @@ class TestForestCreateTasks(ResearcherSessionTest):
     #         resp.content,
     #     )
     #     self.assertEqual(ForestTask.objects.count(), 0)
+    
+    def test_no_trees_selected(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        resp = self.smart_post(
+            self.session_study.id,
+            date_start="2020-01-01",
+            date_end="2020-01-05",
+            participant_patient_ids=f'{self.default_participant.patient_id}',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assert_present(
+            'At least one forest tree must be selected.',
+            resp.content,
+        )
+        self.assertEqual(ForestTask.objects.count(), 0)
+    
+    def test_dates_selected(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        resp = self.smart_post(
+            self.session_study.id,
+            trees=f'jasmine',
+            participant_patient_ids=f'{self.default_participant.patient_id}',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assert_present(
+            'date end was not provided.',
+            resp.content.lower(),
+        )
+        self.assert_present(
+            'date start was not provided.',
+            resp.content.lower(),
+        )
+        self.assertEqual(ForestTask.objects.count(), 0)
 
 # class TestForestTaskLog(ResearcherSessionTest):
 #     ENDPOINT_NAME = "forest_endpoints.task_log"

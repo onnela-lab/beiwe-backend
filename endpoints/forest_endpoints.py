@@ -76,13 +76,18 @@ def create_tasks(request: ResearcherRequest, study_id=None):
         return render_create_tasks(request, study)
     
     if not (form:= CreateTasksForm(data=request.POST, study=study)).is_valid():
+        # the errors are organized ... inexplicably...
+        rebundled_messages = {key: [] for key in form.errors}  # just a dict of field name to messages
+        for key, message_list in form.errors.items():
+            rebundled_messages[key].extend([message.capitalize() for message in message_list])
+        
+        # construct... somewhat user friendly error messages, display separate messages.
         error_messages = [
-            f'"{field}": {message}'
-            for field, messages in form.errors.items()
-            for message in messages
+            f'"{field.replace("_", " ").title()}": {' '.join(messages)}'
+            for field, messages in rebundled_messages.items()
         ]
-        error_messages_string = "\n".join(error_messages)
-        messages.warning(request, f"Errors:\n\n{error_messages_string}")
+        for error_message in error_messages:
+            messages.warning(request, error_message)
         return render_create_tasks(request, study)
     
     form.save()
