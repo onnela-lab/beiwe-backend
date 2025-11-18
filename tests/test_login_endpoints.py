@@ -10,9 +10,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from constants.common_constants import UTC
-from constants.message_strings import (BAD_LOGIN_DB_STATE, MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY,
-    MFA_CODE_MISSING, MFA_CODE_WRONG, MFA_CONFIGURATION_REQUIRED, MFA_CONFIGURATION_SITE_ADMIN,
-    PASSWORD_EXPIRED, PASSWORD_RESET_FORCED, PASSWORD_RESET_SITE_ADMIN, PASSWORD_RESET_TOO_SHORT,
+from constants.message_strings import (ACCOUNT_INACTIVE_TOO_LONG, BAD_LOGIN_DB_STATE,
+    MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING, MFA_CODE_WRONG,
+    MFA_CONFIGURATION_REQUIRED, MFA_CONFIGURATION_SITE_ADMIN, PASSWORD_EXPIRED,
+    PASSWORD_RESET_FORCED, PASSWORD_RESET_SITE_ADMIN, PASSWORD_RESET_TOO_SHORT,
     PASSWORD_WILL_EXPIRE)
 from constants.url_constants import LOGIN_REDIRECT_SAFE, urlpatterns
 from constants.user_constants import EXPIRY_NAME, ResearcherRole
@@ -329,6 +330,8 @@ class TestLoginPages(BasicSessionTestCase):
             except KeyError as e:
                 self.assertEqual(e.args[0], EXPIRY_NAME)
     
+    ## Password Too Short Cases
+    
     def test_password_too_short_site_admin(self):
         # test that the password too short redirect applies to admin endpoints
         self.assertEqual(
@@ -381,6 +384,8 @@ class TestLoginPages(BasicSessionTestCase):
         # assert that this behavior does not rely on the force reset flag
         self.assertFalse(self.session_researcher.password_force_reset)
     
+    ## Force Logout
+    
     def test_force_logout(self):
         self.session_researcher
         resp = self.do_default_login()
@@ -392,6 +397,8 @@ class TestLoginPages(BasicSessionTestCase):
         self.session_researcher.refresh_from_db()
         self.assertEqual(self.session_researcher.web_sessions.count(), 0)
         self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
+    
+    ## Multi-Factor Authentication
     
     def test_mfa_login(self):
         self.session_researcher.reset_mfa()  # enable mfa
@@ -461,6 +468,8 @@ class TestLoginPages(BasicSessionTestCase):
         r3 = self.simple_get(r2.url, status_code=200)  # page loads as normal
         self.assert_present(MFA_CONFIGURATION_REQUIRED, r3.content)
         self.assert_present(MFA_CONFIGURATION_SITE_ADMIN, r3.content)
+    
+    ## Too Many Bad Logins
     
     def test_10_logins_lockout(self):
         
@@ -534,7 +543,76 @@ class TestLoginPages(BasicSessionTestCase):
             self.assertEqual(r.bad_login_attempts, 0)  # reset to 0
             self.assertIsNotNone(r.last_login_time)    # something here
             self.assertIsNone(r.lockout_until)         # gone.
-
+    
+    ## Inactive Too Long
+    
+    def test_login_after_two_years_inactive_site_admin(self):
+        self.session_researcher.update(site_admin=True)
+        self._test_login_after_two_years_inactive()
+    
+    def test_login_after_two_years_inactive_researcher(self):
+        self.session_researcher.update(site_admin=False)
+        self.set_session_study_relation(ResearcherRole.researcher)
+        self._test_login_after_two_years_inactive()
+    
+    def test_login_after_two_years_inactive_study_admin(self):
+        self.session_researcher.update(site_admin=False)
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        self._test_login_after_two_years_inactive()
+    
+    def test_login_after_two_years_inactive_no_relations(self):
+        self.session_researcher
+        self._test_login_after_two_years_inactive()
+    
+    @patch("endpoints.login_endpoints.INACTIVITY_TIMEDELTA", new=timedelta(days=30))
+    def test_custom_inactive_login(self):
+        self.session_researcher
+        self._test_login_after_two_years_inactive(that_delta=timedelta(days=30))
+    
+    def _test_login_after_two_years_inactive(self, that_delta: timedelta = timedelta(days=730)):
+        # simulate a researcher that has been inactive for a given period logging in.
+        more_than_two_years_ago = timezone.now() - (that_delta + timedelta(days=1))
+        self.assertGreater(self.session_researcher.created_on, more_than_two_years_ago)
+        self.assertLess(self.session_researcher.created_on, timezone.now())
+        self.assertIsNone(self.session_researcher.last_login_time)
+        self.session_researcher.update(last_login_time=more_than_two_years_ago)
+        
+        resp = self.do_default_login()
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
+        self.session_researcher.refresh_from_db()
+        self.assertEqual(self.session_researcher.last_login_time, more_than_two_years_ago)
+        resp = self.easy_get("login_endpoints.login_page", status_code=200)
+        self.assert_present(ACCOUNT_INACTIVE_TOO_LONG.encode(), resp.content)
+    
+    def test_login_within_almost_two_years_inactive(self):
+        # simulate a researcher that has been inactive for almost 2 years
+        self.session_researcher
+        almost_two_years_ago = timezone.now() - (timedelta(days=730) - timedelta(days=1))
+        self.session_researcher.update(last_login_time=almost_two_years_ago)
+        
+        # success
+        resp = self.do_default_login()
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("study_endpoints.choose_study_page"))
+        self.session_researcher.refresh_from_db()
+        self.assertGreater(self.session_researcher.last_login_time, almost_two_years_ago)
+        self.assertLess(self.session_researcher.last_login_time, timezone.now())
+        self.assert_not_present(ACCOUNT_INACTIVE_TOO_LONG.encode(), resp.content)
+    
+    def test_login_with_no_last_login_time_but_too_old_creation(self):
+        # simulate a researcher that has no last login time but was created more than 2 years ago
+        self.session_researcher
+        more_than_two_years_ago = timezone.now() - (timedelta(days=730) + timedelta(days=1))
+        self.session_researcher.update(last_login_time=None, created_on=more_than_two_years_ago)
+        
+        resp = self.do_default_login()
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("login_endpoints.login_page"))
+        self.session_researcher.refresh_from_db()
+        self.assertIsNone(self.session_researcher.last_login_time)
+        resp = self.easy_get("login_endpoints.login_page", status_code=200)
+        self.assertIn(ACCOUNT_INACTIVE_TOO_LONG.encode(), resp.content)
 
 
 class TestDowntime(BasicSessionTestCase):

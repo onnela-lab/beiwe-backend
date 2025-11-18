@@ -207,5 +207,6 @@ DATA_DOWNLOAD_NO_CREDS = "You need to generate an Access Key and a Secret Key be
 
 BAD_LOGIN_DB_STATE = "A complex situation has occurred with your user account, please contact your system administrator to have them reset your password to restore access."
 
+ACCOUNT_INACTIVE_TOO_LONG = "Your account has been inactive for over two years, website access has been disabled. Please contact your System Administrator or an authorized study admin to re-enable your account. They can do this by resetting your password."
 
 SET_STUDY_TIMEZONE_REMINDER = lambda timezone: f"We recommend you set your study's timezone now. It is currently set to `{timezone}`. This has subtle effects and may cause issues if you try to change it after your study is live."

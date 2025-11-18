@@ -140,6 +140,11 @@ REQUIRE_SITE_ADMIN_MFA: bool = getenv('REQUIRE_SITE_ADMIN_MFA', 'false').lower()
 # (This feature will eventually be replaced with a database setting.)
 DATA_DELETION_USERTYPE: str = getenv('DATA_DELETION_USERTYPE', 'study_researcher')
 
+# There is a default lockout on accounts that sit idle for too long. This setting controls that
+# duration, which defaults to a very lax 730 days (2 years).
+INACTIVITY_LOCKOUT_DAYS: int = int(getenv('INACTIVITY_LOCKOUT_DAYS', '730'))
+
+
 #
 # Developer options
 #

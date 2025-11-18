@@ -53,6 +53,7 @@ for mandatory_var in MANDATORY_VARS:
 
 # Environment variable type can be unpredictable, sanitize the numerical ones.
 settings.FILE_PROCESS_PAGE_SIZE = int(settings.FILE_PROCESS_PAGE_SIZE)
+settings.INACTIVITY_LOCKOUT_DAYS = int(settings.INACTIVITY_LOCKOUT_DAYS)
 
 # email addresses are parsed from a comma separated list, strip whitespace.
 if settings.SYSADMIN_EMAILS:

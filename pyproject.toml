@@ -89,3 +89,10 @@ keywords = [
 
 [tool.isort]
 py_version = 312
+line_length = 100
+use_parentheses = true
+remove_redundant_aliases = true
+star_first = true
+multi_line_output = 10  # "HANGING_INDENT_WITH_PARENTHESES"
+combine_as_imports = true
+lines_after_imports = 2

@@ -13,8 +13,9 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from authentication import admin_authentication
 from authentication.admin_authentication import HttpRequest, ResearcherRequest
-from constants.message_strings import (BAD_LOGIN_DB_STATE, MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY,
-    MFA_CODE_MISSING, MFA_CODE_WRONG)
+from config.settings import INACTIVITY_LOCKOUT_DAYS
+from constants.message_strings import (ACCOUNT_INACTIVE_TOO_LONG, BAD_LOGIN_DB_STATE,
+    MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING, MFA_CODE_WRONG)
 from database.user_models_researcher import Researcher
 from libs.utils.security_utils import verify_mfa
 
@@ -31,6 +32,7 @@ def log(*args, **kwargs):
 ####################################################################################################
 
 MAX_LOGIN_ATTEMPTS_BEFORE_LOCKOUT = 10
+INACTIVITY_TIMEDELTA = timedelta(days=INACTIVITY_LOCKOUT_DAYS)
 
 
 def lockout_message(researcher: Researcher):
@@ -172,6 +174,13 @@ def validate_login(request: HttpRequest):
     if researcher.mfa_token and mfa_code and not verify_mfa(researcher.mfa_token, mfa_code):
         messages.error(request, MFA_CODE_WRONG)
         return redirect(reverse("login_endpoints.login_page"))
+    
+    # case: long term inactivity - default 2 years since last login, or account creation with no last login
+    last_login = researcher.last_login_time or researcher.created_on
+    if last_login < (timezone.now() - INACTIVITY_TIMEDELTA):
+        log("researcher account inactive too long")
+        messages.error(request, ACCOUNT_INACTIVE_TOO_LONG)
+        return redirect("/")
     
     # case: mfa is required, was provided, and was correct.
     # The redirect happens even when credentials need to be updated, any further levels of
