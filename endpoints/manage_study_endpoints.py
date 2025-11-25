@@ -185,7 +185,16 @@ def download_participants_csv(request: ResearcherRequest, study_id: int = None):
     writer.writerow(get_table_columns(study, frontend=False))  # write the header row
     writer.writerows(table_data)
     buffer.seek(0)
-    return HttpResponse(buffer.read(), content_type='text/csv')
+    
+    
+    fr = FileResponse(
+        buffer.read(),
+        content_type="text/csv",
+        as_attachment=True,
+        filename=f"participant info - {study.name}.csv",
+    )
+    fr.set_headers(None)
+    return fr
 
 
 #

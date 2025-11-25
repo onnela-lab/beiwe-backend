@@ -399,7 +399,14 @@ def download_summary_statistics_csv(request: ResearcherRequest, study_id):
     query_field_names[query_field_names.index("participant_id")] = "patient_id"
     
     paginator = SummaryStatisticsPaginator(query, 10000, values_list=query_field_names)
-    return StreamingHttpResponse(paginator.stream_csv(NICE_SERIALIZABLE_FIELD_NAMES), content_type="text/csv")
+    fr = FileResponse(
+        paginator.stream_csv(NICE_SERIALIZABLE_FIELD_NAMES),
+        content_type="text/csv",
+        as_attachment=True,
+        filename=f"forest task info - {study.name}.csv",
+    )
+    fr.set_headers(None)
+    return fr
 
 
 def render_create_tasks(request: ResearcherRequest, study: Study):
