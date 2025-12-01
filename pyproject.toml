@@ -96,3 +96,36 @@ star_first = true
 multi_line_output = 10  # "HANGING_INDENT_WITH_PARENTHESES"
 combine_as_imports = true
 lines_after_imports = 2
+
+known_third_party = []  # Force these libraries to a special spot in import order (second to bottom)
+
+known_local_folder = [
+  "forest",
+]
+
+known_first_party = [  # Force these libraries to a special spot in import order (bottom)
+    "authentication",
+    "cluster_management",
+    "config",
+    "constants",
+    "database",
+    "endpoints",
+    "libs",
+    "middleware",
+    "services",
+]
+
+
+[tool.ruff]
+line-length = 105
+indent-width = 4
+
+[tool.ruff.format]
+indent-style = "space"  # use spaces for indentation
+line-ending = "lf"  # use \n for line endings
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 120  # maximum line length
+
+[tool.ruff.lint]
+future-annotations = true

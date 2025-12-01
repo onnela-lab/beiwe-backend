@@ -6,7 +6,6 @@ from zipfile import ZIP_STORED, ZipFile
 
 from constants.data_stream_constants import (AMBIENT_AUDIO, AUDIO_RECORDING, SURVEY_ANSWERS,
     SURVEY_TIMINGS)
-from constants.forest_constants import AMBIENT_AUDIO
 from constants.s3_constants import NoSuchKeyException
 from database.study_models import Study
 from endpoints.participant_endpoints import SentryUtils
@@ -22,8 +21,8 @@ def get_survey_id(chunk: dict) -> str:
     if not survey_id:
         # example real path as it should come in: 5873fe38644ad7557b168e43/q41aozrx/voiceRecording/587442edf7321c14da193487/1524857988384.wav
         survey_id = chunk["chunk_path"].rsplit("/", 2)[1]
-        if not len(survey_id) == 24:
-            survey_id = "unknown_survey_id"  # if there still isn't a survey input unknown?
+        if len(survey_id) != 24:
+            return "unknown_survey_id"  # if there still isn't a survey input unknown?
     return survey_id
 
 
@@ -92,7 +91,7 @@ class ZipGenerator:
     def __init__(
         self,
         study: Study,
-        files_list: Iterable[str],
+        files_list: Iterable[dict],
         construct_registry: bool,
         threads: int,
         as_compressed: bool,
@@ -110,7 +109,7 @@ class ZipGenerator:
     def stop(self) -> None:
         self.stopped = True
     
-    def _retrieve_decompress(self, chunk: dict) -> tuple[dict, bytes|None]:
+    def _retrieve_decompress(self, chunk: dict) -> tuple[dict, bytes | None]:
         """ Data is returned in the form (chunk_object, file_data), as the decompressed file. """
         if self.stopped:
             return chunk, None  # early exit if stopped
@@ -122,7 +121,7 @@ class ZipGenerator:
                 raise
             return chunk, None
     
-    def _retrieve_no_decompress(self, chunk: dict) -> tuple[dict, bytes|None]:
+    def _retrieve_no_decompress(self, chunk: dict) -> tuple[dict, bytes | None]:
         """ Data is returned in the form (chunk_object, file_data), as a .zst file. """
         if self.stopped:
             return chunk, None  # early exit if stopped
@@ -143,14 +142,13 @@ class ZipGenerator:
             file_name = self.generate_deduplicated_name(file_name)
         
         self.processed_file_names.add(file_name)
-        file_name = file_name + ".zst" if self.as_compressed else file_name
-        return file_name
+        return file_name + ".zst" if self.as_compressed else file_name
     
     def generate_deduplicated_name(self, filename: str) -> str:
         i, (filename_base, extension) = 1, filename.rsplit(".", 1)
         while True:
             i += 1
-            if (new_filename:= f"{filename_base}_{i}.{extension}") not in self.processed_file_names:
+            if (new_filename := f"{filename_base}_{i}.{extension}") not in self.processed_file_names:
                 return new_filename
     
     def __iter__(self) -> Generator[bytes, None, None]:
@@ -168,11 +166,9 @@ class ZipGenerator:
             chunks_and_content = pool.imap_unordered(self.batch_retrive_func, self.files_list, chunksize=1)
             
             for chunk, file_contents in chunks_and_content:
-                if self.stopped:
-                    continue  # Weird hangs occur if you don't run through the loop completely.
                 
-                if file_contents is None:
-                    continue
+                if self.stopped or file_contents is None:
+                    continue  # (when stopped, threading hangs if we don't exhaust the loop.)
                 
                 if self.file_registry is not None:
                     self.file_registry[chunk['chunk_path']] = chunk["chunk_hash"]
