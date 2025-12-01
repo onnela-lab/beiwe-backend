@@ -31,7 +31,9 @@ class TestGetData(DataApiTest):
     """
     
     ENDPOINT_NAME = "raw_data_api_endpoints.get_data_v1"
-    REGISTRY_HASH = "registry_hash"
+    
+    REGISTRY_HASH_RAW = b"registry_hash" 
+    REGISTRY_HASH_B64 = "cmVnaXN0cnlfaGFzaA=="
     
     # retain and usethis structure in order to force a test addition on a new file type.
     # "particip" is the DEFAULT_PARTICIPANT_NAME
@@ -216,8 +218,9 @@ class TestGetData(DataApiTest):
         # (the test for the empty zip is much, easiest, even if this combination of parameters
         # is technically not kosher.)
         file_contents = self.generate_chunkregistry_and_download(
-            *basic_args, registry=json.dumps({file_path: self.REGISTRY_HASH}), force_web_form=True
+            *basic_args, registry=json.dumps({file_path: self.REGISTRY_HASH_B64}), force_web_form=True
         )
+        
         self.assertEqual(file_contents, EMPTY_ZIP)
         
         # test that a non-matching hash does not block download.
@@ -228,7 +231,7 @@ class TestGetData(DataApiTest):
         
         # test bad json objects
         self.generate_chunkregistry_and_download(
-            *basic_args, registry=json.dumps([self.REGISTRY_HASH]), status_code=400
+            *basic_args, registry=json.dumps([self.REGISTRY_HASH_B64]), status_code=400
         )
         self.generate_chunkregistry_and_download(
             *basic_args, registry=json.dumps([file_path]), status_code=400
@@ -367,23 +370,26 @@ class TestGetData(DataApiTest):
         file_path: str,
         time_bin: str,
         status_code: int = 200,
-        registry: bool = None,
+        registry: str | None = None,
         query_time_bin_start: str = None,
         query_time_bin_end: str = None,
         query_patient_ids: str = None,
         query_data_streams: str = None,
         force_web_form: bool = False,
-    ):
-        post_kwargs = {"study_pk": self.session_study.id}
-        generate_kwargs = {"time_bin": time_bin, "path": file_path}
-        tracking = {"researcher": self.session_researcher, "query_params": {}}
+    ) -> bytes | int:
+        post_kwargs: dict = {"study_pk": self.session_study.id}
+        generate_kwargs: dict = {"time_bin": time_bin, "path": file_path}
+        tracking: dict = {"researcher": self.session_researcher, "query_params": {}}
+        
+        from database.models import S3File
+        S3File.objects.get_or_create(path=self.FULLY_VALID_FILE_PATH + ".zst", sha1=self.REGISTRY_HASH_RAW)
         
         if data_type == SURVEY_TIMINGS:
             generate_kwargs["survey"] = self.default_survey
         
         if registry is not None:
             post_kwargs["registry"] = registry
-            generate_kwargs["hash_value"] = self.REGISTRY_HASH  # strings must match
+            generate_kwargs["hash_value"] = self.REGISTRY_HASH_B64  # strings must match
             tracking["registry_dict_size"] = True
         else:
             post_kwargs["web_form"] = ""
@@ -411,6 +417,7 @@ class TestGetData(DataApiTest):
         self.generate_chunkregistry(
             self.session_study, self.default_participant, data_type, **generate_kwargs
         )
+        
         resp: FileResponse = self.smart_post(**post_kwargs)
         
         # some basics for testing that DataAccessRecords are created

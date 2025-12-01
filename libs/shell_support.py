@@ -545,10 +545,14 @@ def diff_strings(s1: str|bytes, s2: str|bytes):
     """ A function for comparing two strings, it will print out the text to be compared up to the
     first non-matching and then some characters on either side of it. Mostly useful in developing
     tests. """
-    if isinstance(s1, bytes):
-        s1 = s1.decode("utf-8")
-    if isinstance(s2, bytes):
-        s2 = s2.decode("utf-8")
+    try:
+        if isinstance(s1, bytes):
+            s1 = s1.decode("utf-8")
+        if isinstance(s2, bytes):
+            s2 = s2.decode("utf-8")
+    except UnicodeDecodeError as e:
+        print("diffing hit a unicode decode error:", e)
+        return
     
     print()
     i = 0

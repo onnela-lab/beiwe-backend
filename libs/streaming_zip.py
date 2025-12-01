@@ -53,12 +53,12 @@ def determine_base_file_name(chunk: dict) -> str:
         survey_id = get_survey_id(chunk)
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
     
-    elif data_stream == SURVEY_TIMINGS:
+    if data_stream == SURVEY_TIMINGS:
         # add the survey_id from the database entry.
         survey_id = get_survey_id(chunk)
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
     
-    elif data_stream == AUDIO_RECORDING:
+    if data_stream == AUDIO_RECORDING:
         # Audio surveys are also not chunkable, they have a history of file naming issues.
         # - survey__object_id may not be populated in the provided dict.
         # - iirc there are some SUPER old files that are missing a survey id entirely.
@@ -76,7 +76,7 @@ def determine_base_file_name(chunk: dict) -> str:
         
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
     
-    elif data_stream == AMBIENT_AUDIO:
+    if data_stream == AMBIENT_AUDIO:
         ext = chunk_path.split(".")[1]  # this one can be weird.
         return f"{patient_id}/{data_stream}/{time_bin}.{ext}"
     
@@ -105,9 +105,16 @@ class ZipGenerator:
         self.as_compressed = as_compressed
         self.study = study
         self.batch_retrive_func = self._retrieve_no_decompress if as_compressed else self._retrieve_decompress
+        self.stopped = False
+    
+    def stop(self) -> None:
+        self.stopped = True
     
     def _retrieve_decompress(self, chunk: dict) -> tuple[dict, bytes|None]:
         """ Data is returned in the form (chunk_object, file_data), as the decompressed file. """
+        if self.stopped:
+            return chunk, None  # early exit if stopped
+        
         try:
             return chunk, s3_retrieve(chunk["chunk_path"], self.study, raw_path=True)
         except NoSuchKeyException:
@@ -117,6 +124,9 @@ class ZipGenerator:
     
     def _retrieve_no_decompress(self, chunk: dict) -> tuple[dict, bytes|None]:
         """ Data is returned in the form (chunk_object, file_data), as a .zst file. """
+        if self.stopped:
+            return chunk, None  # early exit if stopped
+        
         try:
             return chunk, s3_retrieve_no_decompress(chunk["chunk_path"], self.study, raw_path=True)
         except NoSuchKeyException:
@@ -158,6 +168,9 @@ class ZipGenerator:
             chunks_and_content = pool.imap_unordered(self.batch_retrive_func, self.files_list, chunksize=1)
             
             for chunk, file_contents in chunks_and_content:
+                if self.stopped:
+                    continue  # Weird hangs occur if you don't run through the loop completely.
+                
                 if file_contents is None:
                     continue
                 
@@ -179,15 +192,16 @@ class ZipGenerator:
                 del one_file_in_a_zip
                 zip_output.empty()
             
-            # construct the registry file
-            if self.file_registry is not None:
-                zip_input.writestr("registry", json.dumps(self.file_registry))
+            if not self.stopped:
+                # construct the registry file
+                if self.file_registry is not None:
+                    zip_input.writestr("registry", json.dumps(self.file_registry))
+                    yield zip_output.getvalue()
+                    zip_output.empty()
+                
+                # close, then yield all remaining data in the zip.
+                zip_input.close()
                 yield zip_output.getvalue()
-                zip_output.empty()
-            
-            # close, then yield all remaining data in the zip.
-            zip_input.close()
-            yield zip_output.getvalue()
         
         finally:
             pool.close()        # For some reason close is not called inside the threadpool when you

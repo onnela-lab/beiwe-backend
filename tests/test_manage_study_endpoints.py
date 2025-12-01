@@ -458,7 +458,7 @@ class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperM
         resp = self.smart_get(self.session_study.id)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], "text/csv")
-        self.assertEqual(resp.content.decode(), self.response_basic)
+        self.assertEqual(b"".join(resp.streaming_content).decode(), self.response_basic)
     
     def test_two_participants_with_intervention(self):
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -466,8 +466,8 @@ class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperM
         self.generate_intervention_date(p1, self.default_intervention, self.JAN_1_2020)
         self.generate_intervention_date(p2, self.default_intervention, self.JAN_1_2020)
         resp = self.smart_get(self.session_study.id)
-        self.assertEqual(resp.content.decode(), self.response_with_intervention)
-        
+        self.assertEqual(b"".join(resp.streaming_content).decode(), self.response_with_intervention)
+    
     def test_two_participants_with_custom_field(self):
         self.set_session_study_relation(ResearcherRole.researcher)
         p1, p2 = self.setup_two_base_participants
@@ -476,7 +476,7 @@ class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperM
         self.generate_participant_field_value(
             self.default_study_field, p2, self.DEFAULT_PARTICIPANT_FIELD_VALUE)
         resp = self.smart_get(self.session_study.id)
-        self.assertEqual(self.response_with_custom_field, resp.content.decode())
+        self.assertEqual(self.response_with_custom_field, b"".join(resp.streaming_content).decode())
     
     def test_two_participants_with_intervention_and_custom_field(self):
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -490,11 +490,11 @@ class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperM
         resp = self.smart_get(self.session_study.id)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], "text/csv")
-        self.assertEqual(resp.content.decode(), self.response_with_intervention_and_custom_field)
+        self.assertEqual(b"".join(resp.streaming_content).decode(), self.response_with_intervention_and_custom_field)
     
     def test_no_participants(self):
         self.set_session_study_relation(ResearcherRole.researcher)
-        content = self.smart_get(self.session_study.id).content
+        content = b"".join(self.smart_get(self.session_study.id).streaming_content)
         self.assertEqual(content.decode(), self.header())
     
     def test_single_base_participant(self):
@@ -504,4 +504,4 @@ class TestDownloadParticipantsCsv(ResearcherSessionTest, ParticipantTableHelperM
         resp = self.smart_get(self.session_study.id)
         # I don't know why there is a trailing newline, but it is there.
         ref = "\r\n".join(self.response_basic.splitlines()[:-1]) + "\r\n"
-        self.assertEqual(resp.content.decode(), ref)
+        self.assertEqual(b"".join(resp.streaming_content).decode(), ref)
