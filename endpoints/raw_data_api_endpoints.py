@@ -27,6 +27,7 @@ from middleware.abort_middleware import abort
 
 ENABLE_DATA_API_DEBUG = False
 
+
 def log(*args, **kwargs):
     if ENABLE_DATA_API_DEBUG:
         print(*args, **kwargs)
@@ -255,24 +256,24 @@ def filter_chunks_by_registry(
 
 
 def combined_chunk_query(chunkregistry_query: QuerySet, values_params: Iterable[str]) -> QuerySet:
-    # the path value in the subquery has to be an exact match, not a startswith, or else it will
-    # walk the whole database table / just not use the index correctly.
+    """ The hash value in the ChunkRegistry table is bad, we want to use the one from the S3File
+    table. That query is ... problemy in django, best option so far is to use a subquery. This
+    function takes the chunkregistry query and adds the sha1 field. """
     
-    # this just appends ".zst" to the chunk path to get the S3File path
+    # the path value in the subquery has to be an exact match, not a startswith, or else postgres
+    # will walk the whole database table / just not use the index correctly.
+    # (append ".zst" to the chunk path to get the S3File path)
     s3file_zst_path = Concat(OuterRef("chunk_path"), Value(".zst"), output_field=(CharField()))
     
-    # there is only one possible match (unique), so just limit it.
+    # there is only one possible match (unique) but we have to limit it.
     sha1_subquery = S3File.objects.filter(path=s3file_zst_path).values_list("sha1")[:1]
     # size_subquery = S3File.objects.filter(path=s3file_zst_path).values_list("size_compressed")[:1]
     
     # wrap the subquery, retrieve the chunk and the sha1
     return chunkregistry_query.annotate(
-            # sha1=thingy.sha1,
-            # size_compresed=thingy.size_compressed,
             sha1=Subquery(sha1_subquery),
             # size_compressed=Subquery(size_subquery),
-            # fuckin_both=Subquery(fuckin_both, output_field=BinaryField()),
-        ).values(*values_params, "sha1")# "sha1", "size_compressed")
+        ).values(*values_params, "sha1")  # "sha1", "size_compressed")
 
 
 # The below is attempts to make the annoying registry query use a join in the database
