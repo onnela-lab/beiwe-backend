@@ -152,6 +152,7 @@ def str_to_datetime(time_string: str) -> datetime:
 ############################ DB Query For Data Download #################################
 #########################################################################################
 
+
 def determine_data_streams_for_db_query(request: ApiStudyResearcherRequest, query_dict: dict):
     """ Determines, from the html request, the data streams that should go into the database query.
     Modifies the provided query object accordingly, there is no return value
@@ -192,8 +193,7 @@ def determine_users_for_db_query(request: ApiStudyResearcherRequest, query: dict
 
 def determine_time_range_for_db_query(request: ApiStudyResearcherRequest, query: dict):
     """ Determines, from the html request, the time range that should go into the database query.
-    Modifies the provided query object accordingly, there is no return value.
-    Throws a 404 if a user provided does not exist. """
+    Modifies the provided query object accordingly, there is no return value. """
     if 'time_start' in request.POST:
         query['start'] = str_to_datetime(request.POST['time_start'])
     if 'time_end' in request.POST:
