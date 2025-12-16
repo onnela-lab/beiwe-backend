@@ -100,7 +100,7 @@ class ZipGenerator:
         self.files_list = files_list
         self.processed_file_names: set[str] = set()
         self.total_bytes = 0
-        self.thread_count = threads * 2 if as_compressed else threads
+        self.thread_count = threads * 3 if as_compressed else threads
         self.as_compressed = as_compressed
         self.study = study
         self.batch_retrive_func = self._retrieve_no_decompress if as_compressed else self._retrieve_decompress
@@ -120,6 +120,7 @@ class ZipGenerator:
             with SentryUtils.report_webserver():
                 raise
             return chunk, None
+            
     
     def _retrieve_no_decompress(self, chunk: dict) -> tuple[dict, bytes | None]:
         """ Data is returned in the form (chunk_object, file_data), as a .zst file. """

@@ -59,8 +59,13 @@ if not API_URL_BASE.endswith("/"):
 
 
 def make_request(
-        study_id, access_key=ACCESS_KEY, secret_key=SECRET_KEY, user_ids=None, data_streams=None,
-        time_start=None, time_end=None
+    study_id,
+    access_key=ACCESS_KEY,
+    secret_key=SECRET_KEY,
+    participant_ids=None,
+    data_streams=None,
+    time_start=None,
+    time_end=None
 ):
     """
     Behavior
@@ -106,29 +111,29 @@ def make_request(
     DateTime library to generate date strings, or investigate the commented out lines of code in
     this function.
     """
-
+    
     if access_key is None or secret_key is None:
         raise Exception("You must provide credentials to run this API call.")
-
+    
     url = API_URL_BASE + 'get-data/v1'
     try:
         int(study_id)
         study_key = "study_pk"
     except ValueError:
         study_key = "study_id"
-
+    
     values = {
         'access_key': access_key,
         'secret_key': secret_key,
         study_key: study_id,
     }
-
-
-    if user_ids:
-        values['user_ids'] = json.dumps(user_ids)
+    
+    
+    if participant_ids:
+        values['participant_ids'] = json.dumps(participant_ids)
     if data_streams:
         values['data_streams'] = json.dumps(data_streams)
-
+    
     # Uncomment the below lines to enable (time zone unaware) datetime object support, add 'from datetime import datetime' to the imports.
     if time_start:
         # if isinstance(time_start, datetime):
@@ -138,7 +143,7 @@ def make_request(
         # if isinstance(time_end, datetime):
         # time_end = time_end.strftime(API_TIME_FORMAT)
         values['time_end'] = time_end
-
+    
     if path.exists("master_registry"):
         with open("master_registry") as f:
             old_registry = json.load(f)
@@ -146,26 +151,26 @@ def make_request(
             values["registry"] = json.dumps(old_registry)
     else:
         old_registry = {}
-
+    
     print("sending request, receiving data, this could take some time.")
     response = requests.post(url, data=values)
-
+    
     if response.status_code != 200:
         raise requests.exceptions.HTTPError(response.status_code)
-
+    
     if RUNNING_IN_TEST_MODE and SKIP_DOWNLOAD:
         raise requests.exceptions.HTTPError(response.status_code)
-
+    
     data = response.content
     print("Data received.  Unpacking and overwriting any updated files into", path.abspath('.'))
-
+    
     z = zipfile.ZipFile(io.BytesIO(data))
     z.extractall()
-
+    
     with open("registry") as f:
         new_registry = json.load(f)
         f.close()
-
+    
     old_registry.update(new_registry)
     with open("master_registry", "w") as f:
         json.dump(old_registry, f)

@@ -176,19 +176,29 @@ def determine_users_for_db_query(request: ApiStudyResearcherRequest, query: dict
     """ Determines, from the html request, the users that should go into the database query.
     Modifies the provided query object accordingly, there is no return value.
     Throws a 404 if a user provided does not exist. """
-    if 'user_ids' in request.POST:
+    
+    # "user_ids" is misnamed, we keep it for backwards compatibility, we have added participant_ids
+    # and will prefer it when both are present.  Mano will eventually use participant_ids only.
+    if 'participant_ids' in request.POST:
+        _determine_users_for_db_query(request, query, 'participant_ids')
+    elif 'user_ids' in request.POST:
+        _determine_users_for_db_query(request, query, 'user_ids')
+
+
+def _determine_users_for_db_query(request: ApiStudyResearcherRequest, query: dict, key: str):
+    # the internal query is passed to a function with the misnamed key 'user_ids'
+    try:
         try:
-            try:
-                query['user_ids'] = [user for user in json.loads(request.POST['user_ids'])]
-            except ValueError:
-                query['user_ids'] = request.POST.getlist('user_ids')
-        except Exception:
-            return abort(400, "bad patient id")
-        
-        # Ensure that all user IDs are patient_ids of actual Participants
-        if Participant.objects.filter(patient_id__in=query['user_ids']).count() != len(query['user_ids']):
-            log("invalid participant")
-            return abort(404, "bad patient id")
+            query['participant_ids'] = list(json.loads(request.POST[key]))
+        except ValueError:
+            query['participant_ids'] = request.POST.getlist(key)
+    except Exception:
+        return abort(400, "bad patient id")
+    
+    # Ensure that all participant ids are real participants
+    if Participant.objects.filter(patient_id__in=query['participant_ids']).count() != len(query['participant_ids']):
+        log("invalid participant")
+        return abort(404, "bad patient id")
 
 
 def determine_time_range_for_db_query(request: ApiStudyResearcherRequest, query: dict):
