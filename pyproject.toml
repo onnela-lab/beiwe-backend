@@ -129,3 +129,35 @@ max-line-length = 120  # maximum line length
 
 [tool.ruff.lint]
 future-annotations = true
+
+
+[tool.flake8]
+
+extend-ignore = [
+    "E127",  # continuation line over-indented for visual indent
+    "E128",  # continuation line under-indented for visual indent
+    "E225",  # missing whitespace around operator
+    # "E305",   # should have 2 blank lines after class or function definition
+    "E301",  # expected 1 blank line, found 0
+    # "E302",  # expected 2 blank lines, found 1
+    "E303",   # too many blank lines
+    "E701",  # multiple statements on one line (colon)
+    "E702",  # multiple statements on one line (semicolon)
+    # "E265",  # block comment should start with '# '
+    "E266",  # too many leading '#' for block comment
+    "E501",  # line too long
+    "R503",  # missing explicit None return
+    "W293",  # blank line contains whitespace
+    # "C408",  # unnecessary list comprehension
+    # "SIM102",  # use 'if any(...)' instead of 'if True in (...)'
+    # "CFQ002",  # missing whitespace after ',' (?)
+    # "CFQ004",
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    "docs",
+    "frontend",
+    "paper",
+    "private",
+]

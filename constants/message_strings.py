@@ -170,7 +170,7 @@ UNKNOWN_REMOTE_ERROR = "Unknown error while making a remote service call"
 FAILED_TO_ESTABLISH_CONNECTION = "Failed to establish connection to push notification service."
 CONNECTION_ABORTED = "Connection to push notification service aborted."
 ACCOUNT_NOT_FOUND = "Account not found by push notification service."
-
+INVALID_ARGUMENT_ERROR = "Encountered unknown invalid argument error."
 
 # return strings for data upload debugging and testing.
 FILE_INVALID = b"file obviously invalid."

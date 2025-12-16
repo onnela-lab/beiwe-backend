@@ -8,6 +8,7 @@ import orjson
 from cronutils.error_handler import ErrorSentry
 from dateutil.tz import gettz
 from django.utils import timezone
+from firebase_admin.exceptions import InvalidArgumentError
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
     send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
 
@@ -15,8 +16,8 @@ from authentication.data_access_authentication import SentryUtils
 from config.settings import BLOCK_QUOTA_EXCEEDED_ERROR, PUSH_NOTIFICATION_ATTEMPT_COUNT
 from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
-    FAILED_TO_ESTABLISH_CONNECTION, MESSAGE_SEND_SUCCESS, UNEXPECTED_SERVICE_RESPONSE,
-    UNKNOWN_REMOTE_ERROR)
+    FAILED_TO_ESTABLISH_CONNECTION, INVALID_ARGUMENT_ERROR, MESSAGE_SEND_SUCCESS,
+    UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ANDROID_API
 from database.schedule_models import ScheduledEvent
@@ -174,7 +175,7 @@ def get_surveys_and_schedules(now: datetime, **filter_kwargs) -> tuple[SurveyRet
         schedules[fcm].append(schedule_pk)
         patient_ids[fcm] = patient_id
     
-    return  dict(surveys), dict(schedules), patient_ids
+    return dict(surveys), dict(schedules), patient_ids
 
 
 def send_scheduled_event_survey_push_notification_logic(
@@ -241,6 +242,11 @@ def send_scheduled_event_survey_push_notification_logic(
             loge("\nSenderIdMismatchError:\n")
             loge(e)
             failed_send_survey_handler(cached_participant, fcm_token, str(e), scheduled_events, debug)
+            return
+        
+        except InvalidArgumentError as e:
+            # This happens occasionally with no known cause, and will happen every attempt for days.
+            handle_invalid_argument_Error(cached_participant, fcm_token, e, scheduled_events, debug)
             return
         
         except ValueError as e:
@@ -342,6 +348,8 @@ def failed_send_survey_handler(
         error_message = CONNECTION_ABORTED
     elif "invalid_grant" in error_message:
         error_message = ACCOUNT_NOT_FOUND
+    elif "InvalidArgumentError" in error_message:
+        error_message = INVALID_ARGUMENT_ERROR
     
     if participant.push_notification_unreachable_count >= PUSH_NOTIFICATION_ATTEMPT_COUNT:
         # disable the credential
@@ -370,6 +378,36 @@ def failed_send_survey_handler(
         raise BaseException("debug mode, not archiving events.")
     
     create_archived_events(schedules, participant, status=error_message)
+
+
+# todo: build a test for this obscure error case....
+def handle_invalid_argument_Error(
+    p: Participant,
+    fcm_token: str,
+    e: InvalidArgumentError,
+    scheduled_events: list[ScheduledEvent],
+    debug: bool,
+):
+    """
+    Thought this was caused by too many ~details (survey ids) in the send, then it occurred after a
+    patch that should have addressed that by splitting up api calls. That participant that had not
+    activity in 6 months. So ... we now only report this to sentry on participants withe a heartbeat
+    checkin more recent than .... 6 weeks seems good?
+    """
+    p.refresh_from_db()
+    hbc = p.last_heartbeat_checkin
+    
+    # we do not even care
+    if hbc is None:
+        failed_send_survey_handler(p, fcm_token, "InvalidArgumentError", scheduled_events, debug)
+        return
+    
+    # otherwise...
+    msg = f"{p.patient_id} - InvalidArgumentError - last heartbeat = {hbc.isoformat()}"
+    loge(msg)
+    if hbc < (timezone.now() - timedelta(weeks=6)):
+        failed_send_survey_handler(p, fcm_token, "InvalidArgumentError", scheduled_events, debug)
+        raise InvalidArgumentError(msg) from e
 
 
 def create_archived_events(events: list[ScheduledEvent], participant: Participant, status: str):
