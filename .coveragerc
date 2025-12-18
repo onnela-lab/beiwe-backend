@@ -1,0 +1,32 @@
+[run]
+source =
+    authentication
+    config
+    constants
+    database
+    endpoints
+    libs
+    middleware
+    services
+omit =
+    */migrations/*
+    */__pycache__/*
+    */tests/*
+branch = true
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:
+show_missing = true
+skip_covered = false
+fail_under = 0
+
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml
