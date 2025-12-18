@@ -33,6 +33,7 @@ jobs:
       DOMAIN_NAME: localhost
       FLASK_SECRET_KEY: test_secret_key_for_ci_only
       S3_BUCKET: test-bucket
+      SYSADMIN_EMAILS: test@test.com
       BEIWE_SERVER_AWS_ACCESS_KEY_ID: test_access_key
       BEIWE_SERVER_AWS_SECRET_ACCESS_KEY: test_secret_key
       # Database settings
