@@ -41,6 +41,8 @@ jobs:
       RDS_USERNAME: beiwe
       RDS_PASSWORD: beiwe_test_password
       RDS_HOSTNAME: localhost
+      # Disable SSL for PostgreSQL (CI container doesn't support SSL)
+      RUNNING_IN_DOCKER: "true"
 
     steps:
       - name: Checkout code
