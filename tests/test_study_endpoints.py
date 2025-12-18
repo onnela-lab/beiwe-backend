@@ -15,7 +15,9 @@ from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.testing_constants import ADMIN_ROLES, ALL_TESTING_ROLES
 from constants.user_constants import ResearcherRole
 from database.models import ScheduledEvent
+from database.schedule_models import Intervention
 from database.study_models import DeviceSettings, Study
+from libs.intervention_utils import ENROLLMENT_DATE_INTERVENTION_NAME
 from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.utils.http_utils import easy_url
 from tests.common import ResearcherSessionTest
@@ -379,6 +381,27 @@ class TestCreateStudy(ResearcherSessionTest):
             resp.content, b"the study name you provided was too long and was rejected"
         )
         self.assertIsNotNone(Study.objects.get(name="name hello"))  # ok this will crash
+
+    def test_create_study_creates_enrollment_date_intervention(self):
+        """Test that creating a new study automatically creates an 'Enrollment Date' intervention."""
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.smart_post_status_code(302, **self.create_study_params())
+        new_study = self.get_the_new_study
+        # Verify the Enrollment Date intervention was created
+        self.assertTrue(
+            Intervention.objects.filter(
+                study=new_study,
+                name=ENROLLMENT_DATE_INTERVENTION_NAME
+            ).exists()
+        )
+        # Verify there's exactly one intervention with that name
+        self.assertEqual(
+            Intervention.objects.filter(
+                study=new_study,
+                name=ENROLLMENT_DATE_INTERVENTION_NAME
+            ).count(),
+            1
+        )
 
 
 class TestHideStudy(ResearcherSessionTest):
