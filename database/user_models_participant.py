@@ -591,6 +591,7 @@ class AppVersionHistory(TimestampedModel):
 
 class SurveyNotificationReport(TimestampedModel):
     """ This is a simple record of the notifications sent to participants. """
+    id = models.BigAutoField(primary_key=True)
     participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="notification_reports")
     notification_uuid = models.UUIDField(default=uuid.uuid4, null=False, blank=False)
     applied = models.BooleanField(default=False)
