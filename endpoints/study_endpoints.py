@@ -26,6 +26,7 @@ from database.user_models_researcher import Researcher, StudyRelation
 from libs.django_forms.forms import StudyEndDateForm, StudySecuritySettingsForm
 from libs.endpoint_helpers.copy_study_helpers import (allowed_file_extension, copy_study_from_json,
     do_duplicate_step, study_settings_fileresponse, unpack_json_study)
+from libs.intervention_utils import create_enrollment_date_intervention_for_study
 from libs.endpoint_helpers.password_validation_helpers import get_min_password_requirement
 from libs.endpoint_helpers.researcher_helpers import get_administerable_researchers
 from libs.endpoint_helpers.study_helpers import (conditionally_display_study_status_warnings,
@@ -254,6 +255,8 @@ def create_study(request: ResearcherRequest):
         new_study = Study.create_with_object_id(
             name=name, encryption_key=encryption_key, forest_enabled=forest_enabled
         )
+        # Create the automatic "Enrollment Date" intervention for the new study
+        create_enrollment_date_intervention_for_study(new_study)
         if duplicate_existing_study:
             do_duplicate_step(request, new_study)
         messages.success(request, f"Successfully created study `{name}`.  Review your study's device settings below.")

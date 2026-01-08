@@ -17,7 +17,8 @@ from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT, DEFAU
     SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from constants.testing_constants import MIDNIGHT_EVERY_DAY_OF_WEEK, THURS_OCT_6_NOON_2022_NY
 from database.data_access_models import FileToProcess
-from database.schedule_models import AbsoluteSchedule, ScheduledEvent, WeeklySchedule
+from database.schedule_models import AbsoluteSchedule, Intervention, InterventionDate, ScheduledEvent, WeeklySchedule
+from libs.intervention_utils import ENROLLMENT_DATE_INTERVENTION_NAME
 from database.system_models import GenericEvent
 from database.user_models_participant import AppHeartbeats, AppVersionHistory, ParticipantFCMHistory
 from libs.rsa import get_RSA_cipher
@@ -513,6 +514,71 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertEqual(response.content, b"")
         self.assertIsNone(self.default_participant.last_register_user)
         self.assertIsNone(self.default_participant.first_register_user)
+
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_first_registration_sets_enrollment_date(self, get_participant_public_key_string: MagicMock):
+        """Test that first registration sets the enrollment date intervention in study timezone."""
+        get_participant_public_key_string.return_value = "a_private_key"
+        # Create the Enrollment Date intervention for this study (simulating a new study)
+        enrollment_intervention = Intervention.objects.create(
+            study=self.session_study,
+            name=ENROLLMENT_DATE_INTERVENTION_NAME
+        )
+        # Create blank InterventionDate for the participant (simulating add_fields_and_interventions)
+        InterventionDate.objects.create(
+            participant=self.session_participant,
+            intervention=enrollment_intervention,
+            date=None
+        )
+        # Register the participant
+        self.smart_post_status_code(200, **self.BASIC_PARAMS)
+        # Verify the enrollment date was set to today in the study's timezone
+        intervention_date = InterventionDate.objects.get(
+            participant=self.session_participant,
+            intervention=enrollment_intervention
+        )
+        expected_date = timezone.now().astimezone(self.session_study.timezone).date()
+        self.assertEqual(intervention_date.date, expected_date)
+
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_subsequent_registration_does_not_change_enrollment_date(self, get_participant_public_key_string: MagicMock):
+        """Test that subsequent registrations don't change the enrollment date."""
+        get_participant_public_key_string.return_value = "a_private_key"
+        # Create the Enrollment Date intervention
+        enrollment_intervention = Intervention.objects.create(
+            study=self.session_study,
+            name=ENROLLMENT_DATE_INTERVENTION_NAME
+        )
+        # Create InterventionDate with a specific date (simulating previous registration)
+        original_date = date(2024, 1, 15)
+        InterventionDate.objects.create(
+            participant=self.session_participant,
+            intervention=enrollment_intervention,
+            date=original_date
+        )
+        # Set last_register_user to simulate already registered (code checks last_register_user)
+        self.session_participant.update(last_register_user=timezone.now(), first_register_user=timezone.now())
+        # Register again
+        self.smart_post_status_code(200, **self.BASIC_PARAMS)
+        # Verify the enrollment date was NOT changed
+        intervention_date = InterventionDate.objects.get(
+            participant=self.session_participant,
+            intervention=enrollment_intervention
+        )
+        self.assertEqual(intervention_date.date, original_date)
+
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_registration_without_intervention_does_nothing(self, get_participant_public_key_string: MagicMock):
+        """Test that registration without Enrollment Date intervention doesn't create one."""
+        get_participant_public_key_string.return_value = "a_private_key"
+        # Don't create the Enrollment Date intervention (simulating existing study before feature)
+        # Verify no interventions exist
+        self.assertEqual(Intervention.objects.filter(study=self.session_study).count(), 0)
+        # Register the participant
+        self.smart_post_status_code(200, **self.BASIC_PARAMS)
+        # Verify no intervention was created
+        self.assertEqual(Intervention.objects.filter(study=self.session_study).count(), 0)
+        self.assertEqual(InterventionDate.objects.filter(participant=self.session_participant).count(), 0)
 
 
 class TestGetLatestDeviceSettings(ParticipantSessionTest):
