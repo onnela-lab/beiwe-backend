@@ -1,7 +1,7 @@
 # these are the fields required from a values query for use in the ZipGenerator class.
 
 # ZipGenerator is used in the data access api, and in the download task data endpoint for forest.
-CHUNK_FIELDS = (
+CHUNK_FIELDS = [
     "pk",
     "participant_id",
     "data_type",
@@ -12,4 +12,12 @@ CHUNK_FIELDS = (
     "study_id",
     "survey_id",
     "survey__object_id",
-)
+]
+
+# minimal set of fields needed to generate file paths.
+REDUCED_CHUNK_FIELDS = [
+    "chunk_path",
+    "participant__patient_id",
+    "time_bin",
+    "data_type",
+]

@@ -29,7 +29,7 @@ def get_survey_id(chunk: dict) -> str:
 def determine_base_file_name(chunk: dict) -> str:
     """ Generates the correct file name to provide the file with in the zip file.
         (This also includes the folder location files in the zip.) """
-    # extension = chunk["chunk_path"][-3:]  # get 3 letter file extension from the source...
+    
     chunk_path = chunk["chunk_path"]
     if chunk_path.count(".") != 1:
         raise ValueError(f"chunk_path should have exactly one '.' in it, received '{chunk_path}'")

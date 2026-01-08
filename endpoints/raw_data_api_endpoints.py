@@ -18,8 +18,9 @@ from django.views.decorators.http import require_http_methods
 from authentication.data_access_authentication import (api_study_credential_check,
     ApiStudyResearcherRequest)
 from constants.common_constants import API_TIME_FORMAT
-from constants.data_stream_constants import ALL_DATA_STREAMS
+from constants.data_stream_constants import ALL_DATA_STREAMS, SURVEY_ANSWERS
 from constants.raw_data_constants import CHUNK_FIELDS
+from data_access_api_reference.download_data import VOICE_RECORDING
 from database.models import ChunkRegistry, DataAccessRecord, Participant, S3File, Study
 from libs.streaming_zip import ZipGenerator
 from middleware.abort_middleware import abort
@@ -216,8 +217,9 @@ def handle_database_query(study: Study, query_params: dict, registry_dict: dict[
     chunks = ChunkRegistry.get_chunks_time_range(study.id, **query_params)
     # the simple case where there isn't a registry uploaded
     if not registry_dict:
+        log("no registry dict")
         return chunks.values(*CHUNK_FIELDS).iterator()
-    
+    log("filtering by registry dict of size", len(registry_dict))
     chunk_values_with_extras = combined_chunk_query(chunks, CHUNK_FIELDS)
     return filter_chunks_by_registry(chunk_values_with_extras, registry_dict)
 
@@ -225,47 +227,56 @@ def handle_database_query(study: Study, query_params: dict, registry_dict: dict[
 def filter_chunks_by_registry(
     chunk_values_with_extras: QuerySet, registry_dict: dict[str, str]
 ) -> Generator:
-    sha1: bytes         # a 20 byte sha1 hash of the file contents sourced from the S3File table
-    chunk_hash: str     # base64 encoded str of the sha1 hash of the file contents
-    path: str
-    registry_hash: str | None
+    """ Consumes a registry dictiontary from a download request and a filters by hash the results
+    of the query set.  This function is a generater that ~slowly yields chunk dicts that will then
+    download files off S3, usually over in the ZipGenerator. """
+    
+    # ~Bug: requesters lack filenames with in millisecond precision, so they cannot reconstruct the
+    # file paths for survey answers and audio recordings.
+    # - for audio recordings we can just compare against all hashes in the registry. Easy.
+    # - survey answers cannot do this because they can be identical between runs of the same survey.
+    # - survey answers also can't do a prefix match because the names can be just too similar.
+    
+    # Dev decision: this is impossible to fix here, the correct solution is to have an api that
+    # receives a data dump of the state from the server and compares locally. In fact I've built it.
+    # It took 5 minutes.
     
     # keys: pk, participant_id, data_type, chunk_path, time_bin, chunk_hash,
-    # participant__patient_id, study_id, survey_id, survey__object_id
+    #   participant__patient_id, study_id, survey_id, survey__object_id
+    registry_hashes: set[str] = {d.strip() for d in registry_dict.values()}
     for chunkdata in chunk_values_with_extras.iterator():
-        # note: sha1 has a new line at the end
-        sha1 = chunkdata.pop("sha1")
+        
+        # a 20 byte sha1 hash of the file contents sourced from the S3File table
+        sha1 = chunkdata.pop("sha1")  # note: sha1 has a new line at the end
+        data_stream = chunkdata["data_type"]
         
         if sha1 is None:  # don't bother checking anything if there is no hash
+            print("no sha1 found for chunk:", chunkdata["chunk_path"])
             chunkdata["chunk_hash"] = None
-            # print(f"\nincluding chunk {chunkdata['chunk_path']} (no sha1)\n")
             yield chunkdata
             continue
         
-        chunk_hash = b64_encodebytes(sha1).decode()   # convert to base64 string
-        chunkdata["chunk_hash"] = chunk_hash          # stick it in the dict
-        path = chunkdata['chunk_path']                # get the path
-        registry_hash = registry_dict.get(path)       # get the provided registry hash
-        
-        # don't bother checking if the path is not in the registry
-        if registry_hash is None:
-            # query on s3 file path changes nam of sha1 to chunk_hash
-            # print(f"\nincludng chunk {path} (not in registry)\n")
+        if data_stream == SURVEY_ANSWERS:  # always yield survey answers 
             yield chunkdata
             continue
         
-        # print(f"\ncomparing: `{chunk_hash}` to `{registry_hash.strip()}`\n")
+        chunkdata["chunk_hash"] = (chunk_hash := b64_encodebytes(sha1).decode())
         
-        if chunk_hash.strip() == registry_hash.strip():
-            # print("\nskipping chunk:", path, "\n")
+        # skip audio files that match anything in the registry
+        if data_stream == VOICE_RECORDING and chunk_hash.strip() in registry_hashes:
             continue
-        # print(f"\nincluding chunk {path}, hash is wrong\n")
         
-        # otherwise yield it
+        # clear "CHUNKED_DATA/" from path, pull from the registry, compare hashes if they exist...
+        # The hashes can have new lines at the end.
+        path = chunkdata['chunk_path'].replace("CHUNKED_DATA/", "", 1)
+        registry_hash = registry_dict.get(path)
+        if registry_hash is not None and chunk_hash.strip() == registry_hash.strip():
+            continue
+        
         yield chunkdata
 
 
-def combined_chunk_query(chunkregistry_query: QuerySet, values_params: Iterable[str]) -> QuerySet:
+def combined_chunk_query(chunkregistry_query: QuerySet, values_params: list[str]) -> QuerySet:
     """ The hash value in the ChunkRegistry table is bad, we want to use the one from the S3File
     table. That query is ... problemy in django, best option so far is to use a subquery. This
     function takes the chunkregistry query and adds the sha1 field. """

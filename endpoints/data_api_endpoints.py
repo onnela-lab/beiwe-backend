@@ -19,8 +19,10 @@ from authentication.tableau_authentication import authenticate_tableau, TableauR
 from config.jinja2 import easy_url
 from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MISSING_JSON_CSV_MESSAGE
+from constants.raw_data_constants import REDUCED_CHUNK_FIELDS
 from constants.user_constants import TABLEAU_TABLE_FIELD_TYPES
 from database.models import DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily
+from endpoints.raw_data_api_endpoints import combined_chunk_query
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.endpoint_helpers.copy_study_helpers import study_settings_fileresponse
 from libs.endpoint_helpers.data_api_helpers import (check_request_for_omit_keys_param,
@@ -31,6 +33,7 @@ from libs.endpoint_helpers.participant_table_helpers import (common_data_extract
 from libs.endpoint_helpers.study_summaries_helpers import get_participant_data_upload_summary
 from libs.endpoint_helpers.summary_statistic_helpers import summary_statistics_request_handler
 from libs.intervention_utils import intervention_survey_data, survey_history_export
+from libs.streaming_zip import determine_base_file_name
 
 
 #
@@ -427,3 +430,19 @@ def get_participant_notification_history(request: ApiStudyResearcherRequest):
     options = orjson.OPT_OMIT_MICROSECONDS | orjson.OPT_UTC_Z
     resp_bytes = orjson.dumps(resp_dict, option=options)
     return HttpResponse(resp_bytes, status=200, content_type="application/json")
+
+
+@require_POST
+@api_credential_check
+def get_participant_file_hashes(request: ApiStudyResearcherRequest):
+    participant = get_validate_participant_from_request(request)
+    
+    # will also include sha1
+    chunks = list(combined_chunk_query(participant.chunk_registries.all(), REDUCED_CHUNK_FIELDS))
+    
+    ret = dict[str, str]()
+    for chunk in chunks:
+        chunk["time_bin"] = chunk["time_bin"].isoformat()
+        ret[determine_base_file_name(chunk)] = chunk["sha1"]
+    
+    return HttpResponse(orjson.dumps(ret), status=200, content_type="application/json")

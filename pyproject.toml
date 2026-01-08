@@ -88,14 +88,16 @@ keywords = [
 #
 
 [tool.isort]
-py_version = 312
+combine_as_imports = true
+float_to_top = true
+honor_noqa = true
 line_length = 100
-use_parentheses = true
+lines_after_imports = 2
+multi_line_output = 10  # "HANGING_INDENT_WITH_PARENTHESES"
+py_version = 312
 remove_redundant_aliases = true
 star_first = true
-multi_line_output = 10  # "HANGING_INDENT_WITH_PARENTHESES"
-combine_as_imports = true
-lines_after_imports = 2
+use_parentheses = true
 
 known_third_party = []  # Force these libraries to a special spot in import order (second to bottom)
 

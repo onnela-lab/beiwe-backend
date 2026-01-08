@@ -12,9 +12,8 @@ from firebase_admin.exceptions import InvalidArgumentError
 from firebase_admin.messaging import (AndroidConfig, Message, Notification, QuotaExceededError,
     send as send_notification, SenderIdMismatchError, ThirdPartyAuthError, UnregisteredError)
 
-from authentication.data_access_authentication import SentryUtils
 from config.settings import BLOCK_QUOTA_EXCEEDED_ERROR, PUSH_NOTIFICATION_ATTEMPT_COUNT
-from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
+from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS, UTC
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     FAILED_TO_ESTABLISH_CONNECTION, INVALID_ARGUMENT_ERROR, MESSAGE_SEND_SUCCESS,
     UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
@@ -27,6 +26,7 @@ from database.user_models_participant import (Participant, ParticipantFCMHistory
 from libs.firebase_config import BackendFirebaseAppState
 from libs.push_notification_helpers import ParticipantCache, slowly_get_stopped_study_ids
 from libs.sentry import SentryUtils
+
 from services.resend_push_notifications import (
     get_all_unconfirmed_notification_schedules_for_bundling)
 
@@ -42,7 +42,6 @@ logw = logger.warning
 loge = logger.error
 logd = logger.debug
 
-UTC = gettz("UTC")
 
 def get_or_mock_schedules(event_pks: list[int], debug: bool) -> list[ScheduledEvent]:
     """ In order to have debug functions and certain tests run we need to be able to mock a schedule
