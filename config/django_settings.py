@@ -78,7 +78,8 @@ DATABASES = {
     },
 }
 
-DEFAULT_AUTO_FIELD = "django.db.models.AutoField"  # database primary key setting
+# DEFAULT_AUTO_FIELD = "django.db.models.AutoField"  # database primary key setting
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # mac os homebrew postgres has configuration complexities that are not worth the effort to resolve.
 if (not SECURE_SSL_REDIRECT and platform.system() == "Darwin") or os.environ.get("RUNNING_IN_DOCKER", False):
