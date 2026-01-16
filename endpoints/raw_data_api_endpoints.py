@@ -18,7 +18,7 @@ from django.views.decorators.http import require_http_methods
 from authentication.data_access_authentication import (api_study_credential_check,
     ApiStudyResearcherRequest)
 from constants.common_constants import API_TIME_FORMAT
-from constants.data_stream_constants import ALL_DATA_STREAMS, SURVEY_ANSWERS
+from constants.data_stream_constants import ALL_DATA_STREAMS
 from constants.raw_data_constants import CHUNK_FIELDS
 from data_access_api_reference.download_data import VOICE_RECORDING
 from database.models import ChunkRegistry, DataAccessRecord, Participant, S3File, Study
@@ -217,8 +217,8 @@ def handle_database_query(study: Study, query_params: dict, registry_dict: dict[
     chunks = ChunkRegistry.get_chunks_time_range(study.id, **query_params)
     # the simple case where there isn't a registry uploaded
     if not registry_dict:
-        log("no registry dict")
         return chunks.values(*CHUNK_FIELDS).iterator()
+    
     log("filtering by registry dict of size", len(registry_dict))
     chunk_values_with_extras = combined_chunk_query(chunks, CHUNK_FIELDS)
     return filter_chunks_by_registry(chunk_values_with_extras, registry_dict)
@@ -236,6 +236,10 @@ def filter_chunks_by_registry(
     # - for audio recordings we can just compare against all hashes in the registry. Easy.
     # - survey answers cannot do this because they can be identical between runs of the same survey.
     # - survey answers also can't do a prefix match because the names can be just too similar.
+    # CORRECTION
+    # - If the user uses the registry file they were provided with they will have full data.
+    #   But, we don't want to use that anymore because we need to look at their actual on-disk data.
+    #   file contents and calculate real hashes.
     
     # Dev decision: this is impossible to fix here, the correct solution is to have an api that
     # receives a data dump of the state from the server and compares locally. In fact I've built it.
@@ -243,37 +247,40 @@ def filter_chunks_by_registry(
     
     # keys: pk, participant_id, data_type, chunk_path, time_bin, chunk_hash,
     #   participant__patient_id, study_id, survey_id, survey__object_id
-    registry_hashes: set[str] = {d.strip() for d in registry_dict.values()}
+    
+    # strip new lines from registry hashes
+    registry_dict = {a: b.strip() for a, b in registry_dict.items()}
+    all_request_sha1_hashes: set[str] = set(registry_dict.values())
     for chunkdata in chunk_values_with_extras.iterator():
-        
+        md5_hash = chunkdata.pop("chunk_hash")  # original md5 hash from chunk registry
         # a 20 byte sha1 hash of the file contents sourced from the S3File table
-        sha1 = chunkdata.pop("sha1")  # note: sha1 has a new line at the end
+        sha1_bytes = chunkdata.pop("sha1")  # note: sha1 has a new line at the end
         data_stream = chunkdata["data_type"]
+        path = chunkdata['chunk_path']
         
-        if sha1 is None:  # don't bother checking anything if there is no hash
-            print("no sha1 found for chunk:", chunkdata["chunk_path"])
-            chunkdata["chunk_hash"] = None
-            yield chunkdata
+        # Old versions of the registry may have correct file paths, but md5 hashes were occasionally
+        # found to be _wrong_ in the database.
+        # populate the chunk hash, strip newlines, update sha1 variable...
+        chunkdata["chunk_hash"] = sha1_str = b64_encodebytes(sha1_bytes).decode().strip()
+        
+        # Two special cases, surveys and audio surveys.
+        # - cannot have reliable file names from survey answers, but sometimes users read the
+        #   registry they were provided with and so DO have correct paths.
+        # - md5 hashes are not fully trustable, every once in a while they are just wrong, but if
+        #   they match that means they _haven't changed_.
+        hash_likely_md5 = registry_dict.get(path)
+        hash_likely_sha1 = registry_dict.get(path.replace("CHUNKED_DATA/", "", 1))
+        
+        if hash_likely_md5 and (hash_likely_md5 == md5_hash or hash_likely_md5 or sha1_str):
+            continue
+        if hash_likely_sha1 and (hash_likely_sha1 == sha1_str or hash_likely_sha1 == md5_hash):
             continue
         
-        if data_stream == SURVEY_ANSWERS:  # always yield survey answers 
-            yield chunkdata
+        # but since audio file content is super unique, if there are ANY matches, we can skip.
+        if data_stream == VOICE_RECORDING and sha1_str in all_request_sha1_hashes:
             continue
         
-        chunkdata["chunk_hash"] = (chunk_hash := b64_encodebytes(sha1).decode())
-        
-        # skip audio files that match anything in the registry
-        if data_stream == VOICE_RECORDING and chunk_hash.strip() in registry_hashes:
-            continue
-        
-        # clear "CHUNKED_DATA/" from path, pull from the registry, compare hashes if they exist...
-        # The hashes can have new lines at the end.
-        path = chunkdata['chunk_path'].replace("CHUNKED_DATA/", "", 1)
-        registry_hash = registry_dict.get(path)
-        if registry_hash is not None and chunk_hash.strip() == registry_hash.strip():
-            continue
-        
-        yield chunkdata
+        yield chunkdata  # chunk passed filtering
 
 
 def combined_chunk_query(chunkregistry_query: QuerySet, values_params: list[str]) -> QuerySet:
@@ -288,13 +295,11 @@ def combined_chunk_query(chunkregistry_query: QuerySet, values_params: list[str]
     
     # there is only one possible match (unique) but we have to limit it.
     sha1_subquery = S3File.objects.filter(path=s3file_zst_path).values_list("sha1")[:1]
+    # if we want the size as well:
     # size_subquery = S3File.objects.filter(path=s3file_zst_path).values_list("size_compressed")[:1]
     
     # wrap the subquery, retrieve the chunk and the sha1
-    return chunkregistry_query.annotate(
-            sha1=Subquery(sha1_subquery),
-            # size_compressed=Subquery(size_subquery),
-        ).values(*values_params, "sha1")  # "sha1", "size_compressed")
+    return chunkregistry_query.annotate(sha1=Subquery(sha1_subquery)).values(*values_params, "sha1")
 
 
 # The below is attempts to make the annoying registry query use a join in the database

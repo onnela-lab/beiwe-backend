@@ -74,7 +74,7 @@ class FileForProcessing():
             # log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}, {len(self.file_contents)} bytes in {t2 - t1:.4f} seconds.")
         except Exception as e:
             traceback.print_exc()  # for debugging
-            self.traceback = sys.exc_info() # type: ignore[assignment]
+            self.traceback = sys.exc_info()  # type: ignore[assignment]
             self.exception = e
             raise SomeException(e)
     
