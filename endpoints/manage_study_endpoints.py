@@ -186,7 +186,6 @@ def download_participants_csv(request: ResearcherRequest, study_id: int = None):
     writer.writerows(table_data)
     buffer.seek(0)
     
-    
     fr = FileResponse(
         buffer.read(),
         content_type="text/csv",
@@ -218,7 +217,7 @@ def delete_field(request: ResearcherRequest, study_id=None):
             if study_field:
                 study_field.delete()
         except ProtectedError:
-            messages.warning("This field can not be removed because it is already in use")
+            messages.warning(request, "This field can not be removed because it is already in use")
     
     return redirect(f'/study_fields/{study.id}')
 

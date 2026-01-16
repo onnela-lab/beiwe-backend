@@ -18,7 +18,7 @@ from authentication.data_access_authentication import (api_credential_check,
 from authentication.tableau_authentication import authenticate_tableau, TableauRequest
 from config.jinja2 import easy_url
 from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
-from constants.message_strings import MISSING_JSON_CSV_MESSAGE
+from constants.message_strings import MISSING_JSON_CSV_JSON_TABLE_MESSAGE
 from constants.raw_data_constants import REDUCED_CHUNK_FIELDS
 from constants.user_constants import TABLEAU_TABLE_FIELD_TYPES
 from database.models import DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily
@@ -135,7 +135,7 @@ def get_participant_table_data(request: ApiStudyResearcherRequest):
     
     # error with message for bad data_format
     if data_format not in ("json", "json_table", "csv"):
-        return HttpResponse(MISSING_JSON_CSV_MESSAGE, status=400)
+        return HttpResponse(MISSING_JSON_CSV_JSON_TABLE_MESSAGE, status=400)
     
     column_names = get_table_columns(request.api_study, frontend=False)
     table_data = common_data_extraction_for_apis(request.api_study, for_json=data_format != "csv")
@@ -151,16 +151,14 @@ def get_participant_table_data(request: ApiStudyResearcherRequest):
     
     if data_format == "json":
         return HttpResponse(
-                orjson.dumps([dict(zip(column_names, row)) for row in table_data]),
-                content_type="application/json",
-            )
+            orjson.dumps([dict(zip(column_names, row)) for row in table_data]),
+            content_type="application/json",
+        )
     
     if data_format == "json_table":
         # just return the table data as a json list of lists, but insert a first row of table names.
         table_data.insert(0, column_names)
         return HttpResponse(orjson.dumps(table_data), status=200, content_type="application/json")
-    
-    assert False, "unreachable code."
 
 
 @require_GET
@@ -431,7 +429,7 @@ def get_participant_notification_history(request: ApiStudyResearcherRequest):
     resp_bytes = orjson.dumps(resp_dict, option=options)
     return HttpResponse(resp_bytes, status=200, content_type="application/json")
 
-
+# TODO: build tests.
 @require_POST
 @api_credential_check
 def get_participant_file_hashes(request: ApiStudyResearcherRequest):

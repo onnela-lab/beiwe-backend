@@ -159,6 +159,7 @@ MANUALLY_STOPPED_STUDY_MESSAGE = "This study has been manually stopped. No furth
 ENDED_STUDY_MESSAGE = "This study ended at the end of the day on {}. No further data uploaded by participants in this study will be stored."
 
 MISSING_JSON_CSV_MESSAGE = b"Invalid required data_format parameter, only 'csv' and 'json' supported"
+MISSING_JSON_CSV_JSON_TABLE_MESSAGE = b"Invalid required data_format parameter, only 'csv' and 'json' supported"
 
 # push notification status details, not actually comprehensive.
 MESSAGE_SEND_SUCCESS = "success"  # for historical reasons don't change this without writing a migration
