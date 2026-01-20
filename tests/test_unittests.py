@@ -1307,7 +1307,8 @@ class TestS3Storage(CommonTestCase):
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
         self.assertEqual(s3_file.study, self.default_study)
         self.assertEqual(s3_file.participant, self.default_participant)
-        self.assertIsNone(s3_file.sha1)
+        self.assertIsNotNone(s3_file.sha1)
+        self.assertEqual(len(s3_file.sha1), 20)
     
     def assert_correct_uploaded_s3file(self, s3_file: S3File):
         self.assertIsNotNone(s3_file.path)
@@ -1326,8 +1327,9 @@ class TestS3Storage(CommonTestCase):
         self.assertIsNotNone(s3_file.last_updated)
         self.assertEqual(s3_file.size_compressed, len(self.COMPRESSED_SLUG))
         self.assertEqual(s3_file.study, self.default_study)
-        self.assertIsNone(s3_file.sha1)
-        self.assertIsNone(s3_file.size_uncompressed)
+        self.assertIsNotNone(s3_file.sha1)
+        self.assertEqual(len(s3_file.sha1), 20)
+        self.assertEqual(s3_file.size_uncompressed, len(b"content"))
 
 
 class TestCeleryAtLeastImports(CommonTestCase):

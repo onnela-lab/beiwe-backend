@@ -159,7 +159,7 @@ def is_version_greater_ios(proposed_version: str, reference_version: str) -> boo
     """ Returns True if the proposed version is greater than the reference version.  Reference 
     MUST be a valid version number. Function should handle weird proposed versions. """
     # Old
-    if proposed_version =="" or proposed_version is None:
+    if proposed_version == "" or proposed_version is None:
         return False
     # this would be a bug
     if proposed_version.count(".") == 0 or proposed_version.count(".") > 2:

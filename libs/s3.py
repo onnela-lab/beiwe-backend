@@ -58,6 +58,8 @@ if RUNNING_TESTS:                       # This lets us cut out some boilerplate 
     conn = MagicMock()
 
 
+class DataException(Exception): pass
+
 #
 ## Smart Key and Path Getters
 #
@@ -153,24 +155,30 @@ class S3Storage:
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         self.metadata.size_uncompressed = len(file_content)
         self.uncompressed_data = file_content
+        if "sha1" not in self.metadata:
+            self.metadata.sha1 = hashlib.sha1(self.uncompressed_data).digest()
         return self
     
-    def set_file_content_compressed(self, file_content: bytes, size_uncompressed: int = None) -> S3Storage:
+    def set_file_content_compressed(self, file_content_compressed: bytes) -> S3Storage:
         # validate - handles None case
-        if not isinstance(file_content, bytes):
-            raise TypeError(f"file_content must be bytes, received {type(file_content)}")
+        if not isinstance(file_content_compressed, bytes):
+            raise TypeError(f"file_content must be bytes, received {type(file_content_compressed)}")
         # zstd format check
-        if not file_content.startswith(b'(\xb5/\xfd'):
-            raise ValueError(MUST_BE_ZSTD_FORMAT(file_content=file_content[:10].decode()))
+        if not file_content_compressed.startswith(b'(\xb5/\xfd'):
+            raise ValueError(MUST_BE_ZSTD_FORMAT(file_content=file_content_compressed[:10].decode()))
         
         # misuse cases
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         
-        self.compressed_data = file_content  # TLDR - only compressed_data should now be set
+        self.compressed_data = file_content_compressed
+        file_content_uncompressed = decompress(file_content_compressed)
+        
         self.metadata.size_compressed = len(self.compressed_data)
-        if size_uncompressed is not None:
-            self.metadata.size_uncompressed = size_uncompressed
+        self.metadata.size_uncompressed = len(file_content_uncompressed)
+        self.metadata.sha1 = hashlib.sha1(file_content_uncompressed).digest()
+        del file_content_uncompressed
+        
         return self
     
     def pop_uncompressed_file_content(self) -> bytes:
@@ -201,8 +209,8 @@ class S3Storage:
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_AT_UPLOAD
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD
         self._s3_upload_zst_and_profile()
-        del self.compressed_data
         self.update_s3_table()
+        del self.compressed_data
     
     ## Compression
     
@@ -248,6 +256,7 @@ class S3Storage:
         self.uncompressed_data = decompress(self.compressed_data)
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         del self.compressed_data
+        self.metadata.sha1 = hashlib.sha1(self.uncompressed_data).digest()  # yup, always
         self.update_s3_table()
     
     ## Download-Rewrite
@@ -274,6 +283,8 @@ class S3Storage:
     def update_s3_table(self):
         from database.models import S3File
         self.metadata.last_updated = timezone.now()
+        if "sha1" not in self.metadata or not self.metadata.sha1:
+            raise DataException("cannot update s3 table without SHA1 hash")
         S3File.objects.update_or_create(path=self.s3_path_zst, defaults=self.metadata)
     
     def delete_s3_table_entry_zst(self):
@@ -337,7 +348,6 @@ class S3Storage:
             # if it doesn't exist, delete the entry in the database
             self.delete_s3_table_entry_zst()
             raise
-        
         
         ret = decrypt_server(data, key)
         self.metadata.size_compressed = len(ret)  # after decryption, no iv or padding
@@ -507,7 +517,7 @@ def _s3_get_page_iterator(bucket_name: str, prefix: str, start_at=None) -> Pagin
     )
 
 
-def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None]]:
+def s3_list_versions(prefix: str) -> Generator[tuple[str, str | None]]:
     """ Generator of all matching key paths and their version ids.  Performance in unpredictable, it
     is based on the historical presence of key paths matching the prefix, it is paginated, but we
     don't care about deletion markers """
@@ -532,7 +542,7 @@ def s3_list_versions(prefix: str) -> Generator[tuple[str, str|None]]:
 
 ## Delete
 
-def s3_delete(key_path: str) -> bool|None:
+def s3_delete(key_path: str) -> bool | None:
     """ None means no info. """
     # the actual response contains no state indicating that a file was deleted.
     # there are ~transaction IDs that we can probably use to track operations, but we don't care.

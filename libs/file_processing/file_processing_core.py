@@ -204,10 +204,9 @@ class FileProcessingTracker():
         # self.study saves a db query for the encryption key
         s3_upload_no_compression(
             chunk_path,
-            compressed_contents,
+            compressed_contents,  # it gets decompressed briefly
             self.study,
             raw_path=True,
-            size_uncompressed=content_length
         )
         
         if create_new_chunk:  # validates, creates

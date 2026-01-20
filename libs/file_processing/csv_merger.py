@@ -154,7 +154,7 @@ class CsvMerger:
         # build the csv, get the metadata
         with Timer() as t:
             new_contents = construct_csv_as_bytes(final_header, rows)
-        content_length = len(new_contents)
+        content_length = len(new_contents)  # we don't use this anymore in the final return
         the_hash = chunk_hash(new_contents).decode()
         new_contents = compress(new_contents)  # This file hangs around in memory, compress it asap.
         log(f"CsvMerger: constructed {content_length} bytes (new) for {name} in {t.fseconds} seconds.")
@@ -175,7 +175,7 @@ class CsvMerger:
             "chunk_hash": the_hash,
             "time_bin": time_bin,
             "survey_id": survey_id,
-            "file_size": content_length,
+            "file_size": content_length,  # we don't use this anymore in the final return
         }
         self.upload_these.append((chunk_params, chunk_path, new_contents, content_length, True))
     

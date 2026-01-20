@@ -258,10 +258,16 @@ def filter_chunks_by_registry(
         data_stream = chunkdata["data_type"]
         path = chunkdata['chunk_path']
         
-        # Old versions of the registry may have correct file paths, but md5 hashes were occasionally
-        # found to be _wrong_ in the database.
-        # populate the chunk hash, strip newlines, update sha1 variable...
-        chunkdata["chunk_hash"] = sha1_str = b64_encodebytes(sha1_bytes).decode().strip()
+        # ok, we appear to have a scenario where there is no sha1 in the s3file table.
+        if not sha1_bytes:
+            from libs.sentry import send_sentry_warning
+            send_sentry_warning(f"data api: no sha1 in s3file for chunk {path}", path=path, sha1=str(sha1_bytes))
+            chunkdata["chunk_hash"] = md5_hash if md5_hash else None
+        else:
+            # Old versions of the registry may have correct file paths, but md5 hashes were occasionally
+            # found to be _wrong_ in the database.
+            # populate the chunk hash, strip newlines, update sha1 variable...
+            chunkdata["chunk_hash"] = sha1_str = b64_encodebytes(sha1_bytes).decode().strip()
         
         # Two special cases, surveys and audio surveys.
         # - cannot have reliable file names from survey answers, but sometimes users read the
