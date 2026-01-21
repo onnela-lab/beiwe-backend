@@ -254,20 +254,18 @@ def filter_chunks_by_registry(
     for chunkdata in chunk_values_with_extras.iterator():
         md5_hash = chunkdata.pop("chunk_hash")  # original md5 hash from chunk registry
         # a 20 byte sha1 hash of the file contents sourced from the S3File table
-        sha1_bytes = chunkdata.pop("sha1")  # note: sha1 has a new line at the end
+        sha1_val = chunkdata.pop("sha1")  # note: sha1 has a new line at the end
         data_stream = chunkdata["data_type"]
         path = chunkdata['chunk_path']
         
-        # ok, we appear to have a scenario where there is no sha1 in the s3file table.
-        if not sha1_bytes:
-            from libs.sentry import send_sentry_warning
-            send_sentry_warning(f"data api: no sha1 in s3file for chunk {path}", path=path, sha1=str(sha1_bytes))
-            chunkdata["chunk_hash"] = md5_hash if md5_hash else None
-        else:
+        if sha1_val:
             # Old versions of the registry may have correct file paths, but md5 hashes were occasionally
             # found to be _wrong_ in the database.
             # populate the chunk hash, strip newlines, update sha1 variable...
-            chunkdata["chunk_hash"] = sha1_str = b64_encodebytes(sha1_bytes).decode().strip()
+            chunkdata["chunk_hash"] = sha1_val = b64_encodebytes(sha1_val).decode().strip()
+        else:
+            # There is a scenario where there was (past tense, it is fixed) no sha1 in the s3file table.
+            chunkdata["chunk_hash"] = md5_hash or None  # I guess force None instead of empty string
         
         # Two special cases, surveys and audio surveys.
         # - cannot have reliable file names from survey answers, but sometimes users read the
@@ -277,13 +275,13 @@ def filter_chunks_by_registry(
         hash_likely_md5 = registry_dict.get(path)
         hash_likely_sha1 = registry_dict.get(path.replace("CHUNKED_DATA/", "", 1))
         
-        if hash_likely_md5 and (hash_likely_md5 == md5_hash or hash_likely_md5 or sha1_str):
+        if hash_likely_md5 and (hash_likely_md5 == md5_hash or hash_likely_md5 or sha1_val):
             continue
-        if hash_likely_sha1 and (hash_likely_sha1 == sha1_str or hash_likely_sha1 == md5_hash):
+        if hash_likely_sha1 and (hash_likely_sha1 == sha1_val or hash_likely_sha1 == md5_hash):
             continue
         
         # but since audio file content is super unique, if there are ANY matches, we can skip.
-        if data_stream == VOICE_RECORDING and sha1_str in all_request_sha1_hashes:
+        if data_stream == VOICE_RECORDING and sha1_val in all_request_sha1_hashes:
             continue
         
         yield chunkdata  # chunk passed filtering
