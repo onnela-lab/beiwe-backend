@@ -64,7 +64,6 @@ class Participant(AbstractPasswordUser):
     
     # TODO: clean out or maybe rename these fields to distinguish from last_updated? also wehave two survey checkin timestamps
     # new checkin logic
-    first_push_notification_checkin = models.DateTimeField(null=True, blank=True)
     last_push_notification_checkin = models.DateTimeField(null=True, blank=True)
     last_survey_checkin = models.DateTimeField(null=True, blank=True)
     

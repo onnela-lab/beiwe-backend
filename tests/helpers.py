@@ -67,7 +67,6 @@ DEFAULT_PARTICIPANT_PARAMS = {
     
     # server-side tracking timestamps
     "last_heartbeat_notification": None,
-    "first_push_notification_checkin": None,
     "first_register_user": None,  # barely used
     
     # ... its a push notification setting, 0 is correct because that is in fact the true number.
