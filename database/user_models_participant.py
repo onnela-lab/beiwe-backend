@@ -43,7 +43,7 @@ class Participant(AbstractPasswordUser):
     participants in the study, as well as information about the device the participant is using.
     A Participant uses mobile, so their passwords are hashed accordingly. """
     DESIRED_ALGORITHM = "sha1"   # Yes, Bad, but this password doesn't actually protect access to data.
-    DESIRED_ITERATIONS = 1000  # We will be completely reworking participant authentication soon anyway.
+    DESIRED_ITERATIONS = 1000    # We will rework it eventually, it simply isn't relevant
     
     study_id: int
     

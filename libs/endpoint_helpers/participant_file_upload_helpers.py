@@ -20,7 +20,7 @@ from libs.utils.security_utils import generate_easy_alphanumeric_string
 
 
 def log(*args, **kwargs):
-    if UPLOAD_LOGGING_ENABLED:
+    # if UPLOAD_LOGGING_ENABLED:  # from config.settings import UPLOAD_LOGGING_ENABLED
         print(*args, **kwargs)
 
 
@@ -28,24 +28,25 @@ def upload_and_create_file_to_process_and_log(
     s3_file_location: str, participant: Participant, decryptor: DeviceDataDecryptor
 ) -> HttpResponse:
     
+    upload_data = decryptor.decrypted_file
+    
     # test if the file exists on s3, handle ios duplicate file merge.
-    if not smart_s3_list_study_files(s3_file_location, participant):
-        s3_upload(s3_file_location, decryptor.decrypted_file, participant)
+    if not list(smart_s3_list_study_files(s3_file_location, participant)):
+        # no log here, everything was normal
+        s3_upload(s3_file_location, upload_data, participant)
     
     elif decryptor.used_ios_decryption_key_cache:
         # found duplicate file name, merge the existing file with the new file.
         # if the upload required the ios key cache that means we have a split file.
-        s3_upload(
-            s3_file_location,
-            b"\n".join([s3_retrieve(s3_file_location, participant), decryptor.decrypted_file]),
-            participant,
-        )
+        upload_data = b"\n".join([s3_retrieve(s3_file_location, participant), upload_data])
+        log(f"merging split ios file at '{s3_file_location}'")
+        s3_upload(s3_file_location, upload_data, participant)
     else:
         # duplicate file, did NOT used an ios_decryption_key_cache key. its just a duplicate.
         old_file_location = s3_file_location
         s3_file_location = s3_duplicate_name(s3_file_location)
         log(f"renamed duplicate '{old_file_location}' to '{s3_file_location}'")
-        s3_upload(s3_file_location, decryptor.decrypted_file, participant)
+        s3_upload(s3_file_location, upload_data, participant)
     
     # race condition: multiple _concurrent_ uploads with same file path. Behavior without try-except
     # is correct, but we don't care about reporting it. Just send the device a 500 error so it skips
@@ -65,7 +66,7 @@ def upload_and_create_file_to_process_and_log(
     # record that an upload occurred
     UploadTracking.objects.create(
         file_path=s3_file_location,
-        file_size=len(decryptor.decrypted_file),
+        file_size=len(upload_data),
         timestamp=timezone.now(),
         participant=participant,
     )

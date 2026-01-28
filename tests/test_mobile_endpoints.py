@@ -5,10 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import orjson
 import time_machine
-from dateutil import tz
 from dateutil.tz import gettz
 from django.http import HttpResponse
-from django.utils import timezone
+from django.utils import timezone, timezone as real_timezone_func
 
 from constants.common_constants import BEIWE_PROJECT_ROOT
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE, FILE_NOT_PRESENT, STUDY_INACTIVE
@@ -16,18 +15,214 @@ from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
 from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT, DEFAULT_CONSENT_SECTIONS,
     SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from constants.testing_constants import MIDNIGHT_EVERY_DAY_OF_WEEK, THURS_OCT_6_NOON_2022_NY
-from database.data_access_models import FileToProcess
-from database.schedule_models import AbsoluteSchedule, ScheduledEvent, WeeklySchedule
-from database.system_models import GenericEvent
-from database.user_models_participant import AppHeartbeats, AppVersionHistory, ParticipantFCMHistory
+from database.models import (AbsoluteSchedule, AppHeartbeats, AppVersionHistory, FileToProcess,
+    GenericEvent, Participant, ParticipantFCMHistory, ScheduledEvent, WeeklySchedule)
+from libs.endpoint_helpers.participant_file_upload_helpers import (
+    upload_and_create_file_to_process_and_log)
 from libs.rsa import get_RSA_cipher
 from libs.schedules import (get_start_and_end_of_java_timings_week,
     repopulate_absolute_survey_schedule_events, repopulate_relative_survey_schedule_events)
 from libs.utils.security_utils import device_hash
-from tests.common import ParticipantSessionTest
+from tests.common import BasicSessionTestCase, ParticipantSessionTest
 
 
 ## we have some meta tests to test side effects of events, stick them at the top
+
+
+
+
+class TestUploadDetails(BasicSessionTestCase):
+    """
+    We had a bug where all uploaded files were being treated as duplicates.
+    it was due to a dumb oversight about empty generators evaluating as true, not false,
+    in `upload_and_create_file_to_process_and_log`
+    """
+    pyfile = "libs.endpoint_helpers.participant_file_upload_helpers"
+    
+    def test_unit_tests(self):
+        # generators evaluate as false
+        assert (_ for _ in [])
+        assert bool( (_ for _ in []) )  # noqa
+        
+        # list of empty generator is empty list, is falsey
+        assert not list( (_ for _ in []) )  # noqa
+    
+    def common_setup(self) -> tuple[Participant, datetime, str]:
+        p = self.default_participant
+        now = real_timezone_func.now()
+        now_str = now.isoformat()
+        s3_file_location = f"{p.study.id}/{p.patient_id}/gps/{now_str}.csv"
+        return p, now, s3_file_location
+    
+    def setup_decryptor_obj(self, used_ios_decryption_key_cache_bool: bool) -> tuple[MagicMock, bytes]:
+        decryptor_obj = MagicMock()
+        decrypted_slug = b"some decrypted data"
+        decryptor_obj.decrypted_file = decrypted_slug
+        decryptor_obj.used_ios_decryption_key_cache = used_ios_decryption_key_cache_bool
+        return decryptor_obj, decrypted_slug
+    
+    @patch(f"{pyfile}.smart_s3_list_study_files")
+    @patch(f"{pyfile}.s3_upload")
+    @patch(f"{pyfile}.s3_retrieve")
+    @patch(f"{pyfile}.FileToProcess")
+    @patch(f"{pyfile}.HttpResponse")
+    @patch(f"{pyfile}.UploadTracking")
+    @patch(f"{pyfile}.s3_duplicate_name")
+    @patch(f"{pyfile}.timezone")
+    def test_empty_generator_case(  # noqa CFQ002
+        self,
+        timezone: MagicMock,
+        s3_duplicate_name: MagicMock,
+        UploadTracking: MagicMock,
+        HttpResponse: MagicMock,
+        FileToProcess: MagicMock,
+        s3_retrieve: MagicMock,
+        s3_upload: MagicMock,
+        smart_s3_list_study_files: MagicMock,
+    ):
+        
+        # We had a bug where the empty generator evaluated as true, so everything went through the
+        # duplicate code path
+        p, now, s3_file_location = self.common_setup()
+        
+        # setup base
+        timezone.now.return_value = now
+        
+        # mocks setups
+        UploadTracking.objects.create = MagicMock()  # UploadTracking needs a second layer to work
+        decryptor_obj, decrypted_slug = self.setup_decryptor_obj(False)  # False is irrelevant
+        decryptor_obj.used_ios_decryption_key_cache = False
+        
+        # setup test - an empty generator (needs to evaluate to false when empty)
+        smart_s3_list_study_files.return_value = (_ for _ in [])
+        s3_retrieve.return_value = b"some bytes"
+        
+        # run test
+        upload_and_create_file_to_process_and_log(s3_file_location, p, decryptor_obj)
+        
+        # asserts
+        s3_upload.assert_called_once_with(s3_file_location, decrypted_slug, p)
+        
+        FileToProcess.append_file_for_processing.assert_called_once_with(s3_file_location, p)
+        
+        UploadTracking.objects.create.assert_called_once_with(
+            file_path=s3_file_location,
+            file_size=len(decrypted_slug),
+            timestamp=now,
+            participant=p,
+        )
+        
+        HttpResponse.assert_called_once_with(content=b"upload successful.", status=200)
+        s3_duplicate_name.assert_not_called()
+    
+    
+    @patch(f"{pyfile}.smart_s3_list_study_files")
+    @patch(f"{pyfile}.s3_upload")
+    @patch(f"{pyfile}.s3_retrieve")
+    @patch(f"{pyfile}.FileToProcess")
+    @patch(f"{pyfile}.HttpResponse")
+    @patch(f"{pyfile}.UploadTracking")
+    @patch(f"{pyfile}.s3_duplicate_name")
+    @patch(f"{pyfile}.timezone")
+    def test_one_string_case_decryptor_used_ios_decryption_key_cache_true(  # noqa CFQ002
+        self,
+        timezone: MagicMock,
+        s3_duplicate_name: MagicMock,
+        UploadTracking: MagicMock,
+        HttpResponse: MagicMock,
+        FileToProcess: MagicMock,
+        s3_retrieve: MagicMock,
+        s3_upload: MagicMock,
+        smart_s3_list_study_files: MagicMock,
+    ):
+        # case where the ios uploader had an undecryptable file that we handled
+        p, now, s3_file_location = self.common_setup()
+        
+        # setup base
+        timezone.now.return_value = now
+        
+        # mocks setups
+        UploadTracking.objects.create = MagicMock()  # UploadTracking needs a second layer to work
+        decryptor_obj, decrypted_slug = self.setup_decryptor_obj(True)  # True important
+        
+        # setup test - a list with one string - we will use a random string
+        smart_s3_list_study_files.return_value = ["some_existing_file.csv"]
+        s3_retrieve.return_value = some_bytes = b"some bytes"
+        final_output = some_bytes + b"\n" + decrypted_slug
+        
+        # run test
+        upload_and_create_file_to_process_and_log(s3_file_location, p, decryptor_obj)
+        
+        # asserts
+        s3_upload.assert_called_once_with(s3_file_location, final_output, p)
+        
+        FileToProcess.append_file_for_processing.assert_called_once_with(s3_file_location, p)
+        
+        UploadTracking.objects.create.assert_called_once_with(
+            file_path=s3_file_location,
+            file_size=len(final_output),
+            timestamp=now,
+            participant=p,
+        )
+        
+        HttpResponse.assert_called_once_with(content=b"upload successful.", status=200)
+        s3_duplicate_name.assert_not_called()
+    
+    
+    
+    @patch(f"{pyfile}.smart_s3_list_study_files")
+    @patch(f"{pyfile}.s3_upload")
+    @patch(f"{pyfile}.s3_retrieve")
+    @patch(f"{pyfile}.FileToProcess")
+    @patch(f"{pyfile}.HttpResponse")
+    @patch(f"{pyfile}.UploadTracking")
+    @patch(f"{pyfile}.s3_duplicate_name")
+    @patch(f"{pyfile}.timezone")
+    def test_one_string_case_decryptor_used_ios_decryption_key_cache_false(  # noqa CFQ002
+        self,
+        timezone: MagicMock,
+        s3_duplicate_name: MagicMock,
+        UploadTracking: MagicMock,
+        HttpResponse: MagicMock,
+        FileToProcess: MagicMock,
+        s3_retrieve: MagicMock,
+        s3_upload: MagicMock,
+        smart_s3_list_study_files: MagicMock,
+    ):
+        # case where the ios uploader had an undecryptable file that we DIDN'T handle
+        
+        p, now, s3_file_location = self.common_setup()
+        
+        # setup base
+        timezone.now.return_value = now
+        
+        # mocks setups
+        UploadTracking.objects.create = MagicMock()  # UploadTracking needs a second layer to work
+        
+        
+        # setup test - a list with one string - we will use a random string
+        smart_s3_list_study_files.return_value = ["some_existing_file.csv"]
+        decryptor_obj, decrypted_slug = self.setup_decryptor_obj(False)  # False important
+        s3_duplicate_name.return_value = NEW_PATH = "new_path"
+        
+        # run test
+        upload_and_create_file_to_process_and_log(s3_file_location, p, decryptor_obj)
+        
+        # asserts
+        s3_upload.assert_called_once_with(NEW_PATH, decrypted_slug, p)
+        FileToProcess.append_file_for_processing.assert_called_once_with(NEW_PATH, p)
+        
+        UploadTracking.objects.create.assert_called_once_with(
+            file_path=NEW_PATH,
+            file_size=len(decrypted_slug),
+            timestamp=now,
+            participant=p,
+        )
+        
+        HttpResponse.assert_called_once_with(content=b"upload successful.", status=200)
+        s3_duplicate_name.assert_called_once_with(s3_file_location)
+        s3_retrieve.assert_not_called()
+
 
 class TestAppVersionHistory(ParticipantSessionTest):
     ENDPOINT_NAME = "mobile_endpoints.get_latest_surveys"
@@ -726,7 +921,7 @@ class TestMobileUpload(ParticipantSessionTest):
     def test_end_study_time_zone_blocks_at_correct_time_of_day(self):
         target_stop_date = date(2020, 1, 31)
         time_zone_name = "Africa/Monrovia"  # literally any random timezone
-        target_time_zone = tz.gettz(time_zone_name)
+        target_time_zone = gettz(time_zone_name)
         self.default_study.update_only(end_date=target_stop_date, timezone_name=time_zone_name)
         # 8pm
         time_of_day = datetime(2020, 1, 31, 8, 0, 0, tzinfo=target_time_zone)

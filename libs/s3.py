@@ -100,7 +100,7 @@ class S3Storage:
     
     def __init__(self, s3_path: str, obj: StrPartStudy, bypass_study_folder: bool) -> None:
         from database.models import Participant, Study
-
+        
         # todo: add handling of the None cose for smart_key_obj, where some api calls are disabled
         self.smart_key_obj = obj  # Study, Participant, or 24 char str
         self.validate_file_paths(s3_path, bypass_study_folder)
@@ -437,7 +437,15 @@ def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
 def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
     """ Run-logic to do a data retrieval for a file in an S3 bucket."""
     try:
-        return conn.get_object(Bucket=S3_BUCKET, Key=key_path, ResponseContentType='string')
+        # StorageClass can be 'STANDARD' 'REDUCED_REDUNDANCY' 'STANDARD_IA' 'ONEZONE_IA'
+        # 'INTELLIGENT_TIERING' 'GLACIER' 'DEEP_ARCHIVE' 'OUTPOSTS' 'GLACIER_IR' 'SNOW'
+        # 'EXPRESS_ONEZONE' 'FSX_OPENZFS'
+        return conn.get_object(
+            Bucket=S3_BUCKET,
+            Key=key_path,
+            ResponseContentType='string',
+            # StorageClass=...
+        )
     except Boto3ClientError as e:
         # Only retry if the error is not a "NoSuchKey" error.  This error class is JUST STUPID.
         # - `botocore.errorfactory.NoSuchKey` cannot be imported because it is generated at runtime.
