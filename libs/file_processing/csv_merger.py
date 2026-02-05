@@ -58,15 +58,15 @@ class CsvMerger:
         self.upload_these: list[Uploadable] = []  # chunk, chunk_path, file content
         
         # Track the earliest and latest time bins, to return them at the end of the function
-        self.earliest_time_bin: int|None = None
-        self.latest_time_bin: int|None = None
+        self.earliest_time_bin: int | None = None
+        self.latest_time_bin: int | None = None
         
         self.binified_data: AllBinifiedData = binified_data
         self.error_handler = error_handler
         self.survey_id_dict = survey_id_dict
         self.iterate()
     
-    def get_retirees(self) -> tuple[set[FileToProcessPK], set[FileToProcessPK], int|None, int|None]:
+    def get_retirees(self) -> tuple[set[FileToProcessPK], set[FileToProcessPK], int | None, int | None]:
         """ returns the ftp pks that have succeeded, the of ftps that have failed, 
         and the earliest and the latest time bins """
         return self.ftps_to_retire.difference(self.failed_ftps), \
@@ -120,7 +120,7 @@ class CsvMerger:
                     original_header, time_bin, data_rows_list
                 )
         
-        except Exception as e:
+        except Exception:
             # Here we catch any exceptions that may have arisen, as well as the ones that we raised
             # ourselves (e.g. HeaderMismatchException). Whichever FTP we were processing when the
             # exception was raised gets added to the set of failed FTPs.

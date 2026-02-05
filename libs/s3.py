@@ -135,7 +135,7 @@ class S3Storage:
         if path_start == CUSTOM_ONDEPLOY_PREFIX:
             raise BadS3PathException(BAD_FOLDER.format(path_start=path_start, path=path))
         
-        if not ENABLE_IOS_FILE_RECOVERY and path_start == PROBLEM_UPLOADS:
+        if path_start == PROBLEM_UPLOADS:
             raise IOSDataRecoveryDisabledException(BAD_FOLDER.format(path_start=path_start, path=path))
         
         if path_start not in [CHUNKS_FOLDER, PROBLEM_UPLOADS] and path_start != self.get_path_prefix:

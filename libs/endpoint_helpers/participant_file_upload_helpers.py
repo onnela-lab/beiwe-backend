@@ -20,7 +20,7 @@ from libs.utils.security_utils import generate_easy_alphanumeric_string
 
 
 def log(*args, **kwargs):
-    # if UPLOAD_LOGGING_ENABLED:  # from config.settings import UPLOAD_LOGGING_ENABLED
+    if UPLOAD_LOGGING_ENABLED:  # from config.settings import UPLOAD_LOGGING_ENABLED
         print(*args, **kwargs)
 
 

@@ -20,9 +20,9 @@ billiard==4.2.4
     # via celery
 bleach==6.3.0
     # via -r requirements.in
-boto3==1.42.23
+boto3==1.42.37
     # via -r requirements.in
-botocore==1.42.23
+botocore==1.42.37
     # via
     #   boto3
     #   s3transfer
@@ -37,6 +37,7 @@ certifi==2026.1.4
     #   sentry-sdk
 cffi==2.0.0
     # via
+    #   cryptography
     #   soundfile
     #   timezonefinder
 charset-normalizer==3.4.4
@@ -55,6 +56,8 @@ click-repl==0.3.0
     # via celery
 cronutils==0.4.2
     # via -r requirements.in
+cryptography==46.0.4
+    # via google-auth
 decorator==5.2.1
     # via
     #   ipython
@@ -67,9 +70,9 @@ django==5.2.10
     #   django-stubs-ext
 django-extensions==4.1
     # via -r requirements.in
-django-stubs[1-15-0,1.15.0]==5.2.8
+django-stubs[1-15-0,1.15.0]==5.2.9
     # via -r requirements.in
-django-stubs-ext==5.2.8
+django-stubs-ext==5.2.9
     # via django-stubs
 executing==2.2.1
     # via stack-data
@@ -77,16 +80,16 @@ firebase-admin==5.4.0
     # via -r requirements.in
 flatbuffers==25.12.19
     # via timezonefinder
-google-api-core[grpc]==2.28.1
+google-api-core[grpc]==2.29.0
     # via
     #   firebase-admin
     #   google-api-python-client
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.187.0
+google-api-python-client==2.188.0
     # via firebase-admin
-google-auth==2.47.0
+google-auth==2.48.0
     # via
     #   google-api-core
     #   google-api-python-client
@@ -100,9 +103,9 @@ google-cloud-core==2.5.0
     # via
     #   google-cloud-firestore
     #   google-cloud-storage
-google-cloud-firestore==2.22.0
+google-cloud-firestore==2.23.0
     # via firebase-admin
-google-cloud-storage==3.7.0
+google-cloud-storage==3.8.0
     # via firebase-admin
 google-crc32c==1.8.0
     # via
@@ -120,13 +123,13 @@ grpcio==1.76.0
     #   grpcio-status
 grpcio-status==1.76.0
     # via google-api-core
-gunicorn==23.0.0
+gunicorn==24.1.1
     # via -r requirements.in
 h3==4.4.1
     # via timezonefinder
-holidays==0.88
+holidays==0.89
     # via beiwe-forest
-httplib2==0.31.0
+httplib2==0.31.2
     # via
     #   google-api-python-client
     #   google-auth-httplib2
@@ -140,7 +143,7 @@ jedi==0.19.2
     # via ipython
 jinja2==3.1.6
     # via -r requirements.in
-jmespath==1.0.1
+jmespath==1.1.0
     # via
     #   boto3
     #   botocore
@@ -189,13 +192,13 @@ openrouteservice==2.3.3
     # via beiwe-forest
 orjson==3.11.5
     # via -r requirements.in
-packaging==25.0
+packaging==26.0
     # via
     #   gunicorn
     #   kombu
     #   lazy-loader
     #   pooch
-pandas==2.3.3
+pandas==3.0.0
     # via beiwe-forest
 parso==0.8.5
     # via jedi
@@ -213,7 +216,7 @@ proto-plus==1.27.0
     # via
     #   google-api-core
     #   google-cloud-firestore
-protobuf==6.33.2
+protobuf==6.33.4
     # via
     #   google-api-core
     #   google-cloud-firestore
@@ -226,13 +229,13 @@ ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.3
     # via stack-data
-pyasn1==0.6.1
+pyasn1==0.6.2
     # via
     #   pyasn1-modules
     #   rsa
 pyasn1-modules==0.4.2
     # via google-auth
-pycparser==2.23
+pycparser==3.0
     # via cffi
 pycryptodomex==3.23.0
     # via -r requirements.in
@@ -242,7 +245,7 @@ pygments==2.19.2
     #   ipython-pygments-lexers
 pyotp==2.9.0
     # via -r requirements.in
-pyparsing==3.3.1
+pyparsing==3.3.2
     # via httplib2
 pypng==0.20220715.0
     # via -r requirements.in
@@ -259,9 +262,7 @@ python-dateutil==2.9.0.post0
     #   holidays
     #   pandas
 pytz==2025.2
-    # via
-    #   beiwe-forest
-    #   pandas
+    # via beiwe-forest
 pyzstd==0.19.1
     # via -r requirements.in
 ratelimit==2.2.1
@@ -282,13 +283,13 @@ s3transfer==0.16.0
     # via boto3
 scikit-learn==1.8.0
     # via librosa
-scipy==1.16.3
+scipy==1.17.0
     # via
     #   beiwe-forest
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.48.0
+sentry-sdk==2.51.0
     # via cronutils
 shapely==2.1.2
     # via beiwe-forest
@@ -306,7 +307,7 @@ stack-data==0.6.3
     # via ipython
 threadpoolctl==3.6.0
     # via scikit-learn
-timezonefinder==8.2.0
+timezonefinder==8.2.1
     # via beiwe-forest
 traitlets==5.14.3
     # via
@@ -327,10 +328,9 @@ tzdata==2025.3
     # via
     #   celery
     #   kombu
-    #   pandas
 uritemplate==4.2.0
     # via google-api-python-client
-urllib3==2.6.2
+urllib3==2.6.3
     # via
     #   botocore
     #   requests
@@ -340,7 +340,7 @@ vine==5.1.0
     #   amqp
     #   celery
     #   kombu
-wcwidth==0.2.14
+wcwidth==0.5.0
     # via prompt-toolkit
 webencodings==0.5.1
     # via bleach

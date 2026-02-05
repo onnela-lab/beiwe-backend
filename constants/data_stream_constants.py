@@ -20,7 +20,7 @@ TEXTS_LOG = "texts"
 WIFI = "wifi"
 
 
-ALL_DATA_STREAMS = [
+ALL_DATA_STREAMS = [  # these strings are used in chunked files
     ACCELEROMETER,
     AUDIO_RECORDING,
     AMBIENT_AUDIO,
@@ -47,7 +47,7 @@ assert(len(ALL_DATA_STREAMS_SET) == len(ALL_DATA_STREAMS))
 
 SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
 
-UPLOAD_FILE_TYPE_MAPPING = {
+UPLOAD_FILE_TYPE_MAPPING = {  # These weird (non-constants) strings are used in uploaded file names
     "accel": ACCELEROMETER,
     "voiceRecording": AUDIO_RECORDING,
     "bluetoothLog": BLUETOOTH,
@@ -64,7 +64,7 @@ UPLOAD_FILE_TYPE_MAPPING = {
     "textsLog": TEXTS_LOG,
     "wifiLog": WIFI,
     "proximity": PROXIMITY,
-    "ios_log": IOS_LOG_FILE,
+    "ios_log": IOS_LOG_FILE,  # I don't know why this one doesn't have a slash
     "ambientAudio": AMBIENT_AUDIO,
     "identifiers": IDENTIFIERS,  # not processed through data upload.
 }
@@ -73,7 +73,7 @@ UPLOAD_FILE_TYPE_MAPPING = {
 REVERSE_UPLOAD_FILE_TYPE_MAPPING = {v: k for k, v in UPLOAD_FILE_TYPE_MAPPING.items()}
 
 # Used for debugging and reverse lookups.
-DATA_STREAM_TO_S3_FILE_NAME_STRING = {
+DATA_STREAM_TO_S3_FILE_NAME_STRING = {  # These weird (non-constants) strings are used in uploaded file names
     ACCELEROMETER: "accel",
     AUDIO_RECORDING: "voiceRecording",
     BLUETOOTH: "bluetoothLog",
@@ -91,7 +91,7 @@ DATA_STREAM_TO_S3_FILE_NAME_STRING = {
     MAGNETOMETER: "magnetometer",
     DEVICEMOTION: "devicemotion",
     REACHABILITY: "reachability",
-    IOS_LOG_FILE: "ios/log",
+    IOS_LOG_FILE: "ios/log",  # this one has a slash because we screwed up historically and can never change it
     AMBIENT_AUDIO: "ambientAudio",
 }
 

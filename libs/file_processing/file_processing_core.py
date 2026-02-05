@@ -135,7 +135,7 @@ class FileProcessingTracker():
         # files percolates back to here.  Delete various database objects accordingly.
         ftps_to_remove, bad_files, earliest_time_bin, latest_time_bin = self.upload_binified_data()
         self.buggy_files.update(bad_files)
-        print(f"Successfully processed {len(ftps_to_remove)} files, "
+        print(f"Successfully processed {len(ftps_to_remove)} files ({self.participant.patient_id}), "
               f"there have been a total of {len(self.buggy_files)} failed files.")
         
         # Update the data quantity stats (if it actually processed any files)

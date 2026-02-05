@@ -71,7 +71,7 @@ class UploadTracking(UtilityModel):
                 f"{numformat((uncomp or 0) / 1024 / 1024)} MB uncompressed",
                 
             )
-
+    
     @classmethod
     def re_add_files_to_process(cls, number=100):
         """ Re-adds the most recent [number] files that have been uploaded recently to FiletToProcess.
