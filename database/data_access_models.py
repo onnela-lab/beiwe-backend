@@ -276,14 +276,3 @@ class FileToProcess(TimestampedModel):
                 Counter(FileToProcess.objects.values_list("participant__patient_id", flat=True)).most_common()
             )
         )
-
-
-class IOSDecryptionKey(TimestampedModel):
-    """ This model exists in order to solve an ios implementation bug where files would be
-    split and a section would get uploaded without the decryption key, but the decryption key is
-    present in the original upload """
-    # based on several days of running, the longest file names are 66 character audio files.
-    # encryption keys are 128 bits base64 encoded, so 24 characters
-    file_name = models.CharField(max_length=80, blank=False, unique=True, db_index=True)
-    base64_encryption_key = models.CharField(max_length=24, blank=False)
-    participant: Participant = models.ForeignKey("Participant", on_delete=models.CASCADE)

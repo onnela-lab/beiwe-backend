@@ -20,11 +20,13 @@ from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS
 from constants.s3_constants import (COMPRESSED_DATA_MISSING_AT_UPLOAD,
     COMPRESSED_DATA_MISSING_ON_POP, COMPRESSED_DATA_PRESENT_AT_COMPRESSION,
     COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
-    IOSDataRecoveryDisabledException, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
+    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
     UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
     UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD, UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
+
+from constants.data_stream_constants import POWER_STATE
+
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
-from database.data_access_models import IOSDecryptionKey
 from database.models import ArchivedEvent, ForestVersion, S3File, ScheduledEvent
 from database.profiling_models import EncryptionErrorMetadata, UploadTracking
 from database.user_models_participant import (AppHeartbeats, AppVersionHistory,
@@ -254,15 +256,6 @@ class TestParticipantDataDeletion(CommonTestCase):
     @data_purge_mock_s3_calls
     def test_confirm_SummaryStatisticDaily(self):
         self.default_summary_statistic_daily
-        self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
-        confirm_deleted(self.default_participant_deletion_event)
-    
-    @data_purge_mock_s3_calls
-    def test_confirm_IOSDecryptionKey(self):
-        IOSDecryptionKey.objects.create(
-            participant=self.default_participant, base64_encryption_key="abc123", file_name="abc123"
-        )
         self.assert_confirm_deletion_raises_then_reset_last_updated
         run_next_queued_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
@@ -902,8 +895,9 @@ class TestS3Storage(CommonTestCase):
             S3Storage("CHUNKED_DATA/a_path.zst", self.default_participant, bypass_study_folder=True)
         
         S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=False)
-        with self.assertRaises(IOSDataRecoveryDisabledException):
-            S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=True)
+        
+        # with self.assertRaises(IOSDataRecoveryDisabledException):  # old error, make sure it doesn't raise
+        S3Storage("PROBLEM_UPLOADS/a_path.csv", self.default_participant, bypass_study_folder=True)
         
         S3Storage("CUSTOM_ONDEPLOY_SCRIPT/EB/a_path.csv", self.default_participant, bypass_study_folder=False)
         with self.assertRaises(BadS3PathException):
@@ -1015,7 +1009,7 @@ class TestS3Storage(CommonTestCase):
             AssertionError,
             UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
             s.compress_data_and_clear_uncompressed,
-            
+        
         )
     
     def test_compress_and_push_to_storage_and_clear_memory_without_data(self):
@@ -1499,21 +1493,6 @@ class TestDetermineFileName(CommonTestCase):
             determine_base_file_name(d),
             "steve/survey_timings/unknown_survey_id/2018-04-27 19_39_48.384000+00_00.csv"
         )
-
-
-class TestFileProcessingUnitTests(CommonTestCase):
-    
-    def test_convert_unix_to_human_readable_timestamps(self):
-        rows = [
-            [b"1", b"content"],
-            [b"2", b"more content"],
-        ]
-        header = convert_unix_to_human_readable_timestamps(b"something,anything", rows)
-        self.assertEqual(header, b"something,UTC time,anything")
-        self.assertEqual(rows, [
-            [b"1", b"1970-01-01T00:00:00.001", b"content"],
-            [b"2", b"1970-01-01T00:00:00.002", b"more content"],
-        ])
 
 
 class TestUpdateForestVersion(CommonTestCase):

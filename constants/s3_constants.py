@@ -28,7 +28,6 @@ SMART_GET_ERROR = "expected Study, Participant, or 24 char str, received '{}'"
 class NoSuchKeyException(Exception): pass
 class S3DeletionException(Exception): pass
 class BadS3PathException(Exception): pass
-class IOSDataRecoveryDisabledException(Exception): pass
 
 
 ## Types

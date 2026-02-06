@@ -51,7 +51,6 @@ class dbt:
     FileToProcesses = Manager[FileToProcess]
     ForestTasks = Manager[ForestTask]
     InterventionDates = Manager[InterventionDate]
-    IOSDecryptionKeys = Manager[IOSDecryptionKey]
     ParticipantActionLogs = Manager[ParticipantActionLog]
     ParticipantDeletionEvents = Manager[ParticipantDeletionEvent]
     ParticipantFCMHistories = Manager[ParticipantFCMHistory]

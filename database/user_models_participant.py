@@ -129,7 +129,6 @@ class Participant(AbstractPasswordUser):
     # undeclared:
     encryptionerrormetadata_set: dbt.EncryptionErrorMetadatums
     foresttask_set: dbt.ForestTasks
-    iosdecryptionkey_set: dbt.IOSDecryptionKeys
     pushnotificationdisabledevent_set: dbt.PushNotificationDisabledEvents
     summarystatisticdaily_set: dbt.SummaryStatisticsDaily
     

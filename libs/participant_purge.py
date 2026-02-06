@@ -26,7 +26,6 @@ def add_participant_for_deletion(participant: Participant):
 RELATED_NAMES = [
     "chunk_registries",
     "summarystatisticdaily_set",
-    "iosdecryptionkey_set",
     "foresttask_set",
     "encryptionerrormetadata_set",
     "files_to_process",

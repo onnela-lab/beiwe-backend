@@ -15,13 +15,13 @@ from cronutils import ErrorHandler
 from django.utils import timezone
 
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
-    ENABLE_IOS_FILE_RECOVERY, S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
+    S3_BUCKET, S3_ENDPOINT, S3_REGION_NAME)
 from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, PROBLEM_UPLOADS,
     RUNNING_TESTS)
 from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException, Boto3Response,
     COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
     COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
-    COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, IOSDataRecoveryDisabledException, MetaDotDict,
+    COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, MetaDotDict,
     MUST_BE_ZSTD_FORMAT, NoSuchKeyException, S3DeletionException, SMART_GET_ERROR,
     UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION, UNCOMPRESSED_DATA_MISSING_ON_POP,
     UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
@@ -52,6 +52,7 @@ conn: BaseClient = boto3.client(
     ),
 )
 
+
 if RUNNING_TESTS:                       # This lets us cut out some boilerplate in tests
     S3_REGION_NAME = "us-east-1"        # Tests that need to mock S3 can still mock the conn object
     S3_BUCKET = "test_bucket"
@@ -59,6 +60,7 @@ if RUNNING_TESTS:                       # This lets us cut out some boilerplate 
 
 
 class DataException(Exception): pass
+
 
 #
 ## Smart Key and Path Getters
@@ -90,6 +92,7 @@ def get_just_prefix(obj: StrPartStudy) -> str:
         return obj
     else:
         raise TypeError(SMART_GET_ERROR.format(type(obj)))
+
 
 #
 ## The S3 Storage Class - shim class that is used when actually pulling down s3 files.
@@ -134,9 +137,6 @@ class S3Storage:
         path_start = path.split("/", 1)[0]
         if path_start == CUSTOM_ONDEPLOY_PREFIX:
             raise BadS3PathException(BAD_FOLDER.format(path_start=path_start, path=path))
-        
-        if path_start == PROBLEM_UPLOADS:
-            raise IOSDataRecoveryDisabledException(BAD_FOLDER.format(path_start=path_start, path=path))
         
         if path_start not in [CHUNKS_FOLDER, PROBLEM_UPLOADS] and path_start != self.get_path_prefix:
             raise BadS3PathException(BAD_FOLDER_2.format(path_start=path_start, path=path))

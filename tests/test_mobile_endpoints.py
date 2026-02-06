@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import orjson
 import time_machine
+from cronutils import ErrorHandler
 from dateutil.tz import gettz
 from django.http import HttpResponse
 from django.utils import timezone, timezone as real_timezone_func
@@ -16,7 +17,8 @@ from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT, DEFAU
     SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from constants.testing_constants import MIDNIGHT_EVERY_DAY_OF_WEEK, THURS_OCT_6_NOON_2022_NY
 from database.models import (AbsoluteSchedule, AppHeartbeats, AppVersionHistory, FileToProcess,
-    GenericEvent, Participant, ParticipantFCMHistory, ScheduledEvent, WeeklySchedule)
+    Participant, ParticipantFCMHistory, ScheduledEvent, WeeklySchedule)
+from endpoints.mobile_endpoints import ProblemUploadFileException
 from libs.endpoint_helpers.participant_file_upload_helpers import (
     upload_and_create_file_to_process_and_log)
 from libs.rsa import get_RSA_cipher
@@ -27,8 +29,6 @@ from tests.common import BasicSessionTestCase, ParticipantSessionTest
 
 
 ## we have some meta tests to test side effects of events, stick them at the top
-
-
 
 
 class TestUploadDetails(BasicSessionTestCase):
@@ -63,7 +63,6 @@ class TestUploadDetails(BasicSessionTestCase):
     
     @patch(f"{pyfile}.smart_s3_list_study_files")
     @patch(f"{pyfile}.s3_upload")
-    @patch(f"{pyfile}.s3_retrieve")
     @patch(f"{pyfile}.FileToProcess")
     @patch(f"{pyfile}.HttpResponse")
     @patch(f"{pyfile}.UploadTracking")
@@ -76,7 +75,6 @@ class TestUploadDetails(BasicSessionTestCase):
         UploadTracking: MagicMock,
         HttpResponse: MagicMock,
         FileToProcess: MagicMock,
-        s3_retrieve: MagicMock,
         s3_upload: MagicMock,
         smart_s3_list_study_files: MagicMock,
     ):
@@ -95,7 +93,6 @@ class TestUploadDetails(BasicSessionTestCase):
         
         # setup test - an empty generator (needs to evaluate to false when empty)
         smart_s3_list_study_files.return_value = (_ for _ in [])
-        s3_retrieve.return_value = b"some bytes"
         
         # run test
         upload_and_create_file_to_process_and_log(s3_file_location, p, decryptor_obj)
@@ -118,74 +115,18 @@ class TestUploadDetails(BasicSessionTestCase):
     
     @patch(f"{pyfile}.smart_s3_list_study_files")
     @patch(f"{pyfile}.s3_upload")
-    @patch(f"{pyfile}.s3_retrieve")
     @patch(f"{pyfile}.FileToProcess")
     @patch(f"{pyfile}.HttpResponse")
     @patch(f"{pyfile}.UploadTracking")
     @patch(f"{pyfile}.s3_duplicate_name")
     @patch(f"{pyfile}.timezone")
-    def test_one_string_case_decryptor_used_ios_decryption_key_cache_true(  # noqa CFQ002
+    def test_one_string_case_decryptor_duplicate_name(  # noqa CFQ002
         self,
         timezone: MagicMock,
         s3_duplicate_name: MagicMock,
         UploadTracking: MagicMock,
         HttpResponse: MagicMock,
         FileToProcess: MagicMock,
-        s3_retrieve: MagicMock,
-        s3_upload: MagicMock,
-        smart_s3_list_study_files: MagicMock,
-    ):
-        # case where the ios uploader had an undecryptable file that we handled
-        p, now, s3_file_location = self.common_setup()
-        
-        # setup base
-        timezone.now.return_value = now
-        
-        # mocks setups
-        UploadTracking.objects.create = MagicMock()  # UploadTracking needs a second layer to work
-        decryptor_obj, decrypted_slug = self.setup_decryptor_obj(True)  # True important
-        
-        # setup test - a list with one string - we will use a random string
-        smart_s3_list_study_files.return_value = ["some_existing_file.csv"]
-        s3_retrieve.return_value = some_bytes = b"some bytes"
-        final_output = some_bytes + b"\n" + decrypted_slug
-        
-        # run test
-        upload_and_create_file_to_process_and_log(s3_file_location, p, decryptor_obj)
-        
-        # asserts
-        s3_upload.assert_called_once_with(s3_file_location, final_output, p)
-        
-        FileToProcess.append_file_for_processing.assert_called_once_with(s3_file_location, p)
-        
-        UploadTracking.objects.create.assert_called_once_with(
-            file_path=s3_file_location,
-            file_size=len(final_output),
-            timestamp=now,
-            participant=p,
-        )
-        
-        HttpResponse.assert_called_once_with(content=b"upload successful.", status=200)
-        s3_duplicate_name.assert_not_called()
-    
-    
-    
-    @patch(f"{pyfile}.smart_s3_list_study_files")
-    @patch(f"{pyfile}.s3_upload")
-    @patch(f"{pyfile}.s3_retrieve")
-    @patch(f"{pyfile}.FileToProcess")
-    @patch(f"{pyfile}.HttpResponse")
-    @patch(f"{pyfile}.UploadTracking")
-    @patch(f"{pyfile}.s3_duplicate_name")
-    @patch(f"{pyfile}.timezone")
-    def test_one_string_case_decryptor_used_ios_decryption_key_cache_false(  # noqa CFQ002
-        self,
-        timezone: MagicMock,
-        s3_duplicate_name: MagicMock,
-        UploadTracking: MagicMock,
-        HttpResponse: MagicMock,
-        FileToProcess: MagicMock,
-        s3_retrieve: MagicMock,
         s3_upload: MagicMock,
         smart_s3_list_study_files: MagicMock,
     ):
@@ -221,7 +162,6 @@ class TestUploadDetails(BasicSessionTestCase):
         
         HttpResponse.assert_called_once_with(content=b"upload successful.", status=200)
         s3_duplicate_name.assert_called_once_with(s3_file_location)
-        s3_retrieve.assert_not_called()
 
 
 class TestAppVersionHistory(ParticipantSessionTest):
@@ -1007,7 +947,6 @@ class TestMobileUpload(ParticipantSessionTest):
         self.smart_post_status_code(200, file_name="whatever.csv", file="")
         # big fat nothing happens
         self.assert_no_files_to_process
-        self.assertEqual(GenericEvent.objects.count(), 0)
         # inserting this test for the last_upload update....
         self.default_participant.refresh_from_db()
         self.assertIsInstance(self.default_participant.last_upload, datetime)
@@ -1016,34 +955,52 @@ class TestMobileUpload(ParticipantSessionTest):
     @patch("database.user_models_participant.Participant.get_private_key")
     def test_decryption_key_bad_padding(self, get_private_key: MagicMock, s3_upload: MagicMock):
         get_private_key.return_value = self.PRIVATE_KEY
-        self.smart_post_status_code(200, file_name="whatever.csv", file="some_content")
+        
+        with self.assertRaises(ProblemUploadFileException):
+            self.smart_post_status_code(200, file_name="whatever.csv", file="some_content")
+        
+        with patch("endpoints.mobile_endpoints.SentryUtils") as mock_sentry_utils:
+            mock_sentry_utils.report_webserver = MagicMock()
+            mock_sentry_utils.report_webserver.return_value = err_h = ErrorHandler()
+            self.smart_post_status_code(200, file_name="whatever.csv", file="some_content")
+        
+        
+        err_h.errors.clear()
         self.assert_no_files_to_process
         # happens to be bad length decryption key
-        self.assertEqual(GenericEvent.objects.count(), 1)
-        self.assertIn("Decryption key not 128 bits", GenericEvent.obj_get().note)
     
     @patch("libs.endpoint_helpers.participant_file_upload_helpers.s3_upload")
     @patch("database.user_models_participant.Participant.get_private_key")
     def test_decryption_key_not_base64(self, get_private_key: MagicMock, s3_upload: MagicMock):
         get_private_key.return_value = self.PRIVATE_KEY
-        self.smart_post_status_code(200, file_name="whatever.csv", file="some_content/\\")
+        
+        with self.assertRaises(ProblemUploadFileException):
+            self.smart_post_status_code(200, file_name="whatever.csv", file="some_content/\\")
+        
+        with patch("endpoints.mobile_endpoints.SentryUtils") as mock_sentry_utils:
+            mock_sentry_utils.report_webserver = MagicMock()
+            mock_sentry_utils.report_webserver.return_value = err_h = ErrorHandler()
+            self.smart_post_status_code(200, file_name="whatever.csv", file="some_content/\\")
+        
+        err_h.errors.clear()
         self.assert_no_files_to_process
-        self.assertEqual(GenericEvent.objects.count(), 1)
-        self.assertIn("Key not base64 encoded:", GenericEvent.obj_get().note)
     
     @patch("libs.endpoint_helpers.participant_file_upload_helpers.s3_upload")
     @patch("database.user_models_participant.Participant.get_private_key")
     def test_bad_base64_length(self, get_private_key: MagicMock, s3_upload: MagicMock):
         get_private_key.return_value = self.PRIVATE_KEY
-        self.smart_post_status_code(200, file_name="whatever.csv", file=b"some_content1")
+        with self.assertRaises(ProblemUploadFileException):
+            self.smart_post_status_code(200, file_name="whatever.csv", file=b"some_content1")
+        
+        with patch("endpoints.mobile_endpoints.SentryUtils") as mock_sentry_utils:
+            mock_sentry_utils.report_webserver = MagicMock()
+            mock_sentry_utils.report_webserver.return_value = err_h = ErrorHandler()
+            self.smart_post_status_code(200, file_name="whatever.csv", file=b"some_content1")
+            mock_sentry_utils.report_webserver.assert_called_once()
+            
+        err_h.errors.clear()
+        
         self.assert_no_files_to_process
-        self.assertEqual(GenericEvent.objects.count(), 1)
-        self.assertIn(
-            "invalid length 2 after padding was removed.",
-            GenericEvent.obj_get().note
-        )
-    
-    # TODO: add invalid decrypted key length test...
     
     def test_deleted_participant(self):
         self.INJECT_DEVICE_TRACKER_PARAMS = False

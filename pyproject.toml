@@ -135,6 +135,7 @@ future-annotations = true
 
 [tool.flake8]
 
+# not required
 extend-ignore = [
     "E127",  # continuation line over-indented for visual indent
     "E128",  # continuation line under-indented for visual indent
@@ -154,6 +155,8 @@ extend-ignore = [
     # "SIM102",  # use 'if any(...)' instead of 'if True in (...)'
     # "CFQ002",  # missing whitespace after ',' (?)
     # "CFQ004",
+    "E731",  # don't use lambdas alone
+    "R505",  # unnecessary elif return 
 ]
 exclude = [
     ".git",

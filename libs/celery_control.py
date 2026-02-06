@@ -297,7 +297,6 @@ registered
     'celery@ip-172-31-75-163_notifications': ['services.celery_push_notifications.celery_heartbeat_send_push_notification',
      'services.celery_push_notifications.celery_send_survey_push_notification'],
     'celery@ip-172-31-75-163_scripts': ['services.scripts_runner.celery_participant_data_deletion',
-     'services.scripts_runner.celery_process_ios_no_decryption_key',
      'services.scripts_runner.celery_purge_invalid_time_data',
      'services.scripts_runner.celery_update_forest_version',
      'services.scripts_runner.celery_upload_logs']}

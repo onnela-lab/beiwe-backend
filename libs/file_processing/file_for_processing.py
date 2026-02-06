@@ -63,13 +63,13 @@ class FileForProcessing():
         # Try to retrieve the file contents. If any errors are raised, store them to be reraised by
         # the parent function
         try:
-            t1 = perf_counter()
+            # t1 = perf_counter()
             self.file_contents = s3_retrieve(
                 self.file_to_process.s3_file_path,
                 self.file_to_process.study.object_id,
                 raw_path=True
             )
-            t2 = perf_counter()
+            # t2 = perf_counter()
             
             # log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}, {len(self.file_contents)} bytes in {t2 - t1:.4f} seconds.")
         except Exception as e:
@@ -97,7 +97,7 @@ class FileForProcessing():
         lines = self.file_contents.splitlines()
         self.clear_file_content()
         self.header = lines.pop(0)  # annoyingly slow, but after a lot of tests, this is the best/fastest way.
-        self.file_lines = list(line.split(b",") for line in lines)
+        self.file_lines = [line.split(b",") for line in lines]
         
         # this is a dumb hack that turns all identical headers into references to the same, unique,
         # header string.  This is a stupid memory optimization.

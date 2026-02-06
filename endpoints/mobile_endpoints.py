@@ -25,8 +25,7 @@ from database.data_access_models import FileToProcess
 from database.survey_models import Survey
 from database.system_models import FileAsText
 from database.user_models_participant import AppHeartbeats, Participant, ParticipantFCMHistory
-from libs.encryption import (DecryptionKeyInvalidError, DeviceDataDecryptor,
-    IosDecryptionKeyDuplicateError, IosDecryptionKeyNotFoundError, RemoteDeleteFileScenario)
+from libs.encryption import DeviceDataDecryptor, RemoteDeleteFileScenario
 from libs.endpoint_helpers.graph_data_helpers import get_survey_results
 from libs.endpoint_helpers.participant_file_upload_helpers import (
     upload_and_create_file_to_process_and_log, upload_problem_file)
@@ -35,7 +34,7 @@ from libs.rsa import get_participant_public_key_string
 from libs.s3 import s3_upload
 from libs.schedules import (decompose_datetime_to_device_weekly_timings,
     export_weekly_survey_timings, repopulate_all_survey_scheduled_events)
-from libs.sentry import send_sentry_warning
+from libs.sentry import send_sentry_warning, SentryUtils
 from libs.utils.http_utils import determine_os_api
 from middleware.abort_middleware import abort
 
@@ -46,6 +45,8 @@ def log(*args, **kwargs):
 
 
 ALLOWED_EXTENSIONS = {'csv', 'json', 'mp4', "wav", 'txt', 'jpg'}
+class ProblemUploadFileException(Exception): pass
+
 
 ################################################################################
 ################################ UPLOADS #######################################
@@ -112,12 +113,13 @@ def upload(request: ParticipantRequest, OS_API=""):
         log(200, "RemoteDeleteFileScenario")  # errors were unrecoverable, delete the file.
         return HttpResponse(content=FILE_BAD_DUE_TO_ERROR(e), status=200)
     
-    except (DecryptionKeyInvalidError, IosDecryptionKeyNotFoundError, IosDecryptionKeyDuplicateError) as e:
-        # IOS has a complex issue where it splits files into multiple segments, but the key is only
-        # present on the first section. We stash those files and attempt to extract useful
-        # information on the data processing server.
+    except Exception as e:
         upload_problem_file(file_contents, participant, s3_file_location, e)
-        return HttpResponse(content=FILE_DECRYPTION_KEY_ERROR(e), status=200)
+        with SentryUtils.report_webserver():
+            raise ProblemUploadFileException(
+                f"{participant.patient_id} had problem upload {s3_file_location} due to {type(e).__name__}"
+            ) from e
+        return HttpResponse(content=FILE_DECRYPTION_KEY_ERROR(e), status=200)  # noqa - line executes
     
     # if uploaded data actually exists, and has a valid extension
     if decryptor.decrypted_file and file_name and contains_valid_extension(file_name):

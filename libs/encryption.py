@@ -8,17 +8,13 @@ from django.forms import ValidationError
 
 from constants.security_constants import URLSAFE_BASE64_CHARACTERS
 from constants.user_constants import ANDROID_API, IOS_API
-from database.data_access_models import IOSDecryptionKey
-from database.profiling_models import EncryptionErrorMetadata
-from database.user_models_participant import Participant
+from database.models import EncryptionErrorMetadata, Participant
 from libs.sentry import send_sentry_warning
 from libs.utils.base64_utils import (Base64LengthException, decode_base64, encode_base64,
     PaddingException)
 
 
 class DecryptionKeyInvalidError(Exception): pass
-class IosDecryptionKeyNotFoundError(Exception): pass
-class IosDecryptionKeyDuplicateError(Exception): pass
 class RemoteDeleteFileScenario(Exception): pass
 class UnHandledError(Exception): pass  # for debugging
 class InvalidIV(Exception): pass
@@ -44,7 +40,9 @@ class LineEncryptionError:
 
 ########################### User/Device Decryption #############################
 
+
 ENABLE_DECRYPTION_LOG = False
+
 
 def log(*args, **kwargs):
     if ENABLE_DECRYPTION_LOG:
@@ -54,13 +52,12 @@ def log(*args, **kwargs):
 class DeviceDataDecryptor():
     
     def __init__(
-            self,
-            file_name: str,
-            original_data: bytes,
-            participant: Participant,
-            ignore_existing_keys: bool = False,
-            rsa_key: RSA.RsaKey = None
-        ) -> None:
+        self,
+        file_name: str,
+        original_data: bytes,
+        participant: Participant,
+        rsa_key: RSA.RsaKey = None
+    ) -> None:
         
         # basic info
         self.file_name: str = file_name
@@ -83,54 +80,14 @@ class DeviceDataDecryptor():
         
         self.file_lines = self.split_file()
         
-        # error management includes external assets, attribute needs to be populated.
-        # DON'T pre-populate self.decrypted_file
-        self.used_ios_decryption_key_cache = False
-        
-        self.ignore_existing_keys = ignore_existing_keys
-        
-        # os determination and go
-        if participant.os_type == ANDROID_API or ignore_existing_keys:
-            self.do_normal_decryption()
-        elif participant.os_type == IOS_API:
-            self.do_decryption_with_key_checking()
-        else:
-            raise Exception(f"Unknown operating system: {participant.os_type}")
+        self.run_decryption()
     
-    def do_normal_decryption(self):
+    def run_decryption(self):
         """ Android has no exciting features, errors are raised as normal. """
         self.aes_decryption_key = self.extract_aes_key()
         self.decrypt_device_file()
         # join is optimized and does not cause O(n^2) total memory copies.
         self.decrypted_file = b"\n".join(self.good_lines)
-    
-    def do_decryption_with_key_checking(self):
-        """ Old iOS app versions (before Jan 2024) can upload identically named files that were
-        split in half (or more)? due to a bug (the iOS app is bad.) We stash keys of all uploaded
-        ios data, and use them to decrypt these "duplicate" files. """
-        try:
-            self.aes_decryption_key = self.extract_aes_key()
-        except DecryptionKeyInvalidError:
-            if self.ignore_existing_keys:
-                raise
-            self.aes_decryption_key = self.get_backup_encryption_key()
-            self.used_ios_decryption_key_cache = True
-        
-        self.decrypt_device_file()
-        # join is optimized and does not cause O(n^2) total memory copies.
-        self.decrypted_file = b"\n".join(self.good_lines)
-    
-    def get_backup_encryption_key(self):
-        if self.ignore_existing_keys:
-            raise DoNotCatchThisErrorType(" get_backup_encryption_key should not have been called with ignore_existing_keys==True")
-        try:
-            decryption_key = IOSDecryptionKey.objects.get(file_name=self.file_name)
-        except IOSDecryptionKey.DoesNotExist:
-            raise IosDecryptionKeyNotFoundError(
-                f"ios decryption key for '{self.file_name}' could not be found."
-            )
-        
-        return decode_base64(decryption_key.base64_encryption_key.encode())
     
     def split_file(self) -> list[bytes]:
         # don't refactor to pop the decryption key line out of the file_data list, this list
@@ -176,17 +133,14 @@ class DeviceDataDecryptor():
             raise RemoteDeleteFileScenario("The file was null bytes.")
         
         if null_count > 0:
-            print("debugging null bytes start")
-            
-            print("file name:", self.file_name)
-            print(f"there were {null_count} null bytes in the file out of {len(self.original_data)} bytes total.")
+            log("debugging null bytes start")
+            log("file name:", self.file_name)
+            log(f"there were {null_count} null bytes in the file out of {len(self.original_data)} bytes total.")
             
             no_nulls = self.original_data.replace(b"\00", b"")
-            print("breakdown:", Counter(no_nulls))
-            
-            print("debugging null bytes end")
-            
-            # print(self.original_data)
+            log("breakdown:", Counter(no_nulls))
+            log("debugging null bytes end")
+            # log(self.original_data)
             
             """
             after 24 hours
@@ -245,9 +199,6 @@ class DeviceDataDecryptor():
             log("extract_aes_key 6")
             raise DecryptionKeyInvalidError(f"Decryption key not 128 bits: {decrypted_key}")
         
-        if self.participant.os_type == IOS_API:
-            self.populate_ios_decryption_key(base64_key)
-        
         log("extract_aes_key success")
         return decrypted_key
     
@@ -261,45 +212,6 @@ class DeviceDataDecryptor():
         plaintext_int = pow(ciphertext_int, self.private_key_cipher.d, self.private_key_cipher.n)
         # return base64_key
         return plaintext_int.to_bytes(self.private_key_cipher.size_in_bytes(), 'big').lstrip(b'\x00')
-    
-    def populate_ios_decryption_key(self, base64_key: bytes):
-        """ iOS has a bug where the file gets split into two uploads, so the second one is missing a
-        decryption key. We store iOS decryption keys. and use them for those files - because the ios
-        app "resists analysis" (its bad. its just bad.)
-        
-        We also have to handle the case of double uploads leading to violating the unique database,
-        constraint. (again, the ios app is bad.) """
-        # case: the base64 encoding can come in garbled, but still pass through decode_base64 as an
-        # un-unicodeable 256 byte(?!) binary blob, but it base64 decodes into a 16 byte key. The fix
-        # is to decode_base64 -> encode_base64, which magically creates the correct base64 blob. wtf
-        try:
-            base64_str: str = base64_key.decode()
-        except UnicodeDecodeError:
-            # this error case makes no sense
-            base64_str: str = encode_base64(decode_base64(base64_key)).decode()
-        
-        try:
-            IOSDecryptionKey.objects.create(
-                file_name=self.file_name,
-                base64_encryption_key=base64_str,
-                participant=self.participant,
-            )
-            return
-        except ValidationError as e:
-            log(f"ios key creation FAILED for '{self.file_name}'")
-            
-            if "already exists" not in str(e):  # don't fail on other validation errors
-                raise
-            
-            extant_key: IOSDecryptionKey = IOSDecryptionKey.objects.get(file_name=self.file_name)
-            # assert both keys are identical.
-            if extant_key.base64_encryption_key != base64_str:
-                log("ios key creation unknown error 2")
-                raise IosDecryptionKeyDuplicateError(
-                    f"Two files, same name, two keys: '{extant_key.file_name}': "
-                    f"extant key: '{extant_key.base64_encryption_key}', '"
-                    f"new key: '{base64_str}'"
-                )
     
     def decrypt_device_line(self, base64_data: bytes) -> bytes:
         """ Config (the file and its iv; why I named it that is a mystery) is expected to be 3 colon
