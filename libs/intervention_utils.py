@@ -4,12 +4,61 @@ from datetime import date
 import orjson
 from django.db.models.aggregates import Count
 
-from database.schedule_models import InterventionDate, RelativeSchedule
+from database.schedule_models import Intervention, InterventionDate, RelativeSchedule
 from database.study_models import Study
 from database.user_models_participant import Participant, ParticipantFieldValue
 
 
 DictOfStrStr = dict[str, str]
+
+ENROLLMENT_DATE_INTERVENTION_NAME = "Enrollment Date"
+
+
+def create_enrollment_date_intervention_for_study(study: Study) -> Intervention:
+    """
+    Creates the 'Enrollment Date' intervention for a study.
+    Called when a new study is created.
+
+    Uses get_or_create to handle edge cases (e.g., study duplication
+    where the intervention might already exist from the copied study).
+    """
+    intervention, _ = Intervention.objects.get_or_create(
+        study=study,
+        name=ENROLLMENT_DATE_INTERVENTION_NAME
+    )
+    return intervention
+
+
+def set_enrollment_date(participant: Participant) -> None:
+    """
+    Sets the enrollment date for a participant to today's date in the study's timezone.
+    Called when a participant first registers via the mobile app.
+
+    Only sets the date if the "Enrollment Date" intervention exists for the study.
+    Does nothing for existing studies that don't have this intervention.
+    """
+    from django.utils import timezone
+
+    intervention = Intervention.objects.filter(
+        study=participant.study,
+        name=ENROLLMENT_DATE_INTERVENTION_NAME
+    ).first()
+
+    if intervention is None:
+        # Intervention doesn't exist for this study (e.g., existing study
+        # created before this feature). Do nothing.
+        return
+
+    # Get the current date in the study's timezone
+    study_timezone = participant.study.timezone
+    enrollment_date = timezone.now().astimezone(study_timezone).date()
+
+    InterventionDate.objects.update_or_create(
+        participant=participant,
+        intervention=intervention,
+        defaults={'date': enrollment_date}
+    )
+
 
 def intervention_survey_data(study: Study) -> dict[str, dict[str, DictOfStrStr]]:
     # this was manually tested to cover multiple interventions per survey, and multiple surveys per intervention

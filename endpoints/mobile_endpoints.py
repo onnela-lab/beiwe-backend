@@ -28,6 +28,7 @@ from database.user_models_participant import AppHeartbeats, Participant, Partici
 from libs.encryption import (DecryptionKeyInvalidError, DeviceDataDecryptor,
     IosDecryptionKeyDuplicateError, IosDecryptionKeyNotFoundError, RemoteDeleteFileScenario)
 from libs.endpoint_helpers.graph_data_helpers import get_survey_results
+from libs.intervention_utils import set_enrollment_date
 from libs.endpoint_helpers.participant_file_upload_helpers import (
     upload_and_create_file_to_process_and_log, upload_problem_file)
 from libs.firebase_config import check_firebase_instance
@@ -196,6 +197,8 @@ def register_user(request: ParticipantRequest, OS_API=""):
         request.session_participant.update_only(last_register_user=now)
     else:
         request.session_participant.update_only(last_register_user=now, first_register_user=now)
+        # Automatically set the Enrollment Date intervention date on first registration
+        set_enrollment_date(request.session_participant)
     if (
         'patient_id' not in request.POST or 'device_id' not in request.POST
         or 'phone_number' not in request.POST or 'new_password' not in request.POST
