@@ -1055,6 +1055,128 @@ class TestCsvMerger(CommonTestCase):
     
     
     @patch("libs.file_processing.csv_merger.s3_retrieve")
+    def test_csv_merger_timestamps_out_of_chronological_order(self, s3_retrieve: Mock):
+        """Test that CsvMerger handles rows with timestamps not in chronological order"""
+        
+        binified_data, null_handler, survey_id_dict = self.basic_config()
+        
+        # Create rows with timestamps out of chronological order (all within same bin)
+        # Most recent first, then older
+        row_newest = [b"1770358450000", b"Unlocked"]  # Most recent
+        row_middle = [b"1770358250000", b"Locked"]    # Middle
+        row_oldest = [b"1770358145197", b"Locked"]    # Oldest
+        rows = [row_newest, row_middle, row_oldest]  # Out of order (reverse chronological)
+        
+        OUTOFORDER_LINE_NEWEST_OUT = b"1770358450000,2026-02-06T06:14:10.000,Unlocked"
+        OUTOFORDER_LINE_MIDDLE_OUT = b"1770358250000,2026-02-06T06:10:50.000,Locked"
+        OUTOFORDER_LINE_OLDEST_OUT = b"1770358145197,2026-02-06T06:09:05.197,Locked"
+        
+        data_bin: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        binified_data[data_bin] = (rows, [1, 2, 3])
+        
+        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        
+        # Verify chunk was processed
+        self.assertEqual(len(merger.upload_these), 1)
+        self.assertIn(1, merger.ftps_to_retire)
+        self.assertIn(2, merger.ftps_to_retire)
+        self.assertIn(3, merger.ftps_to_retire)
+        
+        # Verify upload data
+        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        decompressed = decompress(new_contents)
+        
+        self.assertTrue(is_new)
+        self.assertEqual(content_length, len(decompressed))
+        
+        lines = decompressed.splitlines()
+        # Should have header + 3 data lines
+        self.assertEqual(len(lines), 4)
+        self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
+        self.assertEqual(lines[1], OUTOFORDER_LINE_OLDEST_OUT)
+        self.assertEqual(lines[2], OUTOFORDER_LINE_MIDDLE_OUT)
+        self.assertEqual(lines[3], OUTOFORDER_LINE_NEWEST_OUT)
+    
+    
+    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    def test_csv_merger_timestamps_out_of_chronological_order_within_different_hours(self, s3_retrieve: Mock):
+        """Test that CsvMerger handles out-of-order rows spanning multiple time bins"""
+        # Expected output lines for this test
+        OUTOFORDER_BIN2_LINE = b"1770361745197,2026-02-06T07:09:05.197,Unlocked"
+        OUTOFORDER_BIN1_LINE = b"1770358145197,2026-02-06T06:09:05.197,Locked"
+        
+        binified_data, null_handler, survey_id_dict = self.basic_config()
+        
+        # Create rows from BIN_2 first, then BIN_1 (reverse chronological across bins)
+        row_bin2_newest = [b'1770361745197', b'Unlocked']  # From BIN_2, most recent
+        row_bin1_oldest = [b'1770358145197', b'Locked']    # From BIN_1, oldest
+        
+        data_bin_1: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        data_bin_2: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_2,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        
+        # Present in reverse order (BIN_2 before BIN_1)
+        binified_data[data_bin_2] = ([row_bin2_newest], [2])
+        binified_data[data_bin_1] = ([row_bin1_oldest], [1])
+        
+        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        
+        # Verify both chunks were processed
+        self.assertEqual(len(merger.upload_these), 2)
+        self.assertIn(1, merger.ftps_to_retire)
+        self.assertIn(2, merger.ftps_to_retire)
+        
+        # Verify time bins are tracked correctly
+        self.assertEqual(merger.earliest_time_bin, BIN_1)
+        self.assertEqual(merger.latest_time_bin, BIN_2)
+        
+        # Verify each chunk is new and has correct content
+        bin1_found = False
+        bin2_found = False
+        for chunk_params, chunk_path, new_contents, content_length, is_new in merger.upload_these:
+            self.assertTrue(is_new)
+            self.assertEqual(content_length, len(decompress(new_contents)))
+            
+            decompressed = decompress(new_contents)
+            lines = decompressed.splitlines()
+            
+            # Header should always be first
+            self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
+            
+            if OUTOFORDER_BIN1_LINE in lines:
+                bin1_found = True
+                self.assertEqual(len(lines), 2)  # Header + 1 data line
+                self.assertEqual(lines[1], OUTOFORDER_BIN1_LINE)
+                self.assertNotIn(OUTOFORDER_BIN2_LINE, lines)
+            elif OUTOFORDER_BIN2_LINE in lines:
+                bin2_found = True
+                self.assertEqual(len(lines), 2)  # Header + 1 data line
+                self.assertEqual(lines[1], OUTOFORDER_BIN2_LINE)
+                self.assertNotIn(OUTOFORDER_BIN1_LINE, lines)
+        
+        # Verify both bins were found
+        self.assertTrue(bin1_found, "BIN_1 chunk not found")
+        self.assertTrue(bin2_found, "BIN_2 chunk not found")
+    
+    
+    @patch("libs.file_processing.csv_merger.s3_retrieve")
     def test_csv_merger_separate_time_bins(self, s3_retrieve: Mock):
         binified_data, null_handler, survey_id_dict = self.basic_config()
         data_bin_1: BinifyKey = (
