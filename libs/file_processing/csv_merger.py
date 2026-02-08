@@ -23,6 +23,7 @@ from libs.utils.security_utils import chunk_hash
 
 class ChunkFailedToExist(Exception): pass
 
+
 FileToProcessPK = int
 UncompressedSize = int
 FinalOutputContent = bytes
@@ -30,6 +31,7 @@ ChunkPath = str
 ByteCount = int
 
 Uploadable = tuple[dict, ChunkPath, FinalOutputContent, ByteCount, bool]
+
 
 def log(*args, **kwargs):
     """ A simple wrapper around print to make it easier to change logging later. """
@@ -188,7 +190,6 @@ class CsvMerger:
         data_stream: str,
     ):
         name = chunk_path[38:]
-        
         
         with Timer() as t_retrieve:
             try:
