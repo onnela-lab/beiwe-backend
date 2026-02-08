@@ -1056,7 +1056,6 @@ class TestCsvMerger(CommonTestCase):
     
     @patch("libs.file_processing.csv_merger.s3_retrieve")
     def test_csv_merger_timestamps_out_of_chronological_order(self, s3_retrieve: Mock):
-        """Test that CsvMerger handles rows with timestamps not in chronological order"""
         
         binified_data, null_handler, survey_id_dict = self.basic_config()
         
@@ -1146,34 +1145,98 @@ class TestCsvMerger(CommonTestCase):
         # Verify time bins are tracked correctly
         self.assertEqual(merger.earliest_time_bin, BIN_1)
         self.assertEqual(merger.latest_time_bin, BIN_2)
+        chunk_params1, chunk_path1, new_contents1, content_length1, is_new1 = merger.upload_these[0]
+        chunk_params2, chunk_path2, new_contents2, content_length2, is_new2 = merger.upload_these[1]
         
-        # Verify each chunk is new and has correct content
-        bin1_found = False
-        bin2_found = False
-        for chunk_params, chunk_path, new_contents, content_length, is_new in merger.upload_these:
-            self.assertTrue(is_new)
-            self.assertEqual(content_length, len(decompress(new_contents)))
-            
-            decompressed = decompress(new_contents)
-            lines = decompressed.splitlines()
-            
-            # Header should always be first
-            self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
-            
-            if OUTOFORDER_BIN1_LINE in lines:
-                bin1_found = True
-                self.assertEqual(len(lines), 2)  # Header + 1 data line
-                self.assertEqual(lines[1], OUTOFORDER_BIN1_LINE)
-                self.assertNotIn(OUTOFORDER_BIN2_LINE, lines)
-            elif OUTOFORDER_BIN2_LINE in lines:
-                bin2_found = True
-                self.assertEqual(len(lines), 2)  # Header + 1 data line
-                self.assertEqual(lines[1], OUTOFORDER_BIN2_LINE)
-                self.assertNotIn(OUTOFORDER_BIN1_LINE, lines)
+        # Verify BIN_1 chunk exists and is correct
+        bin1_lines = decompress(new_contents1).splitlines()
+        self.assertEqual(len(bin1_lines), 2)  # Header + 1 data line
+        self.assertEqual(bin1_lines[0], POWER_STATE_HEADER_ANDROID)
+        self.assertEqual(bin1_lines[1], OUTOFORDER_BIN1_LINE)
         
-        # Verify both bins were found
-        self.assertTrue(bin1_found, "BIN_1 chunk not found")
-        self.assertTrue(bin2_found, "BIN_2 chunk not found")
+        # Verify BIN_2 chunk exists and is correct
+        bin2_lines = decompress(new_contents2).splitlines()
+        self.assertEqual(len(bin2_lines), 2)  # Header + 1 data line
+        self.assertEqual(bin2_lines[0], POWER_STATE_HEADER_ANDROID)
+        self.assertEqual(bin2_lines[1], OUTOFORDER_BIN2_LINE)
+    
+    
+    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    def test_csv_merger_one_millisecond_before_next_bin(self, s3_retrieve: Mock):
+        # Timestamp: just before BIN_2 boundary - should stay in BIN_1
+        timestamp_before_boundary = str(BIN_1 * CHUNK_TIMESLICE_QUANTUM * 1000 + 3599999).encode()
+        expected_output = b"1767603599999,2026-01-05T08:59:59.999,Locked"
+        
+        binified_data, null_handler, survey_id_dict = self.basic_config()
+        row = [timestamp_before_boundary, b'Locked']
+        
+        data_bin: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        binified_data[data_bin] = ([row], [1])
+        
+        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        
+        # Verify single chunk was processed
+        self.assertEqual(len(merger.upload_these), 1)
+        self.assertIn(1, merger.ftps_to_retire)
+        self.assertEqual(merger.earliest_time_bin, BIN_1)
+        self.assertEqual(merger.latest_time_bin, BIN_1)
+        
+        # Verify upload data
+        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        decompressed = decompress(new_contents)
+        
+        self.assertTrue(is_new)
+        self.assertEqual(content_length, len(decompressed))
+        
+        lines = decompressed.splitlines()
+        self.assertEqual(len(lines), 2)  # Header + 1 data line
+        self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
+        self.assertEqual(lines[1], expected_output)
+    
+    
+    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    def test_csv_merger_one_millisecond_after_bin_start(self, s3_retrieve: Mock):
+        # Timestamp: just after BIN_1 boundary - should go into BIN_2
+        timestamp_after_boundary = str(BIN_1 * CHUNK_TIMESLICE_QUANTUM * 1000 + 3600001).encode()
+        expected_line = b"1767603600001,2026-01-05T09:00:00.001,Unlocked"
+        
+        binified_data, null_handler, survey_id_dict = self.basic_config()
+        row = [timestamp_after_boundary, b'Unlocked']
+        
+        data_bin: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_2,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        binified_data[data_bin] = ([row], [1])
+        
+        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        
+        # Verify single chunk was processed
+        self.assertEqual(len(merger.upload_these), 1)
+        self.assertIn(1, merger.ftps_to_retire)
+        self.assertEqual(merger.earliest_time_bin, BIN_2)
+        self.assertEqual(merger.latest_time_bin, BIN_2)
+        
+        # Verify upload data
+        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        decompressed = decompress(new_contents)
+        
+        self.assertTrue(is_new)
+        self.assertEqual(content_length, len(decompressed))
+        
+        lines = decompressed.splitlines()
+        self.assertEqual(len(lines), 2)  # Header + 1 data line
+        self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
+        self.assertEqual(lines[1], expected_line)
     
     
     @patch("libs.file_processing.csv_merger.s3_retrieve")
