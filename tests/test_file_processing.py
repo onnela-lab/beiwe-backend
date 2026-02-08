@@ -1004,6 +1004,57 @@ class TestCsvMerger(CommonTestCase):
     
     
     @patch("libs.file_processing.csv_merger.s3_retrieve")
+    def test_csv_merger_timestamp_exactly_at_time_bin_boundary_are_in_the_bin_that_matches(self, s3_retrieve: Mock):
+        binified_data, null_handler, survey_id_dict = self.basic_config()
+        
+        # Timestamp exactly at BIN_1 and bin2 boundaries: BIN_1
+        timestamp_at_bin1_boundary = str(BIN_1 * CHUNK_TIMESLICE_QUANTUM * 1000).encode()
+        timestamp_at_bin2_boundary = str(BIN_2 * CHUNK_TIMESLICE_QUANTUM * 1000).encode()
+        row_bin1 = [timestamp_at_bin1_boundary, b'Locked']
+        row_bin2 = [timestamp_at_bin2_boundary, b'Unlocked']
+        
+        data_bin_1: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        data_bin_2: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_2,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        
+        binified_data[data_bin_1] = ([row_bin1], [1])
+        binified_data[data_bin_2] = ([row_bin2], [2])
+        
+        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        
+        # Verify both chunks were processed as separate chunks
+        self.assertEqual(len(merger.upload_these), 2)
+        self.assertIn(1, merger.ftps_to_retire)
+        self.assertIn(2, merger.ftps_to_retire)
+        
+        # Verify time bins are exactly one apart
+        self.assertEqual(merger.earliest_time_bin, BIN_1)
+        self.assertEqual(merger.latest_time_bin, BIN_2)
+        
+        # Verify each chunk is new
+        for chunk_params, chunk_path, new_contents, content_length, is_new in merger.upload_these:
+            self.assertTrue(is_new)
+            self.assertEqual(content_length, len(decompress(new_contents)))
+            
+            # Verify the timestamps are in the decompressed output
+            decompressed = decompress(new_contents)
+            lines = decompressed.splitlines()
+            self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
+            self.assertGreaterEqual(len(lines), 2)  # Header + at least one data line
+    
+    
+    @patch("libs.file_processing.csv_merger.s3_retrieve")
     def test_csv_merger_separate_time_bins(self, s3_retrieve: Mock):
         binified_data, null_handler, survey_id_dict = self.basic_config()
         data_bin_1: BinifyKey = (
