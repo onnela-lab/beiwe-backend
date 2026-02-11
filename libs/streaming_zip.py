@@ -4,8 +4,8 @@ from contextlib import suppress
 from multiprocessing.pool import ThreadPool
 from zipfile import ZIP_STORED, ZipFile
 
-from constants.data_stream_constants import (AMBIENT_AUDIO, AUDIO_RECORDING, SURVEY_ANSWERS,
-    SURVEY_TIMINGS)
+from constants.data_stream_constants import (AI_CHAT_LOGS, AMBIENT_AUDIO, AUDIO_RECORDING,
+    SURVEY_ANSWERS, SURVEY_TIMINGS)
 from constants.s3_constants import NoSuchKeyException
 from database.study_models import Study
 from endpoints.participant_endpoints import SentryUtils
@@ -52,7 +52,7 @@ def determine_base_file_name(chunk: dict) -> str:
         survey_id = get_survey_id(chunk)
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
     
-    if data_stream == SURVEY_TIMINGS:
+    if data_stream in (SURVEY_TIMINGS, AI_CHAT_LOGS):
         # add the survey_id from the database entry.
         survey_id = get_survey_id(chunk)
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"

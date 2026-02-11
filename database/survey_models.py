@@ -22,9 +22,11 @@ class SurveyBase(TimestampedModel, ObjectIDModel):
     
     AUDIO_SURVEY = 'audio_survey'
     TRACKING_SURVEY = 'tracking_survey'
+    AI_CHAT_SURVEY = 'ai_chat_survey'
     SURVEY_TYPE_CHOICES = (
         (AUDIO_SURVEY, AUDIO_SURVEY),
         (TRACKING_SURVEY, TRACKING_SURVEY),
+        (AI_CHAT_SURVEY, AI_CHAT_SURVEY),
     )
     
     # for some reasons these nee to have diverged
