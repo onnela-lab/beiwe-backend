@@ -1,6 +1,8 @@
 import os
 import platform
 import warnings
+from sys import argv
+from typing import Any
 
 import sentry_sdk
 from django.core.exceptions import ImproperlyConfigured
@@ -14,6 +16,8 @@ from libs.sentry import normalize_sentry_dsn
 
 # before anything else, determine if we are running in debug / development mode based off the domain
 DEBUG = 'localhost' in DOMAIN_NAME or '127.0.0.1' in DOMAIN_NAME or '::1' in DOMAIN_NAME
+
+RUNNING_TESTS = "test" in argv
 
 ####################################################################################################
 ################################### General Web Connections ########################################
@@ -244,28 +248,6 @@ if "sentry_sdk.integrations.starlette.StarletteIntegration" not in _AUTO_ENABLIN
     )
 _AUTO_ENABLING_INTEGRATIONS.remove("sentry_sdk.integrations.starlette.StarletteIntegration")
 
-
-# def filter_junk_errors(event: Event, hint: Hint) -> Event | None:
-#     """ Docs: https://docs.sentry.io/platforms/python/configuration/filtering/ """
-
-#     if 'exc_info' not in hint:  # we only care about errors
-#         from pprint import pprint, pp, pformat
-#         pprint(hint)
-#         return event
-
-#     exception: Exception = hint['exc_info'][1]  # unfathomable but docs say this is what you do.
-
-#     # this never prints
-#     #
-#     print("exception name!")
-#     print(exception)
-#     print("exception name!")
-
-#     if "was sent code 134!" in str(exception):  # when gunicorn kills a slow worker thread on deploy
-#         return None
-
-#     return event
-
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="sentry_sdk.client")
 # TODO: get error filtering working, the above never prints
 sentry_sdk.init(
@@ -293,49 +275,98 @@ sentry_sdk.init(
 ####################################################################################################
 
 
-# I don't know what this does after replacing raven with sentry_sdk...
-if not DEBUG and SENTRY_ELASTIC_BEANSTALK_DSN:
-    # custom tags have been disabled
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters':
-            {
-                'verbose':
-                    {
-                        'format':
-                            '%(levelname)s %(asctime)s %(module)s '
-                            '%(process)d %(thread)d %(message)s'
-                    },
-            },
-        'handlers':
-            {
-                'console':
-                    {
-                        'level': 'DEBUG',
-                        'class': 'logging.StreamHandler',
-                        'formatter': 'verbose'
-                    }
-            },
-        'loggers':
-            {
-                'root': {
-                    'level': 'WARNING',
-                    'handlers': ['console'],
-                },
-                'django.db.backends':
-                    {
-                        'level': 'ERROR',
-                        'handlers': ['console'],
-                        'propagate': True,
-                    },
-                'sentry.errors': {
-                    'level': 'WARNING',
-                    'handlers': ['console'],
-                    'propagate': True,
-                },
-            },
+LOGGING: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",  # logging to the console / stdout
+            "formatter": "verbose",
+        },
+        "null": {
+            "class": "logging.NullHandler"     # use this to disable a logger
+        },
+    },
+    "loggers": {
+        "root": {
+            "level": "WARNING",                # root/default logger level is warning
+            "handlers": ["console"],
+        },
+        "django.db.backends": {                # db backend logger (formerly was error, trying warning)
+            "level": "WARNING",
+            "handlers": ["console"],
+            "formatter": "verbose",
+            "propagate": True,
+        },
+    },
+}
+
+
+if DEBUG or RUNNING_TESTS:
+    # LOGGING["loggers"]["root"] = {      # change the root logger in debug / tests mode
+    #     "level": "WARNING",
+    #     "handlers": ["console"],
+    # }
+    # LOGGING["loggers"]["django.db.backends"] = {   # noisy on debug
+    #         "level": "DEBUG",
+    #         "handlers": ["console"],
+    #         "propagate": True,
+    #     }
+    LOGGING["loggers"]["django.request"] = {  # disable the internal django errors stack traces when running tests
+        "handlers": ["null"],
+        "level": "ERROR",
+        "propagate": False,
     }
+elif SENTRY_ELASTIC_BEANSTALK_DSN:
+    LOGGING["loggers"]["sentry.errors"] = {  # add the sentry logger if running sentry
+        "level": "WARNING",
+        "handlers": ["console"],
+        "propagate": True,
+    }
+
+
+# Dumb: tests arn't super legible with this spam when running with --parallel, and it isn't logged -
+# its written directly to stderr in django/db/backends/base/creation.py
+if RUNNING_TESTS:
+    # sticking everything in a function to keep namespace clean(er)
+    def patch_sterr_write():  # noqa
+        if "--keepdb" not in argv:  # only trigger when --keepdb is used.
+            return
+        try:
+            i = argv[argv.index("--parallel") + 1]  # get number of processes
+        except ValueError:
+            return
+        
+        from sys import stderr  # import and stash
+        orig_write = stderr.write
+        counter = {"start": True, "end": True}  # need an outer scope to track state
+        
+        def filtered_write(stringlike) -> int | Any:  # noqa
+            
+            # print something useful at start and end
+            if stringlike.startswith("Using existing clone for alias"):
+                if not counter["start"]:
+                    return 1
+                counter["start"] = False
+                return orig_write(f"Using {i} cloned test databases\n")
+            
+            if stringlike.startswith("Preserving test database for alias"):
+                if not counter["end"]:
+                    return 1
+                counter["end"] = False
+                return orig_write(f"Preserving {i} cloned test databases\n")
+            return orig_write(stringlike)
+        
+        stderr.write = filtered_write
+    
+    patch_sterr_write()
+
 
 
 ####################################################################################################
