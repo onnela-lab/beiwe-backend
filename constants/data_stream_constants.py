@@ -1,5 +1,6 @@
 ## Constants for for the keys in DATA_STREAM_TO_S3_FILE_NAME_STRING
 ACCELEROMETER = "accelerometer"
+AI_CHAT_LOGS = "ai_chat_logs"  # not collected on devices, collected through backend
 AMBIENT_AUDIO = "ambient_audio"
 AUDIO_RECORDING = "audio_recordings"
 ANDROID_LOG_FILE = "app_log"
@@ -22,6 +23,7 @@ WIFI = "wifi"
 
 ALL_DATA_STREAMS = [  # these strings are used in chunked files
     ACCELEROMETER,
+    AI_CHAT_LOGS,
     AUDIO_RECORDING,
     AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
@@ -43,7 +45,7 @@ ALL_DATA_STREAMS = [  # these strings are used in chunked files
 ]
 
 ALL_DATA_STREAMS_SET = set(ALL_DATA_STREAMS)
-assert(len(ALL_DATA_STREAMS_SET) == len(ALL_DATA_STREAMS))
+assert len(ALL_DATA_STREAMS_SET) == len(ALL_DATA_STREAMS)
 
 SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
 
