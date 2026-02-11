@@ -630,7 +630,6 @@ class TestAbsoluteSchedulesCreation(CommonTestCase):
         self.assertEqual(two_again.date, self.TOMORROW)
         self.assertEqual(two.hour, 2)
         self.assertEqual(two_again.hour, 2)
-    
 
 
 class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
@@ -761,16 +760,16 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.assertEqual(AbsoluteSchedule.objects.count(), 0)
         self.assert_no_scheduled_events
         self.generate_absolute_schedule(timezone.now().date())
-        self.assertEqual(AbsoluteSchedule.objects.count(), 1) # change
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)  # change
         self.assert_no_scheduled_events   # no change
         repopulate_absolute_survey_schedule_events(self.default_survey, self.default_participant)
-        self.assertEqual(AbsoluteSchedule.objects.count(), 1) # no change
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)  # no change
         self.assertEqual(ScheduledEvent.objects.count(), 1)   # change
         self.assertEqual(ArchivedEvent.objects.count(), 0)
         self.setup_assert_new_scheduled_events_dont_replace_existing
         repopulate_absolute_survey_schedule_events(self.default_survey, self.default_participant)
         self.assert_new_scheduled_events_dont_replace_existing
-        self.assertEqual(AbsoluteSchedule.objects.count(), 1) # no change
+        self.assertEqual(AbsoluteSchedule.objects.count(), 1)  # no change
         self.assertEqual(ScheduledEvent.objects.count(), 1)   # change
         self.assertEqual(ArchivedEvent.objects.count(), 0)
     
@@ -785,6 +784,26 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.assert_new_scheduled_events_dont_replace_existing
         self.assertEqual(ScheduledEvent.objects.count(), 1)
         self.assertEqual(ArchivedEvent.objects.count(), 0)
+    
+    def test_weekly_schedule_basic_event_generation__broken(self):
+        week = timedelta(days=7)
+        # t = datetime(2026, 2, 8, 1, 30, 26, 50338, tzinfo=UTC)  # baseline, fails
+        t = datetime(2026, 2, 8, 0, 0, 0, 0, tzinfo=UTC)        # fails
+        # t = datetime(2026, 2, 8, 4, 59, 0, tzinfo=UTC)          # fails
+        # t = datetime(2026, 2, 8, 4, 59, 0, tzinfo=UTC) + week   # fails
+        # t = datetime(2026, 2, 8, 5, 0, 0, 0, tzinfo=UTC)       # passes
+        # t = datetime(2026, 2, 7, 23, 59, 0, 0, tzinfo=UTC)      # passes
+        # t = datetime(2026, 2, 8, 1, 11, 0, 0, tzinfo=UTC)       # fails
+        
+        # t = datetime(2026, 2, 8, 5, 0, 0, tzinfo=UTC)
+        # ok, between midnight and [the instant before] 5am on feb 8 2026 UTC it fails
+        # that's a 5 hour offset, the study is EDT/EST time shifting..... in one month. not in feb
+        
+        # Ug. it fails at friday between [utc offset period in which the date changes due to the
+        #   offset causing the date to differ in the calculations] - I have to work out the correct
+        #   behavior here.
+        with time_machine.travel(t):
+            self.test_weekly_schedule_basic_event_generation()
     
     def test_weekly_schedule_basic_event_generation(self):
         self.default_survey, self.default_participant

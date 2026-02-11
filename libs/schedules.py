@@ -15,6 +15,7 @@ from libs.utils.date_utils import date_to_end_of_day, date_to_start_of_day
 
 ENABLE_SCHEDULE_LOGGING = False  # ok you actually have to set this now there is code that checks it.
 
+
 def log(*args, **kwargs):
     if ENABLE_SCHEDULE_LOGGING:
         print(*args, **kwargs)
@@ -339,7 +340,7 @@ def scheduled_event_database_update(
 ):  
     existing_event_lookup: set[EventLookup] = {
         (event.get_schedule_pk(), event.participant_id, event.scheduled_time)
-         for event in existing_events
+        for event in existing_events
     }
     
     new_event_info_to_create = determine_events_to_create(

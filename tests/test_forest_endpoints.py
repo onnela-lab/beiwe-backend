@@ -627,7 +627,7 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
     def test_two_data_lines(self):
         self.set_session_study_relation(ResearcherRole.study_admin)
         task, stat = self.setup_valid_tree_and_summary_statistic(ForestTree.jasmine)
-        stat2 = self.generate_summary_statistic_daily(date(2020,1,1))
+        stat2 = self.generate_summary_statistic_daily(date(2020, 1, 1))
         
         # we need to point at a correctly typed tree
         stat2.update_only(**{TREE_TO_TASK_NAME[ForestTree.jasmine]: task})
