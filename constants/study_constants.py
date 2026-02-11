@@ -117,7 +117,7 @@ ALL_QUESTION_TYPES = {
     CHECKBOX,
     RADIO_BUTTON,
     SLIDER,
-    INFO_TEXT_BOX
+    INFO_TEXT_BOX,
 }
 
 NUMERIC_QUESTIONS = {
@@ -135,7 +135,7 @@ FREE_RESPONSE_MULTI_LINE_TEXT = "MULTI_LINE_TEXT"
 TEXT_FIELD_TYPES = {
     FREE_RESPONSE_NUMERIC,
     FREE_RESPONSE_SINGLE_LINE_TEXT,
-    FREE_RESPONSE_MULTI_LINE_TEXT
+    FREE_RESPONSE_MULTI_LINE_TEXT,
 }
 
 ## Comparators
@@ -145,12 +145,12 @@ COMPARATORS = {
     "<=",
     ">=",
     "==",
-    "!="
+    "!=",
 }
 
 NUMERIC_COMPARATORS = {
     "<",
     ">",
     "<=",
-    ">="
+    ">=",
 }
