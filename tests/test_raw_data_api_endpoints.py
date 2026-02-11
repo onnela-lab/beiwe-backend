@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from django.http.response import FileResponse
 
-from constants.data_stream_constants import ALL_DATA_STREAMS, SURVEY_TIMINGS
+from constants.data_stream_constants import AI_CHAT_LOGS, ALL_DATA_STREAMS, SURVEY_TIMINGS
 from constants.testing_constants import EMPTY_ZIP, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ResearcherRole
 from database.data_access_models import ChunkRegistry
@@ -46,6 +46,7 @@ class TestGetData(DataApiTest):
         "audio_recordings": ("2020-10-05 02:00Z", f"{PATIENT_NAME}/audio_recordings/{SURV_ID}/2020-10-05 02_00_00+00_00.wav"),
         "survey_answers":   ("2020-10-05 02:00Z", f"{PATIENT_NAME}/survey_answers/{SURV_ID}/2020-10-05 02_00_00+00_00.csv"),
         "survey_timings":   ("2020-10-05 02:00Z", f"{PATIENT_NAME}/survey_timings/{SURV_ID}/2020-10-05 02_00_00+00_00.csv"),
+        "ai_chat_logs":     ("2020-10-05 02:00Z", f"{PATIENT_NAME}/ai_chat_logs/{SURV_ID}/2020-10-05 02_00_00+00_00.csv"),
         # without_surveys
         "accelerometer":    ("2020-10-05 02:00Z", f"{PATIENT_NAME}/accelerometer/2020-10-05 02_00_00+00_00.csv"),
         "ambient_audio":    ("2020-10-05 02:00Z", f"{PATIENT_NAME}/ambient_audio/2020-10-05 02_00_00+00_00.mp4"),
@@ -384,7 +385,7 @@ class TestGetData(DataApiTest):
         from database.models import S3File
         S3File.objects.get_or_create(path=self.FULLY_VALID_FILE_PATH + ".zst", sha1=self.REGISTRY_HASH_RAW)
         
-        if data_type == SURVEY_TIMINGS:
+        if data_type in (SURVEY_TIMINGS, AI_CHAT_LOGS):
             generate_kwargs["survey"] = self.default_survey
         
         if registry is not None:
