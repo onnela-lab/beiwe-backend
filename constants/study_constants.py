@@ -70,7 +70,6 @@ CHECKBOX_TOGGLES = [
     "gyro",
     "magnetometer",
     "devicemotion",
-    "ambient_audio",
     "reachability",
     "allow_upload_over_cellular_data",
     "use_anonymized_hashing",
