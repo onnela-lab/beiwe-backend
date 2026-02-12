@@ -24,19 +24,22 @@
   var numberOfRandomQuestions = settings.number_of_random_questions || null;
   var trackingSurvey = ('{{ survey.survey_type }}' == "tracking_survey");
   var audioSurvey = ('{{ survey.survey_type }}' == "audio_survey");
+  var ai_chatSurvey = ('{{ survey.survey_type }}' == "ai_chat_survey");
   var always_available = settings.always_available || false;
 </script>
-<script src="/static/javascript/survey-editor/schedule.js"></script>
-<script src="/static/javascript/survey-editor/survey-editor.js"></script>
-<script src="/static/javascript/app/survey-builder/constants.js"></script>
-<script src="/static/javascript/app/survey-builder/services.js"></script>
-<script src="/static/javascript/app/survey-builder/directives/tooltip/tooltip.js"></script>
-<script src="/static/javascript/app/survey-builder/directives/add-logic-buttons/add-logic-buttons.js"></script>
-<script src="/static/javascript/app/survey-builder/directives/conditional-block/conditional-block.js"></script>
-<script src="/static/javascript/app/survey-builder/directives/logical-block/logical-block.js"></script>
-<script src="/static/javascript/app/survey-builder/directives/edit-question/edit-question.js"></script>
-<script src="/static/javascript/app/survey-builder/directives/question-summary/question-summary.js"></script>
-<script src="/static/javascript/app/survey-builder/controllers/survey-builder-controller.js"></script>
+
+<script> {% include LocalAssets.SURVEY_EDITOR_SCHEDULE %} </script>
+<script> {% include LocalAssets.SURVEY_EDITOR_SURVEY_EDITOR %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_CONSTANTS %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_SERVICES %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_DIRECTIVES_TOOLTIP_TOOLTIP %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_DIRECTIVES_ADD_LOGIC_BUTTONS_ADD_LOGIC_BUTTONS %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_DIRECTIVES_CONDITIONAL_BLOCK_CONDITIONAL_BLOCK %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_DIRECTIVES_LOGICAL_BLOCK_LOGICAL_BLOCK %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_DIRECTIVES_EDIT_QUESTION_EDIT_QUESTION %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_DIRECTIVES_QUESTION_SUMMARY_QUESTION_SUMMARY %} </script>
+<script> {% include LocalAssets.SURVEY_BUILDER_CONTROLLERS_SURVEY_BUILDER_CONTROLLER %} </script>
+
 {% endblock %}
 
 {% block content %}
