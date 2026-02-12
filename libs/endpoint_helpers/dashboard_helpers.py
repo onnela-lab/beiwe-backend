@@ -9,7 +9,7 @@ from django.db.models import Max, Min, Q
 
 from authentication.admin_authentication import ResearcherRequest
 from constants.common_constants import API_DATE_FORMAT, EARLIEST_POSSIBLE_DATA_DATETIME
-from constants.data_stream_constants import ALL_DATA_STREAMS
+from constants.data_stream_constants import AI_CHAT_LOGS, ALL_DATA_STREAMS
 from constants.forest_constants import DATA_QUANTITY_FIELD_MAP, DATA_QUANTITY_FIELD_NAMES
 from database.dashboard_models import DashboardColorSetting, DashboardGradient, DashboardInflection
 from database.forest_models import SummaryStatisticDaily

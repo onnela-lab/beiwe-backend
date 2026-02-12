@@ -4,8 +4,8 @@ from contextlib import suppress
 from multiprocessing.pool import ThreadPool
 from zipfile import ZIP_STORED, ZipFile
 
-from constants.data_stream_constants import (AI_CHAT_LOGS, AMBIENT_AUDIO, AUDIO_RECORDING,
-    SURVEY_ANSWERS, SURVEY_TIMINGS)
+from constants.data_stream_constants import (AI_CHAT_LOGS, AUDIO_RECORDING, SURVEY_ANSWERS,
+    SURVEY_TIMINGS)
 from constants.s3_constants import NoSuchKeyException
 from database.study_models import Study
 from endpoints.participant_endpoints import SentryUtils
@@ -74,10 +74,6 @@ def determine_base_file_name(chunk: dict) -> str:
             extension = chunk_path.rsplit(".")[1]
         
         return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
-    
-    if data_stream == AMBIENT_AUDIO:
-        ext = chunk_path.split(".")[1]  # this one can be weird.
-        return f"{patient_id}/{data_stream}/{time_bin}.{ext}"
     
     # all other files have this form:
     return f"{patient_id}/{data_stream}/{time_bin}.csv"

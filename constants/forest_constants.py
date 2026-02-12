@@ -3,9 +3,12 @@
 from django.db.models.fields import (BooleanField, CharField, DateField, DateTimeField, FloatField,
     IntegerField, TextField)
 
-# trunk-ignore(ruff/F403)
-from constants.data_stream_constants import *
 from constants import DjangoDropdown
+# trunk-ignore(ruff/F403)
+from constants.data_stream_constants import (ACCELEROMETER, AI_CHAT_LOGS, ANDROID_LOG_FILE,
+    AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE,
+    MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG,
+    WIFI)
 
 from forest.constants import Frequency
 
@@ -208,7 +211,7 @@ NICE_SUMMARY_METADATA_FIELD_NAMES = [
 # Data quantities
 DATA_QUANTITY_FIELD_MAP = {
     ACCELEROMETER: "beiwe_accelerometer_bytes",
-    AMBIENT_AUDIO: "beiwe_ambient_audio_bytes",
+    AI_CHAT_LOGS: "beiwe_ai_chat_logs_bytes",
     ANDROID_LOG_FILE: "beiwe_app_log_bytes",
     BLUETOOTH: "beiwe_bluetooth_bytes",
     CALL_LOG: "beiwe_calls_bytes",

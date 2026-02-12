@@ -359,7 +359,7 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
         'Study Id',
         'Timezone',
         'Accelerometer Bytes',
-        'Ambient Audio Bytes',
+        'Ai Chat Logs Bytes',
         'App Log Bytes',
         'Bluetooth Bytes',
         'Calls Bytes',
@@ -458,7 +458,7 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
         self.set_session_study_relation(ResearcherRole.study_admin)
         resp = self.smart_get_status_code(200, self.session_study.id)
         content = b"".join(resp.streaming_content)
-        self.assertEqual(content, self.CSV_HEADER)# + self.EMPTY_GRAND_TOTALS + self.EMPTY_GLOBALS)
+        self.assertEqual(content, self.CSV_HEADER)  # + self.EMPTY_GRAND_TOTALS + self.EMPTY_GLOBALS)
     
     def test_one_participant_no_data(self):
         self.set_session_study_relation(ResearcherRole.study_admin)
@@ -481,8 +481,8 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
         self.set_session_study_relation(ResearcherRole.study_admin)
         self.using_default_participant()
         self.default_summary_statistic_daily
-        p2 = self.generate_participant(self.session_study, patient_id="patient2")
-        self.generate_summary_statistic_daily(date(2020,1,1))
+        _p2 = self.generate_participant(self.session_study, patient_id="patient2")
+        self.generate_summary_statistic_daily(date(2020, 1, 1))
         resp = self.smart_get_status_code(200, self.session_study.id)
         correct = b"".join((
             self.CSV_HEADER,
