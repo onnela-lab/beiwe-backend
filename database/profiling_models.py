@@ -460,7 +460,7 @@ class S3File(TimestampedModel):
         # it _should_ always be a map of ACCELEROMETER: ACCELEROMETER buuuuut we aren't that lucky.
         MAPPING = {
             ACCELEROMETER:    ("accel", ACCELEROMETER, ),
-            AMBIENT_AUDIO:    ("ambientAudio", AMBIENT_AUDIO, ),
+            AI_CHAT_LOGS:     ("ai_chat_logs", AI_CHAT_LOGS, ),
             ANDROID_LOG_FILE: ("logFile", ANDROID_LOG_FILE, ),
             BLUETOOTH:        ("bluetoothLog", BLUETOOTH, ),
             CALL_LOG:         ("callLog", CALL_LOG, ),
@@ -482,7 +482,7 @@ class S3File(TimestampedModel):
             "forest":         ("forest", ),
         }
         
-        not_chunked = AMBIENT_AUDIO, SURVEY_ANSWERS, AUDIO_RECORDING, "key_file", "forest"
+        not_chunked = AI_CHAT_LOGS, SURVEY_ANSWERS, AUDIO_RECORDING, "key_file", "forest"
         
         for label, filters in MAPPING.items():
             path_contains = Q()

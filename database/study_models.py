@@ -205,7 +205,6 @@ class DeviceSettings(TimestampedModel):
     use_gps_fuzzing = models.BooleanField(default=False)
     call_clinician_button_enabled = models.BooleanField(default=True)
     call_research_assistant_button_enabled = models.BooleanField(default=True)
-    ambient_audio = models.BooleanField(default=False)
     
     # Whether iOS-specific data streams are turned on
     proximity = models.BooleanField(default=False)
@@ -221,10 +220,6 @@ class DeviceSettings(TimestampedModel):
     accelerometer_off_duration_seconds = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     accelerometer_on_duration_seconds = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     accelerometer_frequency = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
-    ambient_audio_off_duration_seconds = models.PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_on_duration_seconds = models.PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_bitrate = models.PositiveIntegerField(default=24000, validators=[MinValueValidator(16000)])
-    ambient_audio_sampling_rate = models.PositiveIntegerField(default=44100, validators=[MinValueValidator(16000)])
     bluetooth_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
     bluetooth_total_duration_seconds = models.PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
     bluetooth_global_offset_seconds = models.PositiveIntegerField(default=0)

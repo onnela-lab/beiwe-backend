@@ -309,7 +309,7 @@ class SummaryStatisticDaily(TimestampedModel):
     
     # Beiwe data quantities
     beiwe_accelerometer_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_ambient_audio_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    beiwe_ai_chat_logs_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_app_log_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_bluetooth_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     beiwe_calls_bytes = models.PositiveBigIntegerField(null=True, blank=True)
