@@ -15,7 +15,7 @@ from libs.sentry import normalize_sentry_dsn
 
 
 # before anything else, determine if we are running in debug / development mode based off the domain
-DEBUG = 'localhost' in DOMAIN_NAME or '127.0.0.1' in DOMAIN_NAME or '::1' in DOMAIN_NAME
+DEBUG = "localhost" in DOMAIN_NAME or "127.0.0.1" in DOMAIN_NAME or "::1" in DOMAIN_NAME
 
 RUNNING_TESTS = "test" in argv
 
@@ -27,7 +27,7 @@ RUNNING_TESTS = "test" in argv
 DATA_UPLOAD_MAX_MEMORY_SIZE = 128 * 1024 * 1024  # 128 MB
 
 SECURE_SSL_REDIRECT = not DEBUG
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # (when running on Elastic Beanstalk)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # (when running on Elastic Beanstalk)
 
 ####################################################################################################
 ##################################### Django Session Backend #######################################
@@ -35,7 +35,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # (when running o
 
 # json serializer crashes with module object does not have attribute .dumps
 # or it cannot serialize a datetime object.
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
+SESSION_SERIALIZER = "django.contrib.sessions.serializers.JSONSerializer"
 SESSION_ENGINE = "database.user_models_researcher"
 
 SECRET_KEY = FLASK_SECRET_KEY  # "~FLASK~" is because we started as a flask app many years ago
@@ -48,16 +48,16 @@ SESSION_COOKIE_SECURE = not DEBUG
 ####################################################################################################
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ['RDS_DB_NAME'],
-        'USER': os.environ['RDS_USERNAME'],
-        'PASSWORD': os.environ['RDS_PASSWORD'],
-        'HOST': os.environ['RDS_HOSTNAME'],
-        'CONN_MAX_AGE': 0,
-        'CONN_HEALTH_CHECKS': True,
-        'OPTIONS': {
-            'sslmode': 'require',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["RDS_DB_NAME"],
+        "USER": os.environ["RDS_USERNAME"],
+        "PASSWORD": os.environ["RDS_PASSWORD"],
+        "HOST": os.environ["RDS_HOSTNAME"],
+        "CONN_MAX_AGE": 0,
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {
+            "sslmode": "require",
             # connection pools appear to be fully  broken, resulting in connection errors after a
             # few hours. There are definitely options to explore, but it worked for ages without the
             # pool, so who cares, we are done with it this.
@@ -73,11 +73,11 @@ DATABASES = {
             #     "reconnect_timeout": 5,  # seconds to wait before retrying a connection. default is 5 _minutes_
             #     # "num_workers": 3,  # number of cleanup worker threads to use, default is 3.
             # },
-            'client_encoding': 'UTF-8',
+            "client_encoding": "UTF-8",
         },
         "ATOMIC_REQUESTS": True,  # default is True, just being explicit
-        'TEST': {
-            'MIGRATE': True,
+        "TEST": {
+            "MIGRATE": True,
         }
     },
 }
@@ -86,11 +86,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"  # database primary key settin
 
 # mac os homebrew postgres has configuration complexities that are not worth the effort to resolve.
 if (not SECURE_SSL_REDIRECT and platform.system() == "Darwin") or os.environ.get("RUNNING_IN_DOCKER", False):
-    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'  # type: ignore
+    DATABASES["default"]["OPTIONS"]["sslmode"] = "disable"  # type: ignore
 
 # This is from testing postgres connection pools, which caused too many issues.
 # if DEBUG:
-#     DATABASES['default']['OPTIONS']['pool']['min_size'] = 1  # single connection pool
+#     DATABASES["default"]["OPTIONS"]["pool"]["min_size"] = 1  # single connection pool
 
 ####################################################################################################
 ##################################### Shell Plus Config ############################################
@@ -107,36 +107,37 @@ SHELL_PLUS_POST_IMPORTS = [
     
     # datetimezone
     "dateutil",  # do not add pytz it is deprecated
-    ["dateutil", ('tz',)],
-    ["dateutil.tz", ('UTC',)],
-    ["time", ("sleep",)],
-    ["datetime", ("date", "datetime", "timedelta", "tzinfo")],
-    ["django.utils.timezone", ("localtime", "make_aware", "make_naive")],
+    ["dateutil", ("tz", )],
+    ["dateutil.tz", ("UTC", )],
+    ["time", ("sleep", )],
+    ["datetime", ("date", "datetime", "timedelta", "tzinfo", )],
+    ["django.utils.timezone", ("localtime", "make_aware", "make_naive", )],
     
     # shell
     ["libs.shell_support", "*"],
-    ['libs.utils.dev_utils', "GlobalTimeTracker"],
+    ["libs.utils.dev_utils", "GlobalTimeTracker"],
     
     # honestly misc stuff
-    ['libs.utils.http_utils', "numformat"],
+    ["libs.utils.http_utils", "numformat"],
     ["libs.efficient_paginator", "EfficientQueryPaginator"],
     
     # s3
     [
-        "libs.s3",
-        (
-            "s3_list_files", "s3_upload", "s3_upload_plaintext", "s3_retrieve",
-            "s3_retrieve_plaintext"
-        )
+        "libs.s3", ("s3_list_files", "s3_upload", "s3_upload_plaintext", "s3_retrieve",
+            "s3_retrieve_plaintext", )
     ],
     
     # I need to be able to paste code >_O
-    ["typing", ("List", "Dict", "Tuple", "Union", 'Counter', 'Deque', 'Dict', 'DefaultDict')],
+    ["typing", ("List", "Dict", "Tuple", "Union", "Counter", "Deque", "Dict", "DefaultDict")],
     
     # really useful constants
-    ["constants.user_constants", ("ANDROID_API", "IOS_API", "NULL_OS", "ResearcherRole")],
-    ["constants.data_stream_constants", ("ALL_DATA_STREAMS", )],
+    ["constants.user_constants", ("ANDROID_API", "IOS_API", "NULL_OS", "ResearcherRole", )],
+    ["constants.data_stream_constants", ("ALL_DATA_STREAMS", "ACCELEROMETER", "AI_CHAT_LOGS",
+        "AUDIO_RECORDING", "ANDROID_LOG_FILE", "BLUETOOTH", "CALL_LOG", "DEVICEMOTION", "GPS",
+        "GYRO", "IDENTIFIERS", "IOS_LOG_FILE", "MAGNETOMETER", "POWER_STATE", "PROXIMITY",
+        "REACHABILITY", "SURVEY_ANSWERS", "SURVEY_TIMINGS", "TEXTS_LOG", "WIFI", )],
 ]
+
 SHELL_PLUS_PRE_IMPORTS = []
 
 # if we enable sql printing, don't truncate the output.
@@ -148,7 +149,7 @@ SHELL_PLUS_PRINT_SQL_TRUNCATE = None
 ######################################## Testing Settings ##########################################
 ####################################################################################################
 
-# TEST_RUNNER = 'django.test.runner.DiscoverRunner'  # default test runner
+# TEST_RUNNER = "django.test.runner.DiscoverRunner"  # default test runner
 TEST_RUNNER = "redgreenunittest.django.runner.RedGreenDiscoverRunner"  # colored output!
 
 ####################################################################################################
@@ -162,28 +163,28 @@ else:
 
 PROJECT_ROOT = "."
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 USE_TZ = True
 
 INSTALLED_APPS = [
-    'database.apps.DatabaseConfig',
-    'django.contrib.sessions',
-    'django_extensions',
-    'django.contrib.staticfiles'
-    # 'static_files',
+    "database.apps.DatabaseConfig",
+    "django.contrib.sessions",
+    "django_extensions",
+    "django.contrib.staticfiles"
+    # "static_files",
 ]
 
 MIDDLEWARE = [
-    'middleware.downtime_middleware.DowntimeMiddleware',  # does a single database call
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
-    # 'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'middleware.abort_middleware.AbortMiddleware',
-    'middleware.minified_css_bug_middleware.MinifiedCSSMiddleware',
+    "middleware.downtime_middleware.DowntimeMiddleware",  # does a single database call
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "middleware.abort_middleware.AbortMiddleware",
+    "middleware.minified_css_bug_middleware.MinifiedCSSMiddleware",
     # "middleware.request_to_curl.CurlMiddleware",  # uncomment to enable a debugging tool
 ]
 
@@ -201,17 +202,17 @@ STATICFILES_DIRS = ["frontend/static/"]
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.jinja2.Jinja2',
-        'APP_DIRS': False,
-        'DIRS': [
+        "BACKEND": "django.template.backends.jinja2.Jinja2",
+        "APP_DIRS": False,
+        "DIRS": [
             "frontend/templates",
             "frontend/static/javascript",
             "frontend/static/css",
             "frontend/static",
         ],
-        'OPTIONS': {
-            'autoescape': True,
-            'context_processors': [
+        "OPTIONS": {
+            "autoescape": True,
+            "context_processors": [
                 "middleware.context_processors.researcher_context_processor",
                 "django.contrib.messages.context_processors.messages",
             ],
@@ -238,7 +239,7 @@ ROOT_URLCONF = "urls"
 #   https://github.com/getsentry/sentry-python/issues/1603
 # No fixes work, but purging the it from _AUTO_ENABLING_INTEGRATIONS in the integrations code does.
 # (This is ... bad, but without it file processing errors in a weird/unpredictable way. (Possibly
-# after the first page of data? It's not clear.)
+# after the first page of data? It"s not clear.)
 if "sentry_sdk.integrations.starlette.StarletteIntegration" not in _AUTO_ENABLING_INTEGRATIONS:
     raise ImproperlyConfigured(
         "We have a bug where the starlette integration is getting auto enabling and then raising "
@@ -253,11 +254,11 @@ sentry_sdk.init(
     dsn=normalize_sentry_dsn(SENTRY_ELASTIC_BEANSTALK_DSN),  # type: ignore - this can take a None
     enable_tracing=False,
     ignore_errors=["WorkerLostError", "DisallowedHost"],
-    # auto_enabling_integrations=False,  # this was one of the fixes for the starlette bug that didn't work.
+    # auto_enabling_integrations=False,  # this was one of the fixes for the starlette bug that didn"t work.
     # before_send=filter_junk_errors,
     integrations=[
         DjangoIntegration(
-            transaction_style='url',
+            transaction_style="url",
             middleware_spans=False,
             signals_spans=False,
             cache_spans=False,
@@ -306,8 +307,7 @@ LOGGING: dict[str, Any] = {
     },
 }
 
-
-if DEBUG or RUNNING_TESTS:
+if RUNNING_TESTS:
     # LOGGING["loggers"]["root"] = {      # change the root logger in debug / tests mode
     #     "level": "WARNING",
     #     "handlers": ["console"],
