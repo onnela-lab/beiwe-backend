@@ -358,22 +358,21 @@ def get_latest_device_settings(request: ParticipantRequest, OS_API=""):
 def get_latest_surveys(request: ParticipantRequest, OS_API=""):
     """ This is the endpoint hit by the app to download the current survey and survey schedule 
     information.  The app's representation of surveys is of the current week. """
+    survey: Survey
     # todo: document exactly how many days of survey info the ios and android apps use. determine any architectural differences
     
     # record that participant checked in.
+    
     now = timezone.now()
-    request.session_participant.update_only(last_get_latest_surveys=now)
+    p = request.session_participant
+    p.update_only(last_get_latest_surveys=now)
     survey_json_list = []
-    survey: Survey
-    for survey in request.session_participant.study.surveys.filter(deleted=False):
-        # block the deprecated image surveys type.
-        if survey.survey_type == "image_survey":
-            continue
+    # this exclude can never be removed because some dictionary of a study export out there
+    # keeps getting uploaded
+    for survey in p.study.surveys.exclude(survey_type="image_survey").filter(deleted=False):
         survey_json_list.append(format_survey_for_device(survey, request.session_participant))
     
     return HttpResponse(json.dumps(survey_json_list))
-
-# TODO: move this stuff elsewhere.
 
 
 def format_survey_for_device(survey: Survey, participant: Participant):
@@ -492,8 +491,7 @@ def developer_send_survey_notification(request: ParticipantRequest):
     Expects a patient_id in the request body. """
     participant = request.session_participant
     survey_ids = list(
-        participant.study.surveys.filter(deleted=False).exclude(survey_type="image_survey")
-            .values_list("object_id", flat=True)[:4]
+        participant.study.surveys.filter(deleted=False).values_list("object_id", flat=True)[:4]
     )
     message = Message(
         data={
