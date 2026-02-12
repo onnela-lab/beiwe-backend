@@ -32,9 +32,6 @@ def environment(**options: dict[str, Any]) -> Environment:
     # always, always check for autoescape
     assert "autoescape" in options and options["autoescape"] is True
     
-    
-    
-    
     # trunk-ignore(bandit/B701): no bandit, jinja autoescape is enabled
     env = Environment(
         line_comment_prefix="{#",
@@ -97,6 +94,18 @@ class LocalAssets:
     STREAM_DASHBOARD_FEATURES_JS = "javascript/dashboard_features.js"
     NAVBAR_JS = "javascript/app/survey-builder/controllers/nav-bar-study-controller.js"
     AUTOLOGOUT = "javascript/autologout.js"
+    
+    SURVEY_EDITOR_SCHEDULE = "javascript/survey-editor/schedule.js"
+    SURVEY_EDITOR_SURVEY_EDITOR = "javascript/survey-editor/survey-editor.js"
+    SURVEY_BUILDER_CONSTANTS = "javascript/app/survey-builder/constants.js"
+    SURVEY_BUILDER_SERVICES = "javascript/app/survey-builder/services.js"
+    SURVEY_BUILDER_DIRECTIVES_TOOLTIP_TOOLTIP = "javascript/app/survey-builder/directives/tooltip/tooltip.js"
+    SURVEY_BUILDER_DIRECTIVES_ADD_LOGIC_BUTTONS_ADD_LOGIC_BUTTONS = "javascript/app/survey-builder/directives/add-logic-buttons/add-logic-buttons.js"
+    SURVEY_BUILDER_DIRECTIVES_CONDITIONAL_BLOCK_CONDITIONAL_BLOCK = "javascript/app/survey-builder/directives/conditional-block/conditional-block.js"
+    SURVEY_BUILDER_DIRECTIVES_LOGICAL_BLOCK_LOGICAL_BLOCK = "javascript/app/survey-builder/directives/logical-block/logical-block.js"
+    SURVEY_BUILDER_DIRECTIVES_EDIT_QUESTION_EDIT_QUESTION = "javascript/app/survey-builder/directives/edit-question/edit-question.js"
+    SURVEY_BUILDER_DIRECTIVES_QUESTION_SUMMARY_QUESTION_SUMMARY = "javascript/app/survey-builder/directives/question-summary/question-summary.js"
+    SURVEY_BUILDER_CONTROLLERS_SURVEY_BUILDER_CONTROLLER = "javascript/app/survey-builder/controllers/survey-builder-controller.js"
 
 
 # until we are reading to use minified assets on production this is debug-only
@@ -114,6 +123,7 @@ if not settings.DEBUG or RUNNING_TESTS:
             #     setattr(LocalAssets, attrname, attr.replace(".js", ".min.js"))
             if RUNNING_TESTS:
                 setattr(LocalAssets, attrname, "empty_css_for_tests.css")
+
 
 class CdnAssets:
     # These are the assets expected to be used in normal runtime, including most development scenarios.
