@@ -1,6 +1,5 @@
 ## Constants for for the keys in DATA_STREAM_TO_S3_FILE_NAME_STRING
 ACCELEROMETER = "accelerometer"
-AMBIENT_AUDIO = "ambient_audio"
 AUDIO_RECORDING = "audio_recordings"
 ANDROID_LOG_FILE = "app_log"
 BLUETOOTH = "bluetooth"
@@ -20,10 +19,9 @@ TEXTS_LOG = "texts"
 WIFI = "wifi"
 
 
-ALL_DATA_STREAMS = [  # these strings are used in chunked files
+ALL_DATA_STREAMS = (  # these strings are used in chunked files
     ACCELEROMETER,
     AUDIO_RECORDING,
-    AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
     BLUETOOTH,
     CALL_LOG,
@@ -40,10 +38,10 @@ ALL_DATA_STREAMS = [  # these strings are used in chunked files
     SURVEY_TIMINGS,
     TEXTS_LOG,
     WIFI,
-]
+)
 
-ALL_DATA_STREAMS_SET = set(ALL_DATA_STREAMS)
-assert(len(ALL_DATA_STREAMS_SET) == len(ALL_DATA_STREAMS))
+ALL_DATA_STREAMS_SET = frozenset(ALL_DATA_STREAMS)
+assert len(ALL_DATA_STREAMS_SET) == len(ALL_DATA_STREAMS)
 
 SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
 
@@ -65,7 +63,6 @@ UPLOAD_FILE_TYPE_MAPPING = {  # These weird (non-constants) strings are used in 
     "wifiLog": WIFI,
     "proximity": PROXIMITY,
     "ios_log": IOS_LOG_FILE,  # I don't know why this one doesn't have a slash
-    "ambientAudio": AMBIENT_AUDIO,
     "identifiers": IDENTIFIERS,  # not processed through data upload.
 }
 
@@ -92,10 +89,9 @@ DATA_STREAM_TO_S3_FILE_NAME_STRING = {  # These weird (non-constants) strings ar
     DEVICEMOTION: "devicemotion",
     REACHABILITY: "reachability",
     IOS_LOG_FILE: "ios/log",  # this one has a slash because we screwed up historically and can never change it
-    AMBIENT_AUDIO: "ambientAudio",
 }
 
-CHUNKABLE_FILES = {
+CHUNKABLE_FILES = frozenset({
     ACCELEROMETER,
     BLUETOOTH,
     CALL_LOG,
@@ -112,7 +108,7 @@ CHUNKABLE_FILES = {
     DEVICEMOTION,
     REACHABILITY,
     IOS_LOG_FILE
-}
+})
 
 # annoyingly long
 DEVICE_IDENTIFIERS_HEADER = \
@@ -121,9 +117,8 @@ DEVICE_IDENTIFIERS_HEADER = \
 
 ## Dashboard constants
 
-DASHBOARD_DATA_STREAMS = [
+DASHBOARD_DATA_STREAMS = (
     ACCELEROMETER,
-    AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
     BLUETOOTH,
     CALL_LOG,
@@ -141,12 +136,11 @@ DASHBOARD_DATA_STREAMS = [
     TEXTS_LOG,
     AUDIO_RECORDING,
     WIFI,
-]
+)
 
 COMPLETE_DATA_STREAM_DICT = {
     ACCELEROMETER: "Accelerometer",
     AUDIO_RECORDING: "Audio Recordings",
-    AMBIENT_AUDIO: "Ambient Audio",
     ANDROID_LOG_FILE: "Android Log File",
     BLUETOOTH: "Bluetooth",
     CALL_LOG: "Call Log",

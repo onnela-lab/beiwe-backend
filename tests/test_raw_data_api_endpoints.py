@@ -47,7 +47,6 @@ class TestGetData(DataApiTest):
         "survey_timings":   ("2020-10-05 02:00Z", f"{PATIENT_NAME}/survey_timings/{SURV_ID}/2020-10-05 02_00_00+00_00.csv"),
         # without_surveys
         "accelerometer":    ("2020-10-05 02:00Z", f"{PATIENT_NAME}/accelerometer/2020-10-05 02_00_00+00_00.csv"),
-        "ambient_audio":    ("2020-10-05 02:00Z", f"{PATIENT_NAME}/ambient_audio/2020-10-05 02_00_00+00_00.mp4"),
         "app_log":          ("2020-10-05 02:00Z", f"{PATIENT_NAME}/app_log/2020-10-05 02_00_00+00_00.csv"),
         "bluetooth":        ("2020-10-05 02:00Z", f"{PATIENT_NAME}/bluetooth/2020-10-05 02_00_00+00_00.csv"),
         "calls":            ("2020-10-05 02:00Z", f"{PATIENT_NAME}/calls/2020-10-05 02_00_00+00_00.csv"),

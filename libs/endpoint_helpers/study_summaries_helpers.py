@@ -103,24 +103,7 @@ def reference_summarize_data_summaries(study: Study) -> Generator[dict[str, int]
     # For every field name in DATA_QUANTITY_FIELD_NAMES, generate an annotated field that sums all
     # values of that field for each participant. Structure is a dict every line that looks like this:
     #  'Accelerometer Bytes Total': 1347977012
-    #  'Ambient Audio Bytes Total': 0
-    #  'App Log Bytes Total': 450205033
-    #  'Audio Recordings Bytes Total': 53804
-    #  'Bluetooth Bytes Total': 0
-    #  'Calls Bytes Total': 0
-    #  'Devicemotion Bytes Total': 0
-    #  'Gps Bytes Total': 39812970
-    #  'Gyro Bytes Total': 0
-    #  'Identifiers Bytes Total': 484
-    #  'Ios Log Bytes Total': 0
-    #  'Magnetometer Bytes Total': 0
-    #  'Power State Bytes Total': 9122
-    #  'Proximity Bytes Total': 0
-    #  'Reachability Bytes Total': 0
-    #  'Survey Answers Bytes Total': 455
-    #  'Survey Timings Bytes Total': 1191
-    #  'Texts Bytes Total': 0
-    #  'Wifi Bytes Total': 4762084312
+    #  'App Log Bytes Total': 450205033  ...
     
     for participant in study.participants.all():
         query_annotation_params = {}

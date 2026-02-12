@@ -231,7 +231,6 @@ class DeviceSettings(TimestampedModel):
     use_gps_fuzzing = BooleanField(default=False)
     call_clinician_button_enabled = BooleanField(default=True)
     call_research_assistant_button_enabled = BooleanField(default=True)
-    ambient_audio = BooleanField(default=False)
     
     # Whether iOS-specific data streams are turned on
     proximity = BooleanField(default=False)
@@ -247,10 +246,6 @@ class DeviceSettings(TimestampedModel):
     accelerometer_off_duration_seconds = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     accelerometer_on_duration_seconds = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     accelerometer_frequency = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
-    ambient_audio_off_duration_seconds = PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_on_duration_seconds = PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_bitrate = PositiveIntegerField(default=24000, validators=[MinValueValidator(16000)])
-    ambient_audio_sampling_rate = PositiveIntegerField(default=44100, validators=[MinValueValidator(16000)])
     bluetooth_on_duration_seconds = PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
     bluetooth_total_duration_seconds = PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
     bluetooth_global_offset_seconds = PositiveIntegerField(default=0)
