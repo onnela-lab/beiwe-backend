@@ -27,6 +27,7 @@ class SurveyBase(TimestampedModel, ObjectIDModel):
         (AUDIO_SURVEY, AUDIO_SURVEY),
         (TRACKING_SURVEY, TRACKING_SURVEY),
         (AI_CHAT_SURVEY, AI_CHAT_SURVEY),
+        (AI_CHAT_SURVEY, AI_CHAT_SURVEY),  # proposed generic surevy type: "Hosted Survey"
     )
     
     # for some reasons these nee to have diverged
