@@ -15,6 +15,13 @@ SECRET_KEY = "your secret key"
 MY_BEIWE_SERVER = "https://example.com"
 
 # these are the current assortment of endpoints, other than get-data/v1.
+
+
+# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/check-my-credentials/v1"
+    # This endpoint takes no parameters
+    # This endpoint returns "The provided credentials are valid" with a 200 status code
+    # if your credentials are valid.
+
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-studies/v1"
     # Endpoint takes no parameters, returns a json dictionary of study ids and their study name.
     # Returns the studies that the user has access to.

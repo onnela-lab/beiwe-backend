@@ -429,6 +429,7 @@ def get_participant_notification_history(request: ApiStudyResearcherRequest):
     resp_bytes = orjson.dumps(resp_dict, option=options)
     return HttpResponse(resp_bytes, status=200, content_type="application/json")
 
+
 # TODO: build tests.
 @require_POST
 @api_credential_check
@@ -444,3 +445,9 @@ def get_participant_file_hashes(request: ApiStudyResearcherRequest):
         ret[determine_base_file_name(chunk)] = chunk["sha1"]
     
     return HttpResponse(orjson.dumps(ret), status=200, content_type="application/json")
+
+
+@require_POST
+@api_credential_check
+def check_my_credentials(request: ApiStudyResearcherRequest):
+    return HttpResponse("The provided credentials are valid", status=200)

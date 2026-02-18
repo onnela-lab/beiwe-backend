@@ -1712,3 +1712,40 @@ class TestBackgroundProcessingStatus(DataApiTest):
         DataProcessingStatus.singleton().update(last_run=timezone.now()-timedelta(minutes=20))
         resp = self.smart_post_status_code(500)
         self.assertEqual(resp.content, b"")
+
+
+class TestCheckMyCredentials(DataApiTest):
+    ENDPOINT_NAME = "data_api_endpoints.check_my_credentials"
+    
+    def test_200(self):
+        resp = self.smart_post_status_code(200)
+        self.assertEqual("The provided credentials are valid", resp.content.decode())
+    
+    def test_no_matching_credentials(self):
+        ApiKey.objects.all().delete()
+        resp = self.smart_post_status_code(403)
+        self.assertEqual(resp.content, b"")
+    
+    def test_inactive_credentials(self):
+        key = ApiKey.objects.get()
+        key.update_only(is_active=False)
+        resp = self.smart_post_status_code(403)
+        self.assertEqual(resp.content, b"")
+    
+    def test_invalid_credentials(self):
+        self.session_access_key = "bad"
+        self.session_secret_key = "bad"
+        resp = self.smart_post_status_code(403)
+        self.assertEqual(resp.content, b"")
+    
+    def test_invalid_credentials_2(self):
+        # self.session_access_key = "bad"
+        self.session_secret_key = "bad"
+        resp = self.smart_post_status_code(403)
+        self.assertEqual(resp.content, b"")
+    
+    def test_invalid_credentials_3(self):
+        self.session_access_key = "bad"
+        # self.session_secret_key = "bad"
+        resp = self.smart_post_status_code(403)
+        self.assertEqual(resp.content, b"")

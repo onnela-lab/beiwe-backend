@@ -226,6 +226,7 @@ path("get-participant-table-data/v1", data_api_endpoints.get_participant_table_d
 path("get-summary-statistics/v1", data_api_endpoints.get_summary_statistics)
 path("get-participant-device-status-history/v1", data_api_endpoints.get_participant_device_status_report_history)
 path("get-participant-notification-history/v1", data_api_endpoints.get_participant_notification_history)
+path("check-my-credentials/v1", data_api_endpoints.check_my_credentials)
 
 # tableau - legacy endpaints - these were UNFATHOMABLY poorly constructed, can't get rid of them
 # deprecating may 2025, wait... 3 years? to remove, there's at least one long-term study using them.
