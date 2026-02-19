@@ -12,7 +12,7 @@ from database.survey_models import Survey
 from database.system_models import GenericEvent
 from database.user_models_participant import Participant
 from libs.file_processing.utility_functions_csvs import (construct_csv_as_bytes,
-    csv_to_list_of_list_of_bytes, unix_time_to_string)
+    existing_data_csv_splitter, unix_time_to_string)
 from libs.file_processing.utility_functions_simple import (
     convert_unix_to_human_readable_timestamps, ensure_sorted_by_timestamp)
 from libs.s3 import s3_retrieve
@@ -212,7 +212,7 @@ class CsvMerger:
         log(f"CsvMerger: retrieved existing data for {name} in {t_retrieve.fseconds} seconds.")
         
         with Timer() as t_unpack:  # get extant data from s3, merge with new binified data
-            s3_header, output_rows = csv_to_list_of_list_of_bytes(old_s3_file_data)
+            s3_header, output_rows = existing_data_csv_splitter(old_s3_file_data)
         
         orig_size = len(old_s3_file_data)
         del old_s3_file_data  # (large)

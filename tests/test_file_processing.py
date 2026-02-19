@@ -184,7 +184,7 @@ class TestFileProcessing(CommonTestCase):
     raw_fp_good = "1234567890ABCDEFGHIJKMNO/patient1/powerState/1768928568332.csv"
     raw_fp_bad = "1234567890ABCDEFGHIJKMNO/patient1/power_state/1768928568332.csv"
     
-    type_unknown_error = f"data type unknown: 1234567890ABCDEFGHIJKMNO/patient1/power_state/1768928568332.csv"
+    type_unknown_error = "data type unknown: 1234567890ABCDEFGHIJKMNO/patient1/power_state/1768928568332.csv"
     
     
     def test_convert_unix_to_human_readable_timestamps(self):
@@ -233,10 +233,6 @@ class TestFileProcessing(CommonTestCase):
         ffp.prepare_data()
         
         # Now binify the data manually to test the binification logic
-        from collections import defaultdict
-
-        from libs.file_processing.utility_functions_simple import binify_from_timecode
-        
         binified: dict[int, list] = defaultdict(list)
         
         # Group rows by time bin
@@ -549,11 +545,11 @@ POWERSTATE_OUT_LINE_2 = b"1770358250000,2026-02-06T06:10:50.000,Unlocked"
 
 class TestCsvMerger(CommonTestCase):
     
-    def basic_config(self) -> tuple[AllBinifiedData, NullErrorHandler, dict]:
+    def basic_config(self) -> tuple[AllBinifiedData, ErrorHandler, dict]:
         binified_data: AllBinifiedData = defaultdict(lambda: ([], []))
-        error_handler = null_error_handler()
         survey_id_dict = {}
-        return binified_data, error_handler, survey_id_dict
+        # return a null error handler so that errors actually get raised when they run for testing.
+        return binified_data, null_error_handler(), survey_id_dict  # type: ignore
     
     ## Tests!
     

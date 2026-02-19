@@ -19,14 +19,14 @@ is_it_a_date_string = re.compile(r"^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d$")
 
 
 # this is the normal version of the function to revert to after the run to fix existing data finishes.
-def csv_to_list_of_list_of_bytes(file_bytes: bytes) -> tuple[bytes, list[list[bytes]]]:
+def existing_data_csv_splitter(file_bytes: bytes) -> tuple[bytes, list[list[bytes]]]:
     lines = file_bytes.splitlines()
-    return lines.pop(0), [l.split() for l in lines]
+    return lines.pop(0), [line.split(b",", 1) for line in lines]
 
 
 # keeping this around in case anyone encounters the bug in issue
 # https://github.com/onnela-lab/beiwe-backend/issues/373
-# def csv_to_list_of_list_of_bytes(file_bytes: bytes) -> Tuple[bytes, List[List[bytes]]]:
+# def csv_to_list_of_list_of_bytes(file_bytes: bytes) -> tuple[bytes, list[list[bytes]]]:
 #     # due to a bug on servers roughly 4 days in march 2024, we have to apply some fix to data
 #     # that has already been processed.  This only needs to happen once per affected file.
 #     lines = file_bytes.splitlines()

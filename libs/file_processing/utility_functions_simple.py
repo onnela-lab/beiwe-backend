@@ -43,23 +43,57 @@ def resolve_survey_id_from_file_name(name: str) -> str:
     return name.rsplit("/", 2)[1]
 
 
-def ensure_sorted_by_timestamp(l: list):
-    """ In-place sorting is fast, but we (may) need to purge rows that are broken.
-        Purging broken rows is A) exceedingly uncommon, B) potentially VERY slow."""
+def ensure_sorted_by_timestamp(rows_of_lists_of_bytes: list[list[bytes]]):
+    """
+    Sorts the list with a bunch of error handling to provide the correct error message, and I did
+    a bunch of profiling to make sure this is fast.
+    
+    First value in every row should be a byte-string in the form of digits, an integer-like string.
+    Happens to support str and bytes.
+    
+                                 Should raise ValueErrors.
+    
+    Details
+    1) We need to detect bad sort inputs, including the case where a string like this:
+          b'1771452000058,2026-02-18T22:00:00.058,1,0.4707878530025482,..."
+          
+      gets passed in as a whole single row. (this is a historical failure mode where the row
+      passes through validly and is sorted according to the first character)
+    
+    2) The use of "item := row[0]" is very slightly faster than two x[0]
+    
+    3) Assigning local variables like `i = int` and `isdigit = bytes.isdigit` is slower than this
+       normal construction.  (cpython 3.12)
+    
+    4) using `isinstance(item, bytes)` is slower than probably_an_bytes.isdigit() (strings will
+       pass and work, that's fine)
+    
+    5) The (profiled) additional cost of this sort-key function is roughly 20%, old key was
+          rows_of_lists_of_bytes.sort(key=lambda row: int(row[0]))
+    
+    6) The `else None` is specific, None is not comparable via < with another None, which can
+       occur if TWO values are non-digit strings. (there's a test)
+    """
+    
     try:
-        # first value should be a timestamp integer-like string, we get a ValueError if it isn't.
-        l.sort(key=lambda x: int(x[0]))
-    except ValueError:
-        # get bad rows, pop them off, sort again
-        bad_rows = []
-        for i, row in enumerate(l, 0):  # enumerate in this context needs to start at 0
-            try:
-                int(row[0])
-            except ValueError:
-                bad_rows.append(i)
-        for bad_row in reversed(bad_rows):
-            l.pop(bad_row)  # SLOW.
-        l.sort(key=lambda x: int(x[0]))
+        # There is a type warning beecause `else None` is not an int - the type mixing is intentional
+        rows_of_lists_of_bytes.sort(
+            key=lambda row: int(bytes_item) if (bytes_item := row[0]).isdigit() else None  # type: ignore
+        )
+    except (AttributeError, TypeError) as e:
+        # this error is real hard to read, so let's make our lives easier:
+        for i, row in enumerate(rows_of_lists_of_bytes):
+            if not isinstance(row, (list, tuple)):
+                raise ValueError(f"invalid sort value in row {i}, `{row}`") from e
+            if not row:
+                raise ValueError(f"empty row at index {i}") from e
+            if not row[0]:
+                raise ValueError(f"falsey timestamp value in row {i}: `{row}`, {type(row[0])}") from e
+            if not isinstance(row[0], bytes):
+                raise ValueError(f"invalid sort value in row {i}, `{row}`, encountered {type(row[0])}") from e
+            if not row[0].isdigit():
+                raise ValueError(f"invalid sort value in row {i}, `{row}`") from e
+        raise  # raise other unexpected errors as normal
 
 
 def convert_unix_to_human_readable_timestamps(header: bytes, rows: list[list[bytes]]) -> bytes:

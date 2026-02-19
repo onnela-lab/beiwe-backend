@@ -122,6 +122,10 @@ known_first_party = [  # Force these libraries to a special spot in import order
 line-length = 105
 indent-width = 4
 
+extend-ignore =[
+  "E701", # multiple statements on one line (colon)
+]
+
 [tool.ruff.format]
 indent-style = "space"  # use spaces for indentation
 line-ending = "lf"  # use \n for line endings
@@ -135,7 +139,8 @@ future-annotations = true
 
 [tool.flake8]
 
-# not required
+# flake8 is not required to pass, but the primary dev uses it for a couple types of errors
+
 extend-ignore = [
     "E127",  # continuation line over-indented for visual indent
     "E128",  # continuation line under-indented for visual indent

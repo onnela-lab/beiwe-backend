@@ -20,12 +20,9 @@ from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS
 from constants.s3_constants import (COMPRESSED_DATA_MISSING_AT_UPLOAD,
     COMPRESSED_DATA_MISSING_ON_POP, COMPRESSED_DATA_PRESENT_AT_COMPRESSION,
     COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, COMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
-    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
-    UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
-    UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD, UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
-
-from constants.data_stream_constants import POWER_STATE
-
+    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION, UNCOMPRESSED_DATA_MISSING_ON_POP,
+    UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
+    UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.models import ArchivedEvent, ForestVersion, S3File, ScheduledEvent
 from database.profiling_models import EncryptionErrorMetadata, UploadTracking
@@ -36,7 +33,7 @@ from libs.aes import encrypt_for_server
 from libs.celery_control import DebugCeleryApp
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
 from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
-    convert_unix_to_human_readable_timestamps)
+    ensure_sorted_by_timestamp)
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
     run_next_queued_participant_data_deletion)
 from libs.s3 import BadS3PathException, decrypt_server, NoSuchKeyException, S3Storage
@@ -98,6 +95,88 @@ class TestBinifyFromTimecode(CommonTestCase):
     def test_binify_from_timecode_91_days(self):
         timestamp = str(int(time.mktime((datetime.utcnow() + timedelta(days=91)).timetuple())))
         self.assertRaises(BadTimecodeError, binify_from_timecode, timestamp.encode())
+
+
+class TestEnsureSortedByTimestamp(CommonTestCase):
+    def test_ensure_sorted_by_timestamp_sorts_in_place(self):
+        rows = [[b"3"], [b"1"], [b"2"]]
+        original_id = id(rows)
+        ensure_sorted_by_timestamp(rows)
+        self.assertEqual(id(rows), original_id)
+        self.assertEqual(rows, [[b"1"], [b"2"], [b"3"]])
+    
+    def test_ensure_sorted_by_timestamp_keeps_sorted_order(self):
+        rows = [[b"1"], [b"2"], [b"3"]]
+        ensure_sorted_by_timestamp(rows)
+        self.assertEqual(rows, [[b"1"], [b"2"], [b"3"]])
+    
+    def test_ensure_sorted_by_timestamp_mixed_numeric_widths(self):
+        """Test sorting with timestamps of varying digit lengths"""
+        rows = [[b"1000000"], [b"999"], [b"1000"], [b"99"], [b"10000"]]
+        ensure_sorted_by_timestamp(rows)
+        self.assertEqual(rows, [[b"99"], [b"999"], [b"1000"], [b"10000"], [b"1000000"]])
+    
+    def test_ensure_sorted_by_timestamp_large_timestamps(self):
+        """Test with realistic Unix millisecond timestamps"""
+        rows = [[b"1770358450000"], [b"1770358145197"], [b"1770358250000"]]
+        ensure_sorted_by_timestamp(rows)
+        self.assertEqual(rows, [[b"1770358145197"], [b"1770358250000"], [b"1770358450000"]])
+    
+    def test_ensure_sorted_by_timestamp_single_row(self):
+        """Test with single row"""
+        rows = [[b"12345"]]
+        ensure_sorted_by_timestamp(rows)
+        self.assertEqual(rows, [[b"12345"]])
+    
+    def test_ensure_sorted_by_timestamp_empty_list(self):
+        """Test with empty list"""
+        rows = []
+        ensure_sorted_by_timestamp(rows)
+        self.assertEqual(rows, [])
+    
+    def test_ensure_sorted_by_timestamp_reverse_order(self):
+        """Test reverse-ordered timestamps get sorted correctly"""
+        rows = [[b"5"], [b"4"], [b"3"], [b"2"], [b"1"]]
+        ensure_sorted_by_timestamp(rows)
+        self.assertEqual(rows, [[b"1"], [b"2"], [b"3"], [b"4"], [b"5"]])
+    
+    # cases with data mutations:
+    
+    def test_ensure_sorted_by_timestamp_doesnt_mutate_leading_zeros(self):
+        # this is condition we just do not care about
+        rows = [[b"10"], [b"02"], [b"1"]]
+        ensure_sorted_by_timestamp(rows)
+        self.assertEqual(rows, [[b"1"], [b"02"], [b"10"]])
+    
+    def test_ensure_sorted_by_timestamp_all_invalid_rows_removed(self):
+        rows = [[b"abc"], [b"xyz"], [b"invalid"]]
+        with self.assertRaises(ValueError):
+            ensure_sorted_by_timestamp(rows)
+        self.assertEqual(rows, [[b"abc"], [b"xyz"], [b"invalid"]])
+    
+    def test_custom_string1(self):
+        # This is a string that got passed in in production and caused an error. it should do
+        # exactly that, data should be cleaned beforehand.
+        x = b'1771452000058,2026-02-18T22:00:00.058,1,0.4707878530025482,-0.8183453679084778,9.6783695220947270'
+        rows1 = [[x]]
+        # with self.assertRaises(ValueError):
+        ensure_sorted_by_timestamp(rows1)
+        
+        rows2 = [x]
+        try:
+            with self.assertRaises(ValueError):
+                ensure_sorted_by_timestamp(rows2)  # type: ignore
+        finally:
+            print(rows2)
+    
+    def test_ensure_sorted_by_timestamp_does_not_remove_invalid_rows(self):
+        """Test that invalid non-numeric timestamp rows are removed"""
+        rows = [[b"100"], [b"illegal"], [b"50"], [b"not_a_number"], [b"200"]]
+        with self.assertRaises(ValueError):
+            ensure_sorted_by_timestamp(rows)
+        
+        self.assertEqual(rows, [[b"100"], [b"illegal"], [b"50"], [b"not_a_number"], [b"200"]])
+
 
 
 class TestDatabaseCriticalDetails(CommonTestCase):

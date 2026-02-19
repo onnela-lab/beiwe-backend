@@ -16,7 +16,7 @@ if __name__ == "__main__":
             print("Set OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES in your" +
                   " environment to work around use of forking in Django's" + " test runner.")
             sys.exit(1)
-        multiprocessing.set_start_method("fork")
+    multiprocessing.set_start_method("fork")
     
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.django_settings")
     from django.core.management import execute_from_command_line
