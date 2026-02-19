@@ -3,7 +3,6 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 from cronutils import ErrorHandler, null_error_handler
-from cronutils.error_handler import NullErrorHandler
 from pyzstd import decompress
 
 from constants.common_constants import CHUNKS_FOLDER, UTC
@@ -1281,7 +1280,7 @@ class TestCsvMerger(CommonTestCase):
         # Create the chunk registry entry
         # Convert time_bin to datetime as required by the model
         time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
-        chunk_registry = ChunkRegistry.objects.create(
+        ChunkRegistry.objects.create(
             study_id=self.default_participant.study_id,
             participant_id=self.default_participant.id,
             data_type=POWER_STATE,
