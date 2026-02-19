@@ -169,11 +169,8 @@ class TestEnsureSortedByTimestamp(CommonTestCase):
         ensure_sorted_by_timestamp(rows1)
         
         rows2 = [x]
-        try:
-            with self.assertRaises(ValueError):
-                ensure_sorted_by_timestamp(rows2)  # type: ignore
-        finally:
-            print(rows2)
+        with self.assertRaises(ValueError):
+            ensure_sorted_by_timestamp(rows2)  # type: ignore
     
     def test_ensure_sorted_by_timestamp_does_not_remove_invalid_rows(self):
         """Test that invalid non-numeric timestamp rows are removed"""
