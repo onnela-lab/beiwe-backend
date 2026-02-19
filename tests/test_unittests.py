@@ -12,11 +12,10 @@ from dateutil.tz import gettz
 from django.utils import timezone
 
 from constants.common_constants import API_TIME_FORMAT, CHUNKS_FOLDER, EASTERN, UTC
-from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, AMBIENT_AUDIO,
+from constants.data_stream_constants import (ACCELEROMETER, AI_CHAT_LOGS, ALL_DATA_STREAMS,
     ANDROID_LOG_FILE, AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS,
     IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS,
     SURVEY_TIMINGS, TEXTS_LOG, WIFI)
-from constants.forest_constants import AMBIENT_AUDIO
 from constants.message_strings import (ERR_ANDROID_REFERENCE_VERSION_CODE_DIGITS,
     ERR_ANDROID_TARGET_VERSION_DIGITS, ERR_IOS_REFERENCE_VERSION_NAME_FORMAT,
     ERR_IOS_TARGET_VERSION_FORMAT, ERR_IOS_VERSION_COMPONENTS_DIGITS,
@@ -213,118 +212,73 @@ class TestNormalizeS3FilePath(CommonTestCase):
 # AI generated, reviewed, rewrote
 class TestS3FilePathToDataType(CommonTestCase):
     
-    def test_meta_self_test_names(self):
-        test_names = [name for name in vars(self.__class__) if name.startswith("test")]
-        streams = [*ALL_DATA_STREAMS]
-        streams.remove(AMBIENT_AUDIO)
-        for stream in streams:
-            count = sum(1 for test_name in test_names if stream in test_name)
-            assert count > 0, f"no test found for stream {stream}, " \
-                f" add a test to TestS3FilePathToDataType with `{stream}` in the name that " \
-                "checks the correct extraction of that stream from the file path."
+    # def test_meta_self_test_names(self):
+    #     test_names = [name for name in vars(self.__class__) if name.startswith("test")]
+    #     for stream in ALL_DATA_STREAMS:
+    #         count = sum(1 for test_name in test_names if stream in test_name)
+    #         assert count > 0, f"no test found for stream {stream}, " \
+    #             f" add a test to TestS3FilePathToDataType with `{stream}` in the name that " \
+    #             "checks the correct extraction of that stream from the file path."
     
-    def test_s3_accelerometer_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/accel/1234567890.csv")
-        self.assertEqual(result, ACCELEROMETER)
-    
-    def test_app_log_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/logFile/1234567890.csv")
-        self.assertEqual(result, ANDROID_LOG_FILE)
-    
-    def test_s3_audio_recordings_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/voiceRecording/1234567890.csv")
-        self.assertEqual(result, AUDIO_RECORDING)
-    
-    def test_s3_bluetooth_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/bluetoothLog/1234567890.csv")
-        self.assertEqual(result, BLUETOOTH)
-    
-    def test_s3_call_log_calls_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/callLog/1234567890.csv")
-        self.assertEqual(result, CALL_LOG)
-    
-    def test_s3_devicemotion_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/devicemotion/1234567890.csv")
-        self.assertEqual(result, DEVICEMOTION)
-    
-    def test_s3_identifiers_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/identifiers/1234567890.csv")
-        self.assertEqual(result, IDENTIFIERS)
-    
-    def test_s3_gps_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/gps/1234567890.csv")
-        self.assertEqual(result, GPS)
-    
-    def test_gyro_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/gyro/1234567890.csv")
-        self.assertEqual(result, GYRO)
-    
-    def test_magnetometer_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/magnetometer/1234567890.csv")
-        self.assertEqual(result, MAGNETOMETER)
-    
-    def test_s3_power_state_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/powerState/1234567890.csv")
-        self.assertEqual(result, POWER_STATE)
-    
-    def test_s3_ios_log_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/ios/log/1234567890.csv")
-        self.assertEqual(result, IOS_LOG_FILE)
-    
-    def test_s3_ios_log_type2(self):
-        result = s3_file_path_to_data_type("study123/participant456/ios_log/1234567890.csv")
-        self.assertEqual(result, IOS_LOG_FILE)
-    
-    def test_s3_survey_answers_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/surveyAnswers/1234567890.csv")
-        self.assertEqual(result, SURVEY_ANSWERS)
-    
-    def test_s3_survey_timings_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/surveyTimings/1234567890.csv")
-        self.assertEqual(result, SURVEY_TIMINGS)
-    
-    def test_proximity_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/proximity/1234567890.csv")
-        self.assertEqual(result, PROXIMITY)
-    
-    def test_s3_file_path_to_data_type_reachability(self):
-        result = s3_file_path_to_data_type("study123/participant456/reachability/1234567890.csv")
-        self.assertEqual(result, REACHABILITY)
-    
-    def test_texts_log_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/textsLog/1234567890.csv")
-        self.assertEqual(result, TEXTS_LOG)
-    
-    def test_wifi_type(self):
-        result = s3_file_path_to_data_type("study123/participant456/wifiLog/1234567890.csv")
-        self.assertEqual(result, WIFI)
+    def test_the_one(self):
+        # the ai chat log isn't actually uploaded
+        ai_set = set([AI_CHAT_LOGS])  # noqa
+        all_data_streams_set = set(ALL_DATA_STREAMS)
+        acceptable_streams = all_data_streams_set - ai_set  # type: ignore
+        
+        test_cases = [
+            (ACCELEROMETER, "study/participant/accel/1234567890.csv"),
+            # (AI_CHAT_LOGS, "study/participant/ai_chat_logs/1234567890.csv"),
+            (ANDROID_LOG_FILE, "study/participant/logFile/1234567890.csv"),
+            (AUDIO_RECORDING, "study/participant/voiceRecording/1234567890.csv"),
+            (BLUETOOTH, "study/participant/bluetoothLog/1234567890.csv"),
+            (CALL_LOG, "study/participant/callLog/1234567890.csv"),
+            (DEVICEMOTION, "study/participant/devicemotion/1234567890.csv"),
+            (IDENTIFIERS, "study/participant/identifiers/1234567890.csv"),
+            (GPS, "study/participant/gps/1234567890.csv"),
+            (GYRO, "study/participant/gyro/1234567890.csv"),
+            (MAGNETOMETER, "study/participant/magnetometer/1234567890.csv"),
+            (POWER_STATE, "study/participant/powerState/1234567890.csv"),
+            (IOS_LOG_FILE, "study/participant/ios/log/1234567890.csv"),
+            (IOS_LOG_FILE, "study/participant/ios_log/1234567890.csv"),
+            (SURVEY_ANSWERS, "study/participant/surveyAnswers/1234567890.csv"),
+            (SURVEY_TIMINGS, "study/participant/surveyTimings/1234567890.csv"),
+            (PROXIMITY, "study/participant/proximity/1234567890.csv"),
+            (REACHABILITY, "study/participant/reachability/1234567890.csv"),
+            (TEXTS_LOG, "study/participant/textsLog/1234567890.csv"),
+            (WIFI, "study/participant/wifiLog/1234567890.csv"),
+        ]
+        self.assertEqual(
+            {stream for stream, _ in test_cases},
+            acceptable_streams,
+            "Test cases should cover all data streams defined in ALL_DATA_STREAMS except AI_CHAT_LOGS")
+        
+        for expected_stream, file_path in test_cases:
+            self.assertEqual(s3_file_path_to_data_type(file_path), expected_stream)
     
     def test_s3_file_path_to_data_type_unknown_raises_exception(self):
         with self.assertRaises(Exception) as context:
-            s3_file_path_to_data_type("study123/participant456/unknown_type/1234567890.csv")
+            s3_file_path_to_data_type("study/participant/unknown_type/1234567890.csv")
         self.assertIn("data type unknown", str(context.exception))
 
 
 class TestResolveSurveyIdFromFileName(CommonTestCase):
     
     def test_resolve_survey_id_from_file_name_basic(self):
-        result = resolve_survey_id_from_file_name(
-            "study123/participant456/survey_abc123/1234567890.csv")
+        result = resolve_survey_id_from_file_name("study/participant/survey_abc123/1234567890.csv")
         self.assertEqual(result, "survey_abc123")
     
     def test_resolve_survey_id_from_file_name_with_duplicate_suffix(self):
         result = resolve_survey_id_from_file_name(
-            "study123/participant456/survey_xyz789/1234567890.csv-duplicate-abc")
+            "study/participant/survey_xyz789/1234567890.csv-duplicate-abc")
         self.assertEqual(result, "survey_xyz789")
     
     def test_resolve_survey_id_from_file_name_different_ids(self):
-        result = resolve_survey_id_from_file_name(
-            "study123/participant456/my_survey/1234567890.csv")
+        result = resolve_survey_id_from_file_name("study/participant/my_survey/1234567890.csv")
         self.assertEqual(result, "my_survey")
     
     def test_resolve_survey_id_from_file_name_numeric_id(self):
-        result = resolve_survey_id_from_file_name(
-            "study123/participant456/98765/1234567890.csv")
+        result = resolve_survey_id_from_file_name("study/participant/98765/1234567890.csv")
         self.assertEqual(result, "98765")
 
 
@@ -341,14 +295,14 @@ class TestConvertUnixToHumanReadableTimestamps(CommonTestCase):
         # Verify data shifted to index 2
         self.assertEqual(rows[0][2], b"data1")
         self.assertEqual(rows[1][2], b"data2")
-
+    
     def test_convert_unix_to_human_readable_timestamps_empty_rows(self):
         """Test with empty rows list"""
         rows = []
         header = convert_unix_to_human_readable_timestamps(b"timestamp,value", rows)
         self.assertEqual(header, b"timestamp,UTC time,value")
         self.assertEqual(rows, [])
-
+    
     def test_convert_unix_to_human_readable_timestamps_multiple_columns(self):
         """Test with multiple data columns"""
         rows = [[b"1000", b"col1", b"col2", b"col3"]]
@@ -360,7 +314,7 @@ class TestConvertUnixToHumanReadableTimestamps(CommonTestCase):
         self.assertEqual(rows[0][2], b"col1")
         self.assertEqual(rows[0][3], b"col2")
         self.assertEqual(rows[0][4], b"col3")
-
+    
     def test_convert_unix_to_human_readable_timestamps_zero_timestamp(self):
         """Test with zero timestamp (epoch)"""
         rows = [[b"0", b"data"]]
@@ -369,7 +323,7 @@ class TestConvertUnixToHumanReadableTimestamps(CommonTestCase):
         # Verify timestamp index 1 has the epoch formatted time
         self.assertIn(b"1970", rows[0][1])
         self.assertEqual(rows[0][1], b"1970-01-01T00:00:00.000")
-
+    
     def test_convert_unix_to_human_readable_timestamps_large_timestamp(self):
         """Test with very large timestamp"""
         rows = [[b"9999999999999", b"data"]]
@@ -378,7 +332,7 @@ class TestConvertUnixToHumanReadableTimestamps(CommonTestCase):
         # Should handle large timestamps
         self.assertEqual(len(rows[0]), 3)
         self.assertIsNotNone(rows[0][1])
-
+    
     def test_convert_unix_to_human_readable_timestamps_single_column_header(self):
         """Test with single column in header"""
         rows = [[b"1000", b"data"]]
@@ -393,47 +347,47 @@ class TestCleanJavaTimecode(CommonTestCase):
         """Test with Unix timestamp in seconds (10 digits)"""
         result = clean_java_timecode(b"1673316787")
         self.assertEqual(result, 1673316787)
-
+    
     def test_clean_java_timecode_unix_milliseconds(self):
         """Test with Unix timestamp in milliseconds (13 digits) - extracts first 10"""
         result = clean_java_timecode(b"1673316787111")
         self.assertEqual(result, 1673316787)
-
+    
     def test_clean_java_timecode_exact_10_digits(self):
         """Test with exactly 10 digit timestamp"""
         result = clean_java_timecode(b"1700000000")
         self.assertEqual(result, 1700000000)
-
+    
     def test_clean_java_timecode_less_than_10_digits_raises_error(self):
         """Test with less than 10 digits - is considered too early"""
         with self.assertRaises(BadTimecodeError) as context:
             clean_java_timecode(b"123456789")
         self.assertIn("data too early", str(context.exception))
-
+    
     def test_clean_java_timecode_non_numeric_raises_error(self):
         """Test that non-numeric timestamp raises BadTimecodeError"""
         with self.assertRaises(BadTimecodeError):
             clean_java_timecode(b"not_a_number")
-
+    
     def test_clean_java_timecode_too_early_raises_error(self):
         """Test that timestamp too early (before 2014-07-31) raises error"""
         # 1406851199 is 1 second before EARLIEST_POSSIBLE_DATA_TIMESTAMP
         with self.assertRaises(BadTimecodeError) as context:
             clean_java_timecode(b"1406851199")
         self.assertIn("data too early", str(context.exception))
-
+    
     def test_clean_java_timecode_too_late_raises_error(self):
         """Test that timestamp too late raises error"""
         # 9999999999 is far in the future beyond the 90-day limit
         with self.assertRaises(BadTimecodeError) as context:
             clean_java_timecode(b"9999999999")
         self.assertIn("data too late", str(context.exception))
-
+    
     def test_clean_java_timecode_bytes_input(self):
         """Test that bytes input works correctly"""
         result = clean_java_timecode(b"1673316787123")
         self.assertEqual(result, 1673316787)
-
+    
     def test_clean_java_timecode_exactly_at_earliest_boundary(self):
         """Test with timestamp exactly at earliest possible (2014-07-31 00:00:00 UTC)"""
         result = clean_java_timecode(b"1406851200")
