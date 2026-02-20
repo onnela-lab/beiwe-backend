@@ -541,7 +541,6 @@ POWERSTATE_OUT_LINE_1 = b"1770358145197,2026-02-06T06:09:05.197,Locked"
 POWERSTATE_OUT_LINE_2 = b"1770358250000,2026-02-06T06:10:50.000,Unlocked"
 
 
-
 class TestCsvMerger(CommonTestCase):
     
     def basic_config(self) -> tuple[AllBinifiedData, ErrorHandler, dict]:

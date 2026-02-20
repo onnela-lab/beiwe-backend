@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import time
 from collections import defaultdict
 from collections.abc import Generator
 from datetime import timedelta
-from time import perf_counter
+from time import mktime
 
 from cronutils.error_handler import ErrorHandler
 from django.core.exceptions import ValidationError
@@ -26,6 +25,7 @@ from libs.file_processing.utility_functions_simple import (BadTimecodeError, bin
 from libs.s3 import s3_upload_no_compression
 from libs.sentry import SentryUtils
 from libs.utils.dev_utils import Timer
+from libs.utils.threadpool_utils import drain_in_reverse, s3_op_threaded_iterate
 
 
 FileToProcessPK = int
@@ -69,7 +69,7 @@ class FileProcessingTracker():
         # It is possible for devices to record data from unreasonable times, like the unix epoch
         # start. This heuristic is a safety measure to clear out bad data.
         common_constants.LATEST_POSSIBLE_DATA_TIMESTAMP = \
-            int(time.mktime((timezone.now() + timedelta(days=90)).timetuple()))
+            int(mktime((timezone.now() + timedelta(days=90)).timetuple()))
         
         # a defaultdict of a tuple of 2 lists - this stores the data that is being processed.
         self.all_binified_data: AllBinifiedData = defaultdict(lambda: ([], []))
@@ -102,9 +102,7 @@ class FileProcessingTracker():
         # isn't enough to keep up with uploads, that's the study's problem.
         
         # sorting by s3_file_path clumps together the data streams, which is good for efficiency.
-        pks = list(
-            self.participant.files_to_process.exclude(deleted=True).order_by("s3_file_path")
-        )
+        pks = list(self.participant.files_to_process.exclude(deleted=True).order_by("s3_file_path"))
         print("Number Files To Process:", len(pks))
         
         # yield 100 files at a time
@@ -120,16 +118,13 @@ class FileProcessingTracker():
         """ Run through the files to process, pull their data, sort data into time bins. Run the
         file through the appropriate logic path based on file type. """
         
-        # we have dropped multithreading to reduce memory load.
-        # Instantiating a FileForProcessing object queries S3 for the File's data. (network request)
-        files_for_processing: map[FileForProcessing] = map(FileForProcessing, files_to_process)
+        # Threading this increases speed but increases memory usage.
+        files = s3_op_threaded_iterate(FileForProcessing, files_to_process)
         
-        for file_for_processing in files_for_processing:
-            t1 = perf_counter()
+        for file_for_processing in drain_in_reverse(files):
             with self.error_handler:
                 self.process_one_file(file_for_processing)
-            t2 = perf_counter()
-            log(f"FILE - FileProcessingCore: {file_for_processing.file_to_process.s3_file_path[25:]} took {t2 - t1:.4f} seconds to download and process.")
+        del file_for_processing  # type: ignore - it will be bound
         
         # there are several failure modes and success modes, information for what to do with different
         # files percolates back to here.  Delete various database objects accordingly.

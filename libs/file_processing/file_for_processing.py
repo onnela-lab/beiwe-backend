@@ -29,6 +29,7 @@ def log(*args, **kwargs):
 HEADER_DEDUPLICATOR = {}
 
 class FileForProcessing():
+    
     def __init__(self, file_to_process: FileToProcess):
         self.file_to_process: FileToProcess = file_to_process
         self.data_type: str = s3_file_path_to_data_type(file_to_process.s3_file_path)

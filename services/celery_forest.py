@@ -5,7 +5,6 @@ import os
 import shutil
 import traceback
 from datetime import date, datetime, timedelta
-from multiprocessing.pool import ThreadPool
 from os import makedirs
 from os.path import dirname, exists as file_exists, join as path_join
 from time import sleep
@@ -36,6 +35,7 @@ from libs.streaming_zip import determine_base_file_name
 from libs.utils.date_utils import get_timezone_shortcode, legible_time
 from libs.utils.forest_utils import (save_all_bv_set_bytes, save_all_memory_dict_bytes,
     save_output_file)
+from libs.utils.threadpool_utils import s3_op_threaded_iterate
 
 from forest.jasmine.traj2stats import gps_stats_main
 from forest.oak.base import run as run_oak
@@ -161,20 +161,20 @@ def celery_run_forest(forest_task_id):
 
 
 def run_forest_task(task: ForestTask, start: datetime, end: datetime):
-        ## try-except 3 - clean up files. Report errors.
-        # report cleanup operations cleanly to both sentry and forest task infrastructure.
+    ## try-except 3 - clean up files. Report errors.
+    # report cleanup operations cleanly to both sentry and forest task infrastructure.
+    try:
+        _run_forest_task(task, start, end)
+    finally:
+        log("deleting files 2")
         try:
-            _run_forest_task(task, start, end)
-        finally:
-            log("deleting files 2")
-            try:
-                clean_up_files(task)
-            except Exception as e:
-                # merging stack traces, handling null case, then conditionally report with tags
-                task.update_only(stacktrace=((task.stacktrace or "") + CLN_ERR + traceback.format_exc()))
-                log("task.stacktrace 2:", task.stacktrace)
-                with SentryUtils.report_forest(**task.sentry_tags):
-                    raise e from None
+            clean_up_files(task)
+        except Exception as e:
+            # merging stack traces, handling null case, then conditionally report with tags
+            task.update_only(stacktrace=((task.stacktrace or "") + CLN_ERR + traceback.format_exc()))
+            log("task.stacktrace 2:", task.stacktrace)
+            with SentryUtils.report_forest(**task.sentry_tags):
+                raise e from None
 
 
 def _run_forest_task(task: ForestTask, start: datetime, end: datetime):
@@ -358,13 +358,9 @@ def download_data_files(task: ForestTask, chunks: dbt.ChunkRegistryQS) -> None:
     """ Download only the files needed for the forest task. """
     ensure_folders_exist(task)
     # this is an iterable, this is intentional, retain it.
-    params = (
-        (task, chunk) for chunk in chunks.values("study__object_id", *CHUNK_FIELDS)
-    )
+    params = ((task, chunk) for chunk in chunks.values("study__object_id", *CHUNK_FIELDS))
     # and run!
-    with ThreadPool(4) as pool:
-        for _ in pool.imap_unordered(func=batch_create_file, iterable=params):
-            pass
+    s3_op_threaded_iterate(batch_create_file, params)
 
 
 def batch_create_file(task_and_chunk_tuple: tuple[ForestTask, dict]):
