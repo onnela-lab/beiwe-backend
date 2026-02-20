@@ -119,7 +119,9 @@ class FileProcessingTracker():
         file through the appropriate logic path based on file type. """
         
         # Threading this increases speed but increases memory usage.
-        files = s3_op_threaded_iterate(FileForProcessing, files_to_process)
+        with Timer() as t:
+            files = s3_op_threaded_iterate(FileForProcessing, files_to_process)
+        log(f"downloaded all files in {t.fseconds} for processing.")
         
         for file_for_processing in drain_in_reverse(files):
             with self.error_handler:

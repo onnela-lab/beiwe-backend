@@ -43,6 +43,7 @@ class FileForProcessing():
         # state tracking
         self.exception: Exception | None = None
         self.traceback: str | None = None
+        self.decompressed_size: int | None = None
         
         # magically populate at instantiation for now due to networking paradigm.
         self.download_file_contents()
@@ -71,6 +72,8 @@ class FileForProcessing():
                 raw_path=True
             )
             # t2 = perf_counter()
+            
+            self.decompressed_size = len(self.file_contents)
             
             # log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}, {len(self.file_contents)} bytes in {t2 - t1:.4f} seconds.")
         except Exception as e:

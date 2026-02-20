@@ -11,7 +11,7 @@ def s3_op_threadcount() -> int:
     encryption/decription.  For now this value is set to 6 based on a hunch. For a while we had a
     thread count of 4, then we compressed files, which reduced them on average to 1/5th. On more
     modern AWS servers this is probably ... fine. """
-    return 6
+    return 8
 
 
 def s3_op_threadpool() -> ThreadPool:
