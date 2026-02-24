@@ -11,7 +11,7 @@ from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
     CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS)
 from constants.data_stream_constants import AUDIO_RECORDING, POWER_STATE
 from constants.user_constants import ANDROID_API, IOS_API
-from database.data_access_models import ChunkRegistry, FileToProcess
+from database.models import ChunkRegistry, FileToProcess
 from libs.file_processing.csv_merger import construct_s3_chunk_path, CsvMerger
 from libs.file_processing.file_for_processing import FileForProcessing
 from libs.file_processing.file_processing_core import FileProcessingTracker
@@ -230,7 +230,7 @@ class TestFileProcessing(CommonTestCase):
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         ffp.prepare_data()
         
         # Now binify the data manually to test the binification logic
@@ -294,14 +294,14 @@ class TestFileProcessing(CommonTestCase):
             os_type=ANDROID_API,
         )
         with self.assertRaisesMessage(Exception, self.type_unknown_error):
-            FileForProcessing(ftp)
+            FileForProcessing(ftp, self.default_study)
     
     @patch("libs.file_processing.file_for_processing.s3_retrieve")
     def test_basic_file_for_processing_instantiation(self, s3_retrieve: Mock):
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         self.assertEqual(ffp.file_contents, input_power_state_content)
         
         # Test basic attribute instantiation
@@ -318,7 +318,7 @@ class TestFileProcessing(CommonTestCase):
         """Test that clear_file_content properly sets file_contents to None"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         
         # Verify file_contents is populated
         self.assertIsNotNone(ffp.file_contents)
@@ -334,7 +334,7 @@ class TestFileProcessing(CommonTestCase):
         """Test that clear_file_content raises AssertionError if called when already cleared"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         
         ffp.clear_file_content()
         
@@ -349,7 +349,7 @@ class TestFileProcessing(CommonTestCase):
         header = b'timestamp,event,level'
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         
         ffp.raw_csv_to_line_list()        # Process the CSV
         self.assertIsNotNone(ffp.header)  # header was extracted
@@ -373,7 +373,7 @@ class TestFileProcessing(CommonTestCase):
         
         s3_retrieve.return_value = single_line_content = b'timestamp,event,level'
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         ffp.raw_csv_to_line_list()
         self.assertEqual(ffp.header, single_line_content)  # header was set to the entire content
         self.assertEqual(ffp.file_lines, [])  # file_lines is an empty list
@@ -384,7 +384,7 @@ class TestFileProcessing(CommonTestCase):
         """Test that raw_csv_to_line_list raises AssertionError if file_contents is None"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         ffp.clear_file_content()
         
         # Calling raw_csv_to_line_list should raise AssertionError
@@ -396,7 +396,7 @@ class TestFileProcessing(CommonTestCase):
         """Test that prepare_data properly processes CSV data and cleans headers"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         
         # Prepare the data
         ffp.prepare_data()
@@ -418,7 +418,7 @@ class TestFileProcessing(CommonTestCase):
         """Test that clear_file_lines clears file_lines and header"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         
         # Prepare data first to populate file_lines and header
         ffp.prepare_data()
@@ -439,7 +439,7 @@ class TestFileProcessing(CommonTestCase):
         """Test that clear_file_lines requires file_contents to be cleared first"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         
         ffp.prepare_data()
         # Don't clear file_contents - it should already be None after prepare_data
@@ -454,7 +454,7 @@ class TestFileProcessing(CommonTestCase):
         """Test that clear_file_lines raises AssertionError if called when already cleared"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         
         ffp.prepare_data()
         ffp.clear_file_lines()
@@ -468,7 +468,7 @@ class TestFileProcessing(CommonTestCase):
         """Test that download_file_contents properly retrieves and stores file contents"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         
         # download_file_contents is called in __init__, so just verify the result
         self.assertEqual(ffp.file_contents, input_power_state_content)
@@ -478,7 +478,7 @@ class TestFileProcessing(CommonTestCase):
         # Verify s3_retrieve was called with correct parameters
         s3_retrieve.assert_called_once_with(
             ftp.s3_file_path,
-            ftp.study.object_id,
+            self.default_study,
             raw_path=True
         )
     
@@ -493,7 +493,7 @@ class TestFileProcessing(CommonTestCase):
         
     #     # Creating FileForProcessing should raise SomeException
     #     with self.assertRaises(SomeException):
-    #         FileForProcessing(ftp)
+    #         FileForProcessing(ftp, self.default_study)
     
     # also prints jung, and already tested I think
     # @patch("libs.file_processing.file_for_processing.s3_retrieve")
@@ -506,7 +506,7 @@ class TestFileProcessing(CommonTestCase):
         
     #     # Catch the initial exception during instantiation
     #     try:
-    #         FileForProcessing(ftp)
+    #         FileForProcessing(ftp, self.default_study)
     #     except SomeException as e:
     #         pass
         
@@ -1602,7 +1602,7 @@ class TestFileProcessingTracker(CommonTestCase):
             os_type=ANDROID_API,
         )
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         binified_data, survey_hash_id = tracker.process_csv_data(ffp)
         
         # Should return binified data
@@ -1635,7 +1635,7 @@ class TestFileProcessingTracker(CommonTestCase):
             os_type=ANDROID_API,
         )
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         binified_data, survey_id_hash = tracker.process_csv_data(ffp)
         
         # Should return None for both
@@ -1658,7 +1658,7 @@ class TestFileProcessingTracker(CommonTestCase):
             os_type=ANDROID_API,
         )
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_unchunkable_file(ffp)
         
         # Verify ChunkRegistry was created
@@ -1685,7 +1685,7 @@ class TestFileProcessingTracker(CommonTestCase):
             os_type=ANDROID_API,
         )
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_chunkable_file(ffp)
         
         # Verify binified data exists
@@ -1709,7 +1709,7 @@ class TestFileProcessingTracker(CommonTestCase):
             os_type=ANDROID_API,
         )
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_chunkable_file(ffp)
         
         # Verify no binified data was populated
@@ -1732,7 +1732,7 @@ class TestFileProcessingTracker(CommonTestCase):
             os_type=ANDROID_API,
         )
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_one_file(ffp)
         
         # Should have binified data
@@ -1753,7 +1753,7 @@ class TestFileProcessingTracker(CommonTestCase):
             os_type=ANDROID_API,
         )
         
-        ffp = FileForProcessing(ftp)
+        ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_one_file(ffp)
         
         # Should have created ChunkRegistry

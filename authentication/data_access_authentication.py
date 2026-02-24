@@ -6,9 +6,7 @@ from django.utils import timezone
 
 from authentication.admin_authentication import ResearcherRequest
 from constants.security_constants import BASE64_GENERIC_ALLOWED_CHARACTERS, OBJECT_ID_ALLOWED_CHARS
-from database.security_models import ApiKey
-from database.study_models import Study
-from database.user_models_researcher import Researcher, StudyRelation
+from database.models import ApiKey, Researcher, Study, StudyRelation
 from libs.sentry import SentryUtils
 from middleware.abort_middleware import abort
 

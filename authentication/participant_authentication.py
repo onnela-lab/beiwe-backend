@@ -9,7 +9,7 @@ from django.http import UnreadablePostError
 from django.http.request import HttpRequest as _HttpRequest
 
 from constants.user_constants import IOS_API
-from database.user_models_participant import Participant, SurveyNotificationReport
+from database.models import Participant, SurveyNotificationReport
 from middleware.abort_middleware import abort
 
 

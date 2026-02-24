@@ -124,7 +124,9 @@ class FileProcessingTracker():
         
         # Threading this increases speed but increases memory usage.
         with Timer() as t:
-            files = s3_op_threaded_iterate(FileForProcessing, files_to_process)
+            files = s3_op_threaded_iterate(
+                FileForProcessing, ((ftp, self.study) for ftp in files_to_process)
+            )
         log(f"downloaded all files in {t.fseconds} for processing.")
         
         for file_for_processing in drain_in_reverse(files):
@@ -313,7 +315,7 @@ class FileProcessingTracker():
                 file_for_processing.data_type,
                 timestamp,
                 file_for_processing.file_to_process.s3_file_path,
-                file_for_processing.file_to_process.study.pk,
+                file_for_processing.study.pk,
                 file_for_processing.file_to_process.participant.pk,
                 file_for_processing.file_contents,
             )

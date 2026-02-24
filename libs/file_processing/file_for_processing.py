@@ -1,16 +1,22 @@
 import sys
-from time import perf_counter
 import traceback
+from types import TracebackType
+from typing import TypeAlias
 
 from constants.data_processing_constants import DEBUG_FILE_PROCESSING
 from constants.data_stream_constants import (ANDROID_LOG_FILE, CALL_LOG, CHUNKABLE_FILES,
     IDENTIFIERS, SURVEY_TIMINGS, WIFI)
 from constants.user_constants import ANDROID_API
-from database.data_access_models import FileToProcess
+from database.models import FileToProcess, Study
 from libs.file_processing.data_fixes import (fix_app_log_file, fix_call_log_csv, fix_identifier_csv,
     fix_survey_timings, fix_wifi_csv)
 from libs.file_processing.utility_functions_simple import s3_file_path_to_data_type
 from libs.s3 import s3_retrieve
+
+
+# stealing this from a typeshed file, the traceback type is weird
+ExcInfo: TypeAlias = tuple[type[BaseException], BaseException, TracebackType]
+OptExcInfo: TypeAlias = ExcInfo | tuple[None, None, None]
 
 
 class SomeException(Exception): pass
@@ -26,11 +32,15 @@ def log(*args, **kwargs):
 # This file contains the class and necessary functions for the general data container
 # class that we use.
 
-HEADER_DEDUPLICATOR = {}
-
 class FileForProcessing():
+    """ This class exists to contain all states of pre-processed files before they are handed off to
+    the real logic that handles data manipulation.  This is necessary because Python's garbage
+    collection struggles with our code. """
     
-    def __init__(self, file_to_process: FileToProcess):
+    def __init__(self, file_to_process: FileToProcess, study: Study):
+        # purpose of study is to avoid a database query in a few spots, including decryption key
+        self.study = study
+        
         self.file_to_process: FileToProcess = file_to_process
         self.data_type: str = s3_file_path_to_data_type(file_to_process.s3_file_path)
         self.chunkable: bool = self.data_type in CHUNKABLE_FILES
@@ -42,11 +52,9 @@ class FileForProcessing():
         
         # state tracking
         self.exception: Exception | None = None
-        self.traceback: str | None = None
-        self.decompressed_size: int | None = None
+        self.traceback: OptExcInfo | None = None
         
-        # magically populate at instantiation for now due to networking paradigm.
-        self.download_file_contents()
+        self.download_file_contents()  # magically populate at instantiation
     
     def clear_file_content(self):
         assert self.file_contents is not None, "misuse, file_contents was already deleted."
@@ -59,26 +67,19 @@ class FileForProcessing():
         self.header = None
     
     def download_file_contents(self) -> None:
-        """ Handles network errors and updates state accordingly. """
+        """ This (actually instantiation) is called inside a threadpool, we handles network errors
+        and update state accordingly. """
         assert self.file_lines is None, "file_lines was not deleted."
         
         # Try to retrieve the file contents. If any errors are raised, store them to be reraised by
-        # the parent function
+        # the parent function.
         try:
-            # t1 = perf_counter()
-            self.file_contents = s3_retrieve(
-                self.file_to_process.s3_file_path,
-                self.file_to_process.study.object_id,
-                raw_path=True
+            self.file_contents = s3_retrieve(  # (we mock s3_retrieve in tests)
+                self.file_to_process.s3_file_path, self.study, raw_path=True
             )
-            # t2 = perf_counter()
-            
-            self.decompressed_size = len(self.file_contents)
-            
-            # log(f"FileForProcessing: downloaded {self.file_to_process.s3_file_path[25:]}, {len(self.file_contents)} bytes in {t2 - t1:.4f} seconds.")
         except Exception as e:
             traceback.print_exc()  # for debugging
-            self.traceback = sys.exc_info()  # type: ignore[assignment]
+            self.traceback = sys.exc_info()
             self.exception = e
             raise SomeException(e)
     
@@ -102,13 +103,6 @@ class FileForProcessing():
         self.clear_file_content()
         self.header = lines.pop(0)  # annoyingly slow, but after a lot of tests, this is the best/fastest way.
         self.file_lines = [line.split(b",") for line in lines]
-        
-        # this is a dumb hack that turns all identical headers into references to the same, unique,
-        # header string.  This is a stupid memory optimization.
-        if self.header in HEADER_DEDUPLICATOR:
-            self.header = HEADER_DEDUPLICATOR[self.header]
-        else:
-            HEADER_DEDUPLICATOR[self.header] = self.header
     
     def prepare_data(self):
         """ We need to apply fixes (in the correct order), and get the list of csv lines."""

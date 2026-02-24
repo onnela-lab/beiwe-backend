@@ -3,12 +3,17 @@ import pyzstd
 from config.settings import DATA_COMPRESSION_LEVEL
 
 
+from backports.zstd import decompress;  # noqa
+
+# TODO: migrate compression to the new backports.zstd library
+
 # there has been substantial testing of the zstd compression modes for data produced by beiwe.
 # the pyzstd library implementation of zstd is the fastest one based on benchmarks.
 
 def compress(some_bytes: bytes, level: int = DATA_COMPRESSION_LEVEL) -> bytes:
     if level > 4:
         raise Exception(
+            # did I mean only works?
             "the 'dfast' strategy does not work correctly with compression levels 0-4, see code in the compression_tests for more details."
         )
     return pyzstd.RichMemZstdCompressor(  # type: ignore
@@ -21,7 +26,3 @@ def compress(some_bytes: bytes, level: int = DATA_COMPRESSION_LEVEL) -> bytes:
             pyzstd.CParameter.strategy: pyzstd.Strategy.dfast,
         }
     ).compress(some_bytes)
-
-
-def decompress(input: bytes) -> bytes:
-    return pyzstd.decompress(input)
