@@ -244,8 +244,8 @@ def main():
             
             # we need to handle any items that come up that are survey answers and are in the chunk
             # registry, because those are going to be yoinked soon.
-            survey_paths = [path for path in paths if SURVEY_ANSWERS in path]
-            ChunkRegistry.fltr(path__in=survey_paths).delete()
+            survey_paths = [path.replace(".zst", "") for path in paths if SURVEY_ANSWERS in path]
+            ChunkRegistry.fltr(chunk_path__in=survey_paths).delete()
         
         print(f"found and deleted {i} files total. (Current runtime: {perf_counter() - t1:.2f} seconds)")
     
