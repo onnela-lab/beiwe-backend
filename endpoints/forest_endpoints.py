@@ -403,7 +403,7 @@ def download_summary_statistics_csv(request: ResearcherRequest, study_id):
         paginator.stream_csv(NICE_SERIALIZABLE_FIELD_NAMES),
         content_type="text/csv",
         as_attachment=True,
-        filename=f"forest task info - {study.name}.csv",
+        filename=f"Data Volumes and Summary Statistics - {study.name}.csv",
     )
     fr.set_headers(None)
     return fr
