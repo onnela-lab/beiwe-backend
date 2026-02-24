@@ -5,14 +5,16 @@ from unittest.mock import Mock, patch
 from cronutils import ErrorHandler, null_error_handler
 from pyzstd import decompress
 
+from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants.common_constants import CHUNKS_FOLDER, UTC
 from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
     CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS)
-from constants.data_stream_constants import POWER_STATE
+from constants.data_stream_constants import AUDIO_RECORDING, POWER_STATE
 from constants.user_constants import ANDROID_API, IOS_API
-from database.data_access_models import ChunkRegistry
+from database.data_access_models import ChunkRegistry, FileToProcess
 from libs.file_processing.csv_merger import construct_s3_chunk_path, CsvMerger
 from libs.file_processing.file_for_processing import FileForProcessing
+from libs.file_processing.file_processing_core import FileProcessingTracker
 from libs.file_processing.utility_functions_csvs import construct_csv_as_bytes
 from libs.file_processing.utility_functions_simple import (binify_from_timecode,
     convert_unix_to_human_readable_timestamps)
@@ -1318,3 +1320,444 @@ class TestCsvMerger(CommonTestCase):
         succeeded, failed, _, _ = merger.get_retirees()
         self.assertEqual(succeeded, {1, 2})
         self.assertEqual(failed, set())
+
+
+# AI generated, manually review, minor tweaks
+class TestFileProcessingTracker(CommonTestCase):
+    """Tests for the FileProcessingTracker class"""
+    
+    def test_init(self):
+        tracker = FileProcessingTracker(self.default_participant)
+        
+        # Verify basic attributes
+        self.assertEqual(tracker.participant, self.default_participant)
+        self.assertEqual(tracker.study, self.default_participant.study)
+        self.assertEqual(tracker.study_object_id, self.default_participant.study.object_id)
+        self.assertEqual(tracker.patient_id, self.default_participant.patient_id)
+        self.assertEqual(tracker.page_size, FILE_PROCESS_PAGE_SIZE)
+        
+        # Verify data structures are initialized
+        self.assertEqual(len(tracker.all_binified_data), 0)
+        self.assertEqual(len(tracker.survey_id_dict), 0)
+        self.assertEqual(len(tracker.buggy_files), 0)
+    
+    def test_init_with_custom_page_size(self):
+        custom_page_size = 50
+        tracker = FileProcessingTracker(self.default_participant, page_size=custom_page_size)
+        self.assertEqual(tracker.page_size, custom_page_size)
+    
+    # file pagination
+    
+    def test_get_paginated_files_to_process_empty(self):
+        tracker = FileProcessingTracker(self.default_participant, page_size=10)
+        
+        with patch("libs.file_processing.file_processing_core.logd"):
+            pages = list(tracker.get_paginated_files_to_process())
+        
+        # Should return one empty page
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(len(pages[0]), 0)
+    
+    
+    def test_get_paginated_files_to_process_single_page(self):
+        """Test get_paginated_files_to_process with files fitting in one page"""
+        
+        # Create 5 files to process
+        for i in range(5):
+            self.generate_file_to_process(
+                path=f"study/participant/powerState/{i}.csv",
+                participant=self.default_participant,
+                os_type=ANDROID_API,
+            )
+        
+        tracker = FileProcessingTracker(self.default_participant, page_size=10)
+        with patch("libs.file_processing.file_processing_core.logd"):
+            pages = list(tracker.get_paginated_files_to_process())
+        
+        # Should return one page with 5 files
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(len(pages[0]), 5)
+    
+    
+    def test_get_paginated_files_to_process_multiple_pages(self):
+        """Test get_paginated_files_to_process with pagination"""
+        
+        # Create 25 files to process
+        for i in range(25):
+            self.generate_file_to_process(
+                path=f"study/participant/powerState/{i}.csv",
+                participant=self.default_participant,
+                os_type=ANDROID_API,
+            )
+        
+        tracker = FileProcessingTracker(self.default_participant, page_size=10)
+        
+        with patch("libs.file_processing.file_processing_core.logd"):
+            pages = list(tracker.get_paginated_files_to_process())
+        
+        # Should return 3 pages: 10, 10, 5
+        self.assertEqual(len(pages), 3)
+        self.assertEqual(len(pages[0]), 10)
+        self.assertEqual(len(pages[1]), 10)
+        self.assertEqual(len(pages[2]), 5)
+    
+    
+    def test_get_paginated_files_to_process_excludes_deleted(self):
+        """Test that get_paginated_files_to_process excludes deleted files"""
+        
+        # Create 5 regular files and 3 deleted files
+        for i in range(5):
+            self.generate_file_to_process(
+                path=f"study/participant/powerState/{i}.csv",
+                participant=self.default_participant,
+                os_type=ANDROID_API,
+            )
+        
+        for i in range(5, 8):
+            self.generate_file_to_process(
+                path=f"study/participant/powerState/{i}.csv",
+                participant=self.default_participant,
+                os_type=ANDROID_API,
+                deleted=True,
+            )
+        
+        tracker = FileProcessingTracker(self.default_participant, page_size=10)
+        
+        with patch("libs.file_processing.file_processing_core.logd"):
+            pages = list(tracker.get_paginated_files_to_process())
+        
+        # Should only return the 5 non-deleted files
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(len(pages[0]), 5)
+    
+    # binify
+    
+    def test_binify_csv_rows(self):
+        tracker = FileProcessingTracker(self.default_participant)
+        
+        # Create some test rows with different timestamps
+        rows = [
+            [b"1768928568332", b"Locked", b"0.7"],  # Time bin 491369
+            [b"1768928682951", b"Unlocked", b"0.7"],  # Same bin
+            [b"1768932200000", b"Locked", b"0.7"],  # Different bin 491370
+        ]
+        
+        header = b"timestamp,event,level"
+        result = tracker.binify_csv_rows(rows, POWER_STATE, header)
+        result = dict(result)  # easy to screw up when still a defaultdict``
+        
+        # Should have 2 bins
+        self.assertEqual(len(result), 2)
+        items = iter(result.items())
+        
+        # Verify bin structure
+        key, bin_rows = next(items)
+        study_id, patient_id, data_type, time_bin, bin_header = key
+        self.assertEqual(study_id, tracker.study_object_id)
+        self.assertEqual(patient_id, tracker.patient_id)
+        self.assertEqual(data_type, POWER_STATE)
+        self.assertEqual(bin_header, header)
+        self.assertEqual(time_bin, 491369)
+        self.assertEqual(len(bin_rows), 2)
+        
+        key, bin_rows = next(items)
+        study_id, patient_id, data_type, time_bin, bin_header = key
+        self.assertEqual(study_id, tracker.study_object_id)
+        self.assertEqual(patient_id, tracker.patient_id)
+        self.assertEqual(data_type, POWER_STATE)
+        self.assertEqual(bin_header, header)
+        self.assertEqual(time_bin, 491370)
+        self.assertEqual(len(bin_rows), 1)
+    
+    
+    def test_binify_csv_rows_skips_empty_rows(self):
+        tracker = FileProcessingTracker(self.default_participant)
+        
+        rows = [
+            [b"1768928568332", b"Locked", b"0.7"],  # bin 491369
+            [b""],  # Empty row
+            [],  # Another empty row
+            [b"1768928682951", b"Unlocked", b"0.7"],  # bin 491369
+        ]
+        
+        header = b"timestamp,event,level"
+        result = tracker.binify_csv_rows(rows, POWER_STATE, header)
+        result = dict(result)
+        
+        # Should only have rows with valid timestamps
+        items = iter(result.items())
+        key, bin_rows = next(items)
+        self.assertEqual(len(bin_rows), 2)
+        self.assertEqual(bin_rows[0], [b"1768928568332", b"Locked", b"0.7"])
+        self.assertEqual(bin_rows[1], [b"1768928682951", b"Unlocked", b"0.7"])
+    
+    
+    def test_binify_csv_rows_skips_bad_timecode(self):
+        tracker = FileProcessingTracker(self.default_participant)
+        rows = [
+            [b"1768928568332", b"Locked", b"0.7"],  # Valid
+            [b"invalid", b"Unlocked", b"0.7"],  # Invalid timecode
+            [b"1768928682951", b"Unlocked", b"0.7"],  # Valid
+        ]
+        
+        header = b"timestamp,event,level"
+        result = tracker.binify_csv_rows(rows, POWER_STATE, header)
+        
+        # Should only have 2 valid rows
+        total_rows = sum(len(bin_rows) for bin_rows in result.values())
+        self.assertEqual(total_rows, 2)
+    
+    
+    def test_append_binified_csvs(self):
+        tracker = FileProcessingTracker(self.default_participant)
+        
+        # Create a file to process
+        ftp = self.generate_file_to_process(
+            path="study/participant/powerState/1.csv",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        # Create some binified data
+        time_bin = 491369
+        header = b"timestamp,event,level"
+        data_bin: BinifyKey = (
+            tracker.study_object_id,
+            tracker.patient_id,
+            POWER_STATE,
+            time_bin,
+            header,
+        )
+        
+        new_binified_rows = {data_bin: [[b"1768928568332", b"Locked", b"0.7"]]}
+        
+        # Append the data
+        tracker.append_binified_csvs(new_binified_rows, ftp)  # type: ignore - do not care about invariant
+        
+        # Verify data was appended
+        self.assertIn(data_bin, tracker.all_binified_data)
+        
+        rows, ftps = tracker.all_binified_data[data_bin]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(ftps, [ftp.pk])
+        
+        self.assertEqual(len(tracker.all_binified_data), 1)
+    
+    
+    def test_append_binified_csvs_multiple_appends(self):
+        """Test that append_binified_csvs accumulates data"""
+        
+        tracker = FileProcessingTracker(self.default_participant)
+        
+        ftp1 = self.generate_file_to_process(
+            path="study/participant/powerState/1.csv",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        ftp2 = self.generate_file_to_process(
+            path="study/participant/powerState/2.csv",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        time_bin = 491369
+        header = b"timestamp,event,level"
+        data_bin: BinifyKey = (
+            tracker.study_object_id,
+            tracker.patient_id,
+            POWER_STATE,
+            time_bin,
+            header,
+        )
+        
+        # First append
+        new_binified_rows_1 = {
+            data_bin: [[b"1768928568332", b"Locked", b"0.7"]],
+        }
+        tracker.append_binified_csvs(new_binified_rows_1, ftp1)
+        
+        # Second append to same bin
+        new_binified_rows_2 = {
+            data_bin: [[b"1768928682951", b"Unlocked", b"0.7"]],
+        }
+        tracker.append_binified_csvs(new_binified_rows_2, ftp2)
+        
+        # Verify both were appended
+        rows, ftps = tracker.all_binified_data[data_bin]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(ftps, [ftp1.pk, ftp2.pk])
+        self.assertEqual(len(tracker.all_binified_data), 1)
+    
+    
+    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    def test_process_csv_data(self, s3_retrieve: Mock):
+        """Test process_csv_data method"""
+        
+        s3_retrieve.return_value = input_power_state_content
+        
+        tracker = FileProcessingTracker(self.default_participant)
+        ftp = self.generate_file_to_process(
+            path="study/participant/powerState/1768928568332.csv",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        ffp = FileForProcessing(ftp)
+        binified_data, survey_hash_id = tracker.process_csv_data(ffp)
+        
+        # Should return binified data
+        self.assertIsNotNone(binified_data)
+        self.assertIsInstance(binified_data, dict)
+        assert binified_data is not None
+        self.assertGreater(len(binified_data), 0)
+        
+        # survey_id_hash should be a tuple for non-survey data
+        self.assertIsNotNone(survey_hash_id)
+        self.assertIsInstance(survey_hash_id, tuple)
+        assert survey_hash_id is not None
+        self.assertEqual(len(survey_hash_id), 4)
+        self.assertEqual(
+            survey_hash_id,
+            (self.default_study.object_id, self.default_participant.patient_id, POWER_STATE, b"timestamp,event,level")
+        )
+    
+    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    def test_process_csv_data_empty_file(self, s3_retrieve: Mock):
+        """Test process_csv_data with empty file content"""
+        
+        # Just a header, no data rows
+        s3_retrieve.return_value = b"timestamp,event,level"
+        
+        tracker = FileProcessingTracker(self.default_participant)
+        ftp = self.generate_file_to_process(
+            path="study/participant/powerState/1768928568332.csv",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        ffp = FileForProcessing(ftp)
+        binified_data, survey_id_hash = tracker.process_csv_data(ffp)
+        
+        # Should return None for both
+        self.assertIsNone(binified_data)
+        self.assertIsNone(survey_id_hash)
+    
+    
+    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch("libs.file_processing.file_processing_core.s3_upload_no_compression")
+    def test_process_unchunkable_file(self, s3_upload: Mock, s3_retrieve: Mock):
+        """Test process_unchunkable_file method"""
+        
+        # Audio recording is an unchunkable file type
+        s3_retrieve.return_value = b"some audio recording data"
+        
+        tracker = FileProcessingTracker(self.default_participant)
+        ftp = self.generate_file_to_process(
+            path=f"study/participant/voiceRecording/1768928568332.wav",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        ffp = FileForProcessing(ftp)
+        tracker.process_unchunkable_file(ffp)
+        
+        # Verify ChunkRegistry was created
+        chunk_registries = ChunkRegistry.objects.filter(
+            participant=self.default_participant,
+            data_type=AUDIO_RECORDING,
+        )
+        self.assertEqual(chunk_registries.count(), 1)
+        
+        # Verify FTP was deleted
+        self.assertFalse(FileToProcess.objects.filter(pk=ftp.pk).exists())
+    
+    
+    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    def test_process_chunkable_file(self, s3_retrieve: Mock):
+        """Test process_chunkable_file method"""
+        
+        s3_retrieve.return_value = input_power_state_content
+        
+        tracker = FileProcessingTracker(self.default_participant)
+        ftp = self.generate_file_to_process(
+            path="study/participant/powerState/1768928568332.csv",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        ffp = FileForProcessing(ftp)
+        tracker.process_chunkable_file(ffp)
+        
+        # Verify binified data exists
+        self.assertGreater(len(tracker.all_binified_data), 0)
+        
+        # Verify FTP was not deleted yet (happens later in the pipeline)
+        self.assertTrue(FileToProcess.objects.filter(pk=ftp.pk).exists())
+    
+    
+    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    def test_process_chunkable_file_empty(self, s3_retrieve: Mock):
+        """Test process_chunkable_file with empty file"""
+        
+        # Just a header, no data
+        s3_retrieve.return_value = b"timestamp,event,level"
+        
+        tracker = FileProcessingTracker(self.default_participant)
+        ftp = self.generate_file_to_process(
+            path="study/participant/powerState/1768928568332.csv",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        ffp = FileForProcessing(ftp)
+        tracker.process_chunkable_file(ffp)
+        
+        # Verify no binified data was populated
+        self.assertEqual(len(tracker.all_binified_data), 0)
+        
+        # Verify FTP was deleted for empty file
+        self.assertFalse(FileToProcess.objects.filter(pk=ftp.pk).exists())
+    
+    
+    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    def test_process_one_file_chunkable(self, s3_retrieve: Mock):
+        """Test process_one_file with chunkable file"""
+        
+        s3_retrieve.return_value = input_power_state_content
+        
+        tracker = FileProcessingTracker(self.default_participant)
+        ftp = self.generate_file_to_process(
+            path="study/participant/powerState/1768928568332.csv",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        ffp = FileForProcessing(ftp)
+        tracker.process_one_file(ffp)
+        
+        # Should have binified data
+        self.assertGreater(len(tracker.all_binified_data), 0)
+    
+    
+    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch("libs.file_processing.file_processing_core.s3_upload_no_compression")
+    def test_process_one_file_unchunkable(self, s3_upload: Mock, s3_retrieve: Mock):
+        """Test process_one_file with unchunkable file"""
+        
+        s3_retrieve.return_value = b"audio recording data"
+        
+        tracker = FileProcessingTracker(self.default_participant)
+        ftp = self.generate_file_to_process(
+            path=f"study/participant/voiceRecording/1768928568332.wav",
+            participant=self.default_participant,
+            os_type=ANDROID_API,
+        )
+        
+        ffp = FileForProcessing(ftp)
+        tracker.process_one_file(ffp)
+        
+        # Should have created ChunkRegistry
+        self.assertEqual(
+            ChunkRegistry.objects.filter(participant=self.default_participant, data_type=AUDIO_RECORDING).count(),
+            1
+        )

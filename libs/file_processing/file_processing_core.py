@@ -37,10 +37,14 @@ def log(*args, **kwargs):
         print(*args, **kwargs)
 
 
+def logd(*args, **kwargs):
+    print(*args, **kwargs)
+
+
 def easy_run(participant: Participant):
     """ Just a handy way to just run data processing in the terminal, use with caution, does not
     test for celery activity. """
-    print(f"processing files for {participant.patient_id}")
+    logd(f"processing files for {participant.patient_id}")
     processor = FileProcessingTracker(participant)
     processor.process_user_file_chunks()
 
@@ -87,7 +91,7 @@ class FileProcessingTracker():
     def process_user_file_chunks(self):
         """ Call this function to process data for a participant. """
         for page_of_ftps in self.get_paginated_files_to_process():
-            print(f"will process {len(page_of_ftps)} files.")
+            logd(f"will process {len(page_of_ftps)} files.")
             self.do_process_user_file_chunks(page_of_ftps)
             self.survey_id_dict = {}
             self.buggy_files = set()
@@ -103,7 +107,7 @@ class FileProcessingTracker():
         
         # sorting by s3_file_path clumps together the data streams, which is good for efficiency.
         pks = list(self.participant.files_to_process.exclude(deleted=True).order_by("s3_file_path"))
-        print("Number Files To Process:", len(pks))
+        logd("Number Files To Process:", len(pks))
         
         # yield 100 files at a time
         ret = []
@@ -132,7 +136,7 @@ class FileProcessingTracker():
         # files percolates back to here.  Delete various database objects accordingly.
         ftps_to_remove, bad_files, earliest_time_bin, latest_time_bin = self.upload_binified_data()
         self.buggy_files.update(bad_files)
-        print(f"Successfully processed {len(ftps_to_remove)} files ({self.participant.patient_id}), "
+        logd(f"Successfully processed {len(ftps_to_remove)} files ({self.participant.patient_id}), "
               f"there have been a total of {len(self.buggy_files)} failed files.")
         
         # Update the data quantity stats (if it actually processed any files)
