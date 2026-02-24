@@ -153,9 +153,11 @@ class CsvMerger:
         
         ensure_sorted_by_timestamp(rows)  # final data transformation, a sort.
         
-        # build the csv, get the metadata
         with Timer() as t:
-            new_contents = construct_csv_as_bytes(final_header, rows)
+            new_contents = construct_csv_as_bytes(final_header, rows)  # build the csv, get the metadata
+        
+        rows.clear(); del rows  # memory usage paranoia begins
+        
         content_length = len(new_contents)  # we don't use this anymore in the final return
         the_hash = chunk_hash(new_contents).decode()
         new_contents = compress(new_contents)  # This file hangs around in memory, compress it asap.
@@ -193,7 +195,7 @@ class CsvMerger:
         
         with Timer() as t_retrieve:
             try:
-                old_s3_file_data = s3_retrieve(chunk_path, study_object_id, raw_path=True)
+                old_s3_file_data = [s3_retrieve(chunk_path, study_object_id, raw_path=True)]
             except ReadTimeoutError as e:
                 # The following check was correct for boto 2, still need to hit with boto3 test.
                 if "The specified key does not exist." == str(e):
@@ -211,15 +213,18 @@ class CsvMerger:
         
         log(f"CsvMerger: retrieved existing data for {name} in {t_retrieve.fseconds} seconds.")
         
+        orig_size = len(old_s3_file_data[0])
         with Timer() as t_unpack:  # get extant data from s3, merge with new binified data
-            s3_header, output_rows = existing_data_csv_splitter(old_s3_file_data)
+            # use pop to reduce refcount to just that called function's scope (paranoid)
+            s3_header, output_rows = existing_data_csv_splitter(old_s3_file_data.pop())
         
-        orig_size = len(old_s3_file_data)
-        del old_s3_file_data  # (large)
+        old_s3_file_data.clear(); del old_s3_file_data  # deepest paranoia about memory usage.
         log(f"CsvMerger: merged {orig_size} bytes for {name} in {t_unpack.fseconds} seconds.")
         
         final_header = self.validate_two_headers(s3_header, updated_header, data_stream)
         output_rows.extend(new_rows)
+        new_rows.clear(); del new_rows  # memory paranoia...
+        
         ensure_sorted_by_timestamp(output_rows)  # merges data together with a sort and deduplicate
         
         # this construction ensures there is no reference to the output of construct_csv_string
@@ -227,6 +232,8 @@ class CsvMerger:
         # Construct csv string also deduplicates rows.
         with Timer() as t_construct:
             new_contents = construct_csv_as_bytes(final_header, output_rows)
+        
+        output_rows.clear(); del output_rows  # Some more paranoia
         log(f"CsvMerger: compressed new data for {name} in {t_construct.fseconds} seconds.")
         
         # get metadata before compressing
@@ -234,6 +241,8 @@ class CsvMerger:
         chunk_update_kwargs = dict(
             chunk_hash=chunk_hash(new_contents).decode(), file_size=content_length
         )
+        
+        # reuse variable to zero references to the uncompressed data
         new_contents = compress(new_contents)
         self.upload_these.append((chunk_update_kwargs, chunk_path, new_contents, content_length, False))
     

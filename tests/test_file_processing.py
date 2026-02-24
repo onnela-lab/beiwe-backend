@@ -258,12 +258,12 @@ class TestFileProcessing(CommonTestCase):
             # Verify all rows in a bin have timestamps in the same hour
             for row in rows:
                 row_time_bin = binify_from_timecode(row[0])
-                self.assertEqual(row_time_bin, time_bin, 
+                self.assertEqual(row_time_bin, time_bin,
                     f"Row with timestamp {row[0]} should be in bin {time_bin}, not {row_time_bin}")
         
         # Count total rows
         total_rows = sum(len(rows) for rows in binified.values())
-        self.assertEqual(total_rows, len(ffp.file_lines), 
+        self.assertEqual(total_rows, len(ffp.file_lines),
             "All rows should be accounted for in binified data")
         
         # Verify the structure matches what CsvMerger expects
@@ -312,7 +312,7 @@ class TestFileProcessing(CommonTestCase):
         self.assertIsNone(ffp.header, "header should not be populated until prepare_data is called")
         self.assertIsNone(ffp.exception, "exception should be None on successful instantiation")
         self.assertIsNone(ffp.traceback, "traceback should be None on successful instantiation")
-        self.assertIs(ffp.file_to_process, ftp, "file_to_process should be the same object passed in")    
+        self.assertIs(ffp.file_to_process, ftp, "file_to_process should be the same object passed in")
     @patch("libs.file_processing.file_for_processing.s3_retrieve")
     def test_clear_file_content(self, s3_retrieve: Mock):
         """Test that clear_file_content properly sets file_contents to None"""
@@ -488,9 +488,9 @@ class TestFileProcessing(CommonTestCase):
     #     """Test that download_file_contents properly handles exceptions"""
     #     test_error = ValueError("S3 connection failed")
     #     s3_retrieve.side_effect = test_error
-        
+    
     #     ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        
+    
     #     # Creating FileForProcessing should raise SomeException
     #     with self.assertRaises(SomeException):
     #         FileForProcessing(ftp, self.default_study)
@@ -501,15 +501,15 @@ class TestFileProcessing(CommonTestCase):
     #     """Test that raise_data_processing_error properly re-raises stored exceptions"""
     #     test_error = ValueError("Test error for processing")
     #     s3_retrieve.side_effect = test_error
-        
+    
     #     ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        
+    
     #     # Catch the initial exception during instantiation
     #     try:
     #         FileForProcessing(ftp, self.default_study)
     #     except SomeException as e:
     #         pass
-        
+    
     #     # Now we can't test this directly without creating a modified version,
     #     # but we can verify the exception handling path works in download_file_contents
 
@@ -1320,6 +1320,255 @@ class TestCsvMerger(CommonTestCase):
         succeeded, failed, _, _ = merger.get_retirees()
         self.assertEqual(succeeded, {1, 2})
         self.assertEqual(failed, set())
+    
+    
+    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    def test_csv_merger_deduplicates_within_new_files(self, s3_retrieve: Mock):
+        """Test that duplicate rows within new files are deduplicated"""
+        binified_data, null_handler, survey_id_dict = self.basic_config()
+        
+        # Create duplicate rows - make separate list objects with same content
+        # (not references to the same list, as that would cause mutation issues)
+        rows = [
+            [T1_BYTESTR, b"Locked"],
+            [T1_BYTESTR, b"Locked"],  # Duplicate (same content, different list)
+            [b"1770358250000", b"Unlocked"],
+            [T1_BYTESTR, b"Locked"],  # Another duplicate
+        ]
+        
+        
+        
+        data_bin: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        binified_data[data_bin] = (rows, [1, 2, 3])
+        
+        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        
+        # Verify chunk was processed
+        self.assertEqual(len(merger.upload_these), 1)
+        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        
+        #
+        ## inserting manual hardcoded details here to sanity check this test during review.
+        #
+        known_correct_path = "CHUNKED_DATA/1234567890ABCDEFGHIJKMNO/patient1/power_state/2026-01-05T08:00:00.csv"
+        self.assertEqual(
+            chunk_params, {
+                "study_id": self.default_study.id,
+                "participant_id": self.default_participant.id,
+                "data_type": "power_state",
+                "chunk_path": known_correct_path,
+                "chunk_hash": "uVriQ+TWRPtRJbjpRc23EQ==",
+                "time_bin": 491000,
+                "survey_id": None,
+                "file_size": 116,
+            }
+        )
+        
+        decompressed_contents = decompress(new_contents)
+        lines = decompressed_contents.splitlines()
+        self.assertEqual(chunk_path, known_correct_path)
+        self.assertEqual(content_length, len(decompressed_contents))
+        self.assertEqual(
+            [
+                b"timestamp,UTC time,event",
+                b"1770358145197,2026-02-06T06:09:05.197,Locked",
+                b"1770358250000,2026-02-06T06:10:50.000,Unlocked",
+            ],
+            lines,
+        )
+        self.assertTrue(is_new)
+        
+        # Should only have 3 lines: header + 2 unique data lines (not 4)
+        # We had 4 rows with 3 duplicates of the first row, so should have 2 unique rows
+        self.assertEqual(len(lines), 3, f"Should have header + 2 unique rows, got {len(lines)}")
+        self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
+        
+        # Verify the duplicate row appears only once
+        # After conversion, the row will have UTC time inserted
+        expected_duplicate_line = b"1770358145197,2026-02-06T06:09:05.197,Locked"
+        expected_line_2 = b"1770358250000,2026-02-06T06:10:50.000,Unlocked"
+        
+        duplicate_count = sum(1 for line in lines if line == expected_duplicate_line)
+        self.assertEqual(duplicate_count, 1, "Duplicate row should appear only once")
+        # Verify both unique rows are present
+        self.assertIn(expected_duplicate_line, lines)
+        self.assertIn(expected_line_2, lines)
+    
+    
+    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    def test_csv_merger_deduplicates_new_against_existing_s3_data(self, s3_retrieve: Mock):
+        """Test that duplicate rows between existing S3 data and new files are deduplicated"""
+        binified_data, null_handler, survey_id_dict = self.basic_config()
+        
+        # Create an existing chunk in the database with some data
+        chunk_path = construct_s3_chunk_path(
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+        )
+        
+        time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
+        ChunkRegistry.objects.create(
+            study_id=self.default_participant.study_id,
+            participant_id=self.default_participant.id,
+            data_type=POWER_STATE,
+            chunk_path=chunk_path,
+            chunk_hash="old_hash",
+            time_bin=time_bin_datetime,
+            file_size=1000,
+            is_chunkable=True,
+        )
+        
+        # Existing S3 data already has UTC time column (it"s been processed before)
+        # Contains row 1 and row 2
+        existing_rows_with_utc = [
+            [T1_BYTESTR, T1_UTC, b"Locked"],
+            [b"1770358250000", b"2026-02-06T06:10:50.000", b"Unlocked"],
+        ]
+        self.assertEqual(  # Sanity check
+            binify_from_timecode(T1_BYTESTR), binify_from_timecode(existing_rows_with_utc[1][0])
+        )
+        
+        existing_data = construct_csv_as_bytes(POWER_STATE_HEADER_ANDROID, existing_rows_with_utc)
+        s3_retrieve.return_value = existing_data
+        
+        # New data does NOT have UTC time column yet (raw from device)
+        # Contains row 1 (duplicate) and row 3 (new)
+        new_rows_without_utc = [
+            [T1_BYTESTR, b"Locked"],  # Duplicate of existing data
+            [b"1770358350000", b"Locked"],  # New data
+        ]
+        
+        data_bin: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        binified_data[data_bin] = (new_rows_without_utc, [1, 2])
+        
+        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        
+        # Verify merge occurred  -  not manually rechecking all of these, only did that once
+        self.assertEqual(len(merger.upload_these), 1)
+        chunk_params, returned_chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        
+        self.assertFalse(is_new)
+        decompressed = decompress(new_contents)
+        lines = decompressed.splitlines()
+        
+        # Should have header + 3 unique data lines (not 4)
+        # Existing: row1, row2
+        # New: row1 (dup), row3
+        # Result: row1, row2, row3 (3 unique rows)
+        self.assertEqual(len(lines), 4, f"Should have header + 3 unique rows, got {len(lines)} lines: {lines}")
+        self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
+        
+        # Verify row 1 appears only once despite being in both old and new data
+        expected_duplicate_line = b"1770358145197,2026-02-06T06:09:05.197,Locked"
+        duplicate_count = sum(1 for line in lines if line == expected_duplicate_line)
+        self.assertEqual(duplicate_count, 1, "Duplicate row from existing data should appear only once")
+        
+        # Verify all 3 unique rows are present
+        expected_lines = [
+            expected_duplicate_line,                            # row 1
+            b"1770358250000,2026-02-06T06:10:50.000,Unlocked",  # row 2 (from existing)
+            b"1770358350000,2026-02-06T06:12:30.000,Locked",    # row 3 (new)
+        ]
+        self.assertEqual(lines[1:], expected_lines)
+    
+    
+    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    def test_csv_merger_multiple_duplicates_across_old_and_new(self, s3_retrieve: Mock):
+        """Test deduplication with multiple duplicates across existing and new data"""
+        binified_data, null_handler, survey_id_dict = self.basic_config()
+        
+        T_A, T_B, T_C = b"1770358250000", b"1770358350000", b"1770358450000"
+        
+        # Create an existing chunk
+        chunk_path = construct_s3_chunk_path(
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+        )
+        
+        # (yup that's how its done!)
+        time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
+        ChunkRegistry.objects.create(
+            study_id=self.default_participant.study_id,
+            participant_id=self.default_participant.id,
+            data_type=POWER_STATE,
+            chunk_path=chunk_path,
+            chunk_hash="old_hash",
+            time_bin=time_bin_datetime,
+            file_size=1000,
+            is_chunkable=True,
+        )
+        
+        # Existing data already has UTC time: row1, row2, row3
+        existing_rows_with_utc = [
+            [T1_BYTESTR, b"2026-02-06T06:09:05.197", b"Locked"],
+            [T_A, b"2026-02-06T06:10:50.000", b"Unlocked"],
+            [T_B, b"2026-02-06T06:12:30.000", b"Locked"],
+        ]
+        existing_data = construct_csv_as_bytes(POWER_STATE_HEADER_ANDROID, existing_rows_with_utc)
+        s3_retrieve.return_value = existing_data
+        
+        # New data without UTC time: row1 (dup), row2 (dup), row4 (new), row1 again (dup within new)
+        new_rows_without_utc = [
+            [T1_BYTESTR, b"Locked"],  # Duplicate from existing
+            [T_A, b"Unlocked"],  # Duplicate from existing
+            [T_C, b"Unlocked"],  # New unique row
+            [T1_BYTESTR, b"Locked"],  # Duplicate within new data
+        ]
+        
+        data_bin: BinifyKey = (
+            self.default_study.object_id,
+            self.default_participant.patient_id,
+            POWER_STATE,
+            BIN_1,
+            POWER_STATE_HEADER_ANDROID,
+        )
+        binified_data[data_bin] = (new_rows_without_utc, [1, 2, 3])
+        
+        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        
+        # Verify merge occurred
+        self.assertEqual(len(merger.upload_these), 1)
+        chunk_params, returned_chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        
+        decompressed = decompress(new_contents)
+        lines = decompressed.splitlines()
+        
+        # Should have header + 4 unique rows total
+        # Existing: row1, row2, row3
+        # New: row1 (dup), row2 (dup), row4 (new), row1 (dup)
+        # Result: row1, row2, row3, row4 (4 unique)
+        self.assertEqual(len(lines), 5, f"Should have header + 4 unique rows, got {len(lines)} lines: {lines}")
+        self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
+        
+        # Verify all expected unique rows are present
+        expected_lines = [
+            b"1770358145197,2026-02-06T06:09:05.197,Locked",
+            b"1770358250000,2026-02-06T06:10:50.000,Unlocked",
+            b"1770358350000,2026-02-06T06:12:30.000,Locked",
+            b"1770358450000,2026-02-06T06:14:10.000,Unlocked",
+        ]
+        self.assertEqual(lines[1:], expected_lines)
+        
+        # Verify each row appears exactly once
+        for expected_line in expected_lines:
+            count = sum(1 for line in lines if line == expected_line)
+            self.assertEqual(count, 1, f"Row {expected_line} should appear exactly once")
 
 
 # AI generated, manually review, minor tweaks

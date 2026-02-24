@@ -23,7 +23,7 @@ def s3_file_path_to_data_type(file_path: str):
     # the identifiers file separately but without any slashes in it, sooooo we need to for-else.
     file_path = normalize_s3_file_path(file_path)
     for file_piece in file_path.split('/'):
-        data_type = UPLOAD_FILE_TYPE_MAPPING.get(file_piece, None)
+        data_type = UPLOAD_FILE_TYPE_MAPPING.get(file_piece)
         if data_type and "identifiers" in data_type:
             return IDENTIFIERS
         if data_type:
