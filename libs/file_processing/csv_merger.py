@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 
 from botocore.exceptions import ReadTimeoutError
 from cronutils import ErrorHandler
@@ -29,8 +30,9 @@ UncompressedSize = int
 FinalOutputContent = bytes
 ChunkPath = str
 ByteCount = int
+Sha1Hash = bytes
 
-Uploadable = tuple[dict, ChunkPath, FinalOutputContent, ByteCount, bool]
+Uploadable = tuple[dict, ChunkPath, FinalOutputContent, Sha1Hash, ByteCount, bool]
 
 
 def log(*args, **kwargs):
@@ -69,7 +71,7 @@ class CsvMerger:
         self.iterate()
     
     def get_retirees(self) -> tuple[set[FileToProcessPK], set[FileToProcessPK], int | None, int | None]:
-        """ returns the ftp pks that have succeeded, the of ftps that have failed, 
+        """ returns the ftp pks that have succeeded, the of ftps that have failed,
         and the earliest and the latest time bins """
         return self.ftps_to_retire.difference(self.failed_ftps), \
             self.failed_ftps, self.earliest_time_bin, self.latest_time_bin
@@ -158,10 +160,11 @@ class CsvMerger:
         
         rows.clear(); del rows  # memory usage paranoia begins
         
-        content_length = len(new_contents)  # we don't use this anymore in the final return
-        the_hash = chunk_hash(new_contents).decode()
+        uncompressed_size = len(new_contents)  # we don't use this anymore in the final return
+        md5_hash = chunk_hash(new_contents)
+        sha1_hash = hashlib.sha1(new_contents).digest()
         new_contents = compress(new_contents)  # This file hangs around in memory, compress it asap.
-        log(f"CsvMerger: constructed {content_length} bytes (new) for {name} in {t.fseconds} seconds.")
+        log(f"CsvMerger: constructed {uncompressed_size} bytes (new) for {name} in {t.fseconds} seconds.")
         
         if data_stream in SURVEY_DATA_FILES:
             # We need to keep a mapping of files to survey ids, that is handled here.
@@ -176,12 +179,13 @@ class CsvMerger:
             "participant_id": self.participant.id,
             "data_type": data_stream,
             "chunk_path": chunk_path,
-            "chunk_hash": the_hash,
+            "chunk_hash": md5_hash,
             "time_bin": time_bin,
             "survey_id": survey_id,
-            "file_size": content_length,  # we don't use this anymore in the final return
+            "file_size": uncompressed_size,  # we don't use this anymore in the final return
+            
         }
-        self.upload_these.append((chunk_params, chunk_path, new_contents, content_length, True))
+        self.upload_these.append((chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, True))
     
     def chunk_exists_case(
         self,
@@ -237,14 +241,13 @@ class CsvMerger:
         log(f"CsvMerger: compressed new data for {name} in {t_construct.fseconds} seconds.")
         
         # get metadata before compressing
-        content_length = len(new_contents)
-        chunk_update_kwargs = dict(
-            chunk_hash=chunk_hash(new_contents).decode(), file_size=content_length
-        )
+        uncompressed_size = len(new_contents)
+        chunk_kwargs = {"chunk_hash": chunk_hash(new_contents), "file_size": uncompressed_size}
         
         # reuse variable to zero references to the uncompressed data
+        sha1_hash = hashlib.sha1(new_contents).digest()
         new_contents = compress(new_contents)
-        self.upload_these.append((chunk_update_kwargs, chunk_path, new_contents, content_length, False))
+        self.upload_these.append((chunk_kwargs, chunk_path, new_contents, sha1_hash, uncompressed_size, False))
     
     def validate_one_header(self, header: bytes, data_stream: str) -> bytes:
         real_header = REFERENCE_CHUNKREGISTRY_HEADERS[data_stream][self.participant.os_type]

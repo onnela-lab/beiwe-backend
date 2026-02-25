@@ -17,7 +17,7 @@ from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry, FileToProcess
 from database.models import Study
 from database.user_models_participant import Participant
-from libs.file_processing.csv_merger import CsvMerger, FinalOutputContent
+from libs.file_processing.csv_merger import CsvMerger, FinalOutputContent, Sha1Hash
 from libs.file_processing.data_qty_stats import calculate_data_quantity_stats
 from libs.file_processing.file_for_processing import FileForProcessing
 from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
@@ -63,8 +63,8 @@ class FileProcessingTracker():
         )
         
         self.participant = participant
-        self.study: Study = participant.study
-        self.study_object_id: str = participant.study.object_id
+        self.study: Study = Study.obj_get(pk=participant.study_id)
+        self.study_object_id: str = self.study.object_id
         self.patient_id: str = participant.patient_id
         
         # we operate on a page of files at a time, this is the size of the page.
@@ -123,10 +123,11 @@ class FileProcessingTracker():
         file through the appropriate logic path based on file type. """
         
         # Threading this increases speed but increases memory usage.
+        # 2026-2-24: after adding threading back in and then adding the study to the instantiation
+        # pattern of the FileForProcessing, we get database connection exhaustion errors. Sure. Cool.
         with Timer() as t:
-            files = s3_op_threaded_iterate(
-                lambda tup: FileForProcessing(*tup), ((ftp, self.study) for ftp in files_to_process)
-            )
+            # files = s3_op_threaded_iterate(self.get_FileForProcessing, files_to_process)
+            files = [FileForProcessing(ftp, self.study) for ftp in files_to_process]
         log(f"downloaded all files in {t.fseconds} for processing.")
         
         for file_for_processing in drain_in_reverse(files):
@@ -196,7 +197,8 @@ class FileProcessingTracker():
         chunk_kwargs: dict,
         chunk_path: str,
         compressed_contents: FinalOutputContent,
-        content_length: int,
+        sha1_hash: Sha1Hash,
+        uncompressed_size: int,
         create_new_chunk: bool,
     ):
         """ Even if the upload succeeds and then something goes wrong with the database update,
@@ -209,6 +211,8 @@ class FileProcessingTracker():
             chunk_path,
             compressed_contents,  # it gets decompressed briefly
             self.study,
+            uncompressed_size=uncompressed_size,
+            sha1=sha1_hash,
             raw_path=True,
         )
         

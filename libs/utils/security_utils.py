@@ -25,12 +25,12 @@ class BadDjangoKeyFormatting(Exception): pass
 ################################################################################
 
 # noinspection InsecureHash
-def chunk_hash(data: bytes) -> bytes:
+def chunk_hash(data: bytes) -> str:
     """ We need to hash data in a data stream chunk and store the hash in mongo. """
     # this is not a use of md5 for security.
     # trunk-ignore(bandit/B324)
     digest = hashlib.md5(data).digest()
-    return codecs.encode(digest, "base64").replace(b"\n", b"")
+    return codecs.encode(digest, "base64").replace(b"\n", b"").decode()
 
 
 # noinspection InsecureHash

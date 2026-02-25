@@ -110,6 +110,7 @@ class S3Storage:
         
         # self.uncompressed_data = None  # DON'T ADD AS CONSTRUCTOR PARAMETER; FORCE MEMORY MANAGEMENT.
         self.metadata = MetaDotDict()
+        self.metadata_committed = False
         
         # DB fields
         if isinstance(self.smart_key_obj, Study):
@@ -153,19 +154,22 @@ class S3Storage:
         # misuse
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
-        self.metadata.size_uncompressed = len(file_content)
         self.uncompressed_data = file_content
-        if "sha1" not in self.metadata:
-            self.metadata.sha1 = hashlib.sha1(self.uncompressed_data).digest()
         return self
     
-    def set_file_content_compressed(self, file_content_compressed: bytes) -> S3Storage:
+    def set_file_content_precompressed(self, file_content_compressed: bytes, size_uncompressed: int, sha1: bytes) -> S3Storage:
         # validate - handles None case
         if not isinstance(file_content_compressed, bytes):
             raise TypeError(f"file_content must be bytes, received {type(file_content_compressed)}")
         # zstd format check
         if not file_content_compressed.startswith(b'(\xb5/\xfd'):
             raise ValueError(MUST_BE_ZSTD_FORMAT(file_content=file_content_compressed[:10].decode()))
+        # validate the size
+        if size_uncompressed <= 0 or not isinstance(size_uncompressed, int):
+            raise ValueError(f"size_uncompressed must be a positive integer, not `{size_uncompressed}`")
+        # validate the sha1
+        if not isinstance(sha1, bytes) or len(sha1) != 20:
+            raise ValueError(f"sha1 must be a 20 byte bytes object, not `{sha1}`")
         
         # misuse cases
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
@@ -195,21 +199,19 @@ class S3Storage:
     
     # Upload API
     
-    def compress_and_push_to_storage_and_clear_memory(self):
+    def compress_and_push_to_storage_then_clear_memory(self):
         self.compress_and_push_to_storage_retaining_compressed()
         del self.compressed_data
     
     def compress_and_push_to_storage_retaining_compressed(self):
         self.compress_data_and_clear_uncompressed()
-        self._s3_upload_zst_and_profile()
-        self.update_s3_table()
+        self._s3_upload_zst()
     
-    def push_to_storage_already_compressed_and_clear_memory(self):
+    def push_to_storage_precompressed_and_clear_memory(self):
         # when you have populated compressed_data in memory and want to push to s3
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_AT_UPLOAD
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD
-        self._s3_upload_zst_and_profile()
-        self.update_s3_table()
+        self._s3_upload_zst()
         del self.compressed_data
     
     ## Compression
@@ -235,7 +237,7 @@ class S3Storage:
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD
         try:
-            self._download_decompress_and_profile_clearing_compressed()
+            self._download_decompress_clearing_compressed()
         except NoSuchKeyException:
             self._download_and_rewrite_s3_as_compressed_retaining_uncompressed()
         return self
@@ -250,14 +252,12 @@ class S3Storage:
             self._download_and_rewrite_s3_retaining_compressed()
         return self
     
-    def _download_decompress_and_profile_clearing_compressed(self):
+    def _download_decompress_clearing_compressed(self):
         # This line should be the error on when there is no compressed copy
         self.compressed_data = self._s3_retrieve_zst_and_profile()
         self.uncompressed_data = decompress(self.compressed_data)
         self.metadata.size_uncompressed = len(self.uncompressed_data)
         del self.compressed_data
-        self.metadata.sha1 = hashlib.sha1(self.uncompressed_data).digest()  # yup, always
-        self.update_s3_table()
     
     ## Download-Rewrite
     
@@ -275,19 +275,26 @@ class S3Storage:
     ## DB ops
     #
     
-    def update_metadata(self, **kwargs):
-        """ for use if an external source has metadata to update """
-        for k,v in kwargs.items():
-            self.metadata[k] = v
+    def metadata_asserts(self):
+        assert self.metadata.size_uncompressed, "metadata.size_uncompressed must be set"
+        assert self.metadata.size_compressed, "metadata.size_compressed must be set"
+        assert self.metadata.sha1, "metadata.sha1 must be set"
     
     def update_s3_table(self):
+        # only update once
+        if self.metadata_committed:
+            return
+        
+        self.metadata_committed = True
+        self.metadata_asserts()
+        
         from database.models import S3File
         self.metadata.last_updated = timezone.now()
         if "sha1" not in self.metadata or not self.metadata.sha1:
             raise DataException("cannot update s3 table without SHA1 hash")
         S3File.objects.update_or_create(path=self.s3_path_zst, defaults=self.metadata)
     
-    def delete_s3_table_entry_zst(self):
+    def delete_s3_table_entry(self):
         from database.models import S3File
         S3File.fltr(path=self.s3_path_zst).delete()  # can't actually fail
     
@@ -316,22 +323,25 @@ class S3Storage:
     
     def _s3_delete_zst(self):
         s3_delete(self.s3_path_zst)
-        self.delete_s3_table_entry_zst()
+        self.delete_s3_table_entry()
     
     def _s3_delete_uncompressed(self):
         s3_delete(self.s3_path_uncompressed)
     
     ## Upload
     
-    def _s3_upload_zst_and_profile(self):
+    def _s3_upload_zst(self):
         """ Manually manage these memory/reference count operations.  It matters.
         This is a critical performance path. DO NOT separate into further functions calls without
         profiling memory usage. """
+        self.metadata_asserts()
+        assert not self.metadata_committed, "you cannot reuse an S3Storage object"
+        
         encrypted_compressed_data = encrypt_for_server(self.compressed_data, self.encryption_key)
         
         _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
+        del encrypted_compressed_data  # remove copy asap
         
-        del encrypted_compressed_data  # 0x memory
         self.update_s3_table()
     
     ## Retrieve
@@ -345,8 +355,7 @@ class S3Storage:
         try:
             data = self._raw_s3_retrieve(self.s3_path_zst)
         except NoSuchKeyException:
-            # if it doesn't exist, delete the entry in the database
-            self.delete_s3_table_entry_zst()
+            self.delete_s3_table_entry()  # if it doesn't exist, delete the entry in the database
             raise
         
         ret = decrypt_server(data, key)
@@ -385,15 +394,16 @@ def s3_upload(
     """ Uploads a bytes object as a file, encrypted using the encryption key of the study it is
     associated with. Intelligently accepts a string, Participant, or Study object as needed. """
     storage = S3Storage(key_path, obj, raw_path).set_file_content_uncompressed(data_string)
-    storage.compress_and_push_to_storage_and_clear_memory()
+    storage.compress_and_push_to_storage_then_clear_memory()
 
 
 def s3_upload_no_compression(
-    key_path: str, data_string: bytes, obj: StrPartStudy, raw_path=False, **metadata: dict[str, str]
+    key_path: str, data: bytes, obj: StrPartStudy, uncompressed_size: int, sha1: bytes, raw_path=False, 
 ):
-    storage = S3Storage(key_path, obj, raw_path).set_file_content_compressed(data_string)
-    storage.update_metadata(**metadata)
-    storage.push_to_storage_already_compressed_and_clear_memory()
+    storage = S3Storage(key_path, obj, raw_path) \
+        .set_file_content_precompressed(data, uncompressed_size, sha1)
+    storage.metadata.uncompressed_size = uncompressed_size   # must be set manually
+    storage.push_to_storage_precompressed_and_clear_memory()
 
 
 def s3_upload_plaintext(upload_path: str, data_string: bytes) -> None:

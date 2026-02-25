@@ -162,6 +162,7 @@ extend-ignore = [
     # "CFQ004",
     "E731",  # don't use lambdas alone
     "R505",  # unnecessary elif return 
+    "R504",  # unnecessary return after assignment - is literally incorrect
 ]
 exclude = [
     ".git",

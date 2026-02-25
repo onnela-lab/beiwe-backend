@@ -1,3 +1,4 @@
+import hashlib
 from collections import defaultdict
 from datetime import datetime
 from unittest.mock import Mock, patch
@@ -235,6 +236,7 @@ class TestFileProcessing(CommonTestCase):
         
         # Now binify the data manually to test the binification logic
         binified: dict[int, list] = defaultdict(list)
+        assert ffp.file_lines is not None, "file_lines should be populated by now"
         
         # Group rows by time bin
         for row in ffp.file_lines:
@@ -272,8 +274,9 @@ class TestFileProcessing(CommonTestCase):
         patient_id = ftp.participant.patient_id
         data_type = POWER_STATE
         header = ffp.header
+        assert isinstance(header, bytes)
         
-        for time_bin, rows in binified.items():
+        for time_bin, _rows in binified.items():
             # This is the structure that would be used in actual processing
             binify_key: BinifyKey = (study_id, patient_id, data_type, time_bin, header)
             
@@ -551,6 +554,11 @@ class TestCsvMerger(CommonTestCase):
         # return a null error handler so that errors actually get raised when they run for testing.
         return binified_data, null_error_handler(), survey_id_dict  # type: ignore
     
+    @property
+    def bin_start(self) -> tuple[str, str, str]:
+        # just makes some code less verbose
+        return self.default_study.object_id, self.default_participant.patient_id, POWER_STATE
+    
     ## Tests!
     
     # trivial
@@ -583,13 +591,7 @@ class TestCsvMerger(CommonTestCase):
     
     @patch("libs.file_processing.csv_merger.s3_retrieve")
     def test_csv_merger_get_retirees(self, s3_retrieve: Mock):
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data, null_handler, survey_id_dict = self.basic_config()
         binified_data[data_bin] = (POWER_STATE_ROWS_1, [1, 2])
         
@@ -613,30 +615,13 @@ class TestCsvMerger(CommonTestCase):
         binified_data, _, survey_id_dict = self.basic_config()
         
         # First data bin will succeed
-        data_bin_1: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin_1: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         
         # Second data bin will fail (we'll set up S3 to fail for this one)
-        data_bin_2: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_2,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         
         # Create a chunk registry for the second bin so S3 retrieval will be attempted
-        chunk_path_2 = construct_s3_chunk_path(
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_2,
-        )
+        chunk_path_2 = construct_s3_chunk_path(*self.bin_start, BIN_2)
         time_bin_2_datetime = datetime.fromtimestamp(BIN_2 * CHUNK_TIMESLICE_QUANTUM, UTC)
         ChunkRegistry.objects.create(
             study_id=self.default_participant.study_id,
@@ -680,12 +665,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data, _, survey_id_dict = self.basic_config()
         
         # Create a scenario that will cause an error: missing chunk in S3
-        chunk_path = construct_s3_chunk_path(
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-        )
+        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1)
         
         # Create chunk registry but S3 will fail to retrieve it
         # Convert time_bin to datetime as required by the model
@@ -705,13 +685,7 @@ class TestCsvMerger(CommonTestCase):
         
         # Set up binified data
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][ANDROID_API]
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            reference_header,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, reference_header)
         binified_data[data_bin] = (POWER_STATE_ROWS_1, [1, 2])
         
         # This should complete without raising, but mark FTPs as failed
@@ -813,13 +787,7 @@ class TestCsvMerger(CommonTestCase):
     @patch("libs.file_processing.csv_merger.s3_retrieve")
     def test_csv_merger_chunk_not_exists_case(self, s3_retrieve: Mock):
         # Create test data
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data, null_handler, survey_id_dict = self.basic_config()
         binified_data[data_bin] = (POWER_STATE_ROWS_1, [1, 2])  # file_to_process PKs
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
@@ -832,13 +800,13 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(merger.latest_time_bin, BIN_1)  # time bins for summarystatistics
         
         # Verify upload data structure
-        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
-        
         self.assertTrue(is_new)
         self.assertIn(POWER_STATE, chunk_path)
         self.assertIsNotNone(new_contents)
-        self.assertEqual(content_length, len(decompressed))
+        self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
+        self.assertEqual(uncompressed_size, len(decompressed))
         
         lines = decompressed.splitlines()
         self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
@@ -853,13 +821,7 @@ class TestCsvMerger(CommonTestCase):
         duplicated_row = [T1_BYTESTR, T1_UTC, b'Locked']
         duplicate_rows = [duplicated_row, duplicated_row]  # Same row twice
         
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data, null_handler, survey_id_dict = self.basic_config()
         binified_data[data_bin] = (duplicate_rows, [1, 2])
         
@@ -871,7 +833,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(2, merger.ftps_to_retire)
         
         # Verify upload data structure
-        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         # Should have header + 2 identical data lines
@@ -887,13 +849,7 @@ class TestCsvMerger(CommonTestCase):
         duplicated_row = [T1_BYTESTR, b'Locked']
         duplicate_rows = [duplicated_row, duplicated_row, duplicated_row]  # Same row three times
         
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         
         binified_data, null_handler, survey_id_dict = self.basic_config()
         binified_data[data_bin] = (duplicate_rows, [1, 2, 3])
@@ -907,7 +863,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(3, merger.ftps_to_retire)
         
         # Verify upload data structure
-        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         # Should have header + 3 identical data lines
@@ -926,13 +882,7 @@ class TestCsvMerger(CommonTestCase):
         row_out_1 = b','.join([T1_BYTESTR, T1_UTC, b'Locked'])
         row_out_2 = b','.join([T1_BYTESTR, T1_UTC, b'Unlocked'])
         
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data, null_handler, survey_id_dict = self.basic_config()
         binified_data[data_bin] = (rows, [1, 2])
         
@@ -944,7 +894,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(2, merger.ftps_to_retire)
         
         # Verify upload data structure
-        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         # Should have header + 2 data lines
@@ -964,20 +914,8 @@ class TestCsvMerger(CommonTestCase):
         row_1 = [T1_BYTESTR, b'Locked']
         row_2 = [b'1770361745197', b'Unlocked']
         
-        data_bin_1: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
-        data_bin_2: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_2,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin_1: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
+        data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         
         binified_data[data_bin_1] = ([row_1], [1])
         binified_data[data_bin_2] = ([row_2], [2])
@@ -994,9 +932,12 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(BIN_2 - BIN_1, 1)
         
         # Each chunk should be a new chunk
-        for chunk_params, chunk_path, new_contents, content_length, is_new in merger.upload_these:
+        for chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new in merger.upload_these:
             self.assertTrue(is_new)
-            self.assertEqual(content_length, len(decompress(new_contents)))
+            decompressed = decompress(new_contents)
+            self.assertEqual(uncompressed_size, len(decompressed))
+            self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
+    
     
     
     @patch("libs.file_processing.csv_merger.s3_retrieve")
@@ -1009,20 +950,8 @@ class TestCsvMerger(CommonTestCase):
         row_bin1 = [timestamp_at_bin1_boundary, b'Locked']
         row_bin2 = [timestamp_at_bin2_boundary, b'Unlocked']
         
-        data_bin_1: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
-        data_bin_2: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_2,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin_1: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
+        data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         
         binified_data[data_bin_1] = ([row_bin1], [1])
         binified_data[data_bin_2] = ([row_bin2], [2])
@@ -1039,9 +968,11 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(merger.latest_time_bin, BIN_2)
         
         # Verify each chunk is new
-        for chunk_params, chunk_path, new_contents, content_length, is_new in merger.upload_these:
+        for chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new in merger.upload_these:
             self.assertTrue(is_new)
-            self.assertEqual(content_length, len(decompress(new_contents)))
+            decompressed = decompress(new_contents)
+            self.assertEqual(uncompressed_size, len(decompressed))
+            self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
             
             # Verify the timestamps are in the decompressed output
             decompressed = decompress(new_contents)
@@ -1061,18 +992,11 @@ class TestCsvMerger(CommonTestCase):
         row_middle = [b"1770358250000", b"Locked"]    # Middle
         row_oldest = [b"1770358145197", b"Locked"]    # Oldest
         rows = [row_newest, row_middle, row_oldest]  # Out of order (reverse chronological)
-        
         OUTOFORDER_LINE_NEWEST_OUT = b"1770358450000,2026-02-06T06:14:10.000,Unlocked"
         OUTOFORDER_LINE_MIDDLE_OUT = b"1770358250000,2026-02-06T06:10:50.000,Locked"
         OUTOFORDER_LINE_OLDEST_OUT = b"1770358145197,2026-02-06T06:09:05.197,Locked"
         
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (rows, [1, 2, 3])
         
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
@@ -1084,11 +1008,12 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(3, merger.ftps_to_retire)
         
         # Verify upload data
-        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         self.assertTrue(is_new)
-        self.assertEqual(content_length, len(decompressed))
+        self.assertEqual(uncompressed_size, len(decompressed))
+        self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
         
         lines = decompressed.splitlines()
         # Should have header + 3 data lines
@@ -1112,20 +1037,8 @@ class TestCsvMerger(CommonTestCase):
         row_bin2_newest = [b'1770361745197', b'Unlocked']  # From BIN_2, most recent
         row_bin1_oldest = [b'1770358145197', b'Locked']    # From BIN_1, oldest
         
-        data_bin_1: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
-        data_bin_2: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_2,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin_1: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
+        data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         
         # Present in reverse order (BIN_2 before BIN_1)
         binified_data[data_bin_2] = ([row_bin2_newest], [2])
@@ -1141,17 +1054,23 @@ class TestCsvMerger(CommonTestCase):
         # Verify time bins are tracked correctly
         self.assertEqual(merger.earliest_time_bin, BIN_1)
         self.assertEqual(merger.latest_time_bin, BIN_2)
-        chunk_params1, chunk_path1, new_contents1, content_length1, is_new1 = merger.upload_these[0]
-        chunk_params2, chunk_path2, new_contents2, content_length2, is_new2 = merger.upload_these[1]
+        chunk_params1, chunk_path1, new_contents1, sha1_hash1, size1, is_new1 = merger.upload_these[0]
+        chunk_params2, chunk_path2, new_contents2, sha1_hash2, size2, is_new2 = merger.upload_these[1]
         
         # Verify BIN_1 chunk exists and is correct
-        bin1_lines = decompress(new_contents1).splitlines()
+        decompressed1 = decompress(new_contents1)
+        self.assertEqual(hashlib.sha1(decompressed1).digest(), sha1_hash1)
+        self.assertEqual(size1, len(decompressed1))
+        bin1_lines = decompressed1.splitlines()
         self.assertEqual(len(bin1_lines), 2)  # Header + 1 data line
         self.assertEqual(bin1_lines[0], POWER_STATE_HEADER_ANDROID)
         self.assertEqual(bin1_lines[1], OUTOFORDER_BIN1_LINE)
         
         # Verify BIN_2 chunk exists and is correct
-        bin2_lines = decompress(new_contents2).splitlines()
+        decompressed2 = decompress(new_contents2)
+        self.assertEqual(hashlib.sha1(decompressed2).digest(), sha1_hash2)
+        self.assertEqual(size2, len(decompressed2))
+        bin2_lines = decompressed2.splitlines()
         self.assertEqual(len(bin2_lines), 2)  # Header + 1 data line
         self.assertEqual(bin2_lines[0], POWER_STATE_HEADER_ANDROID)
         self.assertEqual(bin2_lines[1], OUTOFORDER_BIN2_LINE)
@@ -1166,13 +1085,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data, null_handler, survey_id_dict = self.basic_config()
         row = [timestamp_before_boundary, b'Locked']
         
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = ([row], [1])
         
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
@@ -1184,11 +1097,11 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(merger.latest_time_bin, BIN_1)
         
         # Verify upload data
-        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         self.assertTrue(is_new)
-        self.assertEqual(content_length, len(decompressed))
+        self.assertEqual(uncompressed_size, len(decompressed))
         
         lines = decompressed.splitlines()
         self.assertEqual(len(lines), 2)  # Header + 1 data line
@@ -1205,13 +1118,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data, null_handler, survey_id_dict = self.basic_config()
         row = [timestamp_after_boundary, b'Unlocked']
         
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_2,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = ([row], [1])
         
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
@@ -1223,11 +1130,11 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(merger.latest_time_bin, BIN_2)
         
         # Verify upload data
-        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         self.assertTrue(is_new)
-        self.assertEqual(content_length, len(decompressed))
+        self.assertEqual(uncompressed_size, len(decompressed))
         
         lines = decompressed.splitlines()
         self.assertEqual(len(lines), 2)  # Header + 1 data line
@@ -1238,20 +1145,8 @@ class TestCsvMerger(CommonTestCase):
     @patch("libs.file_processing.csv_merger.s3_retrieve")
     def test_csv_merger_separate_time_bins(self, s3_retrieve: Mock):
         binified_data, null_handler, survey_id_dict = self.basic_config()
-        data_bin_1: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
-        data_bin_2: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_2,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin_1: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
+        data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin_1] = (POWER_STATE_ROWS_1, [1])
         binified_data[data_bin_2] = (POWER_STATE_ROWS_2, [2])
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
@@ -1271,12 +1166,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data, null_handler, survey_id_dict = self.basic_config()
         
         # Create an existing chunk in the database
-        chunk_path = construct_s3_chunk_path(
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-        )
+        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1)
         
         # Create the chunk registry entry
         # Convert time_bin to datetime as required by the model
@@ -1297,20 +1187,14 @@ class TestCsvMerger(CommonTestCase):
         s3_retrieve.return_value = existing_data
         
         # Set up binified data - use header with UTC time column since that's what convert_unix_to_human_readable_timestamps returns
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (POWER_STATE_ROWS_2, [1, 2])
         
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
         
         # Verify that the chunk was merged (not created new)
         self.assertEqual(len(merger.upload_these), 1)
-        chunk_params, returned_chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, returned_chunk_path, new_contents, uncompressed_size, sha1_hash, is_new = merger.upload_these[0]
         
         # is_new should be False because we're updating an existing chunk
         self.assertFalse(is_new)
@@ -1336,22 +1220,14 @@ class TestCsvMerger(CommonTestCase):
             [T1_BYTESTR, b"Locked"],  # Another duplicate
         ]
         
-        
-        
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (rows, [1, 2, 3])
         
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
         
         # Verify chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
-        chunk_params, chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         
         #
         ## inserting manual hardcoded details here to sanity check this test during review.
@@ -1373,7 +1249,7 @@ class TestCsvMerger(CommonTestCase):
         decompressed_contents = decompress(new_contents)
         lines = decompressed_contents.splitlines()
         self.assertEqual(chunk_path, known_correct_path)
-        self.assertEqual(content_length, len(decompressed_contents))
+        self.assertEqual(uncompressed_size, len(decompressed_contents))
         self.assertEqual(
             [
                 b"timestamp,UTC time,event",
@@ -1407,12 +1283,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data, null_handler, survey_id_dict = self.basic_config()
         
         # Create an existing chunk in the database with some data
-        chunk_path = construct_s3_chunk_path(
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-        )
+        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1)
         
         time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
         ChunkRegistry.objects.create(
@@ -1446,20 +1317,14 @@ class TestCsvMerger(CommonTestCase):
             [b"1770358350000", b"Locked"],  # New data
         ]
         
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (new_rows_without_utc, [1, 2])
         
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
         
         # Verify merge occurred  -  not manually rechecking all of these, only did that once
         self.assertEqual(len(merger.upload_these), 1)
-        chunk_params, returned_chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, returned_chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         
         self.assertFalse(is_new)
         decompressed = decompress(new_contents)
@@ -1494,12 +1359,7 @@ class TestCsvMerger(CommonTestCase):
         T_A, T_B, T_C = b"1770358250000", b"1770358350000", b"1770358450000"
         
         # Create an existing chunk
-        chunk_path = construct_s3_chunk_path(
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-        )
+        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1)
         
         # (yup that's how its done!)
         time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
@@ -1531,20 +1391,14 @@ class TestCsvMerger(CommonTestCase):
             [T1_BYTESTR, b"Locked"],  # Duplicate within new data
         ]
         
-        data_bin: BinifyKey = (
-            self.default_study.object_id,
-            self.default_participant.patient_id,
-            POWER_STATE,
-            BIN_1,
-            POWER_STATE_HEADER_ANDROID,
-        )
+        data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (new_rows_without_utc, [1, 2, 3])
         
         merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
         
         # Verify merge occurred
         self.assertEqual(len(merger.upload_these), 1)
-        chunk_params, returned_chunk_path, new_contents, content_length, is_new = merger.upload_these[0]
+        chunk_params, returned_chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
         
         decompressed = decompress(new_contents)
         lines = decompressed.splitlines()
@@ -1902,7 +1756,7 @@ class TestFileProcessingTracker(CommonTestCase):
         
         tracker = FileProcessingTracker(self.default_participant)
         ftp = self.generate_file_to_process(
-            path=f"study/participant/voiceRecording/1768928568332.wav",
+            path="study/participant/voiceRecording/1768928568332.wav",
             participant=self.default_participant,
             os_type=ANDROID_API,
         )
@@ -1997,7 +1851,7 @@ class TestFileProcessingTracker(CommonTestCase):
         
         tracker = FileProcessingTracker(self.default_participant)
         ftp = self.generate_file_to_process(
-            path=f"study/participant/voiceRecording/1768928568332.wav",
+            path="study/participant/voiceRecording/1768928568332.wav",
             participant=self.default_participant,
             os_type=ANDROID_API,
         )
