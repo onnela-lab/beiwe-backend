@@ -55,7 +55,7 @@ conn: BaseClient = boto3.client(
 
 if RUNNING_TESTS:                       # This lets us cut out some boilerplate in tests
     S3_REGION_NAME = "us-east-1"        # Tests that need to mock S3 can still mock the conn object
-    S3_BUCKET = "test_bucket"
+    S3_BUCKET = "test_bucket"           # noqa
     conn = MagicMock()
 
 
