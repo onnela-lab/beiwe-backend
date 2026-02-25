@@ -174,14 +174,10 @@ class S3Storage:
         # misuse cases
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
-        
         self.compressed_data = file_content_compressed
-        file_content_uncompressed = decompress(file_content_compressed)
-        
         self.metadata.size_compressed = len(self.compressed_data)
-        self.metadata.size_uncompressed = len(file_content_uncompressed)
-        self.metadata.sha1 = hashlib.sha1(file_content_uncompressed).digest()
-        del file_content_uncompressed
+        self.metadata.size_uncompressed = size_uncompressed
+        self.metadata.sha1 = sha1
         
         return self
     
@@ -398,11 +394,9 @@ def s3_upload(
 
 
 def s3_upload_no_compression(
-    key_path: str, data: bytes, obj: StrPartStudy, uncompressed_size: int, sha1: bytes, raw_path=False, 
+    key_path: str, data: bytes, obj: StrPartStudy, size_uncompressed: int, sha1: bytes, raw_path=False,
 ):
-    storage = S3Storage(key_path, obj, raw_path) \
-        .set_file_content_precompressed(data, uncompressed_size, sha1)
-    storage.metadata.uncompressed_size = uncompressed_size   # must be set manually
+    storage = S3Storage(key_path, obj, raw_path).set_file_content_precompressed(data, size_uncompressed, sha1)
     storage.push_to_storage_precompressed_and_clear_memory()
 
 

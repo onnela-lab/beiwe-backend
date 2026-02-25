@@ -118,6 +118,11 @@ class FileProcessingTracker():
                 ret = []
         yield ret
     
+    def generate_FileForProcessing(self, ftp: FileToProcess) -> FileForProcessing:
+        # I think if we have this in a function here it properly closes scopes differently,
+        # there was also extra calls to S3File creation, S3Storage has been updated.
+        return FileForProcessing(ftp, self.study)
+    
     def do_process_user_file_chunks(self, files_to_process: list[FileToProcess]):
         """ Run through the files to process, pull their data, sort data into time bins. Run the
         file through the appropriate logic path based on file type. """
@@ -126,7 +131,7 @@ class FileProcessingTracker():
         # 2026-2-24: after adding threading back in and then adding the study to the instantiation
         # pattern of the FileForProcessing, we get database connection exhaustion errors. Sure. Cool.
         with Timer() as t:
-            # files = s3_op_threaded_iterate(self.get_FileForProcessing, files_to_process)
+            # files = list(s3_op_threaded_iterate(self.generate_FileForProcessing, files_to_process))
             files = [FileForProcessing(ftp, self.study) for ftp in files_to_process]
         log(f"downloaded all files in {t.fseconds} for processing.")
         
@@ -198,7 +203,7 @@ class FileProcessingTracker():
         chunk_path: str,
         compressed_contents: FinalOutputContent,
         sha1_hash: Sha1Hash,
-        uncompressed_size: int,
+        size_uncompressed: int,
         create_new_chunk: bool,
     ):
         """ Even if the upload succeeds and then something goes wrong with the database update,
@@ -209,9 +214,9 @@ class FileProcessingTracker():
         # self.study saves a db query for the encryption key
         s3_upload_no_compression(
             chunk_path,
-            compressed_contents,  # it gets decompressed briefly
+            compressed_contents,
             self.study,
-            uncompressed_size=uncompressed_size,
+            size_uncompressed=size_uncompressed,
             sha1=sha1_hash,
             raw_path=True,
         )

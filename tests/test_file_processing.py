@@ -800,13 +800,13 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(merger.latest_time_bin, BIN_1)  # time bins for summarystatistics
         
         # Verify upload data structure
-        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         self.assertTrue(is_new)
         self.assertIn(POWER_STATE, chunk_path)
         self.assertIsNotNone(new_contents)
         self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
-        self.assertEqual(uncompressed_size, len(decompressed))
+        self.assertEqual(size_uncompressed, len(decompressed))
         
         lines = decompressed.splitlines()
         self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
@@ -833,7 +833,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(2, merger.ftps_to_retire)
         
         # Verify upload data structure
-        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         # Should have header + 2 identical data lines
@@ -863,7 +863,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(3, merger.ftps_to_retire)
         
         # Verify upload data structure
-        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         # Should have header + 3 identical data lines
@@ -894,7 +894,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(2, merger.ftps_to_retire)
         
         # Verify upload data structure
-        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         # Should have header + 2 data lines
@@ -932,10 +932,10 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(BIN_2 - BIN_1, 1)
         
         # Each chunk should be a new chunk
-        for chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new in merger.upload_these:
+        for chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new in merger.upload_these:
             self.assertTrue(is_new)
             decompressed = decompress(new_contents)
-            self.assertEqual(uncompressed_size, len(decompressed))
+            self.assertEqual(size_uncompressed, len(decompressed))
             self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
     
     
@@ -968,10 +968,10 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(merger.latest_time_bin, BIN_2)
         
         # Verify each chunk is new
-        for chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new in merger.upload_these:
+        for chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new in merger.upload_these:
             self.assertTrue(is_new)
             decompressed = decompress(new_contents)
-            self.assertEqual(uncompressed_size, len(decompressed))
+            self.assertEqual(size_uncompressed, len(decompressed))
             self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
             
             # Verify the timestamps are in the decompressed output
@@ -1008,11 +1008,11 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(3, merger.ftps_to_retire)
         
         # Verify upload data
-        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         self.assertTrue(is_new)
-        self.assertEqual(uncompressed_size, len(decompressed))
+        self.assertEqual(size_uncompressed, len(decompressed))
         self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
         
         lines = decompressed.splitlines()
@@ -1097,11 +1097,11 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(merger.latest_time_bin, BIN_1)
         
         # Verify upload data
-        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         self.assertTrue(is_new)
-        self.assertEqual(uncompressed_size, len(decompressed))
+        self.assertEqual(size_uncompressed, len(decompressed))
         
         lines = decompressed.splitlines()
         self.assertEqual(len(lines), 2)  # Header + 1 data line
@@ -1130,11 +1130,11 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(merger.latest_time_bin, BIN_2)
         
         # Verify upload data
-        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
         
         self.assertTrue(is_new)
-        self.assertEqual(uncompressed_size, len(decompressed))
+        self.assertEqual(size_uncompressed, len(decompressed))
         
         lines = decompressed.splitlines()
         self.assertEqual(len(lines), 2)  # Header + 1 data line
@@ -1194,7 +1194,7 @@ class TestCsvMerger(CommonTestCase):
         
         # Verify that the chunk was merged (not created new)
         self.assertEqual(len(merger.upload_these), 1)
-        chunk_params, returned_chunk_path, new_contents, uncompressed_size, sha1_hash, is_new = merger.upload_these[0]
+        chunk_params, returned_chunk_path, new_contents, size_uncompressed, sha1_hash, is_new = merger.upload_these[0]
         
         # is_new should be False because we're updating an existing chunk
         self.assertFalse(is_new)
@@ -1227,7 +1227,7 @@ class TestCsvMerger(CommonTestCase):
         
         # Verify chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
-        chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         
         #
         ## inserting manual hardcoded details here to sanity check this test during review.
@@ -1249,7 +1249,7 @@ class TestCsvMerger(CommonTestCase):
         decompressed_contents = decompress(new_contents)
         lines = decompressed_contents.splitlines()
         self.assertEqual(chunk_path, known_correct_path)
-        self.assertEqual(uncompressed_size, len(decompressed_contents))
+        self.assertEqual(size_uncompressed, len(decompressed_contents))
         self.assertEqual(
             [
                 b"timestamp,UTC time,event",
@@ -1324,7 +1324,7 @@ class TestCsvMerger(CommonTestCase):
         
         # Verify merge occurred  -  not manually rechecking all of these, only did that once
         self.assertEqual(len(merger.upload_these), 1)
-        chunk_params, returned_chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, returned_chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         
         self.assertFalse(is_new)
         decompressed = decompress(new_contents)
@@ -1398,7 +1398,7 @@ class TestCsvMerger(CommonTestCase):
         
         # Verify merge occurred
         self.assertEqual(len(merger.upload_these), 1)
-        chunk_params, returned_chunk_path, new_contents, sha1_hash, uncompressed_size, is_new = merger.upload_these[0]
+        chunk_params, returned_chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         
         decompressed = decompress(new_contents)
         lines = decompressed.splitlines()

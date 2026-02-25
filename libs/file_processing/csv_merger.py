@@ -160,11 +160,11 @@ class CsvMerger:
         
         rows.clear(); del rows  # memory usage paranoia begins
         
-        uncompressed_size = len(new_contents)  # we don't use this anymore in the final return
+        size_uncompressed = len(new_contents)  # we don't use this anymore in the final return
         md5_hash = chunk_hash(new_contents)
         sha1_hash = hashlib.sha1(new_contents).digest()
         new_contents = compress(new_contents)  # This file hangs around in memory, compress it asap.
-        log(f"CsvMerger: constructed {uncompressed_size} bytes (new) for {name} in {t.fseconds} seconds.")
+        log(f"CsvMerger: constructed {size_uncompressed} bytes (new) for {name} in {t.fseconds} seconds.")
         
         if data_stream in SURVEY_DATA_FILES:
             # We need to keep a mapping of files to survey ids, that is handled here.
@@ -182,10 +182,10 @@ class CsvMerger:
             "chunk_hash": md5_hash,
             "time_bin": time_bin,
             "survey_id": survey_id,
-            "file_size": uncompressed_size,  # we don't use this anymore in the final return
+            "file_size": size_uncompressed,  # we don't use this anymore in the final return
             
         }
-        self.upload_these.append((chunk_params, chunk_path, new_contents, sha1_hash, uncompressed_size, True))
+        self.upload_these.append((chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, True))
     
     def chunk_exists_case(
         self,
@@ -241,13 +241,13 @@ class CsvMerger:
         log(f"CsvMerger: compressed new data for {name} in {t_construct.fseconds} seconds.")
         
         # get metadata before compressing
-        uncompressed_size = len(new_contents)
-        chunk_kwargs = {"chunk_hash": chunk_hash(new_contents), "file_size": uncompressed_size}
+        size_uncompressed = len(new_contents)
+        chunk_kwargs = {"chunk_hash": chunk_hash(new_contents), "file_size": size_uncompressed}
         
         # reuse variable to zero references to the uncompressed data
         sha1_hash = hashlib.sha1(new_contents).digest()
         new_contents = compress(new_contents)
-        self.upload_these.append((chunk_kwargs, chunk_path, new_contents, sha1_hash, uncompressed_size, False))
+        self.upload_these.append((chunk_kwargs, chunk_path, new_contents, sha1_hash, size_uncompressed, False))
     
     def validate_one_header(self, header: bytes, data_stream: str) -> bytes:
         real_header = REFERENCE_CHUNKREGISTRY_HEADERS[data_stream][self.participant.os_type]
