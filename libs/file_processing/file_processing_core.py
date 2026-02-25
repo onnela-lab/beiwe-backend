@@ -119,8 +119,7 @@ class FileProcessingTracker():
         yield ret
     
     def generate_FileForProcessing(self, ftp: FileToProcess) -> FileForProcessing:
-        # I think if we have this in a function here it properly closes scopes differently,
-        # there was also extra calls to S3File creation, S3Storage has been updated.
+        # We pass in the study in order to save a database query for the encryption key
         return FileForProcessing(ftp, self.study)
     
     def do_process_user_file_chunks(self, files_to_process: list[FileToProcess]):
@@ -128,11 +127,8 @@ class FileProcessingTracker():
         file through the appropriate logic path based on file type. """
         
         # Threading this increases speed but increases memory usage.
-        # 2026-2-24: after adding threading back in and then adding the study to the instantiation
-        # pattern of the FileForProcessing, we get database connection exhaustion errors. Sure. Cool.
         with Timer() as t:
-            # files = list(s3_op_threaded_iterate(self.generate_FileForProcessing, files_to_process))
-            files = [FileForProcessing(ftp, self.study) for ftp in files_to_process]
+            files = list(s3_op_threaded_iterate(self.generate_FileForProcessing, files_to_process))
         log(f"downloaded all files in {t.fseconds} for processing.")
         
         for file_for_processing in drain_in_reverse(files):
@@ -216,8 +212,8 @@ class FileProcessingTracker():
             chunk_path,
             compressed_contents,
             self.study,
-            size_uncompressed=size_uncompressed,
-            sha1=sha1_hash,
+            size_uncompressed,
+            sha1_hash,
             raw_path=True,
         )
         
