@@ -91,6 +91,9 @@ class FileProcessingTracker():
     def process_user_file_chunks(self):
         """ Call this function to process data for a participant. """
         for page_of_ftps in self.get_paginated_files_to_process():
+            if not page_of_ftps:
+                logd("no more files to process for this participant.")
+                continue
             logd(f"will process {len(page_of_ftps)} files.")
             self.do_process_user_file_chunks(page_of_ftps)
             self.survey_id_dict = {}
