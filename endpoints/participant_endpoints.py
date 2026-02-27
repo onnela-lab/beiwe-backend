@@ -207,7 +207,7 @@ def create_new_participant(request: ResearcherRequest):
     user to the study they are supposed to be attached to and returns a string containing
     password and patient id. """
     
-    study_id = request.POST.get('study_id', None)
+    study_id = request.POST.get('study_id')
     patient_id, password = Participant.create_with_password(study_id=study_id)
     participant = Participant.objects.get(patient_id=patient_id)
     study = Study.objects.get(id=study_id)

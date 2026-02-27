@@ -10,8 +10,8 @@ from constants.message_strings import (DEVICE_HAS_NO_REGISTERED_TOKEN, MESSAGE_S
     PUSH_NOTIFICATIONS_NOT_CONFIGURED)
 from constants.study_constants import NOTIFICATIONS_PER_PAGE
 from constants.user_constants import IOS_API, ResearcherRole
-from database.schedule_models import ArchivedEvent, ScheduledEvent
-from database.user_models_participant import Participant, ParticipantDeletionEvent
+from database.models import (ArchivedEvent, Participant, ParticipantDeletionEvent, S3File,
+    ScheduledEvent)
 from tests.common import ResearcherSessionTest
 
 
@@ -481,14 +481,11 @@ class TestUnregisterParticipant(ResearcherSessionTest):
         )
 
 
-# FIXME: test extended database effects of generating participants
 class CreateNewParticipant(ResearcherSessionTest):
     ENDPOINT_NAME = "participant_endpoints.create_new_participant"
     REDIRECT_ENDPOINT_NAME = "study_endpoints.view_study_page"
     
-    @patch("endpoints.participant_endpoints.s3_upload")
-    @patch("endpoints.participant_endpoints.create_participant_key_pair")
-    def test(self, create_client_keypair: MagicMock, s3_upload: MagicMock):
+    def test(self):
         # this test does not make calls to S3
         self.set_session_study_relation(ResearcherRole.researcher)
         self.assertFalse(Participant.objects.exists())
@@ -496,17 +493,28 @@ class CreateNewParticipant(ResearcherSessionTest):
         self.assertEqual(Participant.objects.count(), 1)
         
         content = self.redirect_get_contents(self.session_study.id)
-        new_participant: Participant = Participant.objects.first()
+        new_participant: Participant = Participant.objects.get()
         self.assert_present("Created a new patient", content)
         self.assert_present(new_participant.patient_id, content)
+        
+        self.assertEqual(S3File.objects.count(), 3)
+        patient_id = new_participant.patient_id
+        a = S3File.obj_get(path=f"1234567890ABCDEFGHIJKMNO/{patient_id}.zst")
+        
+        # this will always be a constant value (sha1 of an empty string)
+        self.assertEqual(a.sha1, b'\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t')
+        self.assertEqual(a.size_uncompressed, 0)
+        
+        # these we just need to assert exist, their values vary
+        b = S3File.obj_get(path=f"1234567890ABCDEFGHIJKMNO/keys/{patient_id}_private.zst")
+        c = S3File.obj_get(path=f"1234567890ABCDEFGHIJKMNO/keys/{patient_id}_public.zst")
 
 
 class CreateManyParticipant(ResearcherSessionTest):
     ENDPOINT_NAME = "participant_endpoints.create_many_patients"
     
-    @patch("endpoints.participant_endpoints.s3_upload")
     @patch("endpoints.participant_endpoints.create_participant_key_pair")
-    def test(self, create_client_keypair: MagicMock, s3_upload: MagicMock):
+    def test(self, create_client_keypair: MagicMock):
         # this test does not make calls to S3
         self.set_session_study_relation(ResearcherRole.researcher)
         self.assertFalse(Participant.objects.exists())
@@ -705,7 +713,7 @@ class TestNotificationHistory(ResearcherSessionTest):
         self.smart_get_status_code(200, self.session_study.id, self.default_participant.patient_id, data=dict(page=2))
         # the third query hits logic for a not-first page of less than 100
         self.smart_get_status_code(200, self.session_study.id, self.default_participant.patient_id, data=dict(page=3))
-    
+
 
 class TestParticipantPage(ResearcherSessionTest):
     ENDPOINT_NAME = "participant_endpoints.participant_page"

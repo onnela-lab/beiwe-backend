@@ -155,6 +155,7 @@ class S3Storage:
         assert not hasattr(self, "compressed_data"), COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT
         self.uncompressed_data = file_content
+        self.metadata.size_uncompressed = len(file_content)
         return self
     
     def set_file_content_precompressed(self, file_content_compressed: bytes, size_uncompressed: int, sha1: bytes) -> S3Storage:
@@ -272,9 +273,13 @@ class S3Storage:
     #
     
     def metadata_asserts(self):
-        assert self.metadata.size_uncompressed, "metadata.size_uncompressed must be set"
-        assert self.metadata.size_compressed, "metadata.size_compressed must be set"
-        assert self.metadata.sha1, "metadata.sha1 must be set"
+        m = self.metadata
+        assert isinstance(m.size_uncompressed, int) and m.size_uncompressed >= 0, \
+            "metadata.size_uncompressed must be a positive integer"
+        assert isinstance(m.size_compressed, int) and m.size_compressed >= 0, \
+            "metadata.size_compressed must be a positive integer"
+        assert isinstance(m.sha1, bytes) and len(m.sha1) == 20, \
+            "metadata.sha1 must be a 20 byte bytes object"
     
     def update_s3_table(self):
         # only update once
@@ -465,9 +470,10 @@ def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
         
         raise  # unknown cases: explode
 
-#
+
 ## List Files Matching Prefix
-#
+
+
 def s3_list_files(prefix: str, start_at=None) -> Generator[str]:
     """ Lists s3 keys matching prefix. as generator returns a generator instead of a list.
     WARNING: passing in an empty string can be dangerous. """
