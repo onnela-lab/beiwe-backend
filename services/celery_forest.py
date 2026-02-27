@@ -1,7 +1,6 @@
 import csv
 import json
 import logging
-import os
 import shutil
 import traceback
 from datetime import date, datetime, timedelta
@@ -13,10 +12,9 @@ from dateutil.tz import UTC
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
-from pkg_resources import DistributionNotFound, get_distribution
 
 from constants.celery_constants import FOREST_QUEUE, ForestTaskStatus
-from constants.common_constants import API_TIME_FORMAT, BEIWE_PROJECT_ROOT, RUNNING_TESTS
+from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
 from constants.forest_constants import (CLEANUP_ERROR as CLN_ERR, FOREST_TREE_REQUIRED_DATA_STREAMS,
     ForestTree, NO_DATA_ERROR, ROOT_FOREST_TASK_PATH, TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS,
     YEAR_MONTH_DAY)
@@ -110,7 +108,7 @@ def celery_run_forest(forest_task_id):
     # this use of transaction.atomic should blockmultiple tasks from running at once - I don't think
     # our usage of celery is such that we need to worry about this.
     with transaction.atomic():
-        task: ForestTask = ForestTask.objects.filter(id=forest_task_id).first()
+        task = ForestTask.objects.filter(id=forest_task_id).first()
         participant: Participant = task.participant
         
         # Check if there already is a running task for this participant and tree, handling
@@ -123,23 +121,18 @@ def celery_run_forest(forest_task_id):
             return
         
         # Get the chronologically earliest task that's queued
-        task: ForestTask = tasks.filter(status=ForestTaskStatus.queued) \
-                .order_by("-data_date_start").first()
+        task = tasks.filter(status=ForestTaskStatus.queued).order_by("-data_date_start").first()
         
         if task is None:  # Should be unreachable...
             return
         
-        # We check the distribution (pip) version, with some backups for local development
-        try:
-            version = get_distribution("forest").version
-        except DistributionNotFound:
-            version = "local" if "forest" in os.listdir(BEIWE_PROJECT_ROOT) else "unknown"
-        
+        # there's a script that periodically updates the forest verison
+        forest_version = ForestVersion.singleton()
         task.update_only(  # Set metadata on the task to running
             status=ForestTaskStatus.running,
             process_start_time=timezone.now(),
-            forest_version=version,
-            forest_commit=ForestVersion.singleton().git_commit,
+            forest_version=forest_version.package_version,
+            forest_commit=forest_version.git_commit,
         )
     
     # ChunkRegistry "time_bin" hourly chunks are in UTC, with each file containing a discrete hour
@@ -206,7 +199,7 @@ def _run_forest_task(task: ForestTask, start: datetime, end: datetime):
             try:
                 generate_report(task)
             except Exception as e1:
-                print(f"Something went wrong with report generation. {e}")
+                print(f"Something went wrong with report generation. {e1}")
                 print(traceback.format_exc())
                 with error_sentry:
                     raise

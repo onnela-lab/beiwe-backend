@@ -1,7 +1,4 @@
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="scripts.update_forest_version")
-# Deprecated, see https://setuptools.pypa.io/en/latest/pkg_resources.html
-import pkg_resources
+from importlib.metadata import metadata
 
 from database.system_models import ForestVersion
 from libs.utils.forest_utils import get_forest_git_hash
@@ -9,6 +6,7 @@ from libs.utils.forest_utils import get_forest_git_hash
 
 def main():
     forest_version = ForestVersion.singleton()
-    forest_version.package_version = pkg_resources.get_distribution("beiwe-forest")
+    md = metadata("beiwe-forest")
+    forest_version.package_version = md.get("version")
     forest_version.git_commit = get_forest_git_hash()
     forest_version.save()
