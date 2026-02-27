@@ -9,14 +9,13 @@ from pyzstd import decompress
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants.common_constants import CHUNKS_FOLDER, UTC
 from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
-    CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS, TEXTS_LOG)
-from constants.data_stream_constants import (ACCELEROMETER, AMBIENT_AUDIO, ANDROID_LOG_FILE,
-    AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE,
-    MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG,
-    WIFI)
-from constants.forest_constants import ALL_DATA_STREAMS
+    CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS)
+from constants.data_stream_constants import (ACCELEROMETER, AI_CHAT_LOGS, ALL_DATA_STREAMS,
+    ANDROID_LOG_FILE, AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS,
+    IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS,
+    SURVEY_TIMINGS, TEXTS_LOG, WIFI)
 from constants.user_constants import ANDROID_API, IOS_API
-from database.models import ChunkRegistry, FileToProcess, WIFI
+from database.models import ChunkRegistry, FileToProcess
 from libs.file_processing.csv_merger import construct_s3_chunk_path, CsvMerger
 from libs.file_processing.file_for_processing import FileForProcessing
 from libs.file_processing.file_processing_core import FileProcessingTracker
@@ -508,7 +507,7 @@ class TestCsvMerger(CommonTestCase):
             TEXTS_LOG:        f"{base}/{TEXTS_LOG}/{time_bin_str}.csv",
             WIFI:             f"{base}/{WIFI}/{time_bin_str}.csv",
             # these don't have canonical paths because they are downloaded raw
-            # AUDIO_RECORDING: SURVEY_ANSWERS AMBIENT_AUDIO
+            # AUDIO_RECORDING: SURVEY_ANSWERS, AI_CHAT_LOGS
             # these have survey ids
             SURVEY_TIMINGS:   f"{base}/{SURVEY_TIMINGS}/{survey_id}/{time_bin_str}.csv",
         }
@@ -532,8 +531,8 @@ class TestCsvMerger(CommonTestCase):
         
         actual_data_streams = set(ALL_DATA_STREAMS)
         actual_data_streams.remove(SURVEY_ANSWERS)
-        actual_data_streams.remove(AMBIENT_AUDIO)
         actual_data_streams.remove(AUDIO_RECORDING)
+        actual_data_streams.remove(AI_CHAT_LOGS)
         self.assertEqual(set(all_data_streams), actual_data_streams)
     
     @patch(s3_retrieve_func2)
