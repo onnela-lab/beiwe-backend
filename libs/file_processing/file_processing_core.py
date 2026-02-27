@@ -11,8 +11,7 @@ from django.utils import timezone
 
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants import common_constants
-from constants.data_processing_constants import (AllBinifiedData, BinifyDict, DEBUG_FILE_PROCESSING,
-    SurveyIDHash)
+from constants.data_processing_constants import (AllBinifiedData, BinifyDict, DEBUG_FILE_PROCESSING)
 from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry, FileToProcess
 from database.models import Study
@@ -55,12 +54,15 @@ def easy_run(participant: Participant):
 # mean that there are no overlapping network operations, so our _peak_ memory usage is lower.
 
 class FileProcessingTracker():
+    
     def __init__(
-        self, participant: Participant, page_size: int = FILE_PROCESS_PAGE_SIZE,
+        self, participant: Participant, page_size: int = FILE_PROCESS_PAGE_SIZE, survey_id=None,
     ) -> None:
         self.error_handler: ErrorHandler = SentryUtils.report_data_processing(
             tags={'patient_id': participant.patient_id}
         )
+        
+        self.survey_id: str | None = None
         
         self.participant = participant
         self.study: Study = Study.obj_get(pk=participant.study_id)
@@ -78,15 +80,22 @@ class FileProcessingTracker():
         # a defaultdict of a tuple of 2 lists - this stores the data that is being processed.
         self.all_binified_data: AllBinifiedData = defaultdict(lambda: ([], []))
         
-        # a dict to store the survey id from the file name, this is a very old design decision and
-        # it is bad.
-        self.survey_id_dict: dict[SurveyIDHash, str] = {}
-        
         self.buggy_files = set[FileToProcessPK]()  # only used in logging
     
     #
     ## Outer Loop
     #
+    
+    def filter_survey_ids(self, ftps: list[FileToProcess]) -> dict[str | None, list[FileToProcess]]:
+        d: defaultdict[str | None, list[FileToProcess]] = defaultdict(list)
+        for ftp in ftps:
+            path = ftp.s3_file_path
+            if "surveyTimings" in path:
+                d[resolve_survey_id_from_file_name(path)].append(ftp)
+            else:
+                d[None].append(ftp)
+        
+        return dict(d)
     
     def process_user_file_chunks(self):
         """ Call this function to process data for a participant. """
@@ -95,8 +104,13 @@ class FileProcessingTracker():
                 logd("no more files to process for this participant.")
                 continue
             logd(f"will process {len(page_of_ftps)} files.")
-            self.do_process_user_file_chunks(page_of_ftps)
-            self.survey_id_dict = {}
+            
+            # we separate out surveyTimings because they need to be processed only with other survey
+            # timings files from the same survey
+            for survey_id, ftps in self.filter_survey_ids(page_of_ftps).items():
+                self.survey_id = survey_id
+                self.do_process_user_file_chunks(ftps)
+            
             self.buggy_files = set()
     
     def get_paginated_files_to_process(self) -> Generator[list[FileToProcess], None, None]:

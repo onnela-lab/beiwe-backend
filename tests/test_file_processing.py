@@ -9,10 +9,14 @@ from pyzstd import decompress
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants.common_constants import CHUNKS_FOLDER, UTC
 from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
-    CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS)
-from constants.data_stream_constants import AUDIO_RECORDING, POWER_STATE
+    CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS, TEXTS_LOG)
+from constants.data_stream_constants import (ACCELEROMETER, AMBIENT_AUDIO, ANDROID_LOG_FILE,
+    AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE,
+    MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG,
+    WIFI)
+from constants.forest_constants import ALL_DATA_STREAMS
 from constants.user_constants import ANDROID_API, IOS_API
-from database.models import ChunkRegistry, FileToProcess
+from database.models import ChunkRegistry, FileToProcess, WIFI
 from libs.file_processing.csv_merger import construct_s3_chunk_path, CsvMerger
 from libs.file_processing.file_for_processing import FileForProcessing
 from libs.file_processing.file_processing_core import FileProcessingTracker
@@ -21,6 +25,12 @@ from libs.file_processing.utility_functions_simple import (binify_from_timecode,
     convert_unix_to_human_readable_timestamps)
 from tests.common import CommonTestCase
 
+
+class FakeException(Exception): pass
+
+
+s3_retrieve_func = "libs.file_processing.file_for_processing.s3_retrieve"
+s3_retrieve_func2 = "libs.file_processing.csv_merger.s3_retrieve"
 
 input_power_state_content = b"""
 timestamp,event,level
@@ -188,12 +198,8 @@ class TestFileProcessing(CommonTestCase):
     
     type_unknown_error = "data type unknown: 1234567890ABCDEFGHIJKMNO/patient1/power_state/1768928568332.csv"
     
-    
     def test_convert_unix_to_human_readable_timestamps(self):
-        rows = [
-            [b"1", b"content"],
-            [b"2", b"more content"],
-        ]
+        rows = [[b"1", b"content"], [b"2", b"more content"]]
         header = convert_unix_to_human_readable_timestamps(b"something,anything", rows)
         self.assertEqual(header, b"something,UTC time,anything")
         self.assertEqual(rows, [
@@ -201,9 +207,7 @@ class TestFileProcessing(CommonTestCase):
             [b"2", b"1970-01-01T00:00:00.002", b"more content"],
         ])
     
-    
     def test_binify_from_timecode(self):
-        """Test that binify_from_timecode correctly calculates time bins"""
         # Test with a known timestamp: 1768928568332 milliseconds
         # This should be divided by 1000 to get seconds, then by CHUNK_TIMESLICE_QUANTUM (3600)
         timestamp_ms = b"1768928568332"
@@ -224,8 +228,7 @@ class TestFileProcessing(CommonTestCase):
         self.assertEqual(result_3, expected_bin_3)
         self.assertNotEqual(result_3, expected_bin)  # Should be in different bin
     
-    
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_binification_of_power_state_data(self, s3_retrieve: Mock):
         """Test that binification correctly groups data points by time bins"""
         s3_retrieve.return_value = input_power_state_content
@@ -241,8 +244,7 @@ class TestFileProcessing(CommonTestCase):
         # Group rows by time bin
         for row in ffp.file_lines:
             if row and row[0]:
-                time_bin = binify_from_timecode(row[0])
-                binified[time_bin].append(row)
+                binified[binify_from_timecode(row[0])].append(row)
         
         # Verify we have multiple time bins (the data spans ~3 hours)
         self.assertGreater(len(binified), 0, "Should have at least one time bin")
@@ -269,16 +271,12 @@ class TestFileProcessing(CommonTestCase):
             "All rows should be accounted for in binified data")
         
         # Verify the structure matches what CsvMerger expects
-        # BinifyKey = tuple[str, str, str, int, bytes]  # study_object_id, patient_id, data_type, timecode int, header bytes
-        study_id = ftp.study.object_id
-        patient_id = ftp.participant.patient_id
-        data_type = POWER_STATE
-        header = ffp.header
-        assert isinstance(header, bytes)
+        study_id, patient_id = ftp.study.object_id, ftp.participant.patient_id
+        assert isinstance(ffp.header, bytes)
         
         for time_bin, _rows in binified.items():
-            # This is the structure that would be used in actual processing
-            binify_key: BinifyKey = (study_id, patient_id, data_type, time_bin, header)
+            # BinifyKey = tuple[StudyObjectjID, PatientID, DataSteaam, TimecodeInt, CSVHeader]
+            binify_key: BinifyKey = (study_id, patient_id, POWER_STATE, time_bin, ffp.header)
             
             # Verify the key components are valid
             self.assertIsInstance(binify_key[0], str)  # study_object_id
@@ -287,19 +285,16 @@ class TestFileProcessing(CommonTestCase):
             self.assertIsInstance(binify_key[3], int)  # time_bin
             self.assertIsInstance(binify_key[4], bytes)  # header
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_file_for_processing_instantiation_raises_data_type_unknowwn(self, s3_retrieve: Mock):
         s3_retrieve.return_value = input_power_state_content
         
-        p = self.default_participant
-        ftp = self.generate_file_to_process(
-            path=self.raw_fp_bad,
-            os_type=ANDROID_API,
-        )
+        self.using_default_participant()
+        ftp = self.generate_file_to_process(path=self.raw_fp_bad, os_type=ANDROID_API)
         with self.assertRaisesMessage(Exception, self.type_unknown_error):
             FileForProcessing(ftp, self.default_study)
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_basic_file_for_processing_instantiation(self, s3_retrieve: Mock):
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
@@ -316,39 +311,28 @@ class TestFileProcessing(CommonTestCase):
         self.assertIsNone(ffp.exception, "exception should be None on successful instantiation")
         self.assertIsNone(ffp.traceback, "traceback should be None on successful instantiation")
         self.assertIs(ffp.file_to_process, ftp, "file_to_process should be the same object passed in")
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
-    def test_clear_file_content(self, s3_retrieve: Mock):
-        """Test that clear_file_content properly sets file_contents to None"""
+    
+    @patch(s3_retrieve_func)
+    def test_clear_file_content_sets_none(self, s3_retrieve: Mock):
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
-        
-        # Verify file_contents is populated
-        self.assertIsNotNone(ffp.file_contents)
-        
-        # Clear it
-        ffp.clear_file_content()
-        
-        # Verify it's now None
-        self.assertIsNone(ffp.file_contents)
+        self.assertIsNotNone(ffp.file_contents)  # Verify file_contents is populated
+        ffp.clear_file_content()  # Clear it
+        self.assertIsNone(ffp.file_contents)  # Verify it's now None
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_clear_file_content_raises_on_already_cleared(self, s3_retrieve: Mock):
-        """Test that clear_file_content raises AssertionError if called when already cleared"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
         
         ffp.clear_file_content()
-        
-        # Calling again should raise AssertionError
         with self.assertRaises(AssertionError):
-            ffp.clear_file_content()
+            ffp.clear_file_content()  # Calling again should raise AssertionError
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_raw_csv_to_line_list_multiline(self, s3_retrieve: Mock):
-        """Test raw_csv_to_line_list with multi-line CSV content"""
-        
         header = b'timestamp,event,level'
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
@@ -357,11 +341,11 @@ class TestFileProcessing(CommonTestCase):
         ffp.raw_csv_to_line_list()        # Process the CSV
         self.assertIsNotNone(ffp.header)  # header was extracted
         self.assertEqual(ffp.header, header)
-        
         self.assertIsNotNone(ffp.file_lines)  # file_lines were populated
         self.assertGreater(len(ffp.file_lines), 0)
         
         # each line was split into columns
+        assert ffp.file_lines is not None  # linter type assertion
         first_line = ffp.file_lines[0]
         self.assertEqual(len(first_line), 3)  # "timestamp, event, level"
         self.assertEqual(first_line[0], b'1768928568332')
@@ -370,10 +354,8 @@ class TestFileProcessing(CommonTestCase):
         self.assertEqual(len(ffp.file_lines), 155)
         self.assertIsNone(ffp.file_contents)  # file_contents was cleared
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_raw_csv_to_line_list_single_line(self, s3_retrieve: Mock):
-        """Test raw_csv_to_line_list with single line (header only)"""
-        
         s3_retrieve.return_value = single_line_content = b'timestamp,event,level'
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
@@ -382,93 +364,57 @@ class TestFileProcessing(CommonTestCase):
         self.assertEqual(ffp.file_lines, [])  # file_lines is an empty list
         self.assertIsNone(ffp.file_contents)  # file_contents was cleared
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_raw_csv_to_line_list_requires_file_contents(self, s3_retrieve: Mock):
-        """Test that raw_csv_to_line_list raises AssertionError if file_contents is None"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
         ffp.clear_file_content()
-        
-        # Calling raw_csv_to_line_list should raise AssertionError
         with self.assertRaises(AssertionError):
             ffp.raw_csv_to_line_list()
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
-    def test_prepare_data(self, s3_retrieve: Mock):
-        """Test that prepare_data properly processes CSV data and cleans headers"""
+    @patch(s3_retrieve_func)
+    def test_prepare_data_processes_plus_cleans_header(self, s3_retrieve: Mock):
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
-        
-        # Prepare the data
         ffp.prepare_data()
+        assert ffp.file_lines is not None  # linter type assertions
+        assert ffp.header is not None
         
-        # Verify file_lines were populated
-        self.assertIsNotNone(ffp.file_lines)
+        self.assertIsNotNone(ffp.file_lines)  # Verify file_lines were populated
         self.assertGreater(len(ffp.file_lines), 0)
         
-        # Verify header was populated and cleaned (quotes removed, spaces stripped)
-        self.assertIsNotNone(ffp.header)
-        # The header should have whitespace stripped from each column
-        self.assertNotIn(b' ', ffp.header)
-        
-        # Verify file_contents was cleared during processing
-        self.assertIsNone(ffp.file_contents)
+        self.assertIsNotNone(ffp.header)  # header was populated - quotes removed, spaces stripped
+        self.assertNotIn(b' ', ffp.header)  # header whitespace stripped from each column
+        self.assertIsNone(ffp.file_contents)  # file_contents was cleared during processing
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
-    def test_clear_file_lines(self, s3_retrieve: Mock):
-        """Test that clear_file_lines clears file_lines and header"""
+    @patch(s3_retrieve_func)
+    def test_clear_file_lines_clears_file_lines(self, s3_retrieve: Mock):
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
-        
-        # Prepare data first to populate file_lines and header
         ffp.prepare_data()
         
-        # Verify they're populated
-        self.assertIsNotNone(ffp.file_lines)
+        self.assertIsNotNone(ffp.file_lines)  # check populated
         self.assertIsNotNone(ffp.header)
-        
-        # Clear them
-        ffp.clear_file_lines()
-        
-        # Verify both are None
-        self.assertIsNone(ffp.file_lines)
-        self.assertIsNone(ffp.header)
-    
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
-    def test_clear_file_lines_requires_file_contents_cleared(self, s3_retrieve: Mock):
-        """Test that clear_file_lines requires file_contents to be cleared first"""
-        s3_retrieve.return_value = input_power_state_content
-        ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-        ffp = FileForProcessing(ftp, self.default_study)
-        
-        ffp.prepare_data()
-        # Don't clear file_contents - it should already be None after prepare_data
-        
-        # This should work fine since prepare_data clears file_contents
         ffp.clear_file_lines()
         self.assertIsNone(ffp.file_lines)
         self.assertIsNone(ffp.header)
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_clear_file_lines_raises_on_already_cleared(self, s3_retrieve: Mock):
-        """Test that clear_file_lines raises AssertionError if called when already cleared"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
         
         ffp.prepare_data()
         ffp.clear_file_lines()
-        
-        # Calling again should raise AssertionError
         with self.assertRaises(AssertionError):
             ffp.clear_file_lines()
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_download_file_contents_success(self, s3_retrieve: Mock):
-        """Test that download_file_contents properly retrieves and stores file contents"""
         s3_retrieve.return_value = input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
@@ -477,47 +423,7 @@ class TestFileProcessing(CommonTestCase):
         self.assertEqual(ffp.file_contents, input_power_state_content)
         self.assertIsNone(ffp.exception)
         self.assertIsNone(ffp.traceback)
-        
-        # Verify s3_retrieve was called with correct parameters
-        s3_retrieve.assert_called_once_with(
-            ftp.s3_file_path,
-            self.default_study,
-            raw_path=True
-        )
-    
-    # this prints junk and I don't care about testing this side effect, it is weird
-    # @patch("libs.file_processing.file_for_processing.s3_retrieve")
-    # def test_download_file_contents_failure(self, s3_retrieve: Mock):
-    #     """Test that download_file_contents properly handles exceptions"""
-    #     test_error = ValueError("S3 connection failed")
-    #     s3_retrieve.side_effect = test_error
-    
-    #     ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-    
-    #     # Creating FileForProcessing should raise SomeException
-    #     with self.assertRaises(SomeException):
-    #         FileForProcessing(ftp, self.default_study)
-    
-    # also prints jung, and already tested I think
-    # @patch("libs.file_processing.file_for_processing.s3_retrieve")
-    # def test_raise_data_processing_error(self, s3_retrieve: Mock):
-    #     """Test that raise_data_processing_error properly re-raises stored exceptions"""
-    #     test_error = ValueError("Test error for processing")
-    #     s3_retrieve.side_effect = test_error
-    
-    #     ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
-    
-    #     # Catch the initial exception during instantiation
-    #     try:
-    #         FileForProcessing(ftp, self.default_study)
-    #     except SomeException as e:
-    #         pass
-    
-    #     # Now we can't test this directly without creating a modified version,
-    #     # but we can verify the exception handling path works in download_file_contents
-
-
-class FakeException(Exception): pass
+        s3_retrieve.assert_called_once_with(ftp.s3_file_path, self.default_study, raw_path=True)
 
 
 # timestamp 1
@@ -548,80 +454,130 @@ POWERSTATE_OUT_LINE_2 = b"1770358250000,2026-02-06T06:10:50.000,Unlocked"
 
 class TestCsvMerger(CommonTestCase):
     
-    def basic_config(self) -> tuple[AllBinifiedData, ErrorHandler, dict]:
+    @property
+    def binified_and_handler(self) -> tuple[AllBinifiedData, ErrorHandler]:
+        # extremely common configuration step
         binified_data: AllBinifiedData = defaultdict(lambda: ([], []))
-        survey_id_dict = {}
         # return a null error handler so that errors actually get raised when they run for testing.
-        return binified_data, null_error_handler(), survey_id_dict  # type: ignore
+        return binified_data, null_error_handler()  # type: ignore[return-value]
     
     @property
     def bin_start(self) -> tuple[str, str, str]:
         # just makes some code less verbose
         return self.default_study.object_id, self.default_participant.patient_id, POWER_STATE
     
+    def create_chunk(self):
+        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1, None)
+        time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
+        ChunkRegistry.objects.create(
+            study_id=self.default_participant.study_id,
+            participant_id=self.default_participant.id,
+            data_type=POWER_STATE,
+            chunk_path=chunk_path,
+            chunk_hash="old_hash",
+            time_bin=time_bin_datetime,
+            file_size=1000,
+            is_chunkable=True,
+        )
+        return chunk_path
+    
     ## Tests!
     
     # trivial
     
     def test_construct_s3_chunk_path(self):
-        study_id = "test_study_id"
-        patient_id = "test_patient"
-        path = construct_s3_chunk_path(study_id, patient_id, POWER_STATE, BIN_1)
+        time_bin = 491000
+        time_bin_str = "2026-01-05T08:00:00"
+        base = f"{CHUNKS_FOLDER}/study_id/patient_id"
+        survey_id = "survey_id"
         
-        # Verify the path structure
-        self.assertTrue(path.startswith(CHUNKS_FOLDER))
-        self.assertIn(study_id, path)
-        self.assertIn(patient_id, path)
-        self.assertIn(POWER_STATE, path)
-        self.assertTrue(path.endswith(".csv"))
+        all_data_streams = {
+            ACCELEROMETER:    f"{base}/{ACCELEROMETER}/{time_bin_str}.csv",
+            ANDROID_LOG_FILE: f"{base}/{ANDROID_LOG_FILE}/{time_bin_str}.csv",
+            BLUETOOTH:        f"{base}/{BLUETOOTH}/{time_bin_str}.csv",
+            CALL_LOG:         f"{base}/{CALL_LOG}/{time_bin_str}.csv",
+            DEVICEMOTION:     f"{base}/{DEVICEMOTION}/{time_bin_str}.csv",
+            GPS:              f"{base}/{GPS}/{time_bin_str}.csv",
+            GYRO:             f"{base}/{GYRO}/{time_bin_str}.csv",
+            IDENTIFIERS:      f"{base}/{IDENTIFIERS}/{time_bin_str}.csv",
+            IOS_LOG_FILE:     f"{base}/{IOS_LOG_FILE}/{time_bin_str}.csv",
+            MAGNETOMETER:     f"{base}/{MAGNETOMETER}/{time_bin_str}.csv",
+            POWER_STATE:      f"{base}/{POWER_STATE}/{time_bin_str}.csv",
+            PROXIMITY:        f"{base}/{PROXIMITY}/{time_bin_str}.csv",
+            REACHABILITY:     f"{base}/{REACHABILITY}/{time_bin_str}.csv",
+            TEXTS_LOG:        f"{base}/{TEXTS_LOG}/{time_bin_str}.csv",
+            WIFI:             f"{base}/{WIFI}/{time_bin_str}.csv",
+            # these don't have canonical paths because they are downloaded raw
+            # AUDIO_RECORDING: SURVEY_ANSWERS AMBIENT_AUDIO
+            # these have survey ids
+            SURVEY_TIMINGS:   f"{base}/{SURVEY_TIMINGS}/{survey_id}/{time_bin_str}.csv",
+        }
+        
+        for stream in all_data_streams:
+            if stream == SURVEY_TIMINGS:
+                
+                with self.assertRaises(ValueError):
+                    construct_s3_chunk_path("study_id", "patient_id", stream, time_bin, None)
+                
+                path = construct_s3_chunk_path("study_id", "patient_id", stream, time_bin, survey_id)
+                self.assertEqual(path, all_data_streams[stream])
+            
+            else:
+                
+                with self.assertRaises(ValueError):
+                    construct_s3_chunk_path("study_id", "patient_id", stream, time_bin, survey_id)
+                
+                path = construct_s3_chunk_path("study_id", "patient_id", stream, time_bin, None)
+                self.assertEqual(path, all_data_streams[stream])
+        
+        actual_data_streams = set(ALL_DATA_STREAMS)
+        actual_data_streams.remove(SURVEY_ANSWERS)
+        actual_data_streams.remove(AMBIENT_AUDIO)
+        actual_data_streams.remove(AUDIO_RECORDING)
+        self.assertEqual(set(all_data_streams), actual_data_streams)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_initialization_with_empty_data(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
-        
-        # Verify empty state
-        self.assertEqual(merger.failed_ftps, set())
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
+        self.assertEqual(merger.failed_ftps, set())  # Verify empty state
         self.assertEqual(merger.ftps_to_retire, set())
         self.assertEqual(merger.upload_these, [])
         self.assertIsNone(merger.earliest_time_bin)
         self.assertIsNone(merger.latest_time_bin)
+        self.assertIsNone(merger.survey_id)
+        
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, "survey_id")
+        self.assertEqual(merger.failed_ftps, set())  # Verify empty state
+        self.assertEqual(merger.ftps_to_retire, set())
+        self.assertEqual(merger.upload_these, [])
+        self.assertIsNone(merger.earliest_time_bin)
+        self.assertIsNone(merger.latest_time_bin)
+        self.assertEqual(merger.survey_id, "survey_id")
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_get_retirees(self, s3_retrieve: Mock):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         binified_data[data_bin] = (POWER_STATE_ROWS_1, [1, 2])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
-        
-        # Get retirees
-        succeeded, failed, earliest, latest = merger.get_retirees()
-        
-        # All FTPs should be in succeeded set since no errors occurred
-        
-        self.assertEqual(succeeded, {1, 2})
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        succeeded, failed, earliest, latest = merger.get_retirees()  # Get retirees
+        self.assertEqual(len(merger.upload_these), 1)  # sanity check
+        self.assertEqual(succeeded, {1, 2})  # All FTPs should be in succeeded set since no errors occurred
         self.assertEqual(failed, set())
         self.assertEqual(earliest, BIN_1)
         self.assertEqual(latest, BIN_1)
-        # sanity check
-        self.assertEqual(len(merger.upload_these), 1)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_get_retirees_with_network_failures(self, s3_retrieve: Mock):
-        binified_data, _, survey_id_dict = self.basic_config()
+        binified_data: AllBinifiedData = defaultdict(lambda: ([], []))
         
-        # First data bin will succeed
+        # First data bin will succeed, second will fail due to mocked S3 retrieval failure
         data_bin_1: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
-        
-        # Second data bin will fail (we'll set up S3 to fail for this one)
         data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         
         # Create a chunk registry for the second bin so S3 retrieval will be attempted
-        chunk_path_2 = construct_s3_chunk_path(*self.bin_start, BIN_2)
+        chunk_path_2 = construct_s3_chunk_path(*self.bin_start, BIN_2, None)
         time_bin_2_datetime = datetime.fromtimestamp(BIN_2 * CHUNK_TIMESLICE_QUANTUM, UTC)
         ChunkRegistry.objects.create(
             study_id=self.default_participant.study_id,
@@ -643,7 +599,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data[data_bin_2] = (POWER_STATE_ROWS_2, [3, 4])  # These should fail
         
         error_handler = ErrorHandler()  # have to use a real error handler on this one
-        merger = CsvMerger(binified_data, error_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, error_handler, self.default_participant, None)
         
         tb = list(error_handler.errors)[0]  # <- the stack trace as a string. yes it is stupid.
         assert 'raise FakeException("S3 retrieval failed for chunk 2")' in tb
@@ -659,17 +615,13 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(earliest, BIN_1)
         self.assertEqual(latest, BIN_2)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_error_handling_marks_failed_ftps(self, s3_retrieve: Mock):
-        binified_data, _, survey_id_dict = self.basic_config()
+        binified_data: AllBinifiedData = defaultdict(lambda: ([], []))
         
         # Create a scenario that will cause an error: missing chunk in S3
-        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1)
-        
-        # Create chunk registry but S3 will fail to retrieve it
-        # Convert time_bin to datetime as required by the model
-        ChunkRegistry.objects.create(
+        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1, None)
+        ChunkRegistry.objects.create(  # Create chunk registry but S3 will fail to retrieve it
             study_id=self.default_participant.study_id,
             participant_id=self.default_participant.id,
             data_type=POWER_STATE,
@@ -690,7 +642,7 @@ class TestCsvMerger(CommonTestCase):
         
         # This should complete without raising, but mark FTPs as failed
         error_handler = ErrorHandler()  # this one needs a real error handler to record the error
-        merger = CsvMerger(binified_data, error_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, error_handler, self.default_participant, None)
         
         # Verify FTPs were marked as failed
         succeeded, failed, _, _ = merger.get_retirees()
@@ -699,11 +651,9 @@ class TestCsvMerger(CommonTestCase):
     
     # header validation logic
     
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_validate_one_header_matching(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
         
         # Get the reference header, validate
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
@@ -712,12 +662,9 @@ class TestCsvMerger(CommonTestCase):
         # Should return the reference header unchanged
         self.assertEqual(result, reference_header)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_validate_one_header_mismatch(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
         
         # Create a bad header, validate
         bad_header = b'timestamp,bad,header,columns'
@@ -728,12 +675,9 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(result, reference_header)
         self.assertNotEqual(result, bad_header)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_validate_two_headers_identical(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
         
         # Both headers are the same
@@ -741,24 +685,18 @@ class TestCsvMerger(CommonTestCase):
         
         self.assertEqual(result, reference_header)  # Should return the reference header
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_validate_two_headers_both_match_reference(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
         
         # Both headers match reference
         result = merger.validate_two_headers(reference_header, reference_header, POWER_STATE)
         self.assertEqual(result, reference_header)  # Should return the reference header
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_validate_two_headers_one_matches_reference(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
         bad_header = b'timestamp,bad,header'
         
@@ -766,12 +704,9 @@ class TestCsvMerger(CommonTestCase):
         result = merger.validate_two_headers(reference_header, bad_header, POWER_STATE)
         self.assertEqual(result, reference_header)  # Should return the reference header
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_validate_two_headers_neither_matches(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
         bad_header_1 = b'timestamp,bad,header1'
         bad_header_2 = b'timestamp,bad,header2'
         
@@ -781,16 +716,15 @@ class TestCsvMerger(CommonTestCase):
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
         self.assertEqual(result, reference_header)  # Should still return the reference header
     
-    
     # merging logic
     
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_chunk_not_exists_case(self, s3_retrieve: Mock):
         # Create test data
+        binified_data, null_handler = self.binified_and_handler
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
-        binified_data, null_handler, survey_id_dict = self.basic_config()
         binified_data[data_bin] = (POWER_STATE_ROWS_1, [1, 2])  # file_to_process PKs
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify that the chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -815,17 +749,15 @@ class TestCsvMerger(CommonTestCase):
         self.assertIsNotNone(chunk_params)
         self.assertEqual(chunk_params['data_type'], POWER_STATE)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_two_identical_lines_are_merged(self, s3_retrieve: Mock):
         duplicated_row = [T1_BYTESTR, T1_UTC, b'Locked']
         duplicate_rows = [duplicated_row, duplicated_row]  # Same row twice
         
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         binified_data[data_bin] = (duplicate_rows, [1, 2])
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify that the chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -843,18 +775,15 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
         self.assertEqual(lines[1], b','.join(duplicated_row))
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_three_identical_lines_are_merged(self, s3_retrieve: Mock):
         duplicated_row = [T1_BYTESTR, b'Locked']
         duplicate_rows = [duplicated_row, duplicated_row, duplicated_row]  # Same row three times
         
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
-        
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         binified_data[data_bin] = (duplicate_rows, [1, 2, 3])
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify that the chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -872,8 +801,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
         self.assertEqual(lines[1], b','.join(duplicated_row))
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_two_lines_identical_timestamp_different_values(self, s3_retrieve: Mock):
         # Create test data with same timestamp but different events/values
         row_1 = [T1_BYTESTR, b'Locked']
@@ -883,10 +811,10 @@ class TestCsvMerger(CommonTestCase):
         row_out_2 = b','.join([T1_BYTESTR, T1_UTC, b'Unlocked'])
         
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         binified_data[data_bin] = (rows, [1, 2])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify that the chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -905,10 +833,9 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(lines[1], row_out_1)
         self.assertEqual(lines[2], row_out_2)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_two_lines_exactly_one_time_bin_separate(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         
         # Row in first time bin, second is in time bin (one hour later)
         row_1 = [T1_BYTESTR, b'Locked']
@@ -919,7 +846,7 @@ class TestCsvMerger(CommonTestCase):
         
         binified_data[data_bin_1] = ([row_1], [1])
         binified_data[data_bin_2] = ([row_2], [2])
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify both chunks were processed as separate chunks
         self.assertEqual(len(merger.upload_these), 2)
@@ -939,10 +866,9 @@ class TestCsvMerger(CommonTestCase):
             self.assertEqual(sha1_hash, hashlib.sha1(decompressed).digest())
     
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_timestamp_exactly_at_time_bin_boundary_are_in_the_bin_that_matches(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         
         # Timestamp exactly at BIN_1 and bin2 boundaries: BIN_1
         timestamp_at_bin1_boundary = str(BIN_1 * CHUNK_TIMESLICE_QUANTUM * 1000).encode()
@@ -952,11 +878,10 @@ class TestCsvMerger(CommonTestCase):
         
         data_bin_1: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
-        
         binified_data[data_bin_1] = ([row_bin1], [1])
         binified_data[data_bin_2] = ([row_bin2], [2])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify both chunks were processed as separate chunks
         self.assertEqual(len(merger.upload_these), 2)
@@ -980,11 +905,9 @@ class TestCsvMerger(CommonTestCase):
             self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
             self.assertGreaterEqual(len(lines), 2)  # Header + at least one data line
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_timestamps_out_of_chronological_order(self, s3_retrieve: Mock):
-        
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         
         # Create rows with timestamps out of chronological order (all within same bin)
         # Most recent first, then older
@@ -998,14 +921,13 @@ class TestCsvMerger(CommonTestCase):
         
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (rows, [1, 2, 3])
-        
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
-        self.assertIn(1, merger.ftps_to_retire)
-        self.assertIn(2, merger.ftps_to_retire)
-        self.assertIn(3, merger.ftps_to_retire)
+        self.assertEqual(len(merger.ftps_to_retire), 3)
+        for ftp_int in [1, 2, 3]:
+            self.assertIn(ftp_int, merger.ftps_to_retire)
         
         # Verify upload data
         chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
@@ -1023,15 +945,12 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(lines[2], OUTOFORDER_LINE_MIDDLE_OUT)
         self.assertEqual(lines[3], OUTOFORDER_LINE_NEWEST_OUT)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_timestamps_out_of_chronological_order_within_different_hours(self, s3_retrieve: Mock):
-        """Test that CsvMerger handles out-of-order rows spanning multiple time bins"""
         # Expected output lines for this test
         OUTOFORDER_BIN2_LINE = b"1770361745197,2026-02-06T07:09:05.197,Unlocked"
         OUTOFORDER_BIN1_LINE = b"1770358145197,2026-02-06T06:09:05.197,Locked"
-        
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         
         # Create rows from BIN_2 first, then BIN_1 (reverse chronological across bins)
         row_bin2_newest = [b'1770361745197', b'Unlocked']  # From BIN_2, most recent
@@ -1044,7 +963,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data[data_bin_2] = ([row_bin2_newest], [2])
         binified_data[data_bin_1] = ([row_bin1_oldest], [1])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify both chunks were processed
         self.assertEqual(len(merger.upload_these), 2)
@@ -1075,60 +994,47 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(bin2_lines[0], POWER_STATE_HEADER_ANDROID)
         self.assertEqual(bin2_lines[1], OUTOFORDER_BIN2_LINE)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_one_millisecond_before_next_bin(self, s3_retrieve: Mock):
         # Timestamp: just before BIN_2 boundary - should stay in BIN_1
         timestamp_before_boundary = str(BIN_1 * CHUNK_TIMESLICE_QUANTUM * 1000 + 3599999).encode()
         expected_output = b"1767603599999,2026-01-05T08:59:59.999,Locked"
-        
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         row = [timestamp_before_boundary, b'Locked']
         
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = ([row], [1])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify single chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
         self.assertIn(1, merger.ftps_to_retire)
         self.assertEqual(merger.earliest_time_bin, BIN_1)
         self.assertEqual(merger.latest_time_bin, BIN_1)
-        
-        # Verify upload data
-        chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
-        decompressed = decompress(new_contents)
-        
-        self.assertTrue(is_new)
-        self.assertEqual(size_uncompressed, len(decompressed))
-        
-        lines = decompressed.splitlines()
-        self.assertEqual(len(lines), 2)  # Header + 1 data line
-        self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
-        self.assertEqual(lines[1], expected_output)
+        self._test_millisecond_common(merger, expected_output)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_one_millisecond_after_bin_start(self, s3_retrieve: Mock):
         # Timestamp: just after BIN_1 boundary - should go into BIN_2
         timestamp_after_boundary = str(BIN_1 * CHUNK_TIMESLICE_QUANTUM * 1000 + 3600001).encode()
         expected_line = b"1767603600001,2026-01-05T09:00:00.001,Unlocked"
-        
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        row = [timestamp_after_boundary, b'Unlocked']
+        binified_data, null_handler = self.binified_and_handler
         
         data_bin: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
+        row = [timestamp_after_boundary, b'Unlocked']
         binified_data[data_bin] = ([row], [1])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify single chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
         self.assertIn(1, merger.ftps_to_retire)
         self.assertEqual(merger.earliest_time_bin, BIN_2)
         self.assertEqual(merger.latest_time_bin, BIN_2)
-        
+        self._test_millisecond_common(merger, expected_line)
+    
+    def _test_millisecond_common(self, merger: CsvMerger, expected_line: bytes):
         # Verify upload data
         chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, is_new = merger.upload_these[0]
         decompressed = decompress(new_contents)
@@ -1141,15 +1047,14 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(lines[0], POWER_STATE_HEADER_ANDROID)
         self.assertEqual(lines[1], expected_line)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_separate_time_bins(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         data_bin_1: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin_1] = (POWER_STATE_ROWS_1, [1])
         binified_data[data_bin_2] = (POWER_STATE_ROWS_2, [2])
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify both chunks were processed
         self.assertEqual(len(merger.upload_these), 2)
@@ -1160,27 +1065,10 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(1, merger.ftps_to_retire)
         self.assertIn(2, merger.ftps_to_retire)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_chunk_exists_case(self, s3_retrieve: Mock):
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        
-        # Create an existing chunk in the database
-        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1)
-        
-        # Create the chunk registry entry
-        # Convert time_bin to datetime as required by the model
-        time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
-        ChunkRegistry.objects.create(
-            study_id=self.default_participant.study_id,
-            participant_id=self.default_participant.id,
-            data_type=POWER_STATE,
-            chunk_path=chunk_path,
-            chunk_hash="old_hash",
-            time_bin=time_bin_datetime,
-            file_size=1000,
-            is_chunkable=True,
-        )
+        binified_data, null_handler = self.binified_and_handler
+        chunk_path = self.create_chunk()
         
         # Mock S3 to return existing data
         existing_data = construct_csv_as_bytes(POWER_STATE_HEADER_ANDROID, POWER_STATE_ROWS_1)
@@ -1190,7 +1078,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (POWER_STATE_ROWS_2, [1, 2])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify that the chunk was merged (not created new)
         self.assertEqual(len(merger.upload_these), 1)
@@ -1205,11 +1093,10 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(succeeded, {1, 2})
         self.assertEqual(failed, set())
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_deduplicates_within_new_files(self, s3_retrieve: Mock):
         """Test that duplicate rows within new files are deduplicated"""
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
         
         # Create duplicate rows - make separate list objects with same content
         # (not references to the same list, as that would cause mutation issues)
@@ -1223,7 +1110,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (rows, [1, 2, 3])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -1251,11 +1138,9 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(chunk_path, known_correct_path)
         self.assertEqual(size_uncompressed, len(decompressed_contents))
         self.assertEqual(
-            [
-                b"timestamp,UTC time,event",
-                b"1770358145197,2026-02-06T06:09:05.197,Locked",
-                b"1770358250000,2026-02-06T06:10:50.000,Unlocked",
-            ],
+            [b"timestamp,UTC time,event",
+             b"1770358145197,2026-02-06T06:09:05.197,Locked",
+             b"1770358250000,2026-02-06T06:10:50.000,Unlocked"],
             lines,
         )
         self.assertTrue(is_new)
@@ -1276,26 +1161,11 @@ class TestCsvMerger(CommonTestCase):
         self.assertIn(expected_duplicate_line, lines)
         self.assertIn(expected_line_2, lines)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_deduplicates_new_against_existing_s3_data(self, s3_retrieve: Mock):
         """Test that duplicate rows between existing S3 data and new files are deduplicated"""
-        binified_data, null_handler, survey_id_dict = self.basic_config()
-        
-        # Create an existing chunk in the database with some data
-        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1)
-        
-        time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
-        ChunkRegistry.objects.create(
-            study_id=self.default_participant.study_id,
-            participant_id=self.default_participant.id,
-            data_type=POWER_STATE,
-            chunk_path=chunk_path,
-            chunk_hash="old_hash",
-            time_bin=time_bin_datetime,
-            file_size=1000,
-            is_chunkable=True,
-        )
+        binified_data, null_handler = self.binified_and_handler
+        self.create_chunk()
         
         # Existing S3 data already has UTC time column (it"s been processed before)
         # Contains row 1 and row 2
@@ -1320,7 +1190,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (new_rows_without_utc, [1, 2])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify merge occurred  -  not manually rechecking all of these, only did that once
         self.assertEqual(len(merger.upload_these), 1)
@@ -1350,29 +1220,13 @@ class TestCsvMerger(CommonTestCase):
         ]
         self.assertEqual(lines[1:], expected_lines)
     
-    
-    @patch("libs.file_processing.csv_merger.s3_retrieve")
+    @patch(s3_retrieve_func2)
     def test_csv_merger_multiple_duplicates_across_old_and_new(self, s3_retrieve: Mock):
         """Test deduplication with multiple duplicates across existing and new data"""
-        binified_data, null_handler, survey_id_dict = self.basic_config()
+        binified_data, null_handler = self.binified_and_handler
+        self.create_chunk()
         
         T_A, T_B, T_C = b"1770358250000", b"1770358350000", b"1770358450000"
-        
-        # Create an existing chunk
-        chunk_path = construct_s3_chunk_path(*self.bin_start, BIN_1)
-        
-        # (yup that's how its done!)
-        time_bin_datetime = datetime.fromtimestamp(BIN_1 * CHUNK_TIMESLICE_QUANTUM, UTC)
-        ChunkRegistry.objects.create(
-            study_id=self.default_participant.study_id,
-            participant_id=self.default_participant.id,
-            data_type=POWER_STATE,
-            chunk_path=chunk_path,
-            chunk_hash="old_hash",
-            time_bin=time_bin_datetime,
-            file_size=1000,
-            is_chunkable=True,
-        )
         
         # Existing data already has UTC time: row1, row2, row3
         existing_rows_with_utc = [
@@ -1394,7 +1248,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (new_rows_without_utc, [1, 2, 3])
         
-        merger = CsvMerger(binified_data, null_handler, survey_id_dict, self.default_participant)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
         
         # Verify merge occurred
         self.assertEqual(len(merger.upload_these), 1)
@@ -1441,7 +1295,7 @@ class TestFileProcessingTracker(CommonTestCase):
         
         # Verify data structures are initialized
         self.assertEqual(len(tracker.all_binified_data), 0)
-        self.assertEqual(len(tracker.survey_id_dict), 0)
+        self.assertIsNone(tracker.survey_id)
         self.assertEqual(len(tracker.buggy_files), 0)
     
     def test_init_with_custom_page_size(self):
@@ -1461,7 +1315,6 @@ class TestFileProcessingTracker(CommonTestCase):
         self.assertEqual(len(pages), 1)
         self.assertEqual(len(pages[0]), 0)
     
-    
     def test_get_paginated_files_to_process_single_page(self):
         """Test get_paginated_files_to_process with files fitting in one page"""
         
@@ -1480,7 +1333,6 @@ class TestFileProcessingTracker(CommonTestCase):
         # Should return one page with 5 files
         self.assertEqual(len(pages), 1)
         self.assertEqual(len(pages[0]), 5)
-    
     
     def test_get_paginated_files_to_process_multiple_pages(self):
         """Test get_paginated_files_to_process with pagination"""
@@ -1503,7 +1355,6 @@ class TestFileProcessingTracker(CommonTestCase):
         self.assertEqual(len(pages[0]), 10)
         self.assertEqual(len(pages[1]), 10)
         self.assertEqual(len(pages[2]), 5)
-    
     
     def test_get_paginated_files_to_process_excludes_deleted(self):
         """Test that get_paginated_files_to_process excludes deleted files"""
@@ -1572,7 +1423,6 @@ class TestFileProcessingTracker(CommonTestCase):
         self.assertEqual(time_bin, 491370)
         self.assertEqual(len(bin_rows), 1)
     
-    
     def test_binify_csv_rows_skips_empty_rows(self):
         tracker = FileProcessingTracker(self.default_participant)
         
@@ -1594,7 +1444,6 @@ class TestFileProcessingTracker(CommonTestCase):
         self.assertEqual(bin_rows[0], [b"1768928568332", b"Locked", b"0.7"])
         self.assertEqual(bin_rows[1], [b"1768928682951", b"Unlocked", b"0.7"])
     
-    
     def test_binify_csv_rows_skips_bad_timecode(self):
         tracker = FileProcessingTracker(self.default_participant)
         rows = [
@@ -1609,7 +1458,6 @@ class TestFileProcessingTracker(CommonTestCase):
         # Should only have 2 valid rows
         total_rows = sum(len(bin_rows) for bin_rows in result.values())
         self.assertEqual(total_rows, 2)
-    
     
     def test_append_binified_csvs(self):
         tracker = FileProcessingTracker(self.default_participant)
@@ -1646,10 +1494,7 @@ class TestFileProcessingTracker(CommonTestCase):
         
         self.assertEqual(len(tracker.all_binified_data), 1)
     
-    
     def test_append_binified_csvs_multiple_appends(self):
-        """Test that append_binified_csvs accumulates data"""
-        
         tracker = FileProcessingTracker(self.default_participant)
         
         ftp1 = self.generate_file_to_process(
@@ -1691,11 +1536,8 @@ class TestFileProcessingTracker(CommonTestCase):
         self.assertEqual(ftps, [ftp1.pk, ftp2.pk])
         self.assertEqual(len(tracker.all_binified_data), 1)
     
-    
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_process_csv_data(self, s3_retrieve: Mock):
-        """Test process_csv_data method"""
-        
         s3_retrieve.return_value = input_power_state_content
         
         tracker = FileProcessingTracker(self.default_participant)
@@ -1724,12 +1566,9 @@ class TestFileProcessingTracker(CommonTestCase):
             (self.default_study.object_id, self.default_participant.patient_id, POWER_STATE, b"timestamp,event,level")
         )
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_process_csv_data_empty_file(self, s3_retrieve: Mock):
-        """Test process_csv_data with empty file content"""
-        
-        # Just a header, no data rows
-        s3_retrieve.return_value = b"timestamp,event,level"
+        s3_retrieve.return_value = b"timestamp,event,level"  # Just a header, no data rows
         
         tracker = FileProcessingTracker(self.default_participant)
         ftp = self.generate_file_to_process(
@@ -1745,14 +1584,10 @@ class TestFileProcessingTracker(CommonTestCase):
         self.assertIsNone(binified_data)
         self.assertIsNone(survey_id_hash)
     
-    
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     @patch("libs.file_processing.file_processing_core.s3_upload_no_compression")
     def test_process_unchunkable_file(self, s3_upload: Mock, s3_retrieve: Mock):
-        """Test process_unchunkable_file method"""
-        
-        # Audio recording is an unchunkable file type
-        s3_retrieve.return_value = b"some audio recording data"
+        s3_retrieve.return_value = b"some audio recording data"  # unchunkable
         
         tracker = FileProcessingTracker(self.default_participant)
         ftp = self.generate_file_to_process(
@@ -1760,25 +1595,18 @@ class TestFileProcessingTracker(CommonTestCase):
             participant=self.default_participant,
             os_type=ANDROID_API,
         )
-        
         ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_unchunkable_file(ffp)
         
         # Verify ChunkRegistry was created
         chunk_registries = ChunkRegistry.objects.filter(
-            participant=self.default_participant,
-            data_type=AUDIO_RECORDING,
+            participant=self.default_participant, data_type=AUDIO_RECORDING
         )
         self.assertEqual(chunk_registries.count(), 1)
-        
-        # Verify FTP was deleted
-        self.assertFalse(FileToProcess.objects.filter(pk=ftp.pk).exists())
+        self.assertFalse(FileToProcess.objects.filter(pk=ftp.pk).exists())  # Verify FTP was deleted
     
-    
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_process_chunkable_file(self, s3_retrieve: Mock):
-        """Test process_chunkable_file method"""
-        
         s3_retrieve.return_value = input_power_state_content
         
         tracker = FileProcessingTracker(self.default_participant)
@@ -1797,13 +1625,9 @@ class TestFileProcessingTracker(CommonTestCase):
         # Verify FTP was not deleted yet (happens later in the pipeline)
         self.assertTrue(FileToProcess.objects.filter(pk=ftp.pk).exists())
     
-    
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_process_chunkable_file_empty(self, s3_retrieve: Mock):
-        """Test process_chunkable_file with empty file"""
-        
-        # Just a header, no data
-        s3_retrieve.return_value = b"timestamp,event,level"
+        s3_retrieve.return_value = b"timestamp,event,level"  # Just a header, no data
         
         tracker = FileProcessingTracker(self.default_participant)
         ftp = self.generate_file_to_process(
@@ -1814,18 +1638,11 @@ class TestFileProcessingTracker(CommonTestCase):
         
         ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_chunkable_file(ffp)
-        
-        # Verify no binified data was populated
-        self.assertEqual(len(tracker.all_binified_data), 0)
-        
-        # Verify FTP was deleted for empty file
-        self.assertFalse(FileToProcess.objects.filter(pk=ftp.pk).exists())
+        self.assertEqual(len(tracker.all_binified_data), 0)  # Verify no binified data was populated
+        self.assertFalse(FileToProcess.objects.filter(pk=ftp.pk).exists())  # FTP was deleted for empty file
     
-    
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     def test_process_one_file_chunkable(self, s3_retrieve: Mock):
-        """Test process_one_file with chunkable file"""
-        
         s3_retrieve.return_value = input_power_state_content
         
         tracker = FileProcessingTracker(self.default_participant)
@@ -1841,13 +1658,11 @@ class TestFileProcessingTracker(CommonTestCase):
         # Should have binified data
         self.assertGreater(len(tracker.all_binified_data), 0)
     
-    
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch(s3_retrieve_func)
     @patch("libs.file_processing.file_processing_core.s3_upload_no_compression")
     def test_process_one_file_unchunkable(self, s3_upload: Mock, s3_retrieve: Mock):
-        """Test process_one_file with unchunkable file"""
-        
         s3_retrieve.return_value = b"audio recording data"
+        self.assertEqual(ChunkRegistry.objects.count(), 0)
         
         tracker = FileProcessingTracker(self.default_participant)
         ftp = self.generate_file_to_process(
@@ -1858,9 +1673,4 @@ class TestFileProcessingTracker(CommonTestCase):
         
         ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_one_file(ffp)
-        
-        # Should have created ChunkRegistry
-        self.assertEqual(
-            ChunkRegistry.objects.filter(participant=self.default_participant, data_type=AUDIO_RECORDING).count(),
-            1
-        )
+        self.assertEqual(ChunkRegistry.objects.count(), 1)

@@ -9,9 +9,14 @@ from constants.data_stream_constants import (ACCELEROMETER, ANDROID_LOG_FILE, BL
 from constants.user_constants import ANDROID_API, IOS_API
 
 
-# typping used inside file processing 
+# typing used inside file processing
 FileToProcessPK = int
-BinifyKey = tuple[str, str, str, int, bytes]  # study_object_id, patient_id, data_type, timecode int, header bytes
+StudyObjectjID = str
+PatientID = str
+DataSteaam = str
+TimecodeInt = int
+CSVHeader = bytes
+BinifyKey = tuple[StudyObjectjID, PatientID, DataSteaam, TimecodeInt, CSVHeader]
 BinifyDict = dict[BinifyKey, list[list[bytes]]]
 AllBinifiedData = defaultdict[BinifyKey, tuple[list[list[bytes]], list[FileToProcessPK]]]
 

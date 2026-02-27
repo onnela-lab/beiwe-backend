@@ -1,15 +1,15 @@
 from __future__ import annotations
+
 import hashlib
 
 from botocore.exceptions import ReadTimeoutError
 from cronutils import ErrorHandler
 
 from constants.common_constants import CHUNKS_FOLDER, RUNNING_TEST_OR_FROM_A_SHELL
-from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
-    CHUNK_TIMESLICE_QUANTUM, DEBUG_FILE_PROCESSING, REFERENCE_CHUNKREGISTRY_HEADERS, SurveyIDHash)
+from constants.data_processing_constants import (SURVEY_TIMINGS, AllBinifiedData, BinifyKey,
+    CHUNK_TIMESLICE_QUANTUM, DEBUG_FILE_PROCESSING, REFERENCE_CHUNKREGISTRY_HEADERS)
 from constants.data_stream_constants import SURVEY_DATA_FILES
 from database.data_access_models import ChunkRegistry
-from database.survey_models import Survey
 from database.system_models import GenericEvent
 from database.user_models_participant import Participant
 from libs.file_processing.utility_functions_csvs import (construct_csv_as_bytes,
@@ -22,17 +22,14 @@ from libs.utils.dev_utils import Timer
 from libs.utils.security_utils import chunk_hash
 
 
-class ChunkFailedToExist(Exception): pass
-
-
 FileToProcessPK = int
 UncompressedSize = int
 FinalOutputContent = bytes
 ChunkPath = str
 ByteCount = int
 Sha1Hash = bytes
-
 Uploadable = tuple[dict, ChunkPath, FinalOutputContent, Sha1Hash, ByteCount, bool]
+class ChunkFailedToExist(Exception): pass
 
 
 def log(*args, **kwargs):
@@ -44,16 +41,26 @@ def log(*args, **kwargs):
 class CsvMerger:
     """ This class is consumes binified data, pulls in already-present data from S3, and merges the
     the data sets into their respective chunks (time bins), updates the relevant ChunkRegistry with
-    the new size and checksum, and uploads the new data to S3, overwritinge existing chunk data. """
+    the new size and checksum, and uploads the new data to S3, overwritinge existing chunk data.
+    
+    The Survey Timings data stream had a longstanding bug where files from all the different
+    surveys would get merged into one file, and then also receive a file path without a survey id.
+    The presence of a survey id in the __init__ now changes behavior to handle this, but
+    but the many merged files of data consumed by this class MUST STILL BE FILTERED to be sourced
+    on a single survey id. """
     
     def __init__(
         self,
         binified_data: AllBinifiedData,
         error_handler: ErrorHandler,
-        survey_id_dict: dict[SurveyIDHash, str],
         participant: Participant,
+        survey_id: str | None,
     ):
+        assert isinstance(participant, Participant)
+        assert survey_id is None or isinstance(survey_id, str)
+        
         self.participant = participant
+        self.survey_id = survey_id
         
         self.failed_ftps = set[FileToProcessPK]()
         self.ftps_to_retire = set[FileToProcessPK]()
@@ -67,7 +74,6 @@ class CsvMerger:
         
         self.binified_data: AllBinifiedData = binified_data
         self.error_handler = error_handler
-        self.survey_id_dict = survey_id_dict
         self.iterate()
     
     def get_retirees(self) -> tuple[set[FileToProcessPK], set[FileToProcessPK], int | None, int | None]:
@@ -77,14 +83,14 @@ class CsvMerger:
             self.failed_ftps, self.earliest_time_bin, self.latest_time_bin
     
     def iterate(self):
-        # this is the core loop. Iterate over all binified data and merge it into chunks, then handle
-        # ChunkRegistry parameter setup for the next stage of processing.
+        # this is the core loop. Iterate over all binified data and merge it into chunks, then
+        # handle ChunkRegistry parameter setup for the next stage of processing.
         ftp_list: list[int]
         data_bin: BinifyKey
         while True:
-            # this construction consumes elements from the dictionary as we iterate over them,
-            # it saves memory because we are building up large byte arrays as we go from
-            # the data we are pulling out of the dictionary.
+            # this construction consumes elements from the dictionary as we iterate over them, it
+            # saves memory because we are building up large byte arrays as we go from the data we
+            # are pulling out of the dictionary.
             try:
                 data_bin, (data_rows_list, ftp_list) = self.binified_data.popitem()
             
@@ -110,8 +116,9 @@ class CsvMerger:
             # data_rows_list is a list of lists of bytes, each list of bytes is a row of data
             # these are from new files, they do not have the human readable timestamp column yet.
             updated_header = convert_unix_to_human_readable_timestamps(original_header, data_rows_list)
-            chunk_path = construct_s3_chunk_path(study_object_id, patient_id, data_stream, time_bin)
-            
+            chunk_path = construct_s3_chunk_path(
+                study_object_id, patient_id, data_stream, time_bin, self.survey_id
+            )
             
             # two core cases
             if ChunkRegistry.objects.filter(chunk_path=chunk_path).exists():
@@ -120,8 +127,7 @@ class CsvMerger:
                 )
             else:
                 self.chunk_not_exists_case(
-                    chunk_path, study_object_id, updated_header, patient_id, data_stream,
-                    original_header, time_bin, data_rows_list
+                    chunk_path, updated_header, data_stream, time_bin, data_rows_list
                 )
         
         except Exception:
@@ -142,11 +148,8 @@ class CsvMerger:
     def chunk_not_exists_case(
         self,
         chunk_path: str,
-        study_object_id: str,
         updated_header: bytes,
-        patient_id: str,
         data_stream: str,
-        original_header: bytes,
         time_bin: int,
         rows: list[list[bytes]],
     ):
@@ -166,13 +169,6 @@ class CsvMerger:
         new_contents = compress(new_contents)  # This file hangs around in memory, compress it asap.
         log(f"CsvMerger: constructed {size_uncompressed} bytes (new) for {name} in {t.fseconds} seconds.")
         
-        if data_stream in SURVEY_DATA_FILES:
-            # We need to keep a mapping of files to survey ids, that is handled here.
-            survey_id_hash: SurveyIDHash = study_object_id, patient_id, data_stream, original_header
-            survey_id = Survey.fltr(object_id=self.survey_id_dict[survey_id_hash]).values_list("pk", flat=True).get()
-        else:
-            survey_id = None
-        
         # this object will get **kwargs'd into ChunkRegistry.register_chunked_data
         chunk_params = {
             "study_id": self.participant.study_id,
@@ -181,9 +177,8 @@ class CsvMerger:
             "chunk_path": chunk_path,
             "chunk_hash": md5_hash,
             "time_bin": time_bin,
-            "survey_id": survey_id,
-            "file_size": size_uncompressed,  # we don't use this anymore in the final return
-            
+            "survey_id": self.survey_id,
+            "file_size": size_uncompressed,  # we don't use this anymore in the final return...
         }
         self.upload_these.append((chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, True))
     
@@ -250,6 +245,7 @@ class CsvMerger:
         self.upload_these.append((chunk_kwargs, chunk_path, new_contents, sha1_hash, size_uncompressed, False))
     
     def validate_one_header(self, header: bytes, data_stream: str) -> bytes:
+        # pp(self.participant)
         real_header = REFERENCE_CHUNKREGISTRY_HEADERS[data_stream][self.participant.os_type]
         if header == real_header:
             return real_header
@@ -309,10 +305,21 @@ class CsvMerger:
 
 
 def construct_s3_chunk_path(
-    study_object_id: str, patient_id: str, data_stream: str, time_bin: int
+    study_object_id: str, patient_id: str, data_stream: str, time_bin: int, survey_id: str | None
 ) -> str:
     """ S3 file paths for chunks are of this form:
         CHUNKED_DATA/study_id/patient_id/data_stream/time_bin.csv """
+    
+    if data_stream in SURVEY_DATA_FILES and survey_id is None:
+        raise ValueError("Survey ID must be provided for survey data files.")
+    if data_stream not in SURVEY_DATA_FILES and survey_id is not None:
+        raise ValueError("Survey ID should not be provided for non-survey data files.")
+    
+    if survey_id is not None:
+        return "%s/%s/%s/%s/%s/%s.csv" % (
+            CHUNKS_FOLDER, study_object_id, patient_id, data_stream, survey_id,
+            unix_time_to_string(time_bin * CHUNK_TIMESLICE_QUANTUM).decode()
+        )
     
     return "%s/%s/%s/%s/%s.csv" % (
         CHUNKS_FOLDER, study_object_id, patient_id, data_stream,
