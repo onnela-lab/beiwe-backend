@@ -6,8 +6,6 @@ from datetime import date, datetime, timedelta, tzinfo
 from typing import Any
 
 import orjson
-from django.db.models import (AutoField, CharField, DateField, FloatField, ForeignKey, IntegerField,
-    TextField)
 from django.http.response import HttpResponse
 from django.utils import timezone
 
@@ -31,7 +29,9 @@ from database.survey_models import Survey
 from database.user_models_participant import (AppHeartbeats, DeviceStatusReportHistory, Participant,
     ParticipantActionLog, ParticipantDeletionEvent, ParticipantFCMHistory, ParticipantFieldValue)
 from database.user_models_researcher import Researcher, StudyRelation
+from libs.aes import encrypt_for_server
 from libs.schedules import repopulate_weekly_survey_schedule_events
+from libs.utils.compression import compress
 from libs.utils.security_utils import device_hash, generate_easy_alphanumeric_string
 
 
@@ -177,6 +177,12 @@ class DatabaseHelperMixin:
     @property
     def TOMORROW(self) -> date:
         return self.CURRENT_DATE + timedelta(days=1)
+    
+    ## weird one-offs
+    
+    @staticmethod
+    def true_default_s3_form(data: bytes) -> bytes:
+        return encrypt_for_server(compress(data), DatabaseHelperMixin.DEFAULT_ENCRYPTION_KEY_BYTES)
     
     # For all defaults make sure to maintain the pattern that includes the use of the save function,
     # this codebase implements a special save function that validates before passing through.

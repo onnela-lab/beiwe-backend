@@ -366,7 +366,7 @@ class S3Storage:
         return ret
     
     def _raw_s3_retrieve(self, path: str) -> bytes:
-        return _do_retrieve(path)['Body'].read()
+        return _do_retrieve(path).pop("Body").read()
 
 
 #
@@ -440,7 +440,7 @@ def s3_retrieve_no_decompress(key_path: str, obj: StrPartStudy, raw_path: bool =
 
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
     """ Retrieves a file as-is as bytes. """
-    return _do_retrieve(key_path, number_retries=number_retries)['Body'].read()
+    return _do_retrieve(key_path, number_retries=number_retries).pop("Body").read()
 
 
 def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:
