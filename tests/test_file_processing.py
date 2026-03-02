@@ -1511,23 +1511,15 @@ class TestFileProcessingTracker(CommonTestCase):
         time_bin = 491369
         header = b"timestamp,event,level"
         data_bin: BinifyKey = (
-            tracker.study_object_id,
-            tracker.patient_id,
-            POWER_STATE,
-            time_bin,
-            header,
+            tracker.study_object_id, tracker.patient_id, POWER_STATE, time_bin, header
         )
         
         # First append
-        new_binified_rows_1 = {
-            data_bin: [[b"1768928568332", b"Locked", b"0.7"]],
-        }
+        new_binified_rows_1 = {data_bin: [[b"1768928568332", b"Locked", b"0.7"]]}
         tracker.append_binified_csvs(new_binified_rows_1, ftp1)
         
         # Second append to same bin
-        new_binified_rows_2 = {
-            data_bin: [[b"1768928682951", b"Unlocked", b"0.7"]],
-        }
+        new_binified_rows_2 = {data_bin: [[b"1768928682951", b"Unlocked", b"0.7"]]}
         tracker.append_binified_csvs(new_binified_rows_2, ftp2)
         
         # Verify both were appended
@@ -1548,23 +1540,13 @@ class TestFileProcessingTracker(CommonTestCase):
         )
         
         ffp = FileForProcessing(ftp, self.default_study)
-        binified_data, survey_hash_id = tracker.process_csv_data(ffp)
+        binified_data = tracker.process_csv_data(ffp)
         
         # Should return binified data
         self.assertIsNotNone(binified_data)
         self.assertIsInstance(binified_data, dict)
         assert binified_data is not None
         self.assertGreater(len(binified_data), 0)
-        
-        # survey_id_hash should be a tuple for non-survey data
-        self.assertIsNotNone(survey_hash_id)
-        self.assertIsInstance(survey_hash_id, tuple)
-        assert survey_hash_id is not None
-        self.assertEqual(len(survey_hash_id), 4)
-        self.assertEqual(
-            survey_hash_id,
-            (self.default_study.object_id, self.default_participant.patient_id, POWER_STATE, b"timestamp,event,level")
-        )
     
     @patch(s3_retrieve_func)
     def test_process_csv_data_empty_file(self, s3_retrieve: Mock):
@@ -1578,11 +1560,8 @@ class TestFileProcessingTracker(CommonTestCase):
         )
         
         ffp = FileForProcessing(ftp, self.default_study)
-        binified_data, survey_id_hash = tracker.process_csv_data(ffp)
-        
-        # Should return None for both
+        binified_data = tracker.process_csv_data(ffp)
         self.assertIsNone(binified_data)
-        self.assertIsNone(survey_id_hash)
     
     @patch(s3_retrieve_func)
     @patch("libs.file_processing.file_processing_core.s3_upload_no_compression")

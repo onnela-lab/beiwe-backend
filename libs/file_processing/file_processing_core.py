@@ -190,7 +190,7 @@ class FileProcessingTracker():
             Returns the earliest and latest time bins handled. """
         # Track the earliest and latest time bins, to return them at the end of the function
         merged_data = CsvMerger(
-            self.all_binified_data, self.error_handler, self.survey_id_dict, self.participant
+            self.all_binified_data, self.error_handler, self.participant, self.survey_id
         )
         # a failed upload will require the user gets rerun entirely.
         len_merged_data = len(merged_data.upload_these)
@@ -247,15 +247,7 @@ class FileProcessingTracker():
     
     def process_chunkable_file(self, file_for_processing: FileForProcessing):
         """ logic for downloading, fixing, merging, but not uploading data from one file. """
-        newly_binified_data, survey_id_hash = self.process_csv_data(file_for_processing)
-        
-        # survey answers store the survey id in the file name (truly ancient design decision, its
-        # bad and buggy, need to get around to fixing this).
-        if file_for_processing.data_type in SURVEY_DATA_FILES:
-            assert survey_id_hash is not None, "survey_id_hash should be guaranteed for survey data files."
-            self.survey_id_dict[survey_id_hash] = resolve_survey_id_from_file_name(
-                file_for_processing.file_to_process.s3_file_path
-            )
+        newly_binified_data = self.process_csv_data(file_for_processing)
         
         if newly_binified_data:
             self.append_binified_csvs(newly_binified_data, file_for_processing.file_to_process)
@@ -272,31 +264,22 @@ class FileProcessingTracker():
             self.all_binified_data[data_bin][1].append(file_for_processing.pk)  # Add ftp
         return
     
-    def process_csv_data(
-        self, file_for_processing: FileForProcessing
-    ) -> tuple[BinifyDict, SurveyIDHash] | tuple[None, None]:
+    def process_csv_data(self, file_for_processing: FileForProcessing) -> BinifyDict | None:
         """ Constructs a binified dict of a given list of a csv rows, catches csv files with known
             problems and runs the correct logic. Returns None If the csv has no data in it. """
         # long running function. decomposes the file into a list of rows and a header, applies data
-        # stream fixes.
+        # stream fixes (barf).
         file_for_processing.prepare_data()
         # get the header and rows from the file, tell it to clear references to the file contents
         csv_rows_list = file_for_processing.file_lines
         header = file_for_processing.header
         
-        file_for_processing.clear_file_lines()  # the source file contents can now be GC'd (I think this is already not a thing)
+        file_for_processing.clear_file_lines()  # source file contents can now be GC'd
         
         # shove csv rows into their respective time bins. upon returning from this function there
-        # should only be the binified data representation in memory
+        # should only be the binified data representation in memory, return None otherwise.
         if csv_rows_list and header:
-            return (
-                # return item 1: the data as a defaultdict
-                self.binify_csv_rows(csv_rows_list, file_for_processing.data_type, header),
-                # return item 2: the tuple that we use as a key for the defaultdict
-                (self.study_object_id, self.patient_id, file_for_processing.data_type, header)
-            )
-        else:
-            return None, None
+            return self.binify_csv_rows(csv_rows_list, file_for_processing.data_type, header)
     
     def binify_csv_rows(self, rows_list: list[list[bytes]], data_type: str, header: bytes) -> BinifyDict:
         """ Assumes a clean csv with element 0 in the row's column as a unix(ish) timestamp.
