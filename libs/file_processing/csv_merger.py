@@ -54,13 +54,17 @@ class CsvMerger:
         binified_data: AllBinifiedData,
         error_handler: ErrorHandler,
         participant: Participant,
-        survey_id: str | None,
+        survey_object_id: str | None,
+        survey_pk: int | None,
     ):
         assert isinstance(participant, Participant)
-        assert survey_id is None or isinstance(survey_id, str)
+        assert survey_object_id is None or isinstance(survey_object_id, str)
+        assert survey_pk is None or isinstance(survey_pk, int)
+        assert (survey_object_id is None) == (survey_pk is None), "Both survey_object_id and survey_pk must be either None or not None"
         
         self.participant = participant
-        self.survey_id = survey_id
+        self.survey_object_id = survey_object_id
+        self.survey_pk = survey_pk
         
         self.failed_ftps = set[FileToProcessPK]()
         self.ftps_to_retire = set[FileToProcessPK]()
@@ -117,7 +121,7 @@ class CsvMerger:
             # these are from new files, they do not have the human readable timestamp column yet.
             updated_header = convert_unix_to_human_readable_timestamps(original_header, data_rows_list)
             chunk_path = construct_s3_chunk_path(
-                study_object_id, patient_id, data_stream, time_bin, self.survey_id
+                study_object_id, patient_id, data_stream, time_bin, self.survey_object_id
             )
             
             # two core cases
@@ -177,7 +181,7 @@ class CsvMerger:
             "chunk_path": chunk_path,
             "chunk_hash": md5_hash,
             "time_bin": time_bin,
-            "survey_id": self.survey_id,
+            "survey_id": self.survey_pk,
             "file_size": size_uncompressed,  # we don't use this anymore in the final return...
         }
         self.upload_these.append((chunk_params, chunk_path, new_contents, sha1_hash, size_uncompressed, True))
@@ -305,19 +309,19 @@ class CsvMerger:
 
 
 def construct_s3_chunk_path(
-    study_object_id: str, patient_id: str, data_stream: str, time_bin: int, survey_id: str | None
+    study_object_id: str, patient_id: str, data_stream: str, time_bin: int, survey_obj_id: str | None
 ) -> str:
     """ S3 file paths for chunks are of this form:
         CHUNKED_DATA/study_id/patient_id/data_stream/time_bin.csv """
     
-    if data_stream in SURVEY_DATA_FILES and survey_id is None:
+    if data_stream in SURVEY_DATA_FILES and survey_obj_id is None:
         raise ValueError("Survey ID must be provided for survey data files.")
-    if data_stream not in SURVEY_DATA_FILES and survey_id is not None:
+    if data_stream not in SURVEY_DATA_FILES and survey_obj_id is not None:
         raise ValueError("Survey ID should not be provided for non-survey data files.")
     
-    if survey_id is not None:
+    if survey_obj_id is not None:
         return "%s/%s/%s/%s/%s/%s.csv" % (
-            CHUNKS_FOLDER, study_object_id, patient_id, data_stream, survey_id,
+            CHUNKS_FOLDER, study_object_id, patient_id, data_stream, survey_obj_id,
             unix_time_to_string(time_bin * CHUNK_TIMESLICE_QUANTUM).decode()
         )
     

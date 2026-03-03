@@ -314,6 +314,9 @@ class DatabaseHelperMixin:
         )
         return self._default_survey
     
+    def using_default_survey(self) -> Survey:  # for saying you are using it
+        return self.default_survey 
+    
     def generate_survey(
         self, study: Study, survey_type: str, object_id: str = None, content: Any = False, **kwargs
     ) -> Survey:

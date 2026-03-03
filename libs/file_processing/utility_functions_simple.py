@@ -111,7 +111,7 @@ def convert_unix_to_human_readable_timestamps(header: bytes, rows: list[list[byt
     return b",".join(split_header)
 
 
-def binify_from_timecode(unix_ish_time_code_string: bytes) -> int:
+def binify_from_timecode(unix_ish_time_code_string: bytes | str) -> int:
     """ Takes a unix-ish time code (accepts unix millisecond), and returns an
         integer value of the bin it should go in. """
     # integer divide by the 3600 (an hour of seconds) to be used as the key in binified data
@@ -119,7 +119,7 @@ def binify_from_timecode(unix_ish_time_code_string: bytes) -> int:
     return clean_java_timecode(unix_ish_time_code_string) // CHUNK_TIMESLICE_QUANTUM
 
 
-def clean_java_timecode(unix_ish_time_code_string: bytes) -> int:
+def clean_java_timecode(unix_ish_time_code_string: bytes | str) -> int:
     try:
         timestamp = int(unix_ish_time_code_string[:10])
     except ValueError as e:

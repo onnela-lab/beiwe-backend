@@ -16,10 +16,11 @@ from constants.data_stream_constants import (ACCELEROMETER, AI_CHAT_LOGS, ALL_DA
     IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS,
     SURVEY_TIMINGS, TEXTS_LOG, WIFI)
 from constants.user_constants import ANDROID_API, IOS_API
-from database.models import ChunkRegistry, FileToProcess
+from database.models import ChunkRegistry, FileToProcess, Survey
+from libs.aes import decrypt_server
 from libs.file_processing.csv_merger import construct_s3_chunk_path, CsvMerger
 from libs.file_processing.file_for_processing import FileForProcessing
-from libs.file_processing.file_processing_core import FileProcessingTracker
+from libs.file_processing.file_processing_core import easy_run, FileProcessingTracker
 from libs.file_processing.utility_functions_csvs import construct_csv_as_bytes
 from libs.file_processing.utility_functions_simple import (binify_from_timecode,
     convert_unix_to_human_readable_timestamps)
@@ -462,6 +463,10 @@ POWERSTATE_OUT_LINE_2 = b"1770358250000,2026-02-06T06:10:50.000,Unlocked"
 
 class TestCsvMerger(CommonTestCase):
     
+    def setUp(self):
+        self.using_default_survey()  # not
+        return super().setUp()
+    
     @property
     def binified_and_handler(self) -> tuple[AllBinifiedData, ErrorHandler]:
         # extremely common configuration step
@@ -545,28 +550,31 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(set(all_data_streams), actual_data_streams)
     
     def test_csv_merger_initialization_with_empty_data(self):
-        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None, None)
         self.assertEqual(merger.failed_ftps, set())  # Verify empty state
         self.assertEqual(merger.ftps_to_retire, set())
         self.assertEqual(merger.upload_these, [])
         self.assertIsNone(merger.earliest_time_bin)
         self.assertIsNone(merger.latest_time_bin)
-        self.assertIsNone(merger.survey_id)
+        self.assertIsNone(merger.survey_object_id)
         
-        merger = CsvMerger(*self.binified_and_handler, self.default_participant, "survey_id")
+        merger = CsvMerger(
+            *self.binified_and_handler, self.default_participant, self.default_survey.object_id,
+            self.default_survey.pk,
+        )
         self.assertEqual(merger.failed_ftps, set())  # Verify empty state
         self.assertEqual(merger.ftps_to_retire, set())
         self.assertEqual(merger.upload_these, [])
         self.assertIsNone(merger.earliest_time_bin)
         self.assertIsNone(merger.latest_time_bin)
-        self.assertEqual(merger.survey_id, "survey_id")
+        self.assertEqual(merger.survey_object_id, self.default_survey.object_id)
     
     def test_csv_merger_get_retirees(self):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data, null_handler = self.binified_and_handler
         binified_data[data_bin] = (POWER_STATE_ROWS_1, [1, 2])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         succeeded, failed, earliest, latest = merger.get_retirees()  # Get retirees
         self.assertEqual(len(merger.upload_these), 1)  # sanity check
         self.assertEqual(succeeded, {1, 2})  # All FTPs should be in succeeded set since no errors occurred
@@ -605,7 +613,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data[data_bin_2] = (POWER_STATE_ROWS_2, [3, 4])  # These should fail
         
         error_handler = ErrorHandler()  # have to use a real error handler on this one
-        merger = CsvMerger(binified_data, error_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, error_handler, self.default_participant, None, None)
         
         tb = list(error_handler.errors)[0]  # <- the stack trace as a string. yes it is stupid.
         assert 'raise FakeException("S3 retrieval failed for chunk 2")' in tb
@@ -648,7 +656,7 @@ class TestCsvMerger(CommonTestCase):
         
         # This should complete without raising, but mark FTPs as failed
         error_handler = ErrorHandler()  # this one needs a real error handler to record the error
-        merger = CsvMerger(binified_data, error_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, error_handler, self.default_participant, None, None)
         
         # Verify FTPs were marked as failed
         succeeded, failed, _, _ = merger.get_retirees()
@@ -658,7 +666,7 @@ class TestCsvMerger(CommonTestCase):
     # header validation logic
     
     def test_csv_merger_validate_one_header_matching(self):
-        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None, None)
         
         # Get the reference header, validate
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
@@ -668,7 +676,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(result, reference_header)
     
     def test_csv_merger_validate_one_header_mismatch(self):
-        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None, None)
         
         # Create a bad header, validate
         bad_header = b'timestamp,bad,header,columns'
@@ -680,7 +688,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertNotEqual(result, bad_header)
     
     def test_csv_merger_validate_two_headers_identical(self):
-        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None, None)
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
         
         # Both headers are the same
@@ -689,7 +697,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(result, reference_header)  # Should return the reference header
     
     def test_csv_merger_validate_two_headers_both_match_reference(self):
-        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None, None)
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
         
         # Both headers match reference
@@ -697,7 +705,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(result, reference_header)  # Should return the reference header
     
     def test_csv_merger_validate_two_headers_one_matches_reference(self):
-        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None, None)
         reference_header = REFERENCE_CHUNKREGISTRY_HEADERS[POWER_STATE][self.default_participant.os_type]
         bad_header = b'timestamp,bad,header'
         
@@ -706,7 +714,7 @@ class TestCsvMerger(CommonTestCase):
         self.assertEqual(result, reference_header)  # Should return the reference header
     
     def test_csv_merger_validate_two_headers_neither_matches(self):
-        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None)
+        merger = CsvMerger(*self.binified_and_handler, self.default_participant, None, None)
         bad_header_1 = b'timestamp,bad,header1'
         bad_header_2 = b'timestamp,bad,header2'
         
@@ -723,7 +731,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data, null_handler = self.binified_and_handler
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (POWER_STATE_ROWS_1, [1, 2])  # file_to_process PKs
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify that the chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -755,7 +763,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data, null_handler = self.binified_and_handler
         binified_data[data_bin] = (duplicate_rows, [1, 2])
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify that the chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -780,7 +788,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data, null_handler = self.binified_and_handler
         binified_data[data_bin] = (duplicate_rows, [1, 2, 3])
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify that the chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -810,7 +818,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data, null_handler = self.binified_and_handler
         binified_data[data_bin] = (rows, [1, 2])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify that the chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -841,7 +849,7 @@ class TestCsvMerger(CommonTestCase):
         
         binified_data[data_bin_1] = ([row_1], [1])
         binified_data[data_bin_2] = ([row_2], [2])
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify both chunks were processed as separate chunks
         self.assertEqual(len(merger.upload_these), 2)
@@ -875,7 +883,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data[data_bin_1] = ([row_bin1], [1])
         binified_data[data_bin_2] = ([row_bin2], [2])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify both chunks were processed as separate chunks
         self.assertEqual(len(merger.upload_these), 2)
@@ -914,7 +922,7 @@ class TestCsvMerger(CommonTestCase):
         
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (rows, [1, 2, 3])
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -955,7 +963,7 @@ class TestCsvMerger(CommonTestCase):
         binified_data[data_bin_2] = ([row_bin2_newest], [2])
         binified_data[data_bin_1] = ([row_bin1_oldest], [1])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify both chunks were processed
         self.assertEqual(len(merger.upload_these), 2)
@@ -996,7 +1004,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = ([row], [1])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify single chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -1015,7 +1023,7 @@ class TestCsvMerger(CommonTestCase):
         row = [timestamp_after_boundary, b'Unlocked']
         binified_data[data_bin] = ([row], [1])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify single chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -1043,7 +1051,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin_2: BinifyKey = (*self.bin_start, BIN_2, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin_1] = (POWER_STATE_ROWS_1, [1])
         binified_data[data_bin_2] = (POWER_STATE_ROWS_2, [2])
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify both chunks were processed
         self.assertEqual(len(merger.upload_these), 2)
@@ -1067,7 +1075,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (POWER_STATE_ROWS_2, [1, 2])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify that the chunk was merged (not created new)
         self.assertEqual(len(merger.upload_these), 1)
@@ -1098,7 +1106,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (rows, [1, 2, 3])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify chunk was processed
         self.assertEqual(len(merger.upload_these), 1)
@@ -1178,7 +1186,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (new_rows_without_utc, [1, 2])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify merge occurred  -  not manually rechecking all of these, only did that once
         self.assertEqual(len(merger.upload_these), 1)
@@ -1236,7 +1244,7 @@ class TestCsvMerger(CommonTestCase):
         data_bin: BinifyKey = (*self.bin_start, BIN_1, POWER_STATE_HEADER_ANDROID)
         binified_data[data_bin] = (new_rows_without_utc, [1, 2, 3])
         
-        merger = CsvMerger(binified_data, null_handler, self.default_participant, None)
+        merger = CsvMerger(binified_data, null_handler, self.default_participant, None, None)
         
         # Verify merge occurred
         self.assertEqual(len(merger.upload_these), 1)
@@ -1287,7 +1295,7 @@ class TestFileProcessingTracker(CommonTestCase):
         
         # Verify data structures are initialized
         self.assertEqual(len(tracker.all_binified_data), 0)
-        self.assertIsNone(tracker.survey_id)
+        self.assertIsNone(tracker.survey_object_id)
         self.assertEqual(len(tracker.buggy_files), 0)
     
     def test_init_with_custom_page_size(self):
@@ -1629,9 +1637,8 @@ class TestFileProcessingTracker(CommonTestCase):
         self.assertGreater(len(tracker.all_binified_data), 0)
     
     @patch("libs.s3.conn")
-    @patch("libs.file_processing.file_processing_core.s3_upload_no_compression")
-    def test_process_one_file_unchunkable(self, s3_upload: Mock, s3_retrieve: Mock):
-        setup_conn_retrieve_mock(s3_retrieve, b"audio recording data")
+    def test_process_one_file_unchunkable(self, conn: Mock):
+        setup_conn_retrieve_mock(conn, b"audio recording data")
         
         self.assertEqual(ChunkRegistry.objects.count(), 0)
         tracker = FileProcessingTracker(self.default_participant)
@@ -1644,3 +1651,322 @@ class TestFileProcessingTracker(CommonTestCase):
         ffp = FileForProcessing(ftp, self.default_study)
         tracker.process_one_file(ffp)
         self.assertEqual(ChunkRegistry.objects.count(), 1)
+    
+    @patch("libs.s3.conn")
+    def test_full_easy_run_with_valid_data_processing_power_state(self, conn: Mock):
+        # - CSV files with realistic power state data spanning multiple time bins  (2)
+        # - Verifies the entire processing pipeline works end-to-end
+        conn.put_object = Mock()  # Mock S3 upload to track calls and parameters
+        # Expected outcome:
+        # - All FileToProcess records are successfully deleted
+        # - ChunkRegistry entries are created for each time bin
+        # - Binified data is properly merged and uploaded
+        
+        # multiple power state CSV files with data spanning multiple hours
+        # These will end up in different time bins based on their timestamps
+        p = self.default_participant
+        # Setup mock S3 responses - configure side_effect to return encrypted data for each call
+        encrypted_responses = [
+            self.true_default_s3_form(FILE_DATA1),
+            self.true_default_s3_form(FILE_DATA2),
+            self.true_default_s3_form(FILE_DATA3),
+        ]
+        
+        # Use side_effect to return encrypted BytesIO objects on successive calls
+        conn.get_object.side_effect = [
+            {"Body": BytesIO(encrypted_responses[0])},
+            {"Body": BytesIO(encrypted_responses[1])},
+            {"Body": BytesIO(encrypted_responses[2])}
+        ]
+        
+        # generate core FileToProcessesesses
+        t1, t2, t3 = "1768928568332", "1768929245717", "1768932200000"
+        self.assertEqual(binify_from_timecode(t1), 491369)  # 2 time bins
+        self.assertEqual(binify_from_timecode(t2), 491369)
+        self.assertEqual(binify_from_timecode(t3), 491370)
+        
+        base_str = f"{self.study_participant_start}/powerState"
+        self.generate_file_to_process(path=f"{base_str}/{t1}.csv", os_type=ANDROID_API)
+        self.generate_file_to_process(path=f"{base_str}/{t2}.csv", os_type=ANDROID_API)
+        self.generate_file_to_process(path=f"{base_str}/{t3}.csv", os_type=ANDROID_API)
+        self.assertEqual(FileToProcess.objects.count(), 3)
+        
+        with patch("libs.file_processing.file_processing_core.logd"):  # suppress logging....
+            easy_run(self.default_participant)
+        
+        # All FileToProcess records should be deleted
+        self.assertEqual(FileToProcess.objects.count(), 0)
+        
+        # 2 calls to s3 upload, 2 ChunkRegistries (one per time bin)
+        chunk_registries = ChunkRegistry.objects.filter(participant=p, data_type=POWER_STATE)
+        self.assertEqual(chunk_registries.count(), 2)
+        self.assertEqual(conn.put_object.call_count, 2)
+        
+        # Verify each chunk registry has correct data
+        for chunk in chunk_registries:
+            self.assertEqual(chunk.data_type, POWER_STATE)
+            self.assertEqual(chunk.participant.id, p.id)
+            self.assertIsNotNone(chunk.chunk_path)
+            self.assertIn("power_state", chunk.chunk_path)
+            self.assertIsNotNone(chunk.chunk_hash)
+            self.assertGreater(chunk.file_size, 0)
+            self.assertTrue(chunk.is_chunkable)
+        
+        self.assertEqual(len(conn.put_object.call_args_list), 2)
+        
+        # ug this order is not guaranteed
+        if "2026-01-20T17:00:00.csv" in conn.put_object.call_args_list[0][1]["Key"]:
+            upload1_body = conn.put_object.call_args_list[0][1]["Body"]
+            upload2_body = conn.put_object.call_args_list[1][1]["Body"]
+        else:
+            upload2_body = conn.put_object.call_args_list[0][1]["Body"]
+            upload1_body = conn.put_object.call_args_list[1][1]["Body"]
+        
+        # decrypt and decompress both uploaded files
+        upload1_body = decrypt_server(upload1_body, self.default_study.encryption_key.encode())
+        upload2_body = decrypt_server(upload2_body, self.default_study.encryption_key.encode())
+        upload1_body = decompress(upload1_body)
+        upload2_body = decompress(upload2_body)
+        
+        content1 = FILE_DATA1.splitlines()[1:]  # skip header
+        content2 = FILE_DATA2.splitlines()[1:]
+        content3 = FILE_DATA3.splitlines()[1:]
+        
+        # the lines get broken up with the utc timestamp inserted, testing for the raw timestamp is sufficient
+        for line in content1:
+            t = line.split(b",")[0]
+            self.assertIn(t, upload1_body)
+            self.assertNotIn(t, upload2_body)
+        for line in content2:
+            t = line.split(b",")[0]
+            self.assertIn(t, upload1_body)
+            self.assertNotIn(t, upload2_body)
+        for line in content3:
+            t = line.split(b",")[0]
+            self.assertIn(t, upload2_body)
+            self.assertNotIn(t, upload1_body)
+    
+    @patch("libs.s3.conn")
+    def test_easy_run_with_survey_timings_multiple_mixed_surveys(self, conn: Mock):
+        # - Two different survey timings data
+        # - Both surveys have data in shared time bins (same hour)
+        # - Both surveys have data in separate time bins (different hours)
+        # - Verifies timings-specific processing and chunking
+        
+        # Expected outcome:
+        # - All FileToProcess records are successfully deleted
+        # - ChunkRegistry entries are created per survey and time bin
+        # - Survey IDs are properly separated in chunk paths
+        # - Binified data is properly merged and uploaded per survey
+        
+        # validate the data in the files corresponds to the expected time bins - yes this matches
+        # the descriptions
+        ln1, ln2 = SURVEY1_FILE1_DATA.splitlines()[1:]
+        self.assertEqual(ln1.split(b",")[0], t1 := b"1768928568332")
+        self.assertEqual(ln2.split(b",")[0], t2 := b"1768928682951")
+        assert (binify_from_timecode(t1), binify_from_timecode(t2)) == (491369, 491369)
+        ln1, ln2 = SURVEY1_FILE2_DATA.splitlines()[1:]
+        self.assertEqual(ln1.split(b",")[0], t1 := b"1768929245717")
+        self.assertEqual(ln2.split(b",")[0], t2 := b"1768929248038")
+        assert (binify_from_timecode(t1), binify_from_timecode(t2)) == (491369, 491369)
+        ln1, ln2 = SURVEY1_FILE3_DATA.splitlines()[1:]
+        self.assertEqual(ln1.split(b",")[0], t1 := b"1768932200000")
+        self.assertEqual(ln2.split(b",")[0], t2 := b"1768932350000")
+        assert (binify_from_timecode(t1), binify_from_timecode(t2)) == (491370, 491370)
+        ln1, ln2 = SURVEY2_FILE1_DATA.splitlines()[1:]
+        self.assertEqual(ln1.split(b",")[0], t1 := b"1768928700000")
+        self.assertEqual(ln2.split(b",")[0], t2 := b"1768928800000")
+        assert (binify_from_timecode(t1), binify_from_timecode(t2)) == (491369, 491369)
+        ln1, ln2 = SURVEY2_FILE2_DATA.splitlines()[1:]
+        self.assertEqual(ln1.split(b",")[0], t1 := b"1768932100000")
+        self.assertEqual(ln2.split(b",")[0], t2 := b"1768932400000")
+        assert (binify_from_timecode(t1), binify_from_timecode(t2)) == (491370, 491370)
+        ln1, ln2 = SURVEY2_FILE3_DATA.splitlines()[1:]
+        self.assertEqual(ln1.split(b",")[0], t1 := b"1768935800000")
+        self.assertEqual(ln2.split(b",")[0], t2 := b"1768935900000")
+        assert (binify_from_timecode(t1), binify_from_timecode(t2)) == (491371, 491371)
+        
+        ##########################################################################################
+        
+        p = self.default_participant
+        
+        survey1_obj_id = "survey_abc12300000000000"  # 24 character requirement
+        survey2_obj_id = "survey_xyz78900000000000"
+        survey1 = self.generate_survey(self.default_study, Survey.TRACKING_SURVEY, survey1_obj_id)
+        survey2 = self.generate_survey(self.default_study, Survey.TRACKING_SURVEY, survey2_obj_id)
+        
+        # Setup mock S3 responses - configure side_effect to return encrypted data for each call
+        encrypted_responses = [
+            DatabaseHelperMixin.true_default_s3_form(SURVEY1_FILE1_DATA),
+            DatabaseHelperMixin.true_default_s3_form(SURVEY1_FILE2_DATA),
+            DatabaseHelperMixin.true_default_s3_form(SURVEY1_FILE3_DATA),
+            DatabaseHelperMixin.true_default_s3_form(SURVEY2_FILE1_DATA),
+            DatabaseHelperMixin.true_default_s3_form(SURVEY2_FILE2_DATA),
+            DatabaseHelperMixin.true_default_s3_form(SURVEY2_FILE3_DATA),
+        ]
+        # Use side_effect to return encrypted BytesIO objects on successive calls
+        conn.get_object.side_effect = [
+            {"Body": BytesIO(resp)} for resp in encrypted_responses
+        ]
+        
+        
+        # Create FileToProcess records for survey1 and survey2
+        base_str1 = f"{self.study_participant_start}/surveyTimings/{survey1_obj_id}"
+        base_str2 = f"{self.study_participant_start}/surveyTimings/{survey2_obj_id}"
+        self.generate_file_to_process(path=f"{base_str1}/1768928568332.csv", os_type=ANDROID_API)
+        self.generate_file_to_process(path=f"{base_str1}/1768929245717.csv", os_type=ANDROID_API)
+        self.generate_file_to_process(path=f"{base_str1}/1768932200000.csv", os_type=ANDROID_API)
+        self.generate_file_to_process(path=f"{base_str2}/1768928700000.csv", os_type=ANDROID_API)
+        self.generate_file_to_process(path=f"{base_str2}/1768932100000.csv", os_type=ANDROID_API)
+        self.generate_file_to_process(path=f"{base_str2}/1768935800000.csv", os_type=ANDROID_API)
+        
+        # Verify initial state
+        self.assertEqual(FileToProcess.objects.count(), 6)
+        self.assertEqual(ChunkRegistry.objects.count(), 0)
+        
+        with patch("libs.file_processing.file_processing_core.logd"):  # please don't print stuff
+            easy_run(p)
+        
+        self.assertEqual(FileToProcess.objects.count(), 0)  # should be cleared
+        
+        # ChunkRegistry entries should be created for survey timings
+        all_survey_chunks = p.chunk_registries.order_by("time_bin", "survey__object_id")
+        
+        self.assertEqual(all_survey_chunks.count(), 5)   # new chunks
+        self.assertEqual(conn.put_object.call_count, 5)  # uploads
+        
+        # altarnate check
+        # this is the output files as they should exist
+        # exists = list(all_survey_chunks.vlist("chunk_path"))
+        # correct = [
+        #     "survey_abc12300000000000/2026-01-20T17:00:00.csv",
+        #     "survey_xyz78900000000000/2026-01-20T17:00:00.csv",
+        #     "survey_abc12300000000000/2026-01-20T18:00:00.csv",
+        #     "survey_xyz78900000000000/2026-01-20T18:00:00.csv",
+        #     "survey_xyz78900000000000/2026-01-20T19:00:00.csv",
+        # ]
+        # for i in range(len(correct)):
+        #     self.assertIn(correct[i], exists[i])
+        
+        # Verify survey-specific chunk registries
+        # Both surveys should have chunks created
+        survey1_chunks = p.chunk_registries.filter(survey=survey1)
+        survey2_chunks = p.chunk_registries.filter(survey=survey2)
+        self.assertEqual(survey1_chunks.count(), 2)
+        self.assertEqual(survey2_chunks.count(), 3)
+        
+        # Verify each chunk registry has correct data and survey_id in path
+        for chunk in survey1_chunks:
+            self.assertEqual(chunk.data_type, SURVEY_TIMINGS)
+            self.assertEqual(chunk.participant, p)
+            self.assertEqual(chunk.survey.pk, survey1.pk)
+            self.assertIsNotNone(chunk.chunk_path)
+            self.assertIn(SURVEY_TIMINGS, chunk.chunk_path)
+            self.assertIn(survey1_obj_id, chunk.chunk_path)
+            self.assertNotIn(survey2_obj_id, chunk.chunk_path)
+            self.assertIsNotNone(chunk.chunk_hash)
+            self.assertGreater(chunk.file_size, 0)
+            self.assertTrue(chunk.is_chunkable)
+        
+        for chunk in survey2_chunks:
+            self.assertEqual(chunk.data_type, SURVEY_TIMINGS)
+            self.assertEqual(chunk.participant, p)
+            self.assertEqual(chunk.survey.pk, survey2.pk)
+            self.assertIsNotNone(chunk.chunk_path)
+            self.assertIn(SURVEY_TIMINGS, chunk.chunk_path)
+            self.assertIn(survey2_obj_id, chunk.chunk_path)
+            self.assertNotIn(survey1_obj_id, chunk.chunk_path)
+            self.assertIsNotNone(chunk.chunk_hash)
+            self.assertGreater(chunk.file_size, 0)
+            self.assertTrue(chunk.is_chunkable)
+        
+        
+        # get the uploaded files out of put_object calles to veryfy content is correct:
+        uploaded_files = []
+        for call in conn.put_object.call_args_list:
+            args, kwargs = call
+            key = kwargs["Key"]
+            body = kwargs["Body"]
+            uploaded_files.append((key, body))
+        
+        raw_paths = [path + ".zst" for path in all_survey_chunks.vlist("chunk_path")]
+        uploaded_files_dict = {key[:-4]: body for key, body in uploaded_files}  # need to strip .zst
+        
+        for chunk in survey1_chunks:
+            self.assertIn(chunk.chunk_path, uploaded_files_dict)
+            body = uploaded_files_dict[chunk.chunk_path]
+            body = decrypt_server(body, self.default_study.encryption_key.encode())
+            body = decompress(body)
+            self.assertIn(b"survey_abc12300000000000", body)
+            self.assertNotIn(b"survey_xyz78900000000000", body)
+        
+        for chunk in survey2_chunks:
+            self.assertIn(chunk.chunk_path, uploaded_files_dict)
+            body = uploaded_files_dict[chunk.chunk_path]
+            body = decrypt_server(body, self.default_study.encryption_key.encode())
+            body = decompress(body)
+            self.assertIn(b"survey_xyz78900000000000", body)
+            self.assertNotIn(b"survey_abc12300000000000", body)
+
+# static data points for those last tests
+
+# File 1: Early hour timestamps
+FILE_DATA1 = b"""timestamp,event,level
+1768928568332,Locked,0.7
+1768928682951,Unlocked,0.7
+1768928688711,Locked,0.7"""
+
+# File 2: Later timestamps in same hour as file 1
+FILE_DATA2 = b"""timestamp,event,level
+1768929245717,Unlocked,0.7
+1768929245724,Unlocked,0.7
+1768929248038,Locked,0.7"""
+
+# File 3: Timestamps in a different hour (next time bin)
+FILE_DATA3 = b"""timestamp,event,level
+1768932200000,Locked,0.7
+1768932350000,Unlocked,0.7"""
+
+
+#####################
+
+# survey1_id = "survey_abc12300000000000"
+# survey2_id = "survey_xyz78900000000000"
+# Time bin 491369 - shared by both surveys
+
+# Survey1 file 1 - in shared time bin
+# actual bins:  (491369, 491369)
+SURVEY1_FILE1_DATA = b"""timestamp,question id,survey id,question type,question text,question answer options,answer
+1768928568332,q1,survey_abc12300000000000,radio_button,How are you feeling?,Good;Bad;Neutral,Good
+1768928682951,q2,survey_abc12300000000000,free_response,Any comments?,N/A,Feeling great"""
+
+# Survey1 file 2 - also in shared time bin 491369
+# actual bins:  (491369, 491369)
+SURVEY1_FILE2_DATA = b"""timestamp,question id,survey id,question type,question text,question answer options,answer
+1768929245717,q1,survey_abc12300000000000,radio_button,How are you feeling?,Good;Bad;Neutral,Neutral
+1768929248038,q2,survey_abc12300000000000,free_response,Any comments?,N/A,No comment"""
+
+# Survey1 file 3 - in different time bin 491370
+# actual bins:  (491370, 491370)
+SURVEY1_FILE3_DATA = b"""timestamp,question id,survey id,question type,question text,question answer options,answer
+1768932200000,q1,survey_abc12300000000000,radio_button,How are you feeling?,Good;Bad;Neutral,Bad
+1768932350000,q2,survey_abc12300000000000,free_response,Any comments?,N/A,Not great"""
+
+# Survey2 file 1 - in shared time bin 491369
+# actual bins:  (491369, 491369)
+SURVEY2_FILE1_DATA = b"""timestamp,question id,survey id,question type,question text,question answer options,answer
+1768928700000,q1,survey_xyz78900000000000,slider,Rate your mood,0-10,7
+1768928800000,q2,survey_xyz78900000000000,checkbox,Activities today,Sleep;Exercise;Work,Sleep;Work"""
+
+# Survey2 file 2 - in time bin 491370 (shared with survey1 file3)
+# actual bins:  (491370, 491370)
+
+SURVEY2_FILE2_DATA = b"""timestamp,question id,survey id,question type,question text,question answer options,answer
+1768932100000,q1,survey_xyz78900000000000,slider,Rate your mood,0-10,5
+1768932400000,q2,survey_xyz78900000000000,checkbox,Activities today,Sleep;Exercise;Work,Exercise"""
+
+# Survey2 file 3 - in separate time bin 491371 (alone)
+# actual bins:  (491371, 491371)
+SURVEY2_FILE3_DATA = b"""timestamp,question id,survey id,question type,question text,question answer options,answer
+1768935800000,q1,survey_xyz78900000000000,slider,Rate your mood,0-10,8
+1768935900000,q2,survey_xyz78900000000000,checkbox,Activities today,Sleep;Exercise;Work,Sleep;Exercise;Work"""

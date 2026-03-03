@@ -56,13 +56,15 @@ def easy_run(participant: Participant):
 class FileProcessingTracker():
     
     def __init__(
-        self, participant: Participant, page_size: int = FILE_PROCESS_PAGE_SIZE, survey_id=None,
+        self, participant: Participant, page_size: int = FILE_PROCESS_PAGE_SIZE,
     ) -> None:
         self.error_handler: ErrorHandler = SentryUtils.report_data_processing(
             tags={'patient_id': participant.patient_id}
         )
         
-        self.survey_id: str | None = None
+        # we need both forms
+        self.survey_object_id: str | None = None
+        self.survey_pk: int | None = None
         
         self.participant = participant
         self.study: Study = Study.obj_get(pk=participant.study_id)
@@ -99,6 +101,10 @@ class FileProcessingTracker():
     
     def process_user_file_chunks(self):
         """ Call this function to process data for a participant. """
+        
+        survey_pk_lookup = dict(self.participant.study.surveys.values_list("object_id", "pk"))
+        survey_pk_lookup[None] = None  # for non-survey ftps
+        
         for page_of_ftps in self.get_paginated_files_to_process():
             if not page_of_ftps:
                 logd("no more files to process for this participant.")
@@ -108,7 +114,9 @@ class FileProcessingTracker():
             # we separate out surveyTimings because they need to be processed only with other survey
             # timings files from the same survey
             for survey_id, ftps in self.filter_survey_ids(page_of_ftps).items():
-                self.survey_id = survey_id
+                
+                self.survey_object_id = survey_id
+                self.survey_pk = survey_pk_lookup[survey_id]
                 self.do_process_user_file_chunks(ftps)
             
             self.buggy_files = set()
@@ -190,7 +198,7 @@ class FileProcessingTracker():
             Returns the earliest and latest time bins handled. """
         # Track the earliest and latest time bins, to return them at the end of the function
         merged_data = CsvMerger(
-            self.all_binified_data, self.error_handler, self.participant, self.survey_id
+            self.all_binified_data, self.error_handler, self.participant, self.survey_object_id, self.survey_pk
         )
         # a failed upload will require the user gets rerun entirely.
         len_merged_data = len(merged_data.upload_these)
