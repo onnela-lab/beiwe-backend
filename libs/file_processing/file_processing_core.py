@@ -102,10 +102,17 @@ class FileProcessingTracker():
     def process_user_file_chunks(self):
         """ Call this function to process data for a participant. """
         
+        start = timezone.now()  # one participant running too long looks like a down processing server
+        
         survey_pk_lookup = dict(self.participant.study.surveys.values_list("object_id", "pk"))
         survey_pk_lookup[None] = None  # for non-survey ftps
         
         for page_of_ftps in self.get_paginated_files_to_process():
+            
+            if (timezone.now() - start) > timedelta(hours=1):
+                logd("processing time exceeded 1 hour, exiting early to be polite.")
+                return
+            
             if not page_of_ftps:
                 logd("no more files to process for this participant.")
                 continue
