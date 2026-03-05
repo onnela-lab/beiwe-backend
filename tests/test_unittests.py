@@ -18,13 +18,6 @@ from database.models import (AppHeartbeats, AppVersionHistory, ArchivedEvent, De
     DeviceStatusReportHistory, EncryptionErrorMetadata, Participant, ParticipantActionLog,
     ParticipantDeletionEvent, PushNotificationDisabledEvent, S3File, ScheduledEvent,
     SurveyNotificationReport, UploadTracking)
-from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
-from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
-    clean_java_timecode, convert_unix_to_human_readable_timestamps, ensure_sorted_by_timestamp,
-    normalize_s3_file_path, resolve_survey_id_from_file_name, s3_file_path_to_data_type)
-from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
-    run_next_queued_participant_data_deletion)
-from tests.common import CommonTestCase
 
 
 #
@@ -203,7 +196,7 @@ class TestS3FilePathToDataType(CommonTestCase):
     
     def test_the_one(self):
         # the ai chat log isn't actually uploaded
-        ai_set = set(["ambient_audio"])  # noqa
+        ai_set = set([AI_CHAT_LOGS])  # noqa
         all_data_streams_set = set(ALL_DATA_STREAMS)
         acceptable_streams = all_data_streams_set - ai_set  # type: ignore
         
