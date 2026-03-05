@@ -11,7 +11,7 @@ from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants.common_constants import CHUNKS_FOLDER, UTC
 from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
     CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS)
-from constants.data_stream_constants import (ACCELEROMETER, AI_CHAT_LOGS, ALL_DATA_STREAMS,
+from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS,
     ANDROID_LOG_FILE, AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS,
     IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS,
     SURVEY_TIMINGS, TEXTS_LOG, WIFI)
@@ -546,7 +546,8 @@ class TestCsvMerger(CommonTestCase):
         actual_data_streams = set(ALL_DATA_STREAMS)
         actual_data_streams.remove(SURVEY_ANSWERS)
         actual_data_streams.remove(AUDIO_RECORDING)
-        actual_data_streams.remove(AI_CHAT_LOGS)
+        actual_data_streams.remove("ambient_audio")
+        # actual_data_streams.remove(AI_CHAT_LOGS)
         self.assertEqual(set(all_data_streams), actual_data_streams)
     
     def test_csv_merger_initialization_with_empty_data(self):

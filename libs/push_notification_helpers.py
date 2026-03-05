@@ -109,6 +109,7 @@ class ErrorSentryCache:
         cls.check_populate()
         assert cls.error_sentry is not None, "ErrorSentryCache failed."
         return cls.error_sentry
+
 #
 ## Somewhat common code (regular SURVEY notifications have extra logic)
 #
