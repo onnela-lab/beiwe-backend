@@ -2,14 +2,14 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from database.user_models_participant import Participant
+from database.models import FileToProcess, Participant
 from libs.celery_control import (CeleryDataProcessingTask, get_processing_active_job_ids,
     safe_apply_async)
 from libs.file_processing.file_processing_core import easy_run
 from libs.sentry import SentryUtils
 
 
-from libs.celery_control import processing_celery_app;  # required in the file namespace for celery to work.
+from libs.celery_control import processing_celery_app;  # noqa - required in the file namespace for celery to work.
 
 ################################################################################
 ############################# Data Processing ##################################
@@ -30,11 +30,7 @@ def create_file_processing_tasks():
     
     with SentryUtils.report_data_processing():
         participant_set = set(
-            Participant.objects.filter(files_to_process__isnull=False)
-                .distinct()
-                # .order_by("id")  # For debugging, forces overlap conflicts.
-                .order_by("?")     # don't want a single user blocking everyone because they are at the front.
-                .values_list("id", flat=True)
+            FileToProcess.objects.values_list("participant_id", flat=True).distinct()
         )
         
         # sometimes celery just fails to exist, set should be redundant.

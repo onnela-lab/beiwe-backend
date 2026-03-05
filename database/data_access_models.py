@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, UTC
 from typing import TYPE_CHECKING
 
 from django.db import models
 from django.db.models import QuerySet
 
-from constants.common_constants import (API_TIME_FORMAT, CHUNKS_FOLDER,
-    EARLIEST_POSSIBLE_DATA_DATETIME)
+from constants.common_constants import EARLIEST_POSSIBLE_DATA_DATETIME
 from constants.data_processing_constants import CHUNK_TIMESLICE_QUANTUM
-from constants.data_stream_constants import (CHUNKABLE_FILES, IDENTIFIERS,
-    REVERSE_UPLOAD_FILE_TYPE_MAPPING)
+from constants.data_stream_constants import CHUNKABLE_FILES
 from constants.user_constants import OS_TYPE_CHOICES
 from database.models import TimestampedModel
 from database.user_models_participant import Participant
@@ -199,75 +197,6 @@ class FileToProcess(TimestampedModel):
             os_type=participant.os_type,
             app_version=participant.last_version_code or "",
         )
-    
-    @classmethod
-    def reprocess_originals_from_chunk_path(cls, chunk_path):
-        """ Takes a processed file (chunk) s3 path, identifies the original source files,
-        and prepares a FileToProcess entry so that the source data will be re-processed
-        and merged into the existing data.
-        This is mostly a utility function, it was originally part of a script, but it is
-        quite complex to accomplish, and worth holding on to.
-        Contains print statements. """
-        from libs.s3 import s3_list_files
-        path_components = chunk_path.split("/")
-        if len(path_components) != 5:
-            raise Exception("chunked file paths contain exactly 5 components separated by a slash.")
-        
-        chunk_files_text, study_obj_id, username, data_stream, timestamp = path_components
-        
-        if not chunk_files_text == CHUNKS_FOLDER:
-            raise Exception("This is not a chunked file, it is not in the chunked data folder.")
-        
-        participant = Participant.objects.get(patient_id=username)
-        
-        # data stream names are truncated
-        full_data_stream = REVERSE_UPLOAD_FILE_TYPE_MAPPING[data_stream]
-        
-        # oh good, identifiers doesn't end in a slash.
-        splitter_end_char = '_' if full_data_stream == IDENTIFIERS else '/'
-        file_prefix = "/".join((study_obj_id, username, full_data_stream,)) + splitter_end_char
-        
-        # find all files with data from the appropriate time.
-        dt_start = datetime.strptime(timestamp.strip(".csv"), API_TIME_FORMAT)
-        dt_prev = dt_start - timedelta(hours=1)
-        dt_end = dt_start + timedelta(hours=1)
-        prior_hour_last_file = None
-        file_paths_to_reprocess = []
-        for s3_file_path in s3_list_files(file_prefix):
-            # convert timestamp....
-            if full_data_stream == IDENTIFIERS:
-                file_timestamp = float(s3_file_path.rsplit(splitter_end_char)[-1][:-4])
-            else:
-                file_timestamp = float(s3_file_path.rsplit(splitter_end_char)[-1][:-4]) / 1000
-            file_dt = datetime.fromtimestamp(file_timestamp)
-            # we need to get the last file from the prior hour as it my have relevant data,
-            # fortunately returns of file paths are in ascending order, so it is the file
-            # right before the rest of the data.  just cache it
-            if dt_prev <= file_dt < dt_start:
-                prior_hour_last_file = s3_file_path
-            
-            # and then every file within the relevant hour
-            if dt_start <= file_dt <= dt_end:
-                print("found:", s3_file_path)
-                file_paths_to_reprocess.append(s3_file_path)
-        
-        # a "should be an unnecessary" safety check, but apparently we can't have nice things.
-        if prior_hour_last_file and prior_hour_last_file not in file_paths_to_reprocess:
-            print("found:", prior_hour_last_file)
-            file_paths_to_reprocess.append(prior_hour_last_file)
-        
-        if not prior_hour_last_file and not file_paths_to_reprocess:
-            raise Exception(  # this should not happen...
-                f"did not find any matching files: '{chunk_path}' using prefix '{file_prefix}'"
-            )
-        
-        for fp in file_paths_to_reprocess:
-            if cls.objects.filter(s3_file_path=fp).exists():
-                print(f"{fp} is already queued for processing")
-                continue
-            else:
-                print(f"Adding {fp} as a file to reprocess.")
-                cls.append_file_for_processing(fp, participant)
     
     @classmethod
     def report(cls, *args, **kwargs) -> dict[str, int]:
