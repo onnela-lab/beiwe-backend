@@ -3,7 +3,6 @@ from __future__ import annotations
 import functools
 import json
 import logging
-import os
 from collections.abc import Callable
 from datetime import timedelta
 from pprint import pformat
@@ -121,15 +120,6 @@ processing_celery_app = instantiate_celery_app_connection(DATA_PROCESSING_CELERY
 push_send_celery_app = instantiate_celery_app_connection(PUSH_NOTIFICATION_SEND_SERVICE)
 forest_celery_app = instantiate_celery_app_connection(FOREST_SERVICE)
 scripts_celery_app = instantiate_celery_app_connection(SCRIPTS_SERVICE)
-
-
-cpu_count = min(os.cpu_count() or 2, 2) 
-
-try:
-    processing_celery_app.control.autoscale(max=cpu_count * 2, min=2)
-except AttributeError as e:
-    if "type object 'DebugCeleryApp' has no attribute 'control'" not in str(e):
-        raise
 
 
 # These functions are helpers for use in a live shell session on a machine running celery.
