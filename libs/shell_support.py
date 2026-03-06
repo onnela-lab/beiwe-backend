@@ -160,19 +160,22 @@ def watch_processing():
     scheduled = []
     registered = []
     prior_users = 0
+    prior_count = FileToProcess.objects.count()
     
-    for i in range(2**64):
+    while True:
         errors = 0
         start = localtime()
         
         count = FileToProcess.objects.count()
-        user_count = FileToProcess.objects.values_list("participant__patient_id",
-                                                       flat=True).distinct().count()
+        user_count = FileToProcess.vlist("participant_id", flat=True).distinct().count()
         
         if prior_users != user_count:
             print(f"{start:} Number of participants with files to process: {user_count}")
         
-        print(f"{start}: {count} files to process")
+        diff = count - prior_count
+        slug = f"+{diff:,}" if diff >= 0 else f"{diff:,}"
+        print(f"{start}: {count:,} files to process ({slug})")
+        prior_count = count
         
         try:
             a_now, active = localtime(), get_processing_active_job_ids()
@@ -471,7 +474,7 @@ def heartbeat_summary(p: Participant, max_age: int = 12):
     # group into days
     events_by_day = defaultdict(list)
     for t, delta_or_message, message in events:
-       events_by_day[t.date()].append((t, delta_or_message, message))
+        events_by_day[t.date()].append((t, delta_or_message, message))
     
     # got type signature?
     events_by_day: dict[date, list[tuple[datetime, timedelta | str]]] = dict(events_by_day)
@@ -494,7 +497,7 @@ def heartbeat_summary(p: Participant, max_age: int = 12):
             # print the hour header if there are events in that hour
             print(f"  {hour:02}:00 - {hour:02}:59")
             
-            # print each event in that hour, timedeltas are printed in seconds and minutes. 
+            # print each event in that hour, timedeltas are printed in seconds and minutes.
             for t, delta_or_message, message in one_hours_data:
                 if isinstance(delta_or_message, timedelta):
                     s = delta_or_message.total_seconds()
@@ -563,7 +566,7 @@ def diff_strings(s1: str|bytes, s2: str|bytes):
             print("\n")
             print(f"diff at {i}, '{char_s1.encode('unicode_escape').decode()}' != '{char_s2.encode('unicode_escape').decode()}'")
             break
-        
+    
     if i == len(s1) - 1:
         print("\nstrings match!")
     else:
