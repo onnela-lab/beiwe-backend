@@ -35,6 +35,13 @@ def Q_from_params(q: dict | tuple) -> Q:
     return Q(**q)
 
 
+def Q_ifier(l_of_q_params: list[dict]) -> Q:
+    q = Q(**l_of_q_params[0])
+    for d in l_of_q_params[1:]:
+        q |= Q(**d)
+    return q
+
+
 def generate_objectid_string() -> str:
     return ''.join(random_choice(OBJECT_ID_ALLOWED_CHARS) for _ in range(24))
 

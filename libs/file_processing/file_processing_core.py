@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Generator
 from datetime import timedelta
 from time import mktime
@@ -11,11 +11,12 @@ from django.utils import timezone
 
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants import common_constants
-from constants.data_processing_constants import (AllBinifiedData, BinifyDict, DEBUG_FILE_PROCESSING)
-from constants.data_stream_constants import SURVEY_DATA_FILES
+from constants.data_processing_constants import AllBinifiedData, BinifyDict, DEBUG_FILE_PROCESSING
+from constants.data_stream_constants import (ACCELEROMETER, DATA_STREAM_TO_S3_FILE_NAME_STRING,
+    DEVICEMOTION, GPS, GYRO, MAGNETOMETER)
+from database.common_models import Q
 from database.data_access_models import ChunkRegistry, FileToProcess
-from database.models import Study
-from database.user_models_participant import Participant
+from database.models import Participant, S3File, Study
 from libs.file_processing.csv_merger import CsvMerger, FinalOutputContent, Sha1Hash
 from libs.file_processing.data_qty_stats import calculate_data_quantity_stats
 from libs.file_processing.file_for_processing import FileForProcessing
@@ -28,6 +29,15 @@ from libs.utils.threadpool_utils import drain_in_reverse, s3_op_threaded_iterate
 
 
 FileToProcessPK = int
+
+# LIST CANNOT INCLUDE THE WIFI DATA STREAM
+DUPLICATE_CLEARABLE_TYPES = (
+    Q(s3_file_path__contains=f"/{DATA_STREAM_TO_S3_FILE_NAME_STRING[ACCELEROMETER]}/") | 
+    Q(s3_file_path__contains=f"/{DATA_STREAM_TO_S3_FILE_NAME_STRING[DEVICEMOTION]}/") |
+    Q(s3_file_path__contains=f"/{DATA_STREAM_TO_S3_FILE_NAME_STRING[GPS]}/") |
+    Q(s3_file_path__contains=f"/{DATA_STREAM_TO_S3_FILE_NAME_STRING[GYRO]}/") |
+    Q(s3_file_path__contains=f"/{DATA_STREAM_TO_S3_FILE_NAME_STRING[MAGNETOMETER]}/")
+)
 
 
 def log(*args, **kwargs):
@@ -45,6 +55,8 @@ def easy_run(participant: Participant):
     test for celery activity. """
     logd(f"processing files for {participant.patient_id}")
     processor = FileProcessingTracker(participant)
+    processor.remove_already_purged_s3files()
+    # processor.clear_duplicate_ftps()  # not currently used on a live instance
     processor.process_user_file_chunks()
 
 
@@ -99,6 +111,75 @@ class FileProcessingTracker():
         
         return dict(d)
     
+    def get_paginated_files_to_process(self) -> Generator[list[FileToProcess], None, None]:
+        # we want to be able to delete database objects at any time so we get the whole contents of
+        # the query. The memory overhead is not very high, if it ever is change this to a query for
+        # pks and then each pagination is a separate query. (only memory overhead matters.)
+        
+        # Extremely aggressive data recording sessions can cause the memory leak to use of 1`500` MB
+        # by the time it hits 1000 files, so we can at least limit that. if 1000 files per run
+        # isn't enough to keep up with uploads, that's the study's problem.
+        
+        # sorting by s3_file_path clumps together the data streams, which is good for efficiency.
+        pks = list(self.participant.files_to_process.exclude(deleted=True).order_by("s3_file_path"))
+        
+        logd("Number Files To Process:", len(pks))
+        
+        # yield 100 files at a time
+        ret = []
+        for pk in pks:
+            ret.append(pk)
+            if len(ret) == self.page_size:
+                yield ret
+                ret = []
+        yield ret
+    
+    def remove_already_purged_s3files(self):
+        # paths may be removed from S3Files / S3 itself (usually because they are duplicates) but
+        # remain in FilesToProcess, this will remove these dead files.
+        paths = [
+            path + ".zst" for path in   # (match the S3File raw path with .zst)
+            self.participant.files_to_process.values_list("s3_file_path", flat=True)
+        ]
+        # transform these into sets and get the missing paths via set difference
+        s3_paths = set(S3File.objects.filter(path__in=paths).values_list("path", flat=True))
+        paths = set(paths)
+        missing = [m[:-4] for m in (paths - s3_paths)]  # get the paths as they exist in FileToProcess (no .zst)
+        self.participant.files_to_process.filter(s3_file_path__in=missing).delete()
+    
+    def clear_duplicate_ftps(self):
+        """
+        This function is not currently used or tested outside of manual scenarios
+        """
+        # An extreme memory use case occurs when there are many FTPs with duplicate data. This
+        # mostly happens when reprocessing all participant data who have a lot of duplicate uplaods.
+        
+        paths = [  # get paths, convert to S3File form with .zst at the end
+            p + ".zst" for p in self.participant.files_to_process
+                .filter(DUPLICATE_CLEARABLE_TYPES).values_list("s3_file_path", flat=True)
+        ]
+        
+        print(f"Checking {len(paths)} files for duplicates...")
+        paths_and_sha1s = dict(S3File.objects.filter(path__in=paths).values_list("path", "sha1"))
+        hashes_with_multiple_paths = {k for k, v in Counter(paths_and_sha1s.values()).items() if v > 1}
+        
+        if not hashes_with_multiple_paths:
+            return
+        
+        print(f"Found {len(hashes_with_multiple_paths)} duplicate sha1s, finding their paths...")
+        bad_hashes_to_matching_paths = defaultdict(list)
+        for path, sha1 in paths_and_sha1s.items():
+            if sha1 in hashes_with_multiple_paths:
+                bad_hashes_to_matching_paths[sha1].append(path[:-4])  # get the paths as they exist in FileToProcess (no .zst) in one dict
+        
+        paths_to_remove = []
+        for dup_paths in bad_hashes_to_matching_paths.values():
+            dup_paths.pop()  # remove one item from the list of duplicates
+            paths_to_remove.extend(dup_paths)
+        
+        print(f"removing {len(paths_to_remove)} duplicate files from FileToProcess...")
+        print(self.participant.files_to_process.filter(s3_file_path__in=paths_to_remove).delete())
+    
     def process_user_file_chunks(self):
         """ Call this function to process data for a participant. """
         
@@ -127,28 +208,6 @@ class FileProcessingTracker():
                 self.do_process_user_file_chunks(ftps)
             
             self.buggy_files = set()
-    
-    def get_paginated_files_to_process(self) -> Generator[list[FileToProcess], None, None]:
-        # we want to be able to delete database objects at any time so we get the whole contents of
-        # the query. The memory overhead is not very high, if it ever is change this to a query for
-        # pks and then each pagination is a separate query. (only memory overhead matters.)
-        
-        # Extremely aggressive data recording sessions can cause the memory leak to use of 1`500` MB
-        # by the time it hits 1000 files, so we can at least limit that. if 1000 files per run
-        # isn't enough to keep up with uploads, that's the study's problem.
-        
-        # sorting by s3_file_path clumps together the data streams, which is good for efficiency.
-        pks = list(self.participant.files_to_process.exclude(deleted=True).order_by("s3_file_path"))
-        logd("Number Files To Process:", len(pks))
-        
-        # yield 100 files at a time
-        ret = []
-        for pk in pks:
-            ret.append(pk)
-            if len(ret) == self.page_size:
-                yield ret
-                ret = []
-        yield ret
     
     def generate_FileForProcessing(self, ftp: FileToProcess) -> FileForProcessing:
         # We pass in the study in order to save a database query for the encryption key

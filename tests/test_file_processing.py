@@ -16,7 +16,7 @@ from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS,
     IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS,
     SURVEY_TIMINGS, TEXTS_LOG, WIFI)
 from constants.user_constants import ANDROID_API, IOS_API
-from database.models import ChunkRegistry, FileToProcess, Survey
+from database.models import ChunkRegistry, FileToProcess, S3File, Survey
 from libs.aes import decrypt_server
 from libs.file_processing.csv_merger import construct_s3_chunk_path, CsvMerger
 from libs.file_processing.file_for_processing import FileForProcessing
@@ -1687,9 +1687,15 @@ class TestFileProcessingTracker(CommonTestCase):
         self.assertEqual(binify_from_timecode(t3), 491370)
         
         base_str = f"{self.study_participant_start}/powerState"
-        self.generate_file_to_process(path=f"{base_str}/{t1}.csv", os_type=ANDROID_API)
-        self.generate_file_to_process(path=f"{base_str}/{t2}.csv", os_type=ANDROID_API)
-        self.generate_file_to_process(path=f"{base_str}/{t3}.csv", os_type=ANDROID_API)
+        path = f"{base_str}/{t1}.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        path = f"{base_str}/{t2}.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        path = f"{base_str}/{t3}.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
         self.assertEqual(FileToProcess.objects.count(), 3)
         
         with patch("libs.file_processing.file_processing_core.logd"):  # suppress logging....
@@ -1814,12 +1820,25 @@ class TestFileProcessingTracker(CommonTestCase):
         # Create FileToProcess records for survey1 and survey2
         base_str1 = f"{self.study_participant_start}/surveyTimings/{survey1_obj_id}"
         base_str2 = f"{self.study_participant_start}/surveyTimings/{survey2_obj_id}"
-        self.generate_file_to_process(path=f"{base_str1}/1768928568332.csv", os_type=ANDROID_API)
-        self.generate_file_to_process(path=f"{base_str1}/1768929245717.csv", os_type=ANDROID_API)
-        self.generate_file_to_process(path=f"{base_str1}/1768932200000.csv", os_type=ANDROID_API)
-        self.generate_file_to_process(path=f"{base_str2}/1768928700000.csv", os_type=ANDROID_API)
-        self.generate_file_to_process(path=f"{base_str2}/1768932100000.csv", os_type=ANDROID_API)
-        self.generate_file_to_process(path=f"{base_str2}/1768935800000.csv", os_type=ANDROID_API)
+        path = f"{base_str1}/1768928568332.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        path = f"{base_str1}/1768929245717.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        path = f"{base_str1}/1768932200000.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        path = f"{base_str2}/1768928700000.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        path = f"{base_str2}/1768932100000.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        path = f"{base_str2}/1768935800000.csv"
+        S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+        self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        
         
         # Verify initial state
         self.assertEqual(FileToProcess.objects.count(), 6)
