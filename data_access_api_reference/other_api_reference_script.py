@@ -76,7 +76,7 @@ MY_BEIWE_SERVER = "https://example.com"
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-version-history/v1"
     # Endpoint takes one required parameter, participant_id, which must match a participant id in a
     # study the user has access to.  Endpoint also accepts the omit_keys parameter.
-    # returns a json list of dictionaries, or a json list of lists, containing the app_version_cod,
+    # returns a json list of dictionaries, or a json list of lists, containing the app_version_code,
     # app_version_name, and os_version.
     # Version history was introduced in early 2024.
 
