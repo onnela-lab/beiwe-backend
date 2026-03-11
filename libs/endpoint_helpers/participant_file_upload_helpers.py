@@ -72,7 +72,7 @@ def upload_problem_file(
 ):
     file_path = f"{PROBLEM_UPLOADS}/{participant.study.object_id}/" + s3_file_path + generate_easy_alphanumeric_string(10)
     s3_upload(file_path, file_contents, participant, raw_path=True)
-    sentry.send_sentry_warning("undecryptable upload: {file_path}", )
+    sentry.send_sentry_warning(f"undecryptable upload: {file_path}", )
 
 
 

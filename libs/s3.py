@@ -133,6 +133,9 @@ class S3Storage:
             self.s3_path_zst = self.s3_path_uncompressed + ".zst"
             return
         
+        if "//" in path:
+            raise BadS3PathException(f"path cannot contain double slashes, `{path}`")
+        
         # We have some very specific folders and extra clear error messages
         # (and we do allow the correct study folder on a raw path)
         path_start = path.split("/", 1)[0]
