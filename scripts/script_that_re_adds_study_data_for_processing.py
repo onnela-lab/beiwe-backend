@@ -1,9 +1,11 @@
 from collections import defaultdict
+from datetime import datetime
 from itertools import batched
 from pprint import pprint
 
 from django.utils import timezone
 
+from constants.common_constants import UTC
 from constants.data_stream_constants import (ALL_DATA_STREAMS, DATA_STREAM_TO_S3_FILE_NAME_STRING,
     SURVEY_TIMINGS)
 from database.models import FileToProcess, Participant, S3File, Study
@@ -56,6 +58,9 @@ UPLOAD_FILES_FILTER.remove("voiceRecording")
 UPLOAD_FILES_FILTER = [f"/{stream}/" for stream in UPLOAD_FILES_FILTER]
 ALL_DATA_STREAMS_FILTER = [f"/{stream}/" for stream in ALL_DATA_STREAMS]
 
+# there was a bug fix before which we should not reprocess survey timings
+TOO_EARLY_TOS_CLEAR = datetime(2018, 1, 1, tzinfo=UTC)
+
 
 def main():
     
@@ -65,7 +70,10 @@ def main():
         for participant in study.participants.filter(deleted=False):
             print("starting participant " + participant.patient_id)
             # first need to delete existing processed survey timings
-            participant.chunk_registries.filter(data_type=SURVEY_TIMINGS).delete()
+            participant.chunk_registries.filter(
+                data_type=SURVEY_TIMINGS,
+                time_bin__lt=TOO_EARLY_TOS_CLEAR,
+            ).delete()
             process_participant(participant, study.object_id)
             
             print()
@@ -74,27 +82,26 @@ def main():
 
 
 def process_participant(p: Participant, study_obj_id: str):
-    
-    
     print(f"getting file list for participant {p.patient_id}...")
+    
     t0 = timezone.now()
-    q1 = list(
+    upload_files = list(
         S3File.fltr(path__startswith=f"{study_obj_id}/{p.patient_id}/").vlist("path", "size_uncompressed")
     )
-    q2 = list(
+    download_files = list(
         S3File.fltr(path__startswith=f"CHUNKED_DATA/{study_obj_id}/{p.patient_id}/").vlist("path", "size_uncompressed")
     )
     
     print(f"retrieved file list in {(timezone.now() - t0).total_seconds():.2f} seconds")
-    print(f"found {len(q1)} uploaded files and {len(q2)} chunked data stream files")
+    print(f"found {len(upload_files)} uploaded files and {len(download_files)} chunked data stream files")
     
-    paths = filter_uploads(q1)
+    paths = filter_uploads(upload_files)
     initial_len = len(paths)
-    summarize_chunked_data(q2)
+    summarize_chunked_data(download_files)
     
-    q1.clear()
-    q2.clear()
-    del q1, q2
+    upload_files.clear()
+    download_files.clear()
+    del upload_files, download_files
     
     # remove files already in FileToProcess
     paths = list(set(paths) - set(p.files_to_process.vlist("s3_file_path")))
@@ -134,6 +141,11 @@ def filter_uploads(q1: list[tuple[str, int]]) -> list[str]:
     for path, size in q1:
         for stream in UPLOAD_FILES_FILTER:
             if stream in path:
+                
+                if "surveyTimings" in path and path.count("/") != 4:
+                    # really old survey timings may not have the correct path structure to reprocess
+                    continue
+                
                 paths.append(path[:-4])  # remove .zst
                 upload_info[stream] += size
                 continue
