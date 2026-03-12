@@ -190,8 +190,10 @@ class FileProcessingTracker():
         
         for page_of_ftps in self.get_paginated_files_to_process():
             
-            if (timezone.now() - start) > timedelta(hours=1):
-                logd("processing time exceeded 1 hour, exiting early to be polite.")
+            if (timezone.now() - start) > timedelta(minutes=29, seconds=30):
+                # case is 30 seconds under 30 minutes so that a big multihour hog will at least get
+                # rescheduled if it is running immediately after queueing.
+                logd("processing time exceeded 30 minutes, exiting early to be polite.")
                 return
             
             if not page_of_ftps:
