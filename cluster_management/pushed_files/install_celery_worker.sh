@@ -40,7 +40,7 @@ command = /home/ubuntu/.pyenv/versions/beiwe/bin/python -m celery \
     --loglevel=info \
     -Ofair \
     --hostname=%%h_processing \
-    --autoscale=$(($(nproc)*2)),2
+    --autoscale=$(($(nproc)*2+2)),2
 stdout_logfile = /home/ubuntu/celery_processing.log
 stderr_logfile = /home/ubuntu/celery_processing.log
 autostart = true
