@@ -11,7 +11,8 @@ from database.models import FileToProcess, Study
 from libs.file_processing.data_fixes import (fix_app_log_file, fix_call_log_csv, fix_identifier_csv,
     fix_survey_timings, fix_wifi_csv)
 from libs.file_processing.utility_functions_simple import s3_file_path_to_data_type
-from libs.s3 import s3_retrieve
+from libs.s3 import s3_retrieve_no_decompress
+from libs.utils.compression import decompress
 
 
 # stealing this from a typeshed file, the traceback type is weird
@@ -31,6 +32,7 @@ def log(*args, **kwargs):
 
 # This file contains the class and necessary functions for the general data container
 # class that we use.
+
 
 class FileForProcessing():
     """ This class exists to contain all states of pre-processed files before they are handed off to
@@ -54,7 +56,8 @@ class FileForProcessing():
         self.exception: Exception | None = None
         self.traceback: OptExcInfo | None = None
         
-        self.download_file_contents()  # magically populate at instantiation
+        self.decompressed = False
+        self._download_file_contents()  # magically populate at instantiation
     
     def clear_file_content(self):
         assert self.file_contents is not None, "misuse, file_contents was already deleted."
@@ -63,10 +66,11 @@ class FileForProcessing():
     def clear_file_lines(self):
         assert self.file_contents is None, "misuse, file_contents was not deleted."
         assert self.file_lines is not None, "misuse, file_lines was already deleted."
+        self.file_lines.clear()
         self.file_lines = None
         self.header = None
     
-    def download_file_contents(self) -> None:
+    def _download_file_contents(self) -> None:
         """ This (actually instantiation) is called inside a threadpool, we handles network errors
         and update state accordingly. """
         assert self.file_lines is None, "file_lines was not deleted."
@@ -74,7 +78,7 @@ class FileForProcessing():
         # Try to retrieve the file contents. If any errors are raised, store them to be reraised by
         # the parent function.
         try:
-            self.file_contents = s3_retrieve(  # (we mock s3_retrieve in tests)
+            self.file_contents = s3_retrieve_no_decompress(  # (we mock s3_retrieve in tests)
                 self.file_to_process.s3_file_path, self.study, raw_path=True
             )
         except Exception as e:
@@ -83,10 +87,11 @@ class FileForProcessing():
             self.exception = e
             raise SomeException(e)
     
-    def raw_csv_to_line_list(self):
+    def convert_raw_csv_to_line_list(self):
         """ Grab a list elements from of every line in the csv, strips off trailing whitespace. dumps
         them into a new list (of lists), and returns the header line along with the list of rows. """
         assert self.file_contents is not None, "file_contents was not populated. (1)"
+        assert self.decompressed, "file_contents was not decompressed before converting to line list."
         
         # case: the file coming in is just a single line, e.g. the header.
         # Need to provide the header and an empty iterator.
@@ -104,9 +109,32 @@ class FileForProcessing():
         self.header = lines.pop(0)  # annoyingly slow, but after a lot of tests, this is the best/fastest way.
         self.file_lines = [line.split(b",") for line in lines]
     
+    def decompress_file_contents(self):
+        assert not self.decompressed, "file_contents would be decompressed twice."
+        assert self.file_contents is not None, "file_contents was not populated (0)."
+        
+        # single call to decompress data
+        self.file_contents = decompress(self.file_contents)
+        self.decompressed = True
+    
     def prepare_data(self):
         """ We need to apply fixes (in the correct order), and get the list of csv lines."""
         assert self.file_contents is not None, "file_contents was not populated (2)."
+        
+        self.decompress_file_contents()
+        self.early_fixes()  # fixes before we convert the file to a list of lines
+        
+        # convert the file to a list of lines and columns
+        self.convert_raw_csv_to_line_list()
+        assert self.file_lines is not None, "file_lines was not populated at all."
+        assert not self.file_contents, "file_contents was not cleared."
+        assert self.header is not None, "header was not populated (1)."
+        
+        self.late_fixes()
+        # log(f"FileForProcessing: prepared data for {self.file_to_process.s3_file_path[25:]}")
+    
+    def early_fixes(self):
+        assert self.file_contents is not None  # appease the type checker
         
         # the android log file is weird, it is almost not a csv, more of a time enumerated list of
         # events. we need to fix it to be a csv.
@@ -114,11 +142,10 @@ class FileForProcessing():
             self.file_contents = fix_app_log_file(
                 self.file_contents, self.file_to_process.s3_file_path
             )
-        
-        # convert the file to a list of lines and columns
-        self.raw_csv_to_line_list()
-        assert self.file_lines is not None, "file_lines was not populated."
-        assert self.header is not None, "header was not populated (1)."
+    
+    def late_fixes(self):
+        assert self.file_lines is not None  # appease the type checker
+        assert self.header is not None
         
         if self.file_to_process.os_type == ANDROID_API:
             # two android fixes require the data immediately, so we convert the generator to a list.
@@ -135,7 +162,6 @@ class FileForProcessing():
         
         # sometimes there is whitespace in the header? clean it.
         self.header = b",".join(tuple(column_name.strip() for column_name in self.header.split(b",")))
-        # log(f"FileForProcessing: prepared data for {self.file_to_process.s3_file_path[25:]}")
     
     def raise_data_processing_error(self):
         """ If we encountered any errors in retrieving the files for processing, they have been
@@ -151,6 +177,11 @@ class FileForProcessing():
         if self.exception is None:
             raise Exception("FileForProcessing.exception was not populated.")
         raise self.exception
+    
+    def delete_ftp(self):
+        assert self.file_lines is None, "misuse, file_lines was not deleted."
+        assert self.file_contents is None, "misuse, file_contents was not deleted."
+        self.file_to_process.delete()
 
 
 def is_version_greater_ios(proposed_version: str, reference_version: str) -> bool:

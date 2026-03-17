@@ -30,6 +30,7 @@ from libs.utils.threadpool_utils import drain_in_reverse, s3_op_threaded_iterate
 
 FileToProcessPK = int
 
+
 # LIST CANNOT INCLUDE THE WIFI DATA STREAM
 DUPLICATE_CLEARABLE_TYPES = (
     Q(s3_file_path__contains=f"/{DATA_STREAM_TO_S3_FILE_NAME_STRING[ACCELEROMETER]}/") | 
@@ -61,6 +62,7 @@ def easy_run(participant: Participant):
 
 
 """########################## Hourly Update Tasks ###########################"""
+
 
 # The memory leak was NOT caused by using a ThreadPool, but single-threading the network operations
 # mean that there are no overlapping network operations, so our _peak_ memory usage is lower.
@@ -328,7 +330,7 @@ class FileProcessingTracker():
         if newly_binified_data:
             self.append_binified_csvs(newly_binified_data, file_for_processing.file_to_process)
         else:
-            file_for_processing.file_to_process.delete()  # delete empty files from FilesToProcess
+            file_for_processing.delete_ftp()
     
     def append_binified_csvs(
         self, new_binified_rows: BinifyDict, file_for_processing: FileToProcess
@@ -350,18 +352,20 @@ class FileProcessingTracker():
         csv_rows_list = file_for_processing.file_lines
         header = file_for_processing.header
         
-        file_for_processing.clear_file_lines()  # source file contents can now be GC'd
-        
         # shove csv rows into their respective time bins. upon returning from this function there
         # should only be the binified data representation in memory, return None otherwise.
-        if csv_rows_list and header:
-            return self.binify_csv_rows(csv_rows_list, file_for_processing.data_type, header)
+        try:
+            if csv_rows_list and header:
+                return self.binify_csv_rows(csv_rows_list, file_for_processing.data_type, header)
+        finally:
+            file_for_processing.clear_file_lines()  # source file contents can now be GC'd
     
     def binify_csv_rows(self, rows_list: list[list[bytes]], data_type: str, header: bytes) -> BinifyDict:
         """ Assumes a clean csv with element 0 in the row's column as a unix(ish) timestamp.
             Sorts data points into the appropriate bin based on the rounded down hour
             value of the entry's unix(ish) timestamp. (based CHUNK_TIMESLICE_QUANTUM)
             Returns a dict of form {(study_id, patient_id, data_type, time_bin, header):rows_lists}. """
+        
         ret: BinifyDict = defaultdict(list)
         for row in rows_list:
             # August 7 2017, looks like there was an empty line at the end of a file? row was a ['']
@@ -372,6 +376,7 @@ class FileProcessingTracker():
                 except BadTimecodeError:
                     continue
                 ret[(self.study_object_id, self.patient_id, data_type, timecode, header)].append(row)
+        
         return ret
     
     #
@@ -386,8 +391,12 @@ class FileProcessingTracker():
                 file_for_processing.file_to_process.s3_file_path.rsplit("/", 1)[-1][:-4]
             )
         except BadTimecodeError:
-            file_for_processing.file_to_process.delete()
+            file_for_processing.delete_ftp()
             return
+        
+        file_for_processing.decompress_file_contents()
+        file_contents = file_for_processing.file_contents
+        file_for_processing.clear_file_content()  # source file contents can now be GC'd
         
         # Since we aren't binning the data by hour, just create a ChunkRegistry that
         # points to the already existing S3 file.
@@ -398,9 +407,9 @@ class FileProcessingTracker():
                 file_for_processing.file_to_process.s3_file_path,
                 file_for_processing.study.pk,
                 file_for_processing.file_to_process.participant.pk,
-                file_for_processing.file_contents,
+                file_contents,
             )
-            file_for_processing.file_to_process.delete()
+            file_for_processing.delete_ftp()
         except ValidationError as ve:
             if len(ve.messages) != 1:
                 # case: the error case (below) is very specific, we only want that singular error.
@@ -413,10 +422,10 @@ class FileProcessingTracker():
                 ChunkRegistry.update_registered_unchunked_data(
                     file_for_processing.data_type,
                     file_for_processing.file_to_process.s3_file_path,
-                    file_for_processing.file_contents,
+                    file_contents,
                 )
-                file_for_processing.file_to_process.delete()
+                file_for_processing.delete_ftp()
             else:
-                # any other errors, add
-                raise
+                raise  # any other errors, add
+        
         return

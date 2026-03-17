@@ -105,6 +105,7 @@ def existing_data_csv_splitter(file_bytes: bytes) -> tuple[bytes, list[list[byte
 #     while lines:
 #         yield lines.pop(-1).split(b",")
 
+
 def construct_csv_as_bytes(header: bytes, rows_list: list[list[bytes]]) -> bytes:
     """ Takes a header list and a bytes-list and returns a single string of a csv.
         This has been optimized about as much as is possible for raw Python. """

@@ -5,16 +5,15 @@ from io import BytesIO
 from unittest.mock import Mock, patch
 
 from cronutils import ErrorHandler, null_error_handler
-from pyzstd import decompress
 
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants.common_constants import CHUNKS_FOLDER, UTC
 from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
     CHUNK_TIMESLICE_QUANTUM, REFERENCE_CHUNKREGISTRY_HEADERS)
-from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS,
-    ANDROID_LOG_FILE, AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS,
-    IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS,
-    SURVEY_TIMINGS, TEXTS_LOG, WIFI)
+from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, ANDROID_LOG_FILE,
+    AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE,
+    MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG,
+    WIFI)
 from constants.user_constants import ANDROID_API, IOS_API
 from database.models import ChunkRegistry, FileToProcess, S3File, Survey
 from libs.aes import decrypt_server
@@ -24,6 +23,7 @@ from libs.file_processing.file_processing_core import easy_run, FileProcessingTr
 from libs.file_processing.utility_functions_csvs import construct_csv_as_bytes
 from libs.file_processing.utility_functions_simple import (binify_from_timecode,
     convert_unix_to_human_readable_timestamps)
+from libs.utils.compression import compress, decompress
 from tests.common import CommonTestCase
 from tests.helpers import DatabaseHelperMixin
 
@@ -191,6 +191,9 @@ timestamp,event,level
 """.strip()
 
 
+compressed_input_power_state_content = compress(input_power_state_content)
+
+
 def setup_conn_retrieve_mock(mock: Mock, data: bytes):
     encrypted = DatabaseHelperMixin.true_default_s3_form(data)
     mock.get_object.return_value = {"Body": BytesIO(encrypted)}
@@ -305,12 +308,12 @@ class TestFileProcessing(CommonTestCase):
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         
         ffp = FileForProcessing(ftp, self.default_study)
-        self.assertEqual(ffp.file_contents, input_power_state_content)
+        self.assertEqual(ffp.file_contents, compressed_input_power_state_content)
         
         # Test basic attribute instantiation
         self.assertEqual(ffp.data_type, POWER_STATE)
         self.assertTrue(ffp.chunkable, "POWER_STATE should be in CHUNKABLE_FILES")
-        self.assertEqual(ffp.file_contents, input_power_state_content)
+        self.assertEqual(ffp.file_contents, compressed_input_power_state_content)
         self.assertIsNone(ffp.file_lines, "file_lines should not be populated until prepare_data is called")
         self.assertIsNone(ffp.header, "header should not be populated until prepare_data is called")
         self.assertIsNone(ffp.exception, "exception should be None on successful instantiation")
@@ -343,7 +346,11 @@ class TestFileProcessing(CommonTestCase):
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
         
-        ffp.raw_csv_to_line_list()        # Process the CSV
+        # you cannot call convert_raw_csv_to_line_list without decompressing, which is called by prepare_data
+        with self.assertRaises(AssertionError):
+            ffp.convert_raw_csv_to_line_list()        # Process the CSV
+        ffp.prepare_data()
+        
         self.assertIsNotNone(ffp.header)  # header was extracted
         self.assertEqual(ffp.header, header)
         self.assertIsNotNone(ffp.file_lines)  # file_lines were populated
@@ -366,7 +373,11 @@ class TestFileProcessing(CommonTestCase):
         
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
-        ffp.raw_csv_to_line_list()
+        
+        with self.assertRaises(AssertionError):
+            ffp.convert_raw_csv_to_line_list()
+        ffp.prepare_data()
+        self.assertIsNotNone(ffp.header)
         self.assertEqual(ffp.header, single_line_content)  # header was set to the entire content
         self.assertEqual(ffp.file_lines, [])  # file_lines is an empty list
         self.assertIsNone(ffp.file_contents)  # file_contents was cleared
@@ -380,7 +391,7 @@ class TestFileProcessing(CommonTestCase):
         ffp.clear_file_content()
         
         with self.assertRaises(AssertionError):
-            ffp.raw_csv_to_line_list()
+            ffp.convert_raw_csv_to_line_list()
     
     @patch("libs.s3.conn")
     def test_prepare_data_processes_plus_cleans_header(self, conn: Mock):
@@ -422,14 +433,15 @@ class TestFileProcessing(CommonTestCase):
         with self.assertRaises(AssertionError):
             ffp.clear_file_lines()
     
-    @patch("libs.file_processing.file_for_processing.s3_retrieve")
+    @patch("libs.file_processing.file_for_processing.s3_retrieve_no_decompress")
     def test_download_file_contents_success(self, s3_retrieve: Mock):
-        s3_retrieve.return_value = input_power_state_content
+        
+        s3_retrieve.return_value = compressed_input_power_state_content
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         ffp = FileForProcessing(ftp, self.default_study)
         
         # download_file_contents is called in __init__, so just verify the result
-        self.assertEqual(ffp.file_contents, input_power_state_content)
+        self.assertEqual(ffp.file_contents, compressed_input_power_state_content)
         self.assertIsNone(ffp.exception)
         self.assertIsNone(ffp.traceback)
         s3_retrieve.assert_called_once_with(ftp.s3_file_path, self.default_study, raw_path=True)
@@ -1546,7 +1558,6 @@ class TestFileProcessingTracker(CommonTestCase):
         # Should return binified data
         self.assertIsNotNone(binified_data)
         self.assertIsInstance(binified_data, dict)
-        assert binified_data is not None
         self.assertGreater(len(binified_data), 0)
     
     @patch("libs.s3.conn")

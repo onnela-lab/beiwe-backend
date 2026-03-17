@@ -13,6 +13,7 @@ from constants.data_stream_constants import CHUNKABLE_FILES
 from constants.user_constants import OS_TYPE_CHOICES
 from database.models import TimestampedModel
 from database.user_models_participant import Participant
+from libs.utils.security_utils import chunk_hash
 
 
 if TYPE_CHECKING:
@@ -95,8 +96,16 @@ class ChunkRegistry(TimestampedModel):
         ChunkRegistry(is_chunkable=True, **kwargs).save()  # create with validation
     
     @classmethod
-    def register_unchunked_data(cls, data_type, unix_timestamp, chunk_path, study_id, participant_id,
-                                file_contents, survey_id=None):
+    def register_unchunked_data(
+        cls,
+        data_type: str,
+        unix_timestamp: int,
+        chunk_path: str,
+        study_id: int,
+        participant_id: int,
+        file_contents: bytes,
+        survey_id=None
+    ):
         time_bin = datetime.fromtimestamp(unix_timestamp, UTC)
         
         if data_type in CHUNKABLE_FILES:
@@ -105,7 +114,7 @@ class ChunkRegistry(TimestampedModel):
         cls.objects.create(
             is_chunkable=False,
             chunk_path=chunk_path,
-            chunk_hash='',
+            chunk_hash=chunk_hash(file_contents),
             data_type=data_type,
             time_bin=time_bin,
             study_id=study_id,
