@@ -5,9 +5,9 @@ import uuid
 from datetime import timedelta
 from os.path import join as path_join
 
-from django.db import models
-from django.db.models import (AutoField, CharField, DateField, FloatField, ForeignKey, IntegerField,
-    Manager, TextField)
+from django.db.models import (AutoField, BigIntegerField, BinaryField, BooleanField, CASCADE,
+    CharField, DateField, DateTimeField, FloatField, ForeignKey, IntegerField, Manager,
+    PositiveBigIntegerField, PROTECT, TextField, UniqueConstraint, UUIDField)
 
 from config.settings import DOMAIN_NAME
 from constants.celery_constants import ForestTaskStatus
@@ -15,11 +15,10 @@ from constants.forest_constants import (DEFAULT_FOREST_PARAMETERS, FOREST_PICKLI
     ForestTree, NON_PICKLED_PARAMETERS, OAK_DATE_FORMAT_PARAMETER, PARAMETER_ALL_BV_SET,
     PARAMETER_ALL_MEMORY_DICT, PARAMETER_CONFIG_PATH, PARAMETER_INTERVENTIONS_FILEPATH,
     ROOT_FOREST_TASK_PATH, SYCAMORE_DATE_FORMAT)
-from database.common_models import TimestampedModel
-from database.study_models import Study
-from database.user_models_participant import Participant
+from database.models import Participant, Study, TimestampedModel
 from libs.utils.date_utils import datetime_to_list
 from libs.utils.forest_utils import get_jasmine_all_bv_set_dict, get_jasmine_all_memory_dict_dict
+
 
 #
 ## GO READ THE MULTILINE STATEMENT AT THE TOP OF services/celery_forest.py
@@ -27,38 +26,38 @@ from libs.utils.forest_utils import get_jasmine_all_bv_set_dict, get_jasmine_all
 
 class ForestTask(TimestampedModel):
     # All forest tasks are defined to be associated with a single participant
-    the_study: Study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name="forest_tasks")
-    participant: Participant = models.ForeignKey(Participant, on_delete=models.PROTECT, db_index=True)
+    the_study: Study = ForeignKey(Study, on_delete=PROTECT, related_name="forest_tasks")
+    participant: Participant = ForeignKey(Participant, on_delete=PROTECT, db_index=True)
     
-    forest_tree = models.TextField(choices=ForestTree.choices())
-    forest_version = models.CharField(blank=True, max_length=10, null=False, default="")
-    forest_commit = models.CharField(blank=True, max_length=40, null=False, default="")
+    forest_tree = TextField(choices=ForestTree.choices())
+    forest_version = CharField(blank=True, max_length=10, null=False, default="")
+    forest_commit = CharField(blank=True, max_length=40, null=False, default="")
     
     # the external id is used for endpoints that refer to forest trackers to avoid exposing the
     # primary keys of the model. it is intentionally not the primary key
-    external_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    external_id = UUIDField(default=uuid.uuid4, editable=False)
     
     # due to code churn we pickle parameters that are passed to forest.
-    pickled_parameters = models.BinaryField(blank=True, null=True)
+    pickled_parameters = BinaryField(blank=True, null=True)
     # all forest tasks run on a data range, (these are parameters entered at creation from the web)
-    data_date_start = models.DateField()  # inclusive
-    data_date_end = models.DateField()  # inclusive
+    data_date_start = DateField()  # inclusive
+    data_date_end = DateField()  # inclusive
     
     # runtime records
-    total_file_size = models.BigIntegerField(blank=True, null=True)  # input file size sum for accounting
-    process_start_time = models.DateTimeField(null=True, blank=True)
-    process_download_end_time = models.DateTimeField(null=True, blank=True)
-    process_end_time = models.DateTimeField(null=True, blank=True)
-    status = models.TextField(choices=ForestTaskStatus.choices())
-    stacktrace = models.TextField(null=True, blank=True, default=None)
+    total_file_size = BigIntegerField(blank=True, null=True)  # input file size sum for accounting
+    process_start_time = DateTimeField(null=True, blank=True)
+    process_download_end_time = DateTimeField(null=True, blank=True)
+    process_end_time = DateTimeField(null=True, blank=True)
+    status = TextField(choices=ForestTaskStatus.choices())
+    stacktrace = TextField(null=True, blank=True, default=None)
     # Whether or not there was any data output by Forest (None means construct_summary_statistics errored)
-    forest_output_exists = models.BooleanField(null=True, blank=True)
+    forest_output_exists = BooleanField(null=True, blank=True)
     
     # S3 file paths
-    output_zip_s3_path = models.TextField(blank=True)  # includes study folder in path
+    output_zip_s3_path = TextField(blank=True)  # includes study folder in path
     # Jasmine has special parameters, these are their s3 file paths.
-    all_bv_set_s3_key = models.TextField(blank=True)
-    all_memory_dict_s3_key = models.TextField(blank=True)
+    all_bv_set_s3_key = TextField(blank=True)
+    all_memory_dict_s3_key = TextField(blank=True)
     
     # related field typings (IDE halp)
     jasmine_summary_statistics: Manager[SummaryStatisticDaily]
@@ -281,10 +280,10 @@ class ForestTask(TimestampedModel):
 
 
 class SummaryStatisticDaily(TimestampedModel):
-    the_study: Study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name="summary_statistics_daily")
-    participant: Participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
-    date = models.DateField(db_index=True)
-    timezone = models.CharField(max_length=10, null=False, blank=False)  # abbreviated time zone names are max 4 chars.
+    the_study: Study = ForeignKey(Study, on_delete=PROTECT, related_name="summary_statistics_daily")
+    participant: Participant = ForeignKey(Participant, on_delete=CASCADE)
+    date = DateField(db_index=True)
+    timezone = CharField(max_length=10, null=False, blank=False)  # abbreviated time zone names are max 4 chars.
     
     @classmethod
     def default_summary_statistic_daily_cheatsheet(cls) -> dict:
@@ -308,92 +307,92 @@ class SummaryStatisticDaily(TimestampedModel):
         return field_dict
     
     # Beiwe data quantities
-    beiwe_accelerometer_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_ambient_audio_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_app_log_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_bluetooth_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_calls_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_devicemotion_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_gps_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_gyro_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_identifiers_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_ios_log_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_magnetometer_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_power_state_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_proximity_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_reachability_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_survey_answers_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_survey_timings_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_texts_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_audio_recordings_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    beiwe_wifi_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    beiwe_accelerometer_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_ambient_audio_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_app_log_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_bluetooth_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_calls_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_devicemotion_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_gps_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_gyro_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_identifiers_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_ios_log_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_magnetometer_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_power_state_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_proximity_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_reachability_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_survey_answers_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_survey_timings_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_texts_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_audio_recordings_bytes = PositiveBigIntegerField(null=True, blank=True)
+    beiwe_wifi_bytes = PositiveBigIntegerField(null=True, blank=True)
     
     # GPS
-    jasmine_distance_diameter = models.FloatField(null=True, blank=True)
-    jasmine_distance_from_home = models.FloatField(null=True, blank=True)
-    jasmine_distance_traveled = models.FloatField(null=True, blank=True)
-    jasmine_flight_distance_average = models.FloatField(null=True, blank=True)
-    jasmine_flight_distance_stddev = models.FloatField(null=True, blank=True)
-    jasmine_flight_duration_average = models.FloatField(null=True, blank=True)
-    jasmine_flight_duration_stddev = models.FloatField(null=True, blank=True)
-    jasmine_home_duration = models.FloatField(null=True, blank=True)
-    jasmine_gyration_radius = models.FloatField(null=True, blank=True)
-    jasmine_significant_location_count = models.IntegerField(null=True, blank=True)
-    jasmine_significant_location_entropy = models.FloatField(null=True, blank=True)
-    jasmine_pause_time = models.TextField(null=True, blank=True)
-    jasmine_obs_duration = models.FloatField(null=True, blank=True)
-    jasmine_obs_day = models.FloatField(null=True, blank=True)
-    jasmine_obs_night = models.FloatField(null=True, blank=True)
-    jasmine_total_flight_time = models.FloatField(null=True, blank=True)
-    jasmine_av_pause_duration = models.FloatField(null=True, blank=True)
-    jasmine_sd_pause_duration = models.FloatField(null=True, blank=True)
+    jasmine_distance_diameter = FloatField(null=True, blank=True)
+    jasmine_distance_from_home = FloatField(null=True, blank=True)
+    jasmine_distance_traveled = FloatField(null=True, blank=True)
+    jasmine_flight_distance_average = FloatField(null=True, blank=True)
+    jasmine_flight_distance_stddev = FloatField(null=True, blank=True)
+    jasmine_flight_duration_average = FloatField(null=True, blank=True)
+    jasmine_flight_duration_stddev = FloatField(null=True, blank=True)
+    jasmine_home_duration = FloatField(null=True, blank=True)
+    jasmine_gyration_radius = FloatField(null=True, blank=True)
+    jasmine_significant_location_count = IntegerField(null=True, blank=True)
+    jasmine_significant_location_entropy = FloatField(null=True, blank=True)
+    jasmine_pause_time = TextField(null=True, blank=True)
+    jasmine_obs_duration = FloatField(null=True, blank=True)
+    jasmine_obs_day = FloatField(null=True, blank=True)
+    jasmine_obs_night = FloatField(null=True, blank=True)
+    jasmine_total_flight_time = FloatField(null=True, blank=True)
+    jasmine_av_pause_duration = FloatField(null=True, blank=True)
+    jasmine_sd_pause_duration = FloatField(null=True, blank=True)
     
     # Willow, Texts
-    willow_incoming_text_count = models.IntegerField(null=True, blank=True)
-    willow_incoming_text_degree = models.IntegerField(null=True, blank=True)
-    willow_incoming_text_length = models.IntegerField(null=True, blank=True)
-    willow_outgoing_text_count = models.IntegerField(null=True, blank=True)
-    willow_outgoing_text_degree = models.IntegerField(null=True, blank=True)
-    willow_outgoing_text_length = models.IntegerField(null=True, blank=True)
-    willow_incoming_text_reciprocity = models.IntegerField(null=True, blank=True)
-    willow_outgoing_text_reciprocity = models.IntegerField(null=True, blank=True)
-    willow_outgoing_MMS_count = models.IntegerField(null=True, blank=True)
-    willow_incoming_MMS_count = models.IntegerField(null=True, blank=True)
+    willow_incoming_text_count = IntegerField(null=True, blank=True)
+    willow_incoming_text_degree = IntegerField(null=True, blank=True)
+    willow_incoming_text_length = IntegerField(null=True, blank=True)
+    willow_outgoing_text_count = IntegerField(null=True, blank=True)
+    willow_outgoing_text_degree = IntegerField(null=True, blank=True)
+    willow_outgoing_text_length = IntegerField(null=True, blank=True)
+    willow_incoming_text_reciprocity = IntegerField(null=True, blank=True)
+    willow_outgoing_text_reciprocity = IntegerField(null=True, blank=True)
+    willow_outgoing_MMS_count = IntegerField(null=True, blank=True)
+    willow_incoming_MMS_count = IntegerField(null=True, blank=True)
     
     # Willow, Calls
-    willow_incoming_call_count = models.IntegerField(null=True, blank=True)
-    willow_incoming_call_degree = models.IntegerField(null=True, blank=True)
-    willow_incoming_call_duration = models.FloatField(null=True, blank=True)
-    willow_outgoing_call_count = models.IntegerField(null=True, blank=True)
-    willow_outgoing_call_degree = models.IntegerField(null=True, blank=True)
-    willow_outgoing_call_duration = models.FloatField(null=True, blank=True)
-    willow_missed_call_count = models.IntegerField(null=True, blank=True)
-    willow_missed_callers = models.IntegerField(null=True, blank=True)
+    willow_incoming_call_count = IntegerField(null=True, blank=True)
+    willow_incoming_call_degree = IntegerField(null=True, blank=True)
+    willow_incoming_call_duration = FloatField(null=True, blank=True)
+    willow_outgoing_call_count = IntegerField(null=True, blank=True)
+    willow_outgoing_call_degree = IntegerField(null=True, blank=True)
+    willow_outgoing_call_duration = FloatField(null=True, blank=True)
+    willow_missed_call_count = IntegerField(null=True, blank=True)
+    willow_missed_callers = IntegerField(null=True, blank=True)
     
-    willow_uniq_individual_call_or_text_count = models.IntegerField(null=True, blank=True)
+    willow_uniq_individual_call_or_text_count = IntegerField(null=True, blank=True)
     
     # Sycamore, Survey Frequency
-    sycamore_total_surveys = models.IntegerField(null=True, blank=True)
-    sycamore_total_completed_surveys = models.IntegerField(null=True, blank=True)
-    sycamore_total_opened_surveys = models.IntegerField(null=True, blank=True)
-    sycamore_average_time_to_submit = models.FloatField(null=True, blank=True)
-    sycamore_average_time_to_open = models.FloatField(null=True, blank=True)
-    sycamore_average_duration = models.FloatField(null=True, blank=True)
+    sycamore_total_surveys = IntegerField(null=True, blank=True)
+    sycamore_total_completed_surveys = IntegerField(null=True, blank=True)
+    sycamore_total_opened_surveys = IntegerField(null=True, blank=True)
+    sycamore_average_time_to_submit = FloatField(null=True, blank=True)
+    sycamore_average_time_to_open = FloatField(null=True, blank=True)
+    sycamore_average_duration = FloatField(null=True, blank=True)
     
     # Oak, walking statistics
-    oak_walking_time = models.FloatField(null=True, blank=True)
-    oak_steps = models.FloatField(null=True, blank=True)
-    oak_cadence = models.FloatField(null=True, blank=True)
+    oak_walking_time = FloatField(null=True, blank=True)
+    oak_steps = FloatField(null=True, blank=True)
+    oak_cadence = FloatField(null=True, blank=True)
     
     # points to the task that populated this data set. ()
-    jasmine_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="jasmine_summary_statistics")
-    willow_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="willow_summary_statistics")
-    sycamore_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="sycamore_summary_statistics")
-    oak_task: ForestTask = models.ForeignKey(ForestTask, blank=True, null=True, on_delete=models.PROTECT, related_name="oak_summary_statistics")
+    jasmine_task: ForestTask = ForeignKey(ForestTask, blank=True, null=True, on_delete=PROTECT, related_name="jasmine_summary_statistics")
+    willow_task: ForestTask = ForeignKey(ForestTask, blank=True, null=True, on_delete=PROTECT, related_name="willow_summary_statistics")
+    sycamore_task: ForestTask = ForeignKey(ForestTask, blank=True, null=True, on_delete=PROTECT, related_name="sycamore_summary_statistics")
+    oak_task: ForestTask = ForeignKey(ForestTask, blank=True, null=True, on_delete=PROTECT, related_name="oak_summary_statistics")
     
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['date', 'participant'], name="unique_summary_statistic")
+            UniqueConstraint(fields=['date', 'participant'], name="unique_summary_statistic")
         ]
     
     @classmethod
