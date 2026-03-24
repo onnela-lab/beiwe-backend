@@ -11,8 +11,9 @@ import orjson
 from dateutil.tz import gettz
 from django.core.exceptions import ImproperlyConfigured
 from django.core.validators import MinLengthValidator
-from django.db import models
-from django.db.models import Manager, QuerySet
+from django.db.models import (BigAutoField, BigIntegerField, BinaryField, BooleanField, CASCADE,
+    CharField, DateTimeField, ForeignKey, IntegerField, Manager, OneToOneField, PROTECT, QuerySet,
+    SmallIntegerField, TextField, UUIDField)
 from django.utils import timezone
 
 from config.settings import DOMAIN_NAME
@@ -35,8 +36,9 @@ from libs.utils.security_utils import (compare_password, device_hash, django_pas
 
 
 if TYPE_CHECKING:
-    from database.models import ArchivedEvent, dbt, StudyField
-
+    from database.models import (ArchivedEvent, ChunkRegistry, EncryptionErrorMetadata,
+        FileToProcess, ForestTask, InterventionDate, PushNotificationDisabledEvent, S3File,
+        ScheduledEvent, StudyField, SummaryStatisticDaily, UploadTracking)
 
 class Participant(AbstractPasswordUser):
     """ The Participant database object contains the password hashes and unique usernames of any
@@ -47,65 +49,65 @@ class Participant(AbstractPasswordUser):
     
     study_id: int
     
-    patient_id = models.CharField(max_length=8, unique=True, validators=[ID_VALIDATOR])
-    device_id = models.CharField(max_length=256, blank=True)
-    os_type = models.CharField(max_length=16, choices=OS_TYPE_CHOICES, blank=True)
-    study: Study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name='participants', null=False)  # type: ignore
+    patient_id = CharField(max_length=8, unique=True, validators=[ID_VALIDATOR])
+    device_id = CharField(max_length=256, blank=True)
+    os_type = CharField(max_length=16, choices=OS_TYPE_CHOICES, blank=True)
+    study: Study = ForeignKey(Study, on_delete=PROTECT, related_name='participants', null=False)  # type: ignore
     
     # see timezone property
-    timezone_name = models.CharField(
+    timezone_name = CharField(
         max_length=256, default="America/New_York", null=False, blank=False
     )
-    unknown_timezone = models.BooleanField(default=True)  # flag for using participant's timezone.
+    unknown_timezone = BooleanField(default=True)  # flag for using participant's timezone.
     
-    push_notification_unreachable_count = models.SmallIntegerField(default=0, null=False, blank=False)
-    last_heartbeat_notification = models.DateTimeField(null=True, blank=True)
-    last_heartbeat_checkin = models.DateTimeField(null=True, blank=True)
+    push_notification_unreachable_count = SmallIntegerField(default=0, null=False, blank=False)
+    last_heartbeat_notification = DateTimeField(null=True, blank=True)
+    last_heartbeat_checkin = DateTimeField(null=True, blank=True)
     
     # TODO: clean out or maybe rename these fields to distinguish from last_updated? also wehave two survey checkin timestamps
     # new checkin logic
-    last_push_notification_checkin = models.DateTimeField(null=True, blank=True)
-    last_survey_checkin = models.DateTimeField(null=True, blank=True)
+    last_push_notification_checkin = DateTimeField(null=True, blank=True)
+    last_survey_checkin = DateTimeField(null=True, blank=True)
     
     # pure tracking - these are used to track the last time a participant did something.
-    last_get_latest_surveys = models.DateTimeField(null=True, blank=True)
-    last_upload = models.DateTimeField(null=True, blank=True)
-    first_register_user = models.DateTimeField(null=True, blank=True)
-    last_register_user = models.DateTimeField(null=True, blank=True)
-    last_set_password = models.DateTimeField(null=True, blank=True)
-    last_set_fcm_token = models.DateTimeField(null=True, blank=True)
-    last_get_latest_device_settings = models.DateTimeField(null=True, blank=True)
+    last_get_latest_surveys = DateTimeField(null=True, blank=True)
+    last_upload = DateTimeField(null=True, blank=True)
+    first_register_user = DateTimeField(null=True, blank=True)
+    last_register_user = DateTimeField(null=True, blank=True)
+    last_set_password = DateTimeField(null=True, blank=True)
+    last_set_fcm_token = DateTimeField(null=True, blank=True)
+    last_get_latest_device_settings = DateTimeField(null=True, blank=True)
     
     # participant device tracking
     # the version code and name are slightly different between android and ios. (android HAS a
     # monotonic version code, so we use it. ios has semantic versioning as the best code.
     # android: last_version_code': '68', 'last_version_name': '3.4.2'
     # ios:  'last_version_code': '2.5.1', 'last_version_name': '2024.21',
-    last_version_code = models.CharField(max_length=32, blank=True, null=True)
-    last_version_name = models.CharField(max_length=32, blank=True, null=True)
-    last_os_version = models.CharField(max_length=32, blank=True, null=True)
-    raw_notification_report = models.TextField(default=None, null=True, blank=True)
-    last_active_survey_ids = models.TextField(default=None, null=True, blank=True)
-    device_status_report = models.TextField(default=None, null=True, blank=True)
+    last_version_code = CharField(max_length=32, blank=True, null=True)
+    last_version_name = CharField(max_length=32, blank=True, null=True)
+    last_os_version = CharField(max_length=32, blank=True, null=True)
+    raw_notification_report = TextField(default=None, null=True, blank=True)
+    last_active_survey_ids = TextField(default=None, null=True, blank=True)
+    device_status_report = TextField(default=None, null=True, blank=True)
     
-    deleted = models.BooleanField(default=False)
+    deleted = BooleanField(default=False)
     
     # retired participants are blocked from uploading further data.
-    permanently_retired = models.BooleanField(default=False)
+    permanently_retired = BooleanField(default=False)
     # easy enrolement disables the need for a password at registration (ignores the password)
-    easy_enrollment = models.BooleanField(default=False)
+    easy_enrollment = BooleanField(default=False)
     
     # Participant experiments, beta features - these fields literally may not be used Anywhere, some
     # of them are filler for future features that may or may not be implemented. Some are for
     # backend feature, some are for app features. (features under active development should be
     # annotated in some way but no promises.)
     # Set help text over in libs/django_forms/forms.py
-    enable_aggressive_background_persistence = models.BooleanField(default=False)
-    enable_binary_uploads = models.BooleanField(default=False)
-    enable_new_authentication = models.BooleanField(default=False)
-    enable_developer_datastream = models.BooleanField(default=False)
-    enable_beta_features = models.BooleanField(default=False)
-    enable_extensive_device_info_tracking = models.BooleanField(default=False)
+    enable_aggressive_background_persistence = BooleanField(default=False)
+    enable_binary_uploads = BooleanField(default=False)
+    enable_new_authentication = BooleanField(default=False)
+    enable_developer_datastream = BooleanField(default=False)
+    enable_beta_features = BooleanField(default=False)
+    enable_extensive_device_info_tracking = BooleanField(default=False)
     EXPERIMENT_FIELDS = (
         # "enable_aggressive_background_persistence",
         # "enable_binary_uploads",
@@ -116,21 +118,27 @@ class Participant(AbstractPasswordUser):
     )
     
     # related field typings (IDE halp)
-    action_logs: dbt.ParticipantActionLogs;            files_to_process: dbt.FileToProcesses
-    app_version_history: dbt.AppVersionHistories;      heartbeats: dbt.AppHeartbeatses
-    archived_events: dbt.ArchivedEvents;               intervention_dates: dbt.InterventionDates
-    chunk_registries: dbt.ChunksRegistry;              s3_files: dbt.S3Files
-    deletion_event: dbt.ParticipantDeletionEvents;     scheduled_events: dbt.ScheduledEvents
-    fcm_tokens: dbt.ParticipantFCMHistories;           upload_trackers: dbt.UploadTrackings
-    field_values: dbt.ParticipantFieldValues
-    notification_reports: dbt.SurveyNotificationReports  #.... toooooo
-    device_status_reports: dbt.DeviceStatusReportHistories  #.... loooong
+    action_logs: Manager[ParticipantActionLog]
+    app_version_history: Manager[AppVersionHistory]
+    archived_events: Manager[ArchivedEvent]
+    chunk_registries: Manager[ChunkRegistry]
+    deletion_event: Manager[ParticipantDeletionEvent]
+    device_status_reports: Manager[DeviceStatusReportHistory]
+    fcm_tokens: Manager[ParticipantFCMHistory]
+    field_values: Manager[ParticipantFieldValue]
+    files_to_process: Manager[FileToProcess]
+    heartbeats: Manager[AppHeartbeats]
+    intervention_dates: Manager[InterventionDate]
+    notification_reports: Manager[SurveyNotificationReport]
+    s3_files: Manager[S3File]
+    scheduled_events: Manager[ScheduledEvent]
+    upload_trackers: Manager[UploadTracking]
     
     # undeclared:
-    encryptionerrormetadata_set: dbt.EncryptionErrorMetadatums
-    foresttask_set: dbt.ForestTasks
-    pushnotificationdisabledevent_set: dbt.PushNotificationDisabledEvents
-    summarystatisticdaily_set: dbt.SummaryStatisticsDaily
+    encryptionerrormetadata_set: Manager[EncryptionErrorMetadata]
+    foresttask_set: Manager[ForestTask]
+    pushnotificationdisabledevent_set: Manager[PushNotificationDisabledEvent]
+    summarystatisticdaily_set: Manager[SummaryStatisticDaily]
     
     ################################################################################################
     ###################################### Timezones ###############################################
@@ -459,24 +467,24 @@ class Participant(AbstractPasswordUser):
 class PushNotificationDisabledEvent(UtilityModel):
     # There may be many events
     # this is (currently) purely for record keeping.
-    participant: Participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT)
-    count = models.IntegerField(null=False)
-    timestamp = models.DateTimeField(null=False, blank=False, auto_now_add=True, db_index=True)
+    participant: Participant = ForeignKey(Participant, null=False, on_delete=PROTECT)
+    count = IntegerField(null=False)
+    timestamp = DateTimeField(null=False, blank=False, auto_now_add=True, db_index=True)
 
 
 class ParticipantFCMHistory(TimestampedModel):
     # by making the token unique the solution to problems becomes "reinstall the app"
-    participant: Participant = models.ForeignKey("Participant", null=False, on_delete=models.PROTECT, related_name="fcm_tokens")
-    token = models.CharField(max_length=256, blank=False, null=False, db_index=True, unique=True,
+    participant: Participant = ForeignKey("Participant", null=False, on_delete=PROTECT, related_name="fcm_tokens")
+    token = CharField(max_length=256, blank=False, null=False, db_index=True, unique=True,
                              validators=[MinLengthValidator(1)])
-    unregistered = models.DateTimeField(null=True, blank=True)
+    unregistered = DateTimeField(null=True, blank=True)
 
 
 class ParticipantFieldValue(UtilityModel):
     """ These objects can be deleted.  These are values for per-study custom fields for users """
-    participant: Participant = models.ForeignKey(Participant, on_delete=models.PROTECT, related_name='field_values')
-    field: StudyField = models.ForeignKey('StudyField', on_delete=models.CASCADE, related_name='field_values')
-    value = models.TextField(null=False, blank=True, default="")
+    participant: Participant = ForeignKey(Participant, on_delete=PROTECT, related_name='field_values')
+    field: StudyField = ForeignKey('StudyField', on_delete=CASCADE, related_name='field_values')
+    value = TextField(null=False, blank=True, default="")
     
     class Meta:
         unique_together = (("participant", "field"),)
@@ -485,9 +493,9 @@ class ParticipantFieldValue(UtilityModel):
 class ParticipantDeletionEvent(TimestampedModel):
     """ This is a list of participants that have been deleted, but we are keeping around for a while
     in case we need to restore them. """
-    participant: Participant = models.OneToOneField(Participant, on_delete=models.PROTECT, related_name="deletion_event")
-    files_deleted_count = models.BigIntegerField(null=False, blank=False, default=0)
-    purge_confirmed_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    participant: Participant = OneToOneField(Participant, on_delete=PROTECT, related_name="deletion_event")
+    files_deleted_count = BigIntegerField(null=False, blank=False, default=0)
+    purge_confirmed_time = DateTimeField(null=True, blank=True, db_index=True)
     
     @classmethod
     def summary(cls):
@@ -540,11 +548,11 @@ class AppHeartbeats(UtilityModel):
     """ Storing heartbeats is intended as a debugging tool for monitoring app uptime, the idea is 
     that the app checks in every 5 minutes so we can see when it doesn't. (And then send it a push
     notification) """
-    participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="heartbeats")
-    timestamp = models.DateTimeField(null=False, blank=False, db_index=True)
+    participant = ForeignKey(Participant, null=False, on_delete=PROTECT, related_name="heartbeats")
+    timestamp = DateTimeField(null=False, blank=False, db_index=True)
     # TODO: message is not intended to be surfaced to anyone other than developers, at time of comment
     # contains ios debugging info.
-    message = models.TextField(null=True, blank=True)
+    message = TextField(null=True, blank=True)
     
     @classmethod
     def create(cls, participant: Participant, timestamp: datetime, message: str = None) -> AppHeartbeats:
@@ -555,9 +563,9 @@ class AppHeartbeats(UtilityModel):
 # todo: add more ParticipantActionLog entries
 class ParticipantActionLog(UtilityModel):
     """ This is a log of actions taken by participants, for debugging purposes. """
-    participant: Participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="action_logs")
-    timestamp = models.DateTimeField(null=False, blank=False, db_index=True)
-    action = models.TextField(null=False, blank=False)
+    participant: Participant = ForeignKey(Participant, null=False, on_delete=PROTECT, related_name="action_logs")
+    timestamp = DateTimeField(null=False, blank=False, db_index=True)
+    action = TextField(null=False, blank=False)
     
     @classmethod
     def heartbeat_notifications(cls) -> QuerySet[Self]:
@@ -580,19 +588,19 @@ class AppVersionHistory(TimestampedModel):
      - IOS' app version Name is "missing" (OLD), a commit hash (old), or a year.build_count like 2024.21
      - os_is_ios is populated for old participants in a migration (130 at time of writing).
     """
-    participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="app_version_history")
-    app_version_code = models.CharField(max_length=16, blank=False, null=False)
-    app_version_name = models.CharField(max_length=16, blank=False, null=False)
-    os_version = models.CharField(max_length=16, blank=False, null=False)
-    os_is_ios = models.BooleanField(null=True, blank=False)
+    participant = ForeignKey(Participant, null=False, on_delete=PROTECT, related_name="app_version_history")
+    app_version_code = CharField(max_length=16, blank=False, null=False)
+    app_version_name = CharField(max_length=16, blank=False, null=False)
+    os_version = CharField(max_length=16, blank=False, null=False)
+    os_is_ios = BooleanField(null=True, blank=False)
 
 
 class SurveyNotificationReport(TimestampedModel):
     """ This is a simple record of the notifications sent to participants. """
-    id = models.BigAutoField(primary_key=True)
-    participant = models.ForeignKey(Participant, null=False, on_delete=models.PROTECT, related_name="notification_reports")
-    notification_uuid = models.UUIDField(default=uuid.uuid4, null=False, blank=False)
-    applied = models.BooleanField(default=False)
+    id = BigAutoField(primary_key=True)
+    participant = ForeignKey(Participant, null=False, on_delete=PROTECT, related_name="notification_reports")
+    notification_uuid = UUIDField(default=uuid.uuid4, null=False, blank=False)
+    applied = BooleanField(default=False)
     
     class Meta:  # type: ignore
         unique_together = (("participant", "notification_uuid"),)  # statistically global
@@ -600,15 +608,15 @@ class SurveyNotificationReport(TimestampedModel):
 
 # device status report history
 class DeviceStatusReportHistory(UtilityModel):
-    created_on = models.DateTimeField(default=timezone.now)
-    participant = models.ForeignKey(
-        Participant, null=False, on_delete=models.PROTECT, related_name="device_status_reports"
+    created_on = DateTimeField(default=timezone.now)
+    participant = ForeignKey(
+        Participant, null=False, on_delete=PROTECT, related_name="device_status_reports"
     )
-    app_os = models.CharField(max_length=32, blank=False, null=False)
-    os_version = models.CharField(max_length=32, blank=False, null=False)
-    app_version = models.CharField(max_length=32, blank=False, null=False)
-    endpoint = models.TextField(null=False, blank=False)
-    compressed_report: bytes = models.BinaryField(null=False, blank=False)  # used to be a memoryview
+    app_os = CharField(max_length=32, blank=False, null=False)
+    os_version = CharField(max_length=32, blank=False, null=False)
+    app_version = CharField(max_length=32, blank=False, null=False)
+    endpoint = TextField(null=False, blank=False)
+    compressed_report: bytes = BinaryField(null=False, blank=False)  # used to be a memoryview
     
     @property
     def decompress(self):
