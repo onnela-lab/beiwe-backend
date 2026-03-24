@@ -35,7 +35,9 @@ def _inject_prohibit_null_characters_validator():
                     if ProhibitNullCharactersValidator not in field.validators:
                         field.validators.append(ProhibitNullCharactersValidator())
 
+
 _inject_prohibit_null_characters_validator()
+
 
 #
 ## monkeypatch django.db.models.sql.query.Query so it has a repr that shows the query

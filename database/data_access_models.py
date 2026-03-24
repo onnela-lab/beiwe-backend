@@ -4,8 +4,8 @@ from collections import Counter
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING
 
-from django.db import models
-from django.db.models import QuerySet
+from django.db.models import (BooleanField, CharField, DateTimeField, ForeignKey, IntegerField,
+    PROTECT, QuerySet)
 
 from constants.common_constants import EARLIEST_POSSIBLE_DATA_DATETIME
 from constants.data_processing_constants import CHUNK_TIMESLICE_QUANTUM
@@ -38,25 +38,25 @@ class ChunkableDataTypeError(Exception): pass
 class ChunkRegistry(TimestampedModel):
     # the last_updated field's index legacy, removing it is slow to deploy on large servers.
     # TODO: remove this db_index? it doesn't harm anything...
-    last_updated = models.DateTimeField(auto_now=True, db_index=True)
-    is_chunkable = models.BooleanField()
-    chunk_path = models.CharField(max_length=256, db_index=True, unique=True)
-    chunk_hash = models.CharField(max_length=25, blank=True)
+    last_updated = DateTimeField(auto_now=True, db_index=True)
+    is_chunkable = BooleanField()
+    chunk_path = CharField(max_length=256, db_index=True, unique=True)
+    chunk_hash = CharField(max_length=25, blank=True)
     
     # removed: data_type used to have choices of ALL_DATA_STREAMS, but this generated migrations
     # unnecessarily, so it has been removed.  This has no side effects.
     # TODO: the above comment is incorrect, we have on-database-save validation, revert to include choices
-    data_type = models.CharField(max_length=32, db_index=True)
-    time_bin = models.DateTimeField(db_index=True)
-    file_size = models.IntegerField(null=True, default=None)  # Size (in bytes) of the (uncompressed) file, off by 16 bytes because of encryption iv
-    study: Study = models.ForeignKey(  # type: ignore
-        'Study', on_delete=models.PROTECT, related_name='chunk_registries', db_index=True
+    data_type = CharField(max_length=32, db_index=True)
+    time_bin = DateTimeField(db_index=True)
+    file_size = IntegerField(null=True, default=None)  # Size (in bytes) of the (uncompressed) file, off by 16 bytes because of encryption iv
+    study: Study = ForeignKey(  # type: ignore
+        'Study', on_delete=PROTECT, related_name='chunk_registries', db_index=True
     )
-    participant: Participant = models.ForeignKey(  # type: ignore
-        'Participant', on_delete=models.PROTECT, related_name='chunk_registries', db_index=True
+    participant: Participant = ForeignKey(  # type: ignore
+        'Participant', on_delete=PROTECT, related_name='chunk_registries', db_index=True
     )
-    survey: Survey = models.ForeignKey(  # type: ignore
-        'Survey', blank=True, null=True, on_delete=models.PROTECT, related_name='chunk_registries',
+    survey: Survey = ForeignKey(  # type: ignore
+        'Survey', blank=True, null=True, on_delete=PROTECT, related_name='chunk_registries',
         db_index=True
     )
     
@@ -69,9 +69,9 @@ class ChunkRegistry(TimestampedModel):
         "participant_id": int,
         "data_type": str,
         "chunk_path": str,
-        "chunk_hash": str|bytes,
+        "chunk_hash": str | bytes,
         "time_bin": int,
-        "survey_id": int|None,
+        "survey_id": int | None,
         "file_size": int,
     }
     
@@ -168,12 +168,12 @@ class ChunkRegistry(TimestampedModel):
 
 class FileToProcess(TimestampedModel):
     # this should have a max length of 66 characters on audio recordings
-    s3_file_path = models.CharField(max_length=256, blank=False, unique=True)
-    study: Study = models.ForeignKey('Study', on_delete=models.PROTECT, related_name='files_to_process')
-    participant: Participant = models.ForeignKey('Participant', on_delete=models.PROTECT, related_name='files_to_process')
-    os_type = models.CharField(max_length=16, choices=OS_TYPE_CHOICES, blank=True, null=False, default="")
-    app_version = models.CharField(max_length=16, blank=True, null=False, default="")
-    deleted = models.BooleanField(default=False)
+    s3_file_path = CharField(max_length=256, blank=False, unique=True)
+    study: Study = ForeignKey('Study', on_delete=PROTECT, related_name='files_to_process')
+    participant: Participant = ForeignKey('Participant', on_delete=PROTECT, related_name='files_to_process')
+    os_type = CharField(max_length=16, choices=OS_TYPE_CHOICES, blank=True, null=False, default="")
+    app_version = CharField(max_length=16, blank=True, null=False, default="")
+    deleted = BooleanField(default=False)
     
     def s3_retrieve(self) -> bytes:
         return s3_retrieve(self.s3_file_path, self.study, raw_path=True)
