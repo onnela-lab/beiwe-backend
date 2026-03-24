@@ -4,7 +4,8 @@ import traceback
 from datetime import datetime
 from typing import Self
 
-from django.db import models
+from django.db.models import (BooleanField, CharField, DateTimeField, ForeignKey,
+    PositiveBigIntegerField, SET_NULL, TextField)
 
 from database.common_models import TimestampedModel
 from database.user_models_researcher import Researcher
@@ -12,14 +13,14 @@ from libs.utils.timeout_cache import timeout_cache
 
 
 class FileAsText(TimestampedModel):
-    tag = models.CharField(null=False, blank=False, max_length=256, db_index=True)
-    text = models.TextField(null=False, blank=False)
+    tag = CharField(null=False, blank=False, max_length=256, db_index=True)
+    text = TextField(null=False, blank=False)
 
 
 class GenericEvent(TimestampedModel):
-    tag = models.CharField(null=False, blank=False, max_length=256, db_index=True)
-    note = models.TextField(null=False, blank=False)
-    stacktrace = models.TextField(null=True, blank=True)
+    tag = CharField(null=False, blank=False, max_length=256, db_index=True)
+    note = TextField(null=False, blank=False)
+    stacktrace = TextField(null=True, blank=True)
     
     @classmethod
     def easy_create(cls, tag: str, note: str):
@@ -31,7 +32,7 @@ class GenericEvent(TimestampedModel):
 
 class SingletonModel(TimestampedModel):
     """ A model that destructively maintains exactly one instance. Be very careful with these
-    models. """
+     """
     class Meta:  # type: ignore
         abstract = True
     
@@ -55,9 +56,9 @@ class SingletonModel(TimestampedModel):
 # used and updated in update_forest_versions script for display on the forest page
 class ForestVersion(SingletonModel):
     """ Singleton model that holds the version of the forest package and it's git commit hash. """
-    package_version = models.TextField(blank=True, null=False, default="")
+    package_version = TextField(blank=True, null=False, default="")
     # should be a 40 character hash, until git decides its time to update to sha256.
-    git_commit = models.TextField(blank=True, null=False, default="")
+    git_commit = TextField(blank=True, null=False, default="")
 
 
 class GlobalSettings(SingletonModel):
@@ -65,12 +66,12 @@ class GlobalSettings(SingletonModel):
     several servers, threads etc. Should always be accessed via .singleton() method. """
     
     # see the downtime middleware.
-    downtime_enabled = models.BooleanField(default=False)
+    downtime_enabled = BooleanField(default=False)
     
     # this datetime will be populated when the migration is run, which is the same time the resend
     # notification feature can be activated.  (this defines a check on historical ArchivedEvent
     # created_on times.)
-    push_notification_resend_enabled: datetime = models.DateTimeField(default=None, null=True, blank=True)
+    push_notification_resend_enabled: datetime = DateTimeField(default=None, null=True, blank=True)
     
     @classmethod
     @timeout_cache(seconds=60)
@@ -81,20 +82,20 @@ class GlobalSettings(SingletonModel):
 
 class DataAccessRecord(TimestampedModel):
     """ Model for recording data access requests. """
-    researcher: Researcher = models.ForeignKey(
-        "Researcher", on_delete=models.SET_NULL, related_name="data_access_record", null=True
+    researcher: Researcher = ForeignKey(
+        "Researcher", on_delete=SET_NULL, related_name="data_access_record", null=True
     )
     # model must have a username field for when a researcher is deleted
-    username = models.CharField(max_length=32, null=False)
-    query_params = models.TextField(null=False, blank=False)
-    error = models.TextField(null=True, blank=True)
-    registry_dict_size = models.PositiveBigIntegerField(null=True, blank=True)
-    time_end: datetime = models.DateTimeField(null=True, blank=True)
+    username = CharField(max_length=32, null=False)
+    query_params = TextField(null=False, blank=False)
+    error = TextField(null=True, blank=True)
+    registry_dict_size = PositiveBigIntegerField(null=True, blank=True)
+    time_end: datetime = DateTimeField(null=True, blank=True)
     # bytes is never populated
-    bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    bytes = PositiveBigIntegerField(null=True, blank=True)
 
 
 class DataProcessingStatus(SingletonModel):
     """ Very simple model for tracking the last background processing run. (on, not works.) """
     
-    last_run = models.DateTimeField(null=True, blank=True)
+    last_run = DateTimeField(null=True, blank=True)
