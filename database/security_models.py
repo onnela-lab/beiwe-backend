@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db import models
+from django.db.models import BooleanField, CharField, DateTimeField, ForeignKey, SET_NULL, TextField
 
 from database.common_models import TimestampedModel
 from database.user_models_researcher import Researcher
@@ -14,13 +14,13 @@ class ApiKey(TimestampedModel):
     DESIRED_ITERATIONS = 310000  # 2022 recommendation pbkdf2 iterations for sha256 is 310,000
     DESIRED_ALGORITHM = "sha256"
     
-    access_key_id = models.CharField(max_length=64, unique=True, validators=[STANDARD_BASE_64_VALIDATOR])
-    access_key_secret = models.CharField(max_length=256, validators=[PASSWORD_VALIDATOR], blank=True)
+    access_key_id = CharField(max_length=64, unique=True, validators=[STANDARD_BASE_64_VALIDATOR])
+    access_key_secret = CharField(max_length=256, validators=[PASSWORD_VALIDATOR], blank=True)
     
-    is_active = models.BooleanField(default=True)
-    last_used = models.DateTimeField(null=True, blank=True)
-    researcher: Researcher = models.ForeignKey(Researcher, null=True, on_delete=models.SET_NULL, related_name="api_keys")
-    readable_name = models.TextField(blank=True, default="")
+    is_active = BooleanField(default=True)
+    last_used = DateTimeField(null=True, blank=True)
+    researcher: Researcher = ForeignKey(Researcher, null=True, on_delete=SET_NULL, related_name="api_keys")
+    readable_name = TextField(blank=True, default="")
     
     _access_key_secret_plaintext = None
     
