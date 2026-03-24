@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db import models
+from django.db.models import CharField
 
 from database.models import TimestampedModel
 from database.validators import PASSWORD_VALIDATOR
@@ -20,7 +20,7 @@ class AbstractPasswordUser(TimestampedModel):
     DESIRED_ALGORITHM = None
     DESIRED_ITERATIONS = None
     
-    password = models.CharField(max_length=256, validators=[PASSWORD_VALIDATOR])
+    password = CharField(max_length=256, validators=[PASSWORD_VALIDATOR])
     
     def generate_hash_and_salt(self, password: bytes) -> tuple[bytes, bytes]:
         return generate_hash_and_salt(self.DESIRED_ALGORITHM, self.DESIRED_ITERATIONS, password)
