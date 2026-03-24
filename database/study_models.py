@@ -6,16 +6,15 @@ from typing import Any, TYPE_CHECKING
 from dateutil.tz import gettz
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
-from django.db.models import F, Func, Manager
+from django.db.models import (BooleanField, CharField, DateField, F, ForeignKey, Func, Manager,
+    OneToOneField, PositiveIntegerField, PROTECT, TextField)
 from django.db.models.query import QuerySet
 from django.utils import timezone
 from django.utils.timezone import localtime
 
 from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, AMBIENT_AUDIO,
-    ANDROID_LOG_FILE, AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS,
-    IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS,
-    SURVEY_TIMINGS, TEXTS_LOG, WIFI)
+    AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, MAGNETOMETER, POWER_STATE,
+    PROXIMITY, REACHABILITY, TEXTS_LOG, WIFI)
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
@@ -40,34 +39,34 @@ class Study(TimestampedModel, ObjectIDModel):
     
     STUDY_EXPORT_FIELDS = ["name", "timezone_name", "deleted", "forest_enabled", "id", "object_id"]
     
-    name = models.TextField(unique=True, help_text='Name of the study; can be of any length')
-    encryption_key = models.CharField(
+    name = TextField(unique=True, help_text='Name of the study; can be of any length')
+    encryption_key = CharField(
         max_length=32, validators=[LengthValidator(32)],
         help_text='Key used for encrypting the study data'
     )
-    object_id = models.CharField(
+    object_id = CharField(
         max_length=24, unique=True, validators=[LengthValidator(24)],
         help_text='ID used for naming S3 files'
     )
-    timezone_name = models.CharField(
+    timezone_name = CharField(
         max_length=256, default="America/New_York", null=False, blank=False
     )
     
-    end_date = models.DateField(null=True, blank=True)
-    manually_stopped = models.BooleanField(default=False)
+    end_date = DateField(null=True, blank=True)
+    manually_stopped = BooleanField(default=False)
     
-    deleted = models.BooleanField(default=False)
-    forest_enabled = models.BooleanField(default=False)
+    deleted = BooleanField(default=False)
+    forest_enabled = BooleanField(default=False)
     
     # easy enrollment disables the password (skips the check) at participant registration
     # for all participants in the study.
-    easy_enrollment = models.BooleanField(default=False)
+    easy_enrollment = BooleanField(default=False)
     
     # Researcher security settings
-    password_minimum_length = models.PositiveIntegerField(default=8, validators=[MinValueValidator(8), MaxValueValidator(20)])
-    password_max_age_enabled = models.BooleanField(default=False)
-    password_max_age_days = models.PositiveIntegerField(default=365, validators=[MinValueValidator(30), MaxValueValidator(365)])
-    mfa_required = models.BooleanField(default=False)
+    password_minimum_length = PositiveIntegerField(default=8, validators=[MinValueValidator(8), MaxValueValidator(20)])
+    password_max_age_enabled = BooleanField(default=False)
+    password_max_age_days = PositiveIntegerField(default=365, validators=[MinValueValidator(30), MaxValueValidator(365)])
+    mfa_required = BooleanField(default=False)
     
     # related field typings (IDE halp)
     chunk_registries: Manager[ChunkRegistry];             interventions: Manager[Intervention]
@@ -176,8 +175,8 @@ class Study(TimestampedModel, ObjectIDModel):
 
 
 class StudyField(UtilityModel):
-    study: Study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name='fields')
-    field_name = models.TextField()
+    study: Study = ForeignKey(Study, on_delete=PROTECT, related_name='fields')
+    field_name = TextField()
     
     class Meta:
         unique_together = (("study", "field_name"),)
@@ -222,63 +221,63 @@ class DeviceSettings(TimestampedModel):
         return self.as_unpacked_native_python(field_names)
     
     # Whether various device options are turned on
-    accelerometer = models.BooleanField(default=True)
-    gps = models.BooleanField(default=True)
-    calls = models.BooleanField(default=True)
-    texts = models.BooleanField(default=True)
-    wifi = models.BooleanField(default=True)
-    bluetooth = models.BooleanField(default=False)
-    power_state = models.BooleanField(default=True)
-    use_anonymized_hashing = models.BooleanField(default=True)
-    use_gps_fuzzing = models.BooleanField(default=False)
-    call_clinician_button_enabled = models.BooleanField(default=True)
-    call_research_assistant_button_enabled = models.BooleanField(default=True)
-    ambient_audio = models.BooleanField(default=False)
+    accelerometer = BooleanField(default=True)
+    gps = BooleanField(default=True)
+    calls = BooleanField(default=True)
+    texts = BooleanField(default=True)
+    wifi = BooleanField(default=True)
+    bluetooth = BooleanField(default=False)
+    power_state = BooleanField(default=True)
+    use_anonymized_hashing = BooleanField(default=True)
+    use_gps_fuzzing = BooleanField(default=False)
+    call_clinician_button_enabled = BooleanField(default=True)
+    call_research_assistant_button_enabled = BooleanField(default=True)
+    ambient_audio = BooleanField(default=False)
     
     # Whether iOS-specific data streams are turned on
-    proximity = models.BooleanField(default=False)
-    gyro = models.BooleanField(default=False)  # not ios-specific anymore
-    magnetometer = models.BooleanField(default=False)  # not ios-specific anymore
-    devicemotion = models.BooleanField(default=False)
-    reachability = models.BooleanField(default=True)
+    proximity = BooleanField(default=False)
+    gyro = BooleanField(default=False)  # not ios-specific anymore
+    magnetometer = BooleanField(default=False)  # not ios-specific anymore
+    devicemotion = BooleanField(default=False)
+    reachability = BooleanField(default=True)
     
     # Upload over cellular data or only over WiFi (WiFi-only is default)
-    allow_upload_over_cellular_data = models.BooleanField(default=False)
+    allow_upload_over_cellular_data = BooleanField(default=False)
     
     # Timer variables
-    accelerometer_off_duration_seconds = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
-    accelerometer_on_duration_seconds = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
-    accelerometer_frequency = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
-    ambient_audio_off_duration_seconds = models.PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_on_duration_seconds = models.PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_bitrate = models.PositiveIntegerField(default=24000, validators=[MinValueValidator(16000)])
-    ambient_audio_sampling_rate = models.PositiveIntegerField(default=44100, validators=[MinValueValidator(16000)])
-    bluetooth_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
-    bluetooth_total_duration_seconds = models.PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
-    bluetooth_global_offset_seconds = models.PositiveIntegerField(default=0)
-    check_for_new_surveys_frequency_seconds = models.PositiveIntegerField(default=3600, validators=[MinValueValidator(30)])
-    create_new_data_files_frequency_seconds = models.PositiveIntegerField(default=15 * 60, validators=[MinValueValidator(30)])
-    gps_off_duration_seconds = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
-    gps_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
-    seconds_before_auto_logout = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
-    upload_data_files_frequency_seconds = models.PositiveIntegerField(default=3600, validators=[MinValueValidator(10)])
-    voice_recording_max_time_length_seconds = models.PositiveIntegerField(default=240)
-    wifi_log_frequency_seconds = models.PositiveIntegerField(default=300, validators=[MinValueValidator(10)])
-    gyro_off_duration_seconds = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
-    gyro_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
-    gyro_frequency = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
+    accelerometer_off_duration_seconds = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
+    accelerometer_on_duration_seconds = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
+    accelerometer_frequency = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
+    ambient_audio_off_duration_seconds = PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
+    ambient_audio_on_duration_seconds = PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
+    ambient_audio_bitrate = PositiveIntegerField(default=24000, validators=[MinValueValidator(16000)])
+    ambient_audio_sampling_rate = PositiveIntegerField(default=44100, validators=[MinValueValidator(16000)])
+    bluetooth_on_duration_seconds = PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
+    bluetooth_total_duration_seconds = PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
+    bluetooth_global_offset_seconds = PositiveIntegerField(default=0)
+    check_for_new_surveys_frequency_seconds = PositiveIntegerField(default=3600, validators=[MinValueValidator(30)])
+    create_new_data_files_frequency_seconds = PositiveIntegerField(default=15 * 60, validators=[MinValueValidator(30)])
+    gps_off_duration_seconds = PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
+    gps_on_duration_seconds = PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
+    seconds_before_auto_logout = PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
+    upload_data_files_frequency_seconds = PositiveIntegerField(default=3600, validators=[MinValueValidator(10)])
+    voice_recording_max_time_length_seconds = PositiveIntegerField(default=240)
+    wifi_log_frequency_seconds = PositiveIntegerField(default=300, validators=[MinValueValidator(10)])
+    gyro_off_duration_seconds = PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
+    gyro_on_duration_seconds = PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
+    gyro_frequency = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     
     # iOS-specific timer variables)
-    magnetometer_off_duration_seconds = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
-    magnetometer_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
-    devicemotion_off_duration_seconds = models.PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
-    devicemotion_on_duration_seconds = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
+    magnetometer_off_duration_seconds = PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
+    magnetometer_on_duration_seconds = PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
+    devicemotion_off_duration_seconds = PositiveIntegerField(default=600, validators=[MinValueValidator(1)])
+    devicemotion_on_duration_seconds = PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
     
     # Text strings
-    about_page_text = models.TextField(default=ABOUT_PAGE_TEXT)
-    call_clinician_button_text = models.TextField(default='Call My Clinician')
-    consent_form_text = models.TextField(default=CONSENT_FORM_TEXT, blank=True, null=False)
-    survey_submit_success_toast_text = models.TextField(default=SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
+    about_page_text = TextField(default=ABOUT_PAGE_TEXT)
+    call_clinician_button_text = TextField(default='Call My Clinician')
+    consent_form_text = TextField(default=CONSENT_FORM_TEXT, blank=True, null=False)
+    survey_submit_success_toast_text = TextField(default=SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
     
     # Consent sections
     consent_sections = JSONTextField(default=DEFAULT_CONSENT_SECTIONS_JSON)
@@ -287,10 +286,10 @@ class DeviceSettings(TimestampedModel):
     # for checking and saving these is all connected to this device settings model, and
     # it doesn't matter if the device receives some extra settings that it doesn't use.
     # heartbeat settings
-    heartbeat_message = models.TextField(default=DEFAULT_HEARTBEAT_MESSAGE)
-    heartbeat_timer_minutes = models.PositiveIntegerField(default=60, validators=[MinValueValidator(30)])
+    heartbeat_message = TextField(default=DEFAULT_HEARTBEAT_MESSAGE)
+    heartbeat_timer_minutes = PositiveIntegerField(default=60, validators=[MinValueValidator(30)])
     
     # Resend survey notifications (to sufficiently recent iOS app installs)
-    resend_period_minutes = models.PositiveIntegerField(default=180, validators=[MinValueValidator(0)])
+    resend_period_minutes = PositiveIntegerField(default=180, validators=[MinValueValidator(0)])
     
-    study: Study = models.OneToOneField(Study, on_delete=models.PROTECT, related_name='device_settings')
+    study: Study = OneToOneField(Study, on_delete=PROTECT, related_name='device_settings')
