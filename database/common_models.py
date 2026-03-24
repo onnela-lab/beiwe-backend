@@ -11,8 +11,9 @@ from random import choice as random_choice
 from typing import Any, Self
 from uuid import uuid4
 
-from django.db import models
-from django.db.models import Count, Q, QuerySet
+from django.db import models  # you cannot remove models.Model
+from django.db.models import (AutoField, BinaryField, BooleanField, CharField, Count, DateField,
+    DateTimeField, FloatField, ForeignKey, IntegerField, Q, QuerySet, TextField, UUIDField)
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import RelatedField
 from django.db.models.manager import BaseManager
@@ -23,6 +24,10 @@ from django.utils.timezone import localtime
 from constants.common_constants import DEV_TIME_FORMAT3, DT_24HR_W_TZ_W_SEC_N_PAREN, EASTERN
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from libs.utils.http_utils import numformat
+
+
+# Insanity: if you uncomment this line the entire app fails
+# from django.db.models import Model
 
 
 class ObjectIdError(Exception): pass
@@ -61,8 +66,8 @@ class ObjectIDModel(models.Model):
         abstract = True
 
 
-class JSONTextField(models.TextField):
-    """ A TextField for holding JSON-serialized data. This is only different from models.TextField
+class JSONTextField(TextField):
+    """ A TextField for holding JSON-serialized data. This is only different from TextField
     in UtilityModel.as_native_json, in that this is not JSON serialized an additional time. """
 
 
@@ -87,20 +92,20 @@ class UtilityModel(models.Model):
         choice_field_options = []
         
         for i, field in enumerate(cls._meta.fields):
-            if isinstance(field, models.ForeignKey):
+            if isinstance(field, ForeignKey):
                 foreign_keys.append(field.name)
                 continue
-            elif isinstance(field, models.BooleanField):
+            elif isinstance(field, BooleanField):
                 choice_field_options.append([(field.name, True), (field.name, False)])
                 continue
-            elif isinstance(field, models.AutoField): continue
-            elif isinstance(field, models.DateTimeField):    x = now + timedelta(minutes=i)
-            elif isinstance(field, models.DateField):        x = date.today() + timedelta(days=i)
-            elif isinstance(field, models.IntegerField):     x = i
-            elif isinstance(field, models.FloatField):       x = float(i)
-            elif isinstance(field, models.UUIDField):        x = uuid4()
-            elif isinstance(field, models.BinaryField):      x = str(i).encode('utf-8')
-            elif isinstance(field, (models.TextField, models.CharField)):    x = str(i)
+            elif isinstance(field, AutoField): continue
+            elif isinstance(field, DateTimeField):    x = now + timedelta(minutes=i)
+            elif isinstance(field, DateField):        x = date.today() + timedelta(days=i)
+            elif isinstance(field, IntegerField):     x = i
+            elif isinstance(field, FloatField):       x = float(i)
+            elif isinstance(field, UUIDField):        x = uuid4()
+            elif isinstance(field, BinaryField):      x = str(i).encode('utf-8')
+            elif isinstance(field, (TextField, CharField)):    x = str(i)
             else: raise TypeError(f"encountered unhandled field type: {type(field)}")
             
             field_dict[field.name] = x
@@ -372,14 +377,14 @@ class UtilityModel(models.Model):
 
 class CreatedOnModel(UtilityModel):
     """ CreatedOnModels record their creation time. """
-    created_on = models.DateTimeField(auto_now_add=True)
+    created_on = DateTimeField(auto_now_add=True)
     class Meta:  # type: ignore
         abstract = True
 
 
 class TimestampedModel(CreatedOnModel):
     """ TimestampedModels record their creation time and last updated time (if they use .save()). """
-    last_updated = models.DateTimeField(auto_now=True)
+    last_updated = DateTimeField(auto_now=True)
     class Meta:  # type: ignore
         abstract = True
 

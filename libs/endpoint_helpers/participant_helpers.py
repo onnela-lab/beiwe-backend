@@ -5,7 +5,8 @@ from uuid import UUID
 import bleach
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import F, Manager
+from django.db.models import F, Manager, QuerySet
+
 from django.shortcuts import render
 
 from authentication.admin_authentication import ResearcherRequest
@@ -15,7 +16,7 @@ from constants.common_constants import (API_DATE_FORMAT, DT_12HR_N_TZ_N_SEC_N_PA
 from constants.message_strings import PARTICIPANT_LOCKED
 from constants.study_constants import NOTIFICATIONS_PER_PAGE
 from constants.user_constants import DATA_DELETION_ALLOWED_RELATIONS
-from database.models import ArchivedEvent, Participant, ParticipantActionLog, Study, dbt
+from database.models import ArchivedEvent, Participant, ParticipantActionLog, Study
 from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
 from libs.utils.http_utils import (compact_iso_time_format, more_compact_iso_time_format,
     niceish_iso_time_format, null_time_format)
@@ -113,7 +114,7 @@ def get_survey_names_dict(study: Study) -> dict[int, str]:
     return survey_names
 
 
-def query_values_for_notification_history(participant_id) -> dbt.ArchivedEventQS:
+def query_values_for_notification_history(participant_id) -> QuerySet[ArchivedEvent]:
     return (
         ArchivedEvent.objects
         .filter(participant_id=participant_id)

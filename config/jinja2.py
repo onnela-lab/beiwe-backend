@@ -28,6 +28,7 @@ SYSADMIN_EMAIL = SYSADMIN_EMAILS.split(",")[0].strip()
 if not SYSADMIN_EMAIL or "@" not in SYSADMIN_EMAIL:
     SYSADMIN_EMAIL = ""
 
+
 def environment(**options: dict[str, Any]) -> Environment:
     # always, always check for autoescape
     assert "autoescape" in options and options["autoescape"] is True
@@ -114,6 +115,7 @@ if not settings.DEBUG or RUNNING_TESTS:
             #     setattr(LocalAssets, attrname, attr.replace(".js", ".min.js"))
             if RUNNING_TESTS:
                 setattr(LocalAssets, attrname, "empty_css_for_tests.css")
+
 
 class CdnAssets:
     # These are the assets expected to be used in normal runtime, including most development scenarios.

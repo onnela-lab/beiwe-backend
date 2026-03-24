@@ -5,13 +5,13 @@ from datetime import date, datetime, timedelta
 from functools import reduce
 from typing import DefaultDict, TypeVar
 
-from django.db.models import Max, Min, Q
+from django.db.models import Max, Min, Q, QuerySet
 
 from authentication.admin_authentication import ResearcherRequest
 from constants.common_constants import API_DATE_FORMAT, EARLIEST_POSSIBLE_DATA_DATETIME
 from constants.data_stream_constants import ALL_DATA_STREAMS
 from constants.forest_constants import DATA_QUANTITY_FIELD_MAP, DATA_QUANTITY_FIELD_NAMES
-from database.models import (DashboardColorSetting, DashboardGradient, DashboardInflection, dbt,
+from database.models import (DashboardColorSetting, DashboardGradient, DashboardInflection,
     Participant, Study, SummaryStatisticDaily)
 from middleware.abort_middleware import abort
 
@@ -21,7 +21,7 @@ DATETIME_FORMAT_ERROR = 'Dates and times provided to this endpoint must be forma
 
 
 def parse_data_streams(
-    request: ResearcherRequest, study: Study, data_stream: str, participant_objects: dbt.ParticipantQS
+    request: ResearcherRequest, study: Study, data_stream: str, participant_objects: QuerySet[Participant]
 ):
     start, end = extract_date_args_from_request(request)
     first_day, last_day = get_first_and_last_days_of_data(study, data_stream)
@@ -222,7 +222,7 @@ def get_first_and_last_days_of_data(
 
 
 def dashboard_data_query(
-    participants: dbt.ParticipantQS, data_stream: str = None
+    participants: QuerySet[Participant], data_stream: str = None
 ) -> dict[str, list[dict[str, date | str | int]]]:
     """ Queries SummaryStatistics based on the provided parameters and returns a list of dictionaries
     with 3 keys: bytes, data_stream, and time_bin. """
@@ -238,7 +238,7 @@ def dashboard_data_query(
     return patient_id_to_datapoints, earliest_date, latest_date
 
 
-def do_dashboard_summarystatistics_query(participants: dbt.ParticipantQS, data_stream: str = None):
+def do_dashboard_summarystatistics_query(participants: QuerySet[Participant], data_stream: str = None):
     """ Business logic to make the database query as fast as possible. """
     
     filter_kwargs = {"participant_id__in": participants}
