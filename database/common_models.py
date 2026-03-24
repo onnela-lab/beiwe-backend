@@ -270,7 +270,7 @@ class UtilityModel(models.Model):
         
         return ret
     
-    def as_unpacked_native_python(self, field_names: tuple[str]) -> dict[str, Any]:
+    def as_unpacked_native_python(self, field_names: Sequence[str]) -> dict[str, Any]:
         """ This function returns a dictionary of the desired fields, unpacking any JSONTextField.
         DO NOT MAKE A VERSION OF THIS THAT TRIVIALLY RETURNS THE ENTIRE MODEL'S DATA. We had that
         and it caused numerous bugs, security issues, and wasted time. If you want to do that use
