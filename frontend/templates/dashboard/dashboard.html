@@ -32,18 +32,38 @@
 <div class="dashboard-options">
   <ul class="list-group col-xs-6 well min-wid-20 well-left">
     <li class="list-group-item mt-1 bold text-center dashboard-list-rounded force-green-bg">Select Participant</li>
-    {% for i in range(participants|length) %}
+    
+    {% for patient_id in participants_with_data %}
     <li class="list-group-item dashboard-list-margins dashboard-list-rounded">
       <a
-        class="link-fill"
-        href={{ easy_url("data_page_endpoints.dashboard_participant_page", study_id, participants[i]) }}
-        aria-label="go to dashboard for {{ participants[i] }}"
+        class="link-fill bold"
+        href={{ easy_url("data_page_endpoints.dashboard_participant_page", study_id, patient_id) }}
+        aria-label="go to dashboard for {{ patient_id }}"
       >
-        {{participants[i]}}
+        {{patient_id}}
       </a>
     </li>
     {%  endfor %}
+    
+    {% if empty_participants %}
+      <li class="list-group-item mt-1 bold text-center dashboard-list-rounded force-green-bg">
+        Participants Below This Point Have No Uploaded Data
+      </li>
+      
+      {% for patient_id in empty_participants %}
+      <li class="list-group-item dashboard-list-margins dashboard-list-rounded">
+        <a
+          class="link-fill italic"
+          href={{ easy_url("participant_endpoints.participant_page", study_id, patient_id) }}
+          aria-label="go to dashboard for {{ patient_id }}"
+        >
+          {{patient_id}}
+        </a>
+      </li>
+      {%  endfor %}
+    {% endif %}
   </ul>
+  
   <ul class="list-group col-xs-6 well min-wid-20 well-right">
     <li class="list-group-item mt-1 bold text-center dashboard-list-rounded force-green-bg">Select Data Stream</li>
     {% for stream in data_stream_dict.keys()|sort() %}

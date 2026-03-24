@@ -15,10 +15,7 @@ from constants.common_constants import (API_DATE_FORMAT, DT_12HR_N_TZ_N_SEC_N_PA
 from constants.message_strings import PARTICIPANT_LOCKED
 from constants.study_constants import NOTIFICATIONS_PER_PAGE
 from constants.user_constants import DATA_DELETION_ALLOWED_RELATIONS
-from database.models import dbt
-from database.schedule_models import ArchivedEvent
-from database.study_models import Study
-from database.user_models_participant import Participant, ParticipantActionLog
+from database.models import ArchivedEvent, Participant, ParticipantActionLog, Study, dbt
 from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
 from libs.utils.http_utils import (compact_iso_time_format, more_compact_iso_time_format,
     niceish_iso_time_format, null_time_format)

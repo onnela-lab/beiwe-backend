@@ -13,9 +13,7 @@ from django.utils.functional import Promise
 from constants.common_constants import API_DATE_FORMAT, LEGIBLE_DT_FORMAT
 from constants.user_constants import (BASE_TABLE_FIELD_NAMES, EXTRA_TABLE_FIELDS,
     PARTICIPANT_STATUS_QUERY_FIELDS)
-from database.models import dbt
-from database.study_models import Study
-from database.user_models_participant import Participant
+from database.models import Participant, Study
 
 
 INCONCEIVABLY_HUGE_NUMBER = 2**64  # literally what it says it is, don't clutter in constants.
@@ -158,7 +156,7 @@ def determine_registered_status(
     return "Inactive"
 
 
-def get_interventions_and_fields(q: dbt.ParticipantQS) -> tuple[dict[int, dict[str, str]], dict[int, dict[str, date]]]:
+def get_interventions_and_fields(q: QuerySet[Participant]) -> tuple[dict[int, dict[str, str]], dict[int, dict[str, date]]]:
     """ intervention dates and fields have a many-to-one relationship with participants, which means
     we need to do it as a single query (or else deal with some very gross autofilled code that I'm
     not sure populates None values in a way that we desire), from which we create a lookup dict to

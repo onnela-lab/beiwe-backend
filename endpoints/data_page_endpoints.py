@@ -8,8 +8,7 @@ from authentication.admin_authentication import (authenticate_researcher_login,
 from constants.data_stream_constants import (ALL_DATA_STREAMS, COMPLETE_DATA_STREAM_DICT,
     DASHBOARD_DATA_STREAMS)
 from constants.message_strings import DATA_DOWNLOAD_NO_CREDS
-from database.study_models import Study
-from database.user_models_participant import Participant
+from database.models import Study, Participant
 from libs.endpoint_helpers.dashboard_helpers import (create_next_past_urls, dashboard_data_query,
     extract_date_args_from_request, get_bytes_data_stream_match, get_first_and_last_days_of_data,
     get_unique_dates, handle_filters, parse_data_streams)
@@ -47,18 +46,25 @@ def data_api_web_form_page(request: ResearcherRequest):
 def dashboard_page(request: ResearcherRequest, study_id: int):
     """ information for the general dashboard view for a study """
     study = get_object_or_404(Study, pk=study_id)
-    participants = list(
-        Participant.objects.filter(study=study_id)
-        .order_by("patient_id")
-        .values_list("patient_id", flat=True)
+    
+    # separate participants into two types, those with data (in summary statistics), and without.
+    all_patients = set(study.participants.filter(deleted=False).values_list("patient_id", flat=True))
+    patients_with_data = set(
+        study.summary_statistics_daily.values_list("participant__patient_id", flat=True).distinct()
     )
+    
+    empty_participants = sorted(all_patients - patients_with_data)
+    patients_with_data = sorted(patients_with_data)
+    
     conditionally_display_study_status_warnings(request, study)
+    
     return render(
         request,
         'dashboard/dashboard.html',
         context=dict(
             study=study,
-            participants=participants,
+            participants_with_data=patients_with_data,
+            empty_participants=empty_participants,
             study_id=study_id,
             data_stream_dict=COMPLETE_DATA_STREAM_DICT,
             page_location='dashboard_landing',
@@ -77,11 +83,20 @@ def get_data_for_dashboard_datastream_display(
     we don't want all of the get request running. """
     study = Study.objects.get(pk=study_id)  # already checked in decorator
     
-    # general data fetching
-    participants = Participant.objects.filter(study=study).order_by("patient_id")
+    # general data fetching - filter participants with no data.
+    participants_with_data = study.summary_statistics_daily.values_list("participant").distinct()
+    
+    participants = list(
+        study.participants.filter(deleted=False, pk__in=participants_with_data).order_by("patient_id")
+    )
+    
+    empty_participant_count = study.participants.exclude(pk__in=participants_with_data) \
+        .filter(deleted=False).order_by("patient_id").count()
+    
     data_exists, first_day, last_day, unique_dates, byte_streams = parse_data_streams(
         request, study, data_stream, participants
     )
+    
     if first_day is None or not data_exists:
         next_url = past_url = ""
     else:
@@ -111,6 +126,7 @@ def get_data_for_dashboard_datastream_display(
             show_color=show_color,
             all_flags_list=all_flags_list,
             page_location='dashboard_data',
+            empty_participant_count=empty_participant_count,
         )
     )
 

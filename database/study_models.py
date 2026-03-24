@@ -12,7 +12,10 @@ from django.db.models.query import QuerySet
 from django.utils import timezone
 from django.utils.timezone import localtime
 
-from constants.data_stream_constants import ALL_DATA_STREAMS
+from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, AMBIENT_AUDIO,
+    ANDROID_LOG_FILE, AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS,
+    IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS,
+    SURVEY_TIMINGS, TEXTS_LOG, WIFI)
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
@@ -25,7 +28,8 @@ from libs.utils.date_utils import date_is_in_the_past
 
 if TYPE_CHECKING:
     from database.models import (ChunkRegistry, DashboardColorSetting, FileToProcess, Intervention,
-        Participant, ParticipantFieldValue, Researcher, StudyRelation, Survey)
+        Participant, ParticipantFieldValue, Researcher, StudyRelation, SummaryStatisticDaily,
+        Survey)
 
 
 class Study(TimestampedModel, ObjectIDModel):
@@ -71,6 +75,7 @@ class Study(TimestampedModel, ObjectIDModel):
     device_settings: DeviceSettings;                      study_relations: Manager[StudyRelation]
     fields: Manager[StudyField];                          surveys: Manager[Survey]
     files_to_process: Manager[FileToProcess]
+    summary_statistics_daily: Manager[SummaryStatisticDaily]
     
     def save(self, *args, **kwargs):
         """ Ensure there is a study device settings attached to this study. """
@@ -184,6 +189,29 @@ class StudyField(UtilityModel):
 class DeviceSettings(TimestampedModel):
     """ The DeviceSettings database contains the structure that defines settings pushed to devices
     of users in of a study. """
+    # ANDROID_LOG_FILE, IDENTIFIERS, IOS_LOG_FILE, SURVEY_ANSWERS, SURVEY_TIMINGS - not toggleable
+    ENABLEMENT_FIELD_NAMES = {
+        ACCELEROMETER: "accelerometer",
+        AUDIO_RECORDING: "voice_recording",
+        AMBIENT_AUDIO: "ambient_audio",
+        BLUETOOTH: "bluetooth",
+        CALL_LOG: "calls",
+        DEVICEMOTION: "devicemotion",
+        GPS: "gps",
+        GYRO: "gyro",
+        MAGNETOMETER: "magnetometer",
+        POWER_STATE: "power_state",
+        PROXIMITY: "proximity",
+        REACHABILITY: "reachability",
+        TEXTS_LOG: "texts",
+        WIFI: "wifi",
+    }
+    
+    def enabled_data_streams(self) -> list[str]:
+        return [
+            data_stream for data_stream, field_name in self.ENABLEMENT_FIELD_NAMES.items()
+            if getattr(self, field_name)
+        ]
     
     def export(self) -> dict[str, Any]:
         """ DeviceSettings is a special case where we want to export all fields.  Do not add fields

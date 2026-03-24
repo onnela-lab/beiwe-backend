@@ -3,7 +3,7 @@ import operator
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import reduce
-from typing import Any, DefaultDict, Type, TypeVar
+from typing import DefaultDict, TypeVar
 
 from django.db.models import Max, Min, Q
 
@@ -11,12 +11,10 @@ from authentication.admin_authentication import ResearcherRequest
 from constants.common_constants import API_DATE_FORMAT, EARLIEST_POSSIBLE_DATA_DATETIME
 from constants.data_stream_constants import ALL_DATA_STREAMS
 from constants.forest_constants import DATA_QUANTITY_FIELD_MAP, DATA_QUANTITY_FIELD_NAMES
-from database.dashboard_models import DashboardColorSetting, DashboardGradient, DashboardInflection
-from database.forest_models import SummaryStatisticDaily
-from database.models import dbt
-from database.study_models import Study
-from database.user_models_participant import Participant
+from database.models import (DashboardColorSetting, DashboardGradient, DashboardInflection, dbt,
+    Participant, Study, SummaryStatisticDaily)
 from middleware.abort_middleware import abort
+
 
 T = TypeVar('T')
 DATETIME_FORMAT_ERROR = 'Dates and times provided to this endpoint must be formatted like this: "2010-11-22"'

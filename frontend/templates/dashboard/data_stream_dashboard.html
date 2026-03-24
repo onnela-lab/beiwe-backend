@@ -57,7 +57,7 @@
 </div>
 
 {#  ----------- ADDING DROP DOWN FILTER BAR HERE ---------------------- #}
-{%  if times %}
+{% if times %}
 
 <div class="dates">
   <p>Available Dates: {{ first_day.strftime('%m/%d/%Y') }}
@@ -350,6 +350,14 @@
     </div>
   </div>
 
+
+  {% if empty_participant_count >= 1 %}
+    <div class="text-center italic">
+    <p>
+    This study has {{empty_participant_count}} participant(s) with no uploaded data that are not visible here, see the dashboard landing page for a list of those participants.
+    </p>
+  </div>
+  {% endif %}
 
   {#  ------------------- NEW GENERAL CONTENT ----------------------------------#}
   <div class="date_bar">
