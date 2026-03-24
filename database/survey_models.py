@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from django.db import models
-from django.db.models import Manager, QuerySet
+from django.db.models import (BooleanField, CharField, DateTimeField, ForeignKey, Manager, PROTECT,
+    QuerySet, TextField)
 
 from constants.study_constants import AUDIO_SURVEY_SETTINGS
 from database.common_models import JSONTextField, ObjectIDModel, TimestampedModel
@@ -32,10 +32,10 @@ class SurveyBase(TimestampedModel, ObjectIDModel):
     SURVEY_DEVICE_EXPORT_FIELDS = ["content", "survey_type", "settings", "object_id", "name"]
     
     content = JSONTextField(default='[]', help_text='JSON blob containing information about the survey questions.')
-    survey_type = models.CharField(max_length=16, choices=SURVEY_TYPE_CHOICES, help_text='What type of survey this is.')
+    survey_type = CharField(max_length=16, choices=SURVEY_TYPE_CHOICES, help_text='What type of survey this is.')
     settings = JSONTextField(default='{}', help_text='JSON blob containing settings for the survey.')
     
-    deleted = models.BooleanField(default=False)
+    deleted = BooleanField(default=False)
     
     class Meta:
         abstract = True
@@ -60,10 +60,10 @@ class Survey(SurveyBase):
     Inherits the following fields from SurveyBase content survey_type settings timings """
     
     # This is required for file name and path generation
-    object_id = models.CharField(max_length=24, unique=True, validators=[LengthValidator(24)])
+    object_id = CharField(max_length=24, unique=True, validators=[LengthValidator(24)])
     # the study field is not inherited because we need to change its related name
-    study: Study = models.ForeignKey('Study', on_delete=models.PROTECT, related_name='surveys')
-    name = models.TextField(blank=True, null=False, default="")
+    study: Study = ForeignKey('Study', on_delete=PROTECT, related_name='surveys')
+    name = TextField(blank=True, null=False, default="")
     
     # related field typings (IDE halp)
     absolute_schedules: Manager[AbsoluteSchedule]
@@ -185,8 +185,8 @@ class Survey(SurveyBase):
 
 class SurveyArchive(SurveyBase):
     """ All fields declared in abstract survey are copied whenever a change is made to a survey """
-    archive_start = models.DateTimeField(db_index=True)
-    survey: Survey = models.ForeignKey('Survey', on_delete=models.PROTECT, related_name='archives', db_index=True)
+    archive_start = DateTimeField(db_index=True)
+    survey: Survey = ForeignKey('Survey', on_delete=PROTECT, related_name='archives', db_index=True)
     
     # related field typings (IDE halp)
     archived_events: Manager[ArchivedEvent]
