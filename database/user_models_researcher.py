@@ -7,8 +7,8 @@ from typing import Type, TYPE_CHECKING
 from django.contrib.sessions.backends.db import SessionStore as DBStore
 from django.contrib.sessions.base_session import AbstractBaseSession
 from django.core.validators import MinLengthValidator, MinValueValidator
-from django.db import models
-from django.db.models import F, Func, Manager
+from django.db.models import (BooleanField, CASCADE, CharField, DateTimeField, F, ForeignKey, Func,
+    Manager, SmallIntegerField, TextField)
 from django.db.models.query import QuerySet
 from django.utils import timezone
 
@@ -19,8 +19,7 @@ from database.models import MaxValueValidator, TimestampedModel
 from database.study_models import Study
 from database.user_models_common import AbstractPasswordUser
 from database.validators import B32_VALIDATOR
-from libs.utils.security_utils import (BadDjangoKeyFormatting, compare_password,
-    django_password_components, generate_random_bytestring, get_current_mfa_code,
+from libs.utils.security_utils import (generate_random_bytestring, get_current_mfa_code,
     to_django_password_components)
 
 
@@ -36,22 +35,22 @@ class Researcher(AbstractPasswordUser):
     DESIRED_ITERATIONS = 310000  # 2022 recommendation pbkdf2 iterations for sha256 is 310,000
     DESIRED_ALGORITHM = "sha256"
     
-    username = models.CharField(max_length=32, unique=True, help_text='User-chosen username, stored in plain text')
-    site_admin = models.BooleanField(default=False, help_text='Whether the researcher is also an admin')
+    username = CharField(max_length=32, unique=True, help_text='User-chosen username, stored in plain text')
+    site_admin = BooleanField(default=False, help_text='Whether the researcher is also an admin')
     
-    password_last_changed = models.DateTimeField(null=False, blank=False, default=timezone.now)
-    password_force_reset = models.BooleanField(default=True)  # new researchers must reset their password
+    password_last_changed = DateTimeField(null=False, blank=False, default=timezone.now)
+    password_force_reset = BooleanField(default=True)  # new researchers must reset their password
     # in principle it is somewhat unsafe to store this, but the cryptographic search space is only
     # halved, and it needs to be stored Somewhere, either here or in the current session.
-    password_min_length = models.SmallIntegerField(default=8, validators=[MinValueValidator(8)])
+    password_min_length = SmallIntegerField(default=8, validators=[MinValueValidator(8)])
     
     # multi-factor authentication. If this is populated then the user has MFA enabled.
-    mfa_token = models.CharField(max_length=52, validators=[B32_VALIDATOR, MinLengthValidator(52)], null=True, blank=True)
-    most_recent_page = models.TextField(null=True, blank=True)
+    mfa_token = CharField(max_length=52, validators=[B32_VALIDATOR, MinLengthValidator(52)], null=True, blank=True)
+    most_recent_page = TextField(null=True, blank=True)
     
-    last_login_time = models.DateTimeField(null=True, blank=True)
-    bad_login_attempts = models.SmallIntegerField(default=0, validators=[MaxValueValidator(10)])
-    lockout_until = models.DateTimeField(null=True, blank=True)
+    last_login_time = DateTimeField(null=True, blank=True)
+    bad_login_attempts = SmallIntegerField(default=0, validators=[MaxValueValidator(10)])
+    lockout_until = DateTimeField(null=True, blank=True)
     
     # related field typings (IDE halp)
     api_keys: Manager[ApiKey]
@@ -205,13 +204,13 @@ class Researcher(AbstractPasswordUser):
 
 class StudyRelation(TimestampedModel):
     """ This is the through-model for defining the relationship between a researcher and a study. """
-    study: Study = models.ForeignKey(
-        Study, on_delete=models.CASCADE, related_name='study_relations', null=False, db_index=True
+    study: Study = ForeignKey(
+        Study, on_delete=CASCADE, related_name='study_relations', null=False, db_index=True
     )
-    researcher: Researcher = models.ForeignKey(
-        'Researcher', on_delete=models.CASCADE, related_name='study_relations', null=False, db_index=True
+    researcher: Researcher = ForeignKey(
+        'Researcher', on_delete=CASCADE, related_name='study_relations', null=False, db_index=True
     )
-    relationship = models.CharField(max_length=32, null=False, blank=False, db_index=True)
+    relationship = CharField(max_length=32, null=False, blank=False, db_index=True)
     
     class Meta:
         unique_together = ["study", "researcher"]
@@ -235,8 +234,8 @@ class StudyRelation(TimestampedModel):
 # also this can't be a UtilityModel, that causes tests to break due to a pickling error?
 class ResearcherSession(AbstractBaseSession):
     # Custom session model which stores user foreignkey to asssociate sessions with particular users.
-    researcher: Researcher = models.ForeignKey(
-        Researcher, null=True, on_delete=models.CASCADE, related_name="web_sessions"
+    researcher: Researcher = ForeignKey(
+        Researcher, null=True, on_delete=CASCADE, related_name="web_sessions"
     )
     
     @classmethod
