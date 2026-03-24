@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from django.db import models
-from django.db.models import Manager
+from django.db.models import CharField, ForeignKey, IntegerField, Manager, OneToOneField, PROTECT
 
 from database.models import TimestampedModel
 
@@ -14,8 +13,8 @@ if TYPE_CHECKING:
 
 class DashboardColorSetting(TimestampedModel):
     """ Database model, details of color settings point at this model. """
-    data_type = models.CharField(max_length=32)
-    study: Study = models.ForeignKey("Study", on_delete=models.PROTECT, related_name="dashboard_colors")
+    data_type = CharField(max_length=32)
+    study: Study = ForeignKey("Study", on_delete=PROTECT, related_name="dashboard_colors")
     
     # related field typings (IDE halp)
     gradient: Manager[DashboardGradient]
@@ -54,23 +53,23 @@ class DashboardColorSetting(TimestampedModel):
 
 class DashboardGradient(TimestampedModel):
     # It should be the case that there is only one gradient per DashboardColorSettings
-    dashboard_color_setting: DashboardColorSetting = models.OneToOneField(
-        DashboardColorSetting, on_delete=models.PROTECT, related_name="gradient", unique=True,
+    dashboard_color_setting: DashboardColorSetting = OneToOneField(
+        DashboardColorSetting, on_delete=PROTECT, related_name="gradient", unique=True,
     )
     
     # By setting both of these to 0 the frontend will automatically use tha biggest and smallest
     # values on the current page.
-    color_range_min = models.IntegerField(default=0)
-    color_range_max = models.IntegerField(default=0)
+    color_range_min = IntegerField(default=0)
+    color_range_max = IntegerField(default=0)
 
 
 class DashboardInflection(TimestampedModel):
     # an inflection corresponds to a flag value that has an operator to display a "flag" on the dashboard front end
-    dashboard_color_setting: DashboardColorSetting = models.ForeignKey(
-        DashboardColorSetting, on_delete=models.PROTECT, related_name="inflections"
+    dashboard_color_setting: DashboardColorSetting = ForeignKey(
+        DashboardColorSetting, on_delete=PROTECT, related_name="inflections"
     )
     
     # these are a mathematical operator and a numerical "inflection point"
     # no default for the operator, default of 0 is safe.
-    operator = models.CharField(max_length=1)
-    inflection_point = models.IntegerField(default=0)
+    operator = CharField(max_length=1)
+    inflection_point = IntegerField(default=0)
