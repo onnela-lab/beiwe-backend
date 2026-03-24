@@ -5,15 +5,17 @@ from datetime import datetime, timedelta
 from time import perf_counter
 from typing import TYPE_CHECKING
 
-from django.db import models
-from django.db.models import Count, Q, QuerySet, Sum
+from django.db.models import (BinaryField, BooleanField, CharField, Count, DateTimeField,
+    ForeignKey, Index, PositiveBigIntegerField, PositiveIntegerField, PROTECT, Q, QuerySet, Sum,
+    TextField)
 from django.utils import timezone
 
-from constants.data_stream_constants import *
 from constants.common_constants import CHUNKS_FOLDER
-from database.common_models import UtilityModel
-from database.models import JSONTextField, TimestampedModel
-from database.user_models_participant import Participant
+from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, AMBIENT_AUDIO,
+    ANDROID_LOG_FILE, AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DATA_STREAM_TO_S3_FILE_NAME_STRING,
+    DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY,
+    REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG, UPLOAD_FILE_TYPE_MAPPING, WIFI)
+from database.models import JSONTextField, Participant, TimestampedModel, UtilityModel
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.utils.http_utils import numformat
 
@@ -24,12 +26,12 @@ if TYPE_CHECKING:
 
 
 class EncryptionErrorMetadata(TimestampedModel):
-    file_name = models.CharField(max_length=256)
-    total_lines = models.PositiveIntegerField()
-    number_errors = models.PositiveIntegerField()
+    file_name = CharField(max_length=256)
+    total_lines = PositiveIntegerField()
+    number_errors = PositiveIntegerField()
     error_lines = JSONTextField()
     error_types = JSONTextField()
-    participant: Participant = models.ForeignKey(Participant, on_delete=models.PROTECT, null=True)
+    participant: Participant = ForeignKey(Participant, on_delete=PROTECT, null=True)
 
 
 # WARNING: this table is huge. Several-to-many multiples of ChunkRegistry, though it is not as
@@ -43,10 +45,10 @@ class EncryptionErrorMetadata(TimestampedModel):
 
 
 class UploadTracking(UtilityModel):
-    file_path = models.CharField(max_length=256)
-    file_size = models.PositiveIntegerField()
-    timestamp = models.DateTimeField()
-    participant: Participant = models.ForeignKey(Participant, on_delete=models.PROTECT, related_name='upload_trackers')
+    file_path = CharField(max_length=256)
+    file_size = PositiveIntegerField()
+    timestamp = DateTimeField()
+    participant: Participant = ForeignKey(Participant, on_delete=PROTECT, related_name='upload_trackers')
     
     def s3_retrieve(self):
         from libs.s3 import s3_retrieve
@@ -299,21 +301,21 @@ class S3File(TimestampedModel):
     
     class Meta:  # type: ignore
         indexes = [
-            models.Index(fields=["created_on"], name="s3file_created_on_idx"),
-            models.Index(fields=["sha1"], name="s3file_sha1_idx"),
+            Index(fields=["created_on"], name="s3file_created_on_idx"),
+            Index(fields=["sha1"], name="s3file_sha1_idx"),
         ]
     
-    study: Study = models.ForeignKey("Study", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
-    participant: Participant = models.ForeignKey("Participant", on_delete=models.PROTECT, null=True, blank=True, related_name="s3_files")
-    path = models.TextField(unique=True)
-    sha1 = models.BinaryField(max_length=20, null=True, blank=True)
+    study: Study = ForeignKey("Study", on_delete=PROTECT, null=True, blank=True, related_name="s3_files")
+    participant: Participant = ForeignKey("Participant", on_delete=PROTECT, null=True, blank=True, related_name="s3_files")
+    path = TextField(unique=True)
+    sha1 = BinaryField(max_length=20, null=True, blank=True)
     
     # TODO: is there a way to compress this down without losing substantial precision?
-    size_uncompressed = models.PositiveBigIntegerField(null=True, blank=True)
-    size_compressed = models.PositiveBigIntegerField(null=True, blank=True)
+    size_uncompressed = PositiveBigIntegerField(null=True, blank=True)
+    size_compressed = PositiveBigIntegerField(null=True, blank=True)
     
     # TODO: add functionality to this field (big feature)
-    glacier = models.BooleanField(default=False)
+    glacier = BooleanField(default=False)
     
     study_id: int
     participant_id: int
@@ -330,7 +332,7 @@ class S3File(TimestampedModel):
     def get_object_id(self):
         # TODO: we can just logic this out of the path, we only allow study and CHUNKED_DATA and LOGS
         from database.models import Study
-        
+
         # first go through the object_ids cache, then study_id if present, then participant
         # study, populating the cache if we need to.
         
