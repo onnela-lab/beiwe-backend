@@ -3,7 +3,7 @@
 {% block head %}
 {{ super() }}
 <script src="/static/javascript/app/survey-builder/controllers/filterable-list-controller.js"></script>
-<script>filterableObjects = {{ allowed_studies|tojson }}</script>
+<script>filterableObjects = {{ studies|tojson }}</script>
 {% endblock %}
 
 {% block title %}Manage Studies{% endblock %}
@@ -37,12 +37,12 @@
   </div>
 
   {# Search/filter input field #}
-  <div class="form-group col-sm-6 row">
+  <div class="form-group col-sm-8 row">
 
     <input
       type="search"
       class="form-control"
-      placeholder="Find Study by Name or ID"
+      placeholder="Find Study by Name or Study ID or Participant ID"
       ng-model="studyFilterText"
       aria-label="Search for a study by name or ID to have it appear in the list below, you will be able to jump to its view page, edit page, or dashboard page."
       autofocus

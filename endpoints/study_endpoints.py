@@ -1,5 +1,6 @@
 import json
 import re
+from collections import defaultdict
 
 import bleach
 from django.contrib import messages
@@ -18,7 +19,8 @@ from constants.common_constants import (DT_12HR_W_TZ_N_SEC_N_PAREN, FORCE_SITE_R
 from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0, SET_STUDY_TIMEZONE_REMINDER
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
 from constants.user_constants import ResearcherRole
-from database.models import FileToProcess, Researcher, ScheduledEvent, Study, StudyRelation, Survey
+from database.models import (FileToProcess, Participant, Researcher, ScheduledEvent, Study,
+    StudyRelation, Survey)
 from libs.django_forms.forms import StudyEndDateForm, StudySecuritySettingsForm
 from libs.endpoint_helpers.copy_study_helpers import (allowed_file_extension, copy_study_from_json,
     do_duplicate_step, study_settings_fileresponse, unpack_json_study)
@@ -39,8 +41,30 @@ def get_researcher_allowed_studies_searchable(request: ResearcherRequest):
     studies = list(get_administerable_studies_by_name(request).values("id", "name", "object_id"))
     for s in studies:
         s["search_text"] = f"{s['name']} {s['object_id']}"
-
+    
     return studies
+
+
+def get_researcher_allowed_studies_with_participants(request: ResearcherRequest):
+    # as get_researcher_allowed_studies_searchable, but also gets and crams in all the participants
+    # pretty efficiently
+    studies = list(get_administerable_studies_by_name(request).values("id", "name", "object_id"))
+    
+    # while large this ~10s of thousands of participants, its fast enough.
+    participant_info = list(
+        Participant.objects.filter(study__in=[s["id"] for s in studies])
+        .order_by("study_id")
+        .values_list("patient_id", "study_id")
+    )
+    participant_collector = defaultdict(list)
+    for p, s in participant_info:
+        participant_collector[s].append(p)
+    
+    for s in studies:
+        s["search_text"] = f"{s['name']} {s['object_id']} {' '.join(participant_collector[s['id']])}"
+    
+    return studies
+
 
 @require_GET
 @authenticate_researcher_login
@@ -73,7 +97,7 @@ def manage_studies_page(request: ResearcherRequest):
         request,
         'manage_studies.html',
         context=dict(
-            studies=get_researcher_allowed_studies_searchable(request),
+            studies=get_researcher_allowed_studies_with_participants(request),
             unprocessed_files_count=FileToProcess.objects.count(),
         )
     )
