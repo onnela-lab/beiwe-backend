@@ -4,8 +4,7 @@ from collections.abc import Generator
 from django.db.models import F, Func, Sum
 
 from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES
-from database.forest_models import SummaryStatisticDaily
-from database.study_models import Study
+from database.models import Study, SummaryStatisticDaily
 
 
 # a lookup for the field names generated here (ending in "_total") to stripped down field names

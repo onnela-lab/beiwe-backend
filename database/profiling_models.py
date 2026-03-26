@@ -21,7 +21,7 @@ from libs.utils.http_utils import numformat
 
 
 if TYPE_CHECKING:
-    from database.study_models import Study
+    from database.models import Study
     from libs.s3 import S3Storage
 
 
@@ -89,7 +89,7 @@ class UploadTracking(UtilityModel):
     
     @classmethod
     def _add_files_to_process(cls, uploads: QuerySet):
-        from database.data_access_models import FileToProcess
+        from database.models import FileToProcess
         uploads = uploads.values_list(
             "file_path", "participant__study__object_id", "participant__study_id", "participant_id"
         )
@@ -138,7 +138,7 @@ class UploadTracking(UtilityModel):
     def add_files_to_process2(cls, limit=25, data_stream=None):
         """ Re-adds the most recent [limit] files that have been uploaded recently to FiletToProcess.
             (this is fairly optimized because it is part of debugging file processing) """
-        from database.data_access_models import FileToProcess
+        from database.models import FileToProcess
         data_streams = DATA_STREAM_TO_S3_FILE_NAME_STRING.values() if data_stream is None else [data_stream]
         upload_queries = []
         for ds in data_streams:
@@ -181,7 +181,7 @@ class UploadTracking(UtilityModel):
     def reprocess_participant(cls, participant: Participant, destructive: bool, data_streams: list):
         """ Re-adds the most recent [limit] files that have been uploaded recently to FiletToProcess.
             (this is fairly optimized because it is part of debugging file processing) """
-        from database.data_access_models import FileToProcess
+        from database.models import FileToProcess
         
         for dtype in data_streams:
             if dtype == IDENTIFIERS:

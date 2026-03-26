@@ -7,7 +7,7 @@ from django.db.models import (BooleanField, CharField, DateTimeField, ForeignKey
     QuerySet, TextField)
 
 from constants.study_constants import AUDIO_SURVEY_SETTINGS
-from database.common_models import JSONTextField, ObjectIDModel, TimestampedModel
+from database.models import JSONTextField, ObjectIDModel, TimestampedModel
 from database.validators import LengthValidator
 
 
@@ -126,7 +126,7 @@ class Survey(SurveyBase):
         return schedules
     
     def notification_events(self, **archived_event_filter_kwargs) -> QuerySet[ArchivedEvent]:
-        from database.schedule_models import ArchivedEvent
+        from database.models import ArchivedEvent
         return ArchivedEvent.objects.filter(
             survey_archive_id__in=self.archives.values_list("id", flat=True)
         ).filter(**archived_event_filter_kwargs).order_by("-scheduled_time")

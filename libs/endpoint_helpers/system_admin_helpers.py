@@ -1,7 +1,7 @@
 import json
 import plistlib
 
-from database.user_models_researcher import Researcher
+from database.models import Researcher
 
 
 def validate_android_credentials(credentials: str) -> bool:

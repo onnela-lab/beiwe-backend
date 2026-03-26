@@ -7,10 +7,7 @@ from config.settings import UPLOAD_LOGGING_ENABLED
 from constants.common_constants import PROBLEM_UPLOADS
 from constants.message_strings import (S3_FILE_PATH_UNIQUE_CONSTRAINT_ERROR_1,
     S3_FILE_PATH_UNIQUE_CONSTRAINT_ERROR_2)
-from database.data_access_models import FileToProcess
-from database.profiling_models import UploadTracking
-from database.user_models_participant import Participant
-from libs import sentry
+from database.models import FileToProcess, Participant, UploadTracking
 from libs.encryption import DeviceDataDecryptor
 from libs.s3 import s3_upload, smart_s3_list_study_files
 from libs.utils.security_utils import generate_easy_alphanumeric_string

@@ -6,7 +6,7 @@ from constants.celery_constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FI
     IOS_FIREBASE_CREDENTIALS)
 from constants.testing_constants import ANDROID_CERT, BACKEND_CERT, IOS_CERT
 from constants.user_constants import ResearcherRole
-from database.system_models import FileAsText
+from database.models import FileAsText
 from tests.common import ResearcherSessionTest
 
 

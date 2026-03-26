@@ -2,7 +2,6 @@ import uuid
 from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
-import dateutil
 from django.http import FileResponse
 
 from constants.celery_constants import ForestTaskStatus
@@ -12,7 +11,7 @@ from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED, F
     TREE_TO_TASK_NAME)
 from constants.testing_constants import EMPTY_ZIP, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ResearcherRole
-from database.forest_models import ForestTask, SummaryStatisticDaily
+from database.models import ForestTask, SummaryStatisticDaily
 from tests.common import ResearcherSessionTest
 from tests.helpers import CURRENT_TEST_DATE_BYTES, DummyThreadPool
 

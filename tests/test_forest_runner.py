@@ -3,7 +3,7 @@ from datetime import date
 from io import StringIO
 
 from constants.forest_constants import ForestTree
-from database.forest_models import ForestTask, SummaryStatisticDaily
+from database.models import ForestTask, SummaryStatisticDaily
 from services.celery_forest import BadForestField, csv_parse_and_consume
 from tests.common import CommonTestCase
 

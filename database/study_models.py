@@ -19,8 +19,7 @@ from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from constants.user_constants import ResearcherRole
-from database.common_models import ObjectIDModel, UtilityModel
-from database.models import JSONTextField, TimestampedModel
+from database.models import JSONTextField, ObjectIDModel, TimestampedModel, UtilityModel
 from database.validators import LengthValidator
 from libs.utils.date_utils import date_is_in_the_past
 
@@ -117,11 +116,11 @@ class Study(TimestampedModel, ObjectIDModel):
         return cls.get_all_studies_by_name().filter(study_relations__researcher=researcher)
     
     def get_researchers(self) -> QuerySet[Researcher]:
-        from database.user_models_researcher import Researcher
+        from database.models import Researcher
         return Researcher.objects.filter(study_relations__study=self)
     
     def notification_events(self, **archived_event_filter_kwargs):
-        from database.schedule_models import ArchivedEvent
+        from database.models import ArchivedEvent
         return ArchivedEvent.objects.filter(
             survey_archive_id__in=self.surveys.all().values_list("archives__id", flat=True)
         ).filter(**archived_event_filter_kwargs).order_by("-scheduled_time")

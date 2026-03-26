@@ -6,10 +6,8 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
-from database.schedule_models import ArchivedEvent, InterventionDate, ScheduledEvent, WeeklySchedule
-from database.study_models import Study
-from database.survey_models import Survey
-from database.user_models_participant import Participant
+from database.models import (ArchivedEvent, InterventionDate, Participant, ScheduledEvent, Study,
+    Survey, WeeklySchedule)
 from libs.utils.date_utils import date_to_end_of_day, date_to_start_of_day
 
 

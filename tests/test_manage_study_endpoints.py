@@ -6,9 +6,7 @@ from django.utils import timezone
 
 from constants.common_constants import API_DATE_FORMAT, UTC
 from constants.user_constants import ResearcherRole
-from database.schedule_models import Intervention
-from database.study_models import StudyField
-from database.user_models_participant import Participant
+from database.models import Intervention, Participant, StudyField
 from tests.common import ResearcherSessionTest
 from tests.helpers import ParticipantTableHelperMixin
 

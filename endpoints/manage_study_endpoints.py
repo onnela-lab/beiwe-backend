@@ -12,9 +12,8 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from authentication.admin_authentication import (assert_admin, authenticate_admin,
     authenticate_researcher_study_access, authenticate_researcher_study_access_and_call,
     ResearcherRequest)
-from database.schedule_models import Intervention, InterventionDate
-from database.study_models import Study, StudyField
-from database.user_models_participant import Participant, ParticipantFieldValue
+from database.models import (Intervention, InterventionDate, Participant, ParticipantFieldValue,
+    Study, StudyField)
 from libs.endpoint_helpers.participant_table_helpers import (common_data_extraction_for_apis,
     filtered_participants, get_table_columns, get_values_for_participants_table)
 from libs.intervention_utils import (correct_bad_interventions, intervention_survey_data,

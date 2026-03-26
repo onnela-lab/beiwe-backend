@@ -6,12 +6,10 @@ from botocore.exceptions import ReadTimeoutError
 from cronutils import ErrorHandler
 
 from constants.common_constants import CHUNKS_FOLDER, RUNNING_TEST_OR_FROM_A_SHELL
-from constants.data_processing_constants import (SURVEY_TIMINGS, AllBinifiedData, BinifyKey,
+from constants.data_processing_constants import (AllBinifiedData, BinifyKey,
     CHUNK_TIMESLICE_QUANTUM, DEBUG_FILE_PROCESSING, REFERENCE_CHUNKREGISTRY_HEADERS)
 from constants.data_stream_constants import SURVEY_DATA_FILES
-from database.data_access_models import ChunkRegistry
-from database.system_models import GenericEvent
-from database.user_models_participant import Participant
+from database.models import ChunkRegistry, GenericEvent, Participant
 from libs.file_processing.utility_functions_csvs import (construct_csv_as_bytes,
     existing_data_csv_splitter, unix_time_to_string)
 from libs.file_processing.utility_functions_simple import (

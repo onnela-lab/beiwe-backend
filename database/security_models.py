@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from django.db.models import BooleanField, CharField, DateTimeField, ForeignKey, SET_NULL, TextField
 
-from database.common_models import TimestampedModel
-from database.user_models_researcher import Researcher
+from database.models import Researcher, TimestampedModel
 from database.validators import PASSWORD_VALIDATOR, STANDARD_BASE_64_VALIDATOR
 from libs.utils.security_utils import (BadDjangoKeyFormatting, compare_password,
     django_password_components, generate_hash_and_salt, generate_random_bytestring,

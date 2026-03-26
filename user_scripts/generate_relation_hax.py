@@ -6,8 +6,7 @@ from django.db.models.base import ModelBase
 from django.db.models.fields.reverse_related import ManyToOneRel, OneToOneRel
 
 from database import models as database_models
-from database.common_models import TimestampedModel, UtilityModel
-from database.survey_models import Survey
+from database.models import Survey, TimestampedModel, UtilityModel
 
 
 # FIXME: we don't handle one-to-one fields correctly, those aren't managers

@@ -9,9 +9,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from authentication.admin_authentication import (authenticate_researcher_study_access,
     ResearcherRequest)
 from config.settings import DOMAIN_NAME
-from database.schedule_models import AbsoluteSchedule, RelativeSchedule, WeeklySchedule
-from database.study_models import Study
-from database.survey_models import Survey
+from database.models import AbsoluteSchedule, RelativeSchedule, Study, Survey, WeeklySchedule
 from libs.firebase_config import AndroidFirebaseAppState, IosFirebaseAppState
 from libs.json_logic import do_validate_survey
 from libs.schedules import (repopulate_absolute_survey_schedule_events,

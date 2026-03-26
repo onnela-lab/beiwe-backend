@@ -19,14 +19,11 @@ from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ANDROID_API
-from database.schedule_models import ScheduledEvent
-from database.survey_models import Survey
-from database.user_models_participant import (Participant, ParticipantFCMHistory,
-    PushNotificationDisabledEvent)
+from database.models import (Participant, ParticipantFCMHistory, PushNotificationDisabledEvent,
+    ScheduledEvent, Survey)
 from libs.firebase_config import BackendFirebaseAppState
 from libs.push_notification_helpers import ParticipantCache, slowly_get_stopped_study_ids
 from libs.sentry import SentryUtils
-
 from services.resend_push_notifications import (
     get_all_unconfirmed_notification_schedules_for_bundling)
 

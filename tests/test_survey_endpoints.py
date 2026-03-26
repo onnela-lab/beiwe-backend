@@ -2,7 +2,7 @@ from datetime import date
 from unittest import mock
 
 from constants.user_constants import ResearcherRole
-from database.survey_models import Survey
+from database.models import Survey
 from tests.common import ResearcherSessionTest
 
 

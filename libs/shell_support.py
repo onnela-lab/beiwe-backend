@@ -10,14 +10,9 @@ from django.utils.timezone import localtime
 from constants.common_constants import *  # they are common for a reason
 from constants.action_log_messages import HEARTBEAT_PUSH_NOTIFICATION_SENT
 from constants.message_strings import MESSAGE_SEND_SUCCESS
-from database.common_models import terminal_legible_dt  # keep
-from database.data_access_models import FileToProcess
-from database.profiling_models import UploadTracking
-from database.schedule_models import ArchivedEvent, ScheduledEvent
-from database.study_models import Study
-from database.survey_models import Survey
-from database.user_models_participant import Participant, SurveyNotificationReport
-from database.user_models_researcher import Researcher
+from database.models import terminal_legible_dt  # keep
+from database.models import (ArchivedEvent, FileToProcess, Participant, Researcher, ScheduledEvent,
+    Study, Survey, SurveyNotificationReport, UploadTracking)
 from libs.s3 import s3_list_files
 from libs.utils.dev_utils import disambiguate_participant_survey, TxtClr
 

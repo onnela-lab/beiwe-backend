@@ -21,10 +21,8 @@ from constants.common_constants import API_TIME_FORMAT, UTC
 from constants.message_strings import (DEVICE_IDENTIFIERS_HEADER, EMPTY_FILE, FILE_ALREADY_PRESENT,
     FILE_BAD_DUE_TO_ERROR, FILE_DECRYPTION_KEY_ERROR, FILE_INVALID, FILE_NOT_PRESENT,
     INVALID_EXTENSION_ERROR, NO_FILE_ERROR, PARTICIPANT_RETIRED, STUDY_INACTIVE, UNKNOWN_ERROR)
-from database.data_access_models import FileToProcess
-from database.survey_models import Survey
-from database.system_models import FileAsText
-from database.user_models_participant import AppHeartbeats, Participant, ParticipantFCMHistory
+from database.models import (AppHeartbeats, FileAsText, FileToProcess, Participant,
+    ParticipantFCMHistory, Survey)
 from libs.encryption import DeviceDataDecryptor, RemoteDeleteFileScenario
 from libs.endpoint_helpers.graph_data_helpers import get_survey_results
 from libs.endpoint_helpers.participant_file_upload_helpers import (

@@ -23,10 +23,8 @@ from django.urls.exceptions import NoReverseMatch
 
 from authentication.tableau_authentication import X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET
 from constants.testing_constants import REAL_ROLES, ResearcherRole
-from database.security_models import ApiKey
-from database.study_models import Study
-from database.user_models_participant import Participant, SurveyNotificationReport
-from database.user_models_researcher import Researcher, StudyRelation
+from database.models import (ApiKey, Participant, Researcher, Study, StudyRelation,
+    SurveyNotificationReport)
 from libs.django_typing import (FileResponse as _FileResponse, HttpResponse as _HttpResponse,
     HttpResponseBase as _HttpResponseBase, HttpResponseRedirect as _HttpResponseRedirect,
     StreamingHttpResponse as _StreamingHttpResponse)
@@ -34,6 +32,7 @@ from libs.shell_support import tformat
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.helpers import compare_dictionaries, DatabaseHelperMixin, render_test_html_file
 from urls import urlpatterns
+
 
 # this spams us and is dumb
 # /lib/python3.12/unittest/case.py:580: RuntimeWarning: TestResult has no addDuration method

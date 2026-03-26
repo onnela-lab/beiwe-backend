@@ -1,6 +1,6 @@
 from importlib.metadata import metadata
 
-from database.system_models import ForestVersion
+from database.models import ForestVersion
 from libs.utils.forest_utils import get_forest_git_hash
 
 

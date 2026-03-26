@@ -19,16 +19,11 @@ from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import REAL_ROLES
 from constants.user_constants import (ANDROID_API, IOS_API,
     IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, NULL_OS, ResearcherRole)
-from database.common_models import generate_objectid_string
-from database.data_access_models import ChunkRegistry, FileToProcess
-from database.forest_models import ForestTask, SummaryStatisticDaily
-from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, Intervention,
-    InterventionDate, RelativeSchedule, ScheduledEvent, WeeklySchedule)
-from database.study_models import DeviceSettings, Study, StudyField
-from database.survey_models import Survey
-from database.user_models_participant import (AppHeartbeats, DeviceStatusReportHistory, Participant,
-    ParticipantActionLog, ParticipantDeletionEvent, ParticipantFCMHistory, ParticipantFieldValue)
-from database.user_models_researcher import Researcher, StudyRelation
+from database.models import (AbsoluteSchedule, AppHeartbeats, ArchivedEvent, ChunkRegistry,
+    DeviceSettings, DeviceStatusReportHistory, FileToProcess, ForestTask, generate_objectid_string,
+    Intervention, InterventionDate, Participant, ParticipantActionLog, ParticipantDeletionEvent,
+    ParticipantFCMHistory, ParticipantFieldValue, RelativeSchedule, Researcher, ScheduledEvent,
+    Study, StudyField, StudyRelation, SummaryStatisticDaily, Survey, WeeklySchedule)
 from libs.aes import encrypt_for_server
 from libs.schedules import repopulate_weekly_survey_schedule_events
 from libs.utils.compression import compress

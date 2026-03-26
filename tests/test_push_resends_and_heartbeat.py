@@ -13,13 +13,9 @@ from constants.common_constants import DEV_TIME_FORMAT3
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.user_constants import (ANDROID_API, IOS_API,
     IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, IOS_APP_NO_RESENDS)
-from database.common_models import TimestampedModel, UtilityModel
-from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, RelativeSchedule,
-    ScheduledEvent, WeeklySchedule)
-from database.survey_models import Survey
-from database.system_models import GlobalSettings
-from database.user_models_participant import (Participant, ParticipantFCMHistory,
-    SurveyNotificationReport)
+from database.models import (AbsoluteSchedule, ArchivedEvent, GlobalSettings, Participant,
+    ParticipantFCMHistory, RelativeSchedule, ScheduledEvent, Survey, SurveyNotificationReport,
+    TimestampedModel, UtilityModel, WeeklySchedule)
 from libs.schedules import repopulate_all_survey_scheduled_events
 from services.celery_push_notifications import get_surveys_and_schedules
 from services.resend_push_notifications import (

@@ -6,9 +6,7 @@ from django.db.models.query import QuerySet
 from constants.common_constants import UTC
 from constants.data_processing_constants import CHUNK_TIMESLICE_QUANTUM
 from constants.data_stream_constants import ALL_DATA_STREAMS
-from database.data_access_models import ChunkRegistry
-from database.forest_models import SummaryStatisticDaily
-from database.user_models_participant import Participant
+from database.models import ChunkRegistry, Participant, SummaryStatisticDaily
 from libs.utils.date_utils import date_to_end_of_day, date_to_start_of_day, get_timezone_shortcode
 
 

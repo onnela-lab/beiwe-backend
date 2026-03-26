@@ -1,4 +1,4 @@
-from database.security_models import ApiKey
+from database.models import ApiKey
 from tests.common import CommonTestCase
 
 

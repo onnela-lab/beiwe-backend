@@ -14,9 +14,7 @@ from constants import common_constants
 from constants.data_processing_constants import AllBinifiedData, BinifyDict, DEBUG_FILE_PROCESSING
 from constants.data_stream_constants import (ACCELEROMETER, DATA_STREAM_TO_S3_FILE_NAME_STRING,
     DEVICEMOTION, GPS, GYRO, MAGNETOMETER)
-from database.common_models import Q
-from database.data_access_models import ChunkRegistry, FileToProcess
-from database.models import Participant, S3File, Study
+from database.models import ChunkRegistry, FileToProcess, Participant, Q, S3File, Study
 from libs.file_processing.csv_merger import CsvMerger, FinalOutputContent, Sha1Hash
 from libs.file_processing.data_qty_stats import calculate_data_quantity_stats
 from libs.file_processing.file_for_processing import FileForProcessing

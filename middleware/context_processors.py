@@ -2,7 +2,7 @@ from authentication.admin_authentication import ResearcherRequest
 from config.settings import ENABLE_EXPERIMENTS
 from constants.common_constants import FORCE_SITE_NON_ADMIN
 from constants.user_constants import ANDROID_API, IOS_API
-from database.study_models import Study
+from database.models import Study
 
 
 # NOTE: there is documentation on the django documentation page about using context processors with

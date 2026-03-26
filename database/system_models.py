@@ -7,8 +7,7 @@ from typing import Self
 from django.db.models import (BooleanField, CharField, DateTimeField, ForeignKey,
     PositiveBigIntegerField, SET_NULL, TextField)
 
-from database.common_models import TimestampedModel
-from database.user_models_researcher import Researcher
+from database.models import Researcher, TimestampedModel
 from libs.utils.timeout_cache import timeout_cache
 
 

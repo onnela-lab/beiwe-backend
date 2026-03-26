@@ -6,9 +6,7 @@ from django import forms
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
 
-from database.security_models import ApiKey
-from database.study_models import Study
-from database.user_models_researcher import StudyRelation
+from database.models import ApiKey, Study, StudyRelation
 
 
 class TableauAuthenticationFailed(Exception): pass

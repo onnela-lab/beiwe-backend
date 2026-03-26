@@ -14,9 +14,8 @@ from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
 from constants.testing_constants import (EDT_WEEK, EST_WEEK, MIDNIGHT_EVERY_DAY_OF_WEEK,
     MONDAY_JUNE_NOON_6_2022_EDT, NOON_EVERY_DAY_OF_WEEK, THURS_OCT_6_NOON_2022_NY,
     THURS_OCT_13_NOON_2022_NY, THURS_OCT_20_NOON_2022_NY, WEDNESDAY_JUNE_NOON_8_2022_EDT)
-from database.schedule_models import (AbsoluteSchedule, ArchivedEvent, BadWeeklyCount, Intervention,
-    InterventionDate, RelativeSchedule, ScheduledEvent, WeeklySchedule)
-from database.survey_models import Survey
+from database.models import (AbsoluteSchedule, ArchivedEvent, BadWeeklyCount, Intervention,
+    InterventionDate, RelativeSchedule, ScheduledEvent, Survey, WeeklySchedule)
 from libs.schedules import (export_weekly_survey_timings, get_next_weekly_event_and_schedule,
     get_start_and_end_of_java_timings_week, NoSchedulesException,
     repopulate_absolute_survey_schedule_events, repopulate_all_survey_scheduled_events,

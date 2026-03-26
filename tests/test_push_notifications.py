@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from constants.message_strings import (ACCOUNT_NOT_FOUND, CONNECTION_ABORTED,
     FAILED_TO_ESTABLISH_CONNECTION, UNEXPECTED_SERVICE_RESPONSE, UNKNOWN_REMOTE_ERROR)
-from database.schedule_models import AbsoluteSchedule, ArchivedEvent
+from database.models import AbsoluteSchedule, ArchivedEvent
 from services.survey_push_notifications import (create_archived_events, failed_send_survey_handler,
     success_send_survey_handler)
 from tests.common import CommonTestCase

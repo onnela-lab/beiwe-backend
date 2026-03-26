@@ -4,9 +4,8 @@ from datetime import date
 import orjson
 from django.db.models.aggregates import Count
 
-from database.schedule_models import InterventionDate, RelativeSchedule
-from database.study_models import Study
-from database.user_models_participant import Participant, ParticipantFieldValue
+from database.models import (InterventionDate, Participant, ParticipantFieldValue, RelativeSchedule,
+    Study)
 
 
 DictOfStrStr = dict[str, str]

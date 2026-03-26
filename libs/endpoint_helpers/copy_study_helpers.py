@@ -11,11 +11,8 @@ from authentication.admin_authentication import ResearcherRequest
 from constants.copy_study_constants import (ABSOLUTE_SCHEDULE_KEY, DEVICE_SETTINGS_KEY,
     INTERVENTIONS_KEY, NEVER_EXPORT_THESE, RELATIVE_SCHEDULE_KEY, STUDY_KEY, STUDY_TIME_ZONE_KEY,
     SURVEY_CONTENT_KEY, SURVEYS_KEY, WEEKLY_SCHEDULE_KEY)
-from database.common_models import JSONTextField
-from database.schedule_models import (AbsoluteSchedule, Intervention, RelativeSchedule,
-    WeeklySchedule)
-from database.study_models import Study
-from database.survey_models import Survey
+from database.models import (AbsoluteSchedule, Intervention, JSONTextField, RelativeSchedule, Study,
+    Survey, WeeklySchedule)
 from libs.schedules import repopulate_all_survey_scheduled_events
 
 

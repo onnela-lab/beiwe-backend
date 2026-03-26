@@ -8,7 +8,7 @@ from django.db.models import QuerySet
 from authentication.admin_authentication import ResearcherRequest
 from constants.message_strings import (ENDED_STUDY_MESSAGE, HIDDEN_STUDY_MESSAGE,
     MANUALLY_STOPPED_STUDY_MESSAGE)
-from database.study_models import DeviceSettings, Study
+from database.models import DeviceSettings, Study
 
 
 ## Utils, really

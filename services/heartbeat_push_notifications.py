@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from constants import action_log_messages
 from constants.common_constants import RUNNING_TESTS
-from database.user_models_participant import Participant, ParticipantActionLog
+from database.models import Participant, ParticipantActionLog
 from libs.firebase_config import BackendFirebaseAppState
 from libs.push_notification_helpers import (ErrorSentryCache, fcm_for_pushable_participants,
     send_custom_notification_safely)

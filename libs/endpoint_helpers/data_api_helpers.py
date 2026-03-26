@@ -5,9 +5,7 @@ import orjson
 
 from authentication.data_access_authentication import ApiStudyResearcherRequest
 from constants.message_strings import MESSAGE_SEND_SUCCESS
-from database.models import Participant
-from database.user_models_participant import Participant, SurveyNotificationReport
-from database.user_models_researcher import StudyRelation
+from database.models import Participant, StudyRelation, SurveyNotificationReport
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.utils.compression import decompress
 from middleware.abort_middleware import abort

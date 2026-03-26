@@ -11,7 +11,7 @@ from libs.s3 import s3_retrieve
 
 
 if TYPE_CHECKING:
-    from database.forest_models import ForestTask
+    from database.models import ForestTask
 
 
 # Cached data set serialization for Jasmine

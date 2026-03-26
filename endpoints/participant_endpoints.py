@@ -28,10 +28,7 @@ from constants.message_strings import (BAD_DEVICE_OS, BAD_PARTICIPANT_OS,
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.study_constants import NOTIFICATIONS_PER_PAGE
 from constants.user_constants import ANDROID_API, DATA_DELETION_ALLOWED_RELATIONS, IOS_API
-from database.schedule_models import ArchivedEvent, ScheduledEvent
-from database.study_models import Study
-from database.survey_models import Survey
-from database.user_models_participant import Participant
+from database.models import ArchivedEvent, Participant, ScheduledEvent, Study, Survey
 from libs.django_forms.forms import ParticipantExperimentForm
 from libs.endpoint_helpers.participant_helpers import (conditionally_display_locked_message,
     convert_to_template_expectations, get_heartbeats_query, get_survey_names_dict,

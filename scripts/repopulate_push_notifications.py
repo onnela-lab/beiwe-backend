@@ -1,7 +1,6 @@
 from django.utils import timezone
 
-from database.study_models import Study
-from database.system_models import GlobalSettings
+from database.models import GlobalSettings, Study
 from libs.schedules import repopulate_all_survey_scheduled_events
 
 

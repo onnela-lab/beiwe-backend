@@ -17,9 +17,7 @@ from constants.message_strings import (ACCOUNT_INACTIVE_TOO_LONG, BAD_LOGIN_DB_S
     PASSWORD_WILL_EXPIRE)
 from constants.url_constants import LOGIN_REDIRECT_SAFE, urlpatterns
 from constants.user_constants import EXPIRY_NAME, ResearcherRole
-from database.study_models import Study
-from database.system_models import GlobalSettings
-from database.user_models_researcher import Researcher, ResearcherSession
+from database.models import GlobalSettings, Researcher, ResearcherSession, Study
 from libs.utils.http_utils import easy_url
 from tests.common import BasicSessionTestCase, HttpResponse2
 

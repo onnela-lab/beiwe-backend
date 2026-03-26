@@ -4,9 +4,7 @@ from constants.data_stream_constants import COMPLETE_DATA_STREAM_DICT, DASHBOARD
 from constants.forest_constants import DATA_QUANTITY_FIELD_MAP
 from constants.message_strings import DATA_DOWNLOAD_NO_CREDS
 from constants.user_constants import ResearcherRole
-from database.forest_models import SummaryStatisticDaily
-from database.security_models import ApiKey
-from database.user_models_participant import Participant
+from database.models import ApiKey, Participant, SummaryStatisticDaily
 from tests.common import HttpResponse2, ResearcherSessionTest
 
 

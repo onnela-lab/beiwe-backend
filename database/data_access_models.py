@@ -11,8 +11,7 @@ from constants.common_constants import EARLIEST_POSSIBLE_DATA_DATETIME
 from constants.data_processing_constants import CHUNK_TIMESLICE_QUANTUM
 from constants.data_stream_constants import CHUNKABLE_FILES
 from constants.user_constants import OS_TYPE_CHOICES
-from database.models import TimestampedModel
-from database.user_models_participant import Participant
+from database.models import Participant, TimestampedModel
 from libs.utils.security_utils import chunk_hash
 
 

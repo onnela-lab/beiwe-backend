@@ -12,10 +12,7 @@ from constants.message_strings import (API_KEY_IS_DISABLED, MFA_CODE_6_DIGITS, M
 from constants.security_constants import MFA_CREATED
 from constants.testing_constants import ADMIN_ROLES
 from constants.user_constants import ALL_RESEARCHER_TYPES, EXPIRY_NAME, ResearcherRole
-from database.security_models import ApiKey
-from database.study_models import Study
-from database.system_models import DataAccessRecord
-from database.user_models_researcher import Researcher, StudyRelation
+from database.models import ApiKey, DataAccessRecord, Researcher, Study, StudyRelation
 from libs.utils.http_utils import easy_url
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 from tests.common import ResearcherSessionTest, TableauAPITest

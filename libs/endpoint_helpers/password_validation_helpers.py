@@ -2,7 +2,7 @@ import re
 
 from constants.message_strings import NEW_PASSWORD_N_LONG, NEW_PASSWORD_RULES_FAIL
 from constants.security_constants import PASSWORD_REQUIREMENT_REGEX_LIST
-from database.user_models_researcher import Researcher
+from database.models import Researcher
 
 
 def check_password_requirements(researcher: Researcher, password: str) -> tuple[bool, str]:

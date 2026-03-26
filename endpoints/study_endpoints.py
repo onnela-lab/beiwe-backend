@@ -18,11 +18,7 @@ from constants.common_constants import (DT_12HR_W_TZ_N_SEC_N_PAREN, FORCE_SITE_R
 from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0, SET_STUDY_TIMEZONE_REMINDER
 from constants.study_constants import CHECKBOX_TOGGLES, TIMER_VALUES
 from constants.user_constants import ResearcherRole
-from database.data_access_models import FileToProcess
-from database.models import ScheduledEvent
-from database.study_models import Study
-from database.survey_models import Survey
-from database.user_models_researcher import Researcher, StudyRelation
+from database.models import FileToProcess, Researcher, ScheduledEvent, Study, StudyRelation, Survey
 from libs.django_forms.forms import StudyEndDateForm, StudySecuritySettingsForm
 from libs.endpoint_helpers.copy_study_helpers import (allowed_file_extension, copy_study_from_json,
     do_duplicate_step, study_settings_fileresponse, unpack_json_study)

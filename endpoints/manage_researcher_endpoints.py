@@ -8,8 +8,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from markupsafe import Markup
 
-from authentication.admin_authentication import (ResearcherRequest, assert_admin, assert_researcher_under_admin,
-    authenticate_admin, authenticate_researcher_login)
+from authentication.admin_authentication import (assert_admin, assert_researcher_under_admin,
+    authenticate_admin, authenticate_researcher_login, ResearcherRequest)
 from config.settings import DOMAIN_NAME
 from constants.message_strings import (API_KEY_IS_DISABLED, API_KEY_NOW_DISABLED, MFA_CODE_6_DIGITS,
     MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING, MFA_RESET_BAD_PERMISSIONS, MFA_SELF_BAD_PASSWORD,
@@ -19,9 +19,7 @@ from constants.message_strings import (API_KEY_IS_DISABLED, API_KEY_NOW_DISABLED
     WRONG_CURRENT_PASSWORD)
 from constants.security_constants import MFA_CREATED
 from constants.user_constants import EXPIRY_NAME, ResearcherRole
-from database.security_models import ApiKey
-from database.study_models import Study
-from database.user_models_researcher import Researcher, StudyRelation
+from database.models import ApiKey, Researcher, Study, StudyRelation
 from libs.django_forms.forms import DisableApiKeyForm, NewApiKeyForm
 from libs.endpoint_helpers.password_validation_helpers import (check_password_requirements,
     get_min_password_requirement)

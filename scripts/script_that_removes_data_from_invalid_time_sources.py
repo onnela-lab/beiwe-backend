@@ -4,8 +4,7 @@ from django.utils import timezone
 
 from constants.common_constants import EARLIEST_POSSIBLE_DATA_DATE, EARLIEST_POSSIBLE_DATA_DATETIME
 from constants.data_stream_constants import AMBIENT_AUDIO, AUDIO_RECORDING
-from database.data_access_models import ChunkRegistry
-from database.forest_models import SummaryStatisticDaily
+from database.models import ChunkRegistry, SummaryStatisticDaily
 
 
 # this has to be manually imported and run

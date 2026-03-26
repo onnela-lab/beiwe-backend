@@ -1,7 +1,7 @@
 # This file is currently deprecated, uncomment it if you would like to use it locally, but it is not maintained
 
 # from django.core.management.base import BaseCommand
-# from database.user_models_researcher import Researcher
+# from database.models import Researcher
 
 
 # class Command(BaseCommand):

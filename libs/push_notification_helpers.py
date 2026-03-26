@@ -20,10 +20,7 @@ from constants.common_constants import RUNNING_TESTS
 from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
-from database.schedule_models import ArchivedEvent
-from database.study_models import Study
-from database.survey_models import Survey
-from database.user_models_participant import Participant, ParticipantFCMHistory
+from database.models import ArchivedEvent, Participant, ParticipantFCMHistory, Study, Survey
 from libs.sentry import SentryUtils
 
 

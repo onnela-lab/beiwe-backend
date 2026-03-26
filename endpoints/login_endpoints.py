@@ -16,7 +16,7 @@ from authentication.admin_authentication import HttpRequest, ResearcherRequest
 from config.settings import INACTIVITY_LOCKOUT_DAYS
 from constants.message_strings import (ACCOUNT_INACTIVE_TOO_LONG, BAD_LOGIN_DB_STATE,
     MFA_CODE_6_DIGITS, MFA_CODE_DIGITS_ONLY, MFA_CODE_MISSING, MFA_CODE_WRONG)
-from database.user_models_researcher import Researcher
+from database.models import Researcher
 from libs.utils.security_utils import verify_mfa
 
 

@@ -6,8 +6,7 @@ from django.http.response import FileResponse
 from constants.data_stream_constants import ALL_DATA_STREAMS, SURVEY_TIMINGS
 from constants.testing_constants import EMPTY_ZIP, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ResearcherRole
-from database.data_access_models import ChunkRegistry
-from database.system_models import DataAccessRecord
+from database.models import ChunkRegistry, DataAccessRecord
 from tests.common import CommonTestCase, DataApiTest
 from tests.helpers import DummyThreadPool
 

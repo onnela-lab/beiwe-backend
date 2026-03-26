@@ -7,7 +7,7 @@ from zipfile import ZIP_STORED, ZipFile
 from constants.data_stream_constants import (AMBIENT_AUDIO, AUDIO_RECORDING, SURVEY_ANSWERS,
     SURVEY_TIMINGS)
 from constants.s3_constants import NoSuchKeyException
-from database.study_models import Study
+from database.models import Study
 from endpoints.participant_endpoints import SentryUtils
 from libs.s3 import s3_retrieve, s3_retrieve_no_decompress
 from libs.streaming_io import StreamingBytesIO

@@ -6,9 +6,7 @@ from django import forms
 from constants.celery_constants import ForestTaskStatus
 from constants.forest_constants import (ForestTree, SERIALIZABLE_FIELD_NAMES,
     SERIALIZABLE_FIELD_NAMES_DROPDOWN, VALID_QUERY_PARAMETERS)
-from database.forest_models import ForestTask
-from database.study_models import Study
-from database.user_models_participant import Participant
+from database.models import ForestTask, Participant, Study
 from libs.django_forms.form_fields import CommaSeparatedListCharField, CommaSeparatedListChoiceField
 
 

@@ -22,10 +22,7 @@ from constants.common_constants import LEGIBLE_DT_FORMAT, RUNNING_TESTS
 from constants.data_stream_constants import ALL_DATA_STREAMS, IDENTIFIERS
 from constants.user_constants import (ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API,
     IOS_APP_MINIMUM_PUSH_NOTIFICATION_RESEND_VERSION, OS_TYPE_CHOICES)
-from database.common_models import UtilityModel
-from database.models import TimestampedModel
-from database.study_models import Study
-from database.user_models_common import AbstractPasswordUser
+from database.models import AbstractPasswordUser, Study, TimestampedModel, UtilityModel
 from database.validators import ID_VALIDATOR
 from libs.rsa import get_participant_private_key, RSA
 from libs.utils.compression import compress, decompress
@@ -234,7 +231,7 @@ class Participant(AbstractPasswordUser):
     
     def notification_events(self, **archived_event_filter_kwargs) -> Manager[ArchivedEvent]:
         """ convenience methodd for use debugging in the terminal mostly. """
-        from database.schedule_models import ArchivedEvent
+        from database.models import ArchivedEvent
         return ArchivedEvent.objects.filter(participant=self) \
             .filter(**archived_event_filter_kwargs).order_by("-scheduled_time")
     

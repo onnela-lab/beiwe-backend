@@ -61,8 +61,7 @@ def disambiguate_participant_survey(func: Callable) -> Callable:
     """ This wrapper allows a function to take any combination of (participant, survey)
     Mostly used in debugging push notifications. """
     
-    from database.survey_models import Survey
-    from database.user_models_participant import Participant
+    from database.models import Participant, Survey
     
     @functools.wraps(func)
     def _disambiguate_participant_survey(*args, **kwargs):

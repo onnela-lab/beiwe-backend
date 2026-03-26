@@ -14,8 +14,7 @@ from constants.copy_study_constants import (DEVICE_SETTINGS_KEY, INTERVENTIONS_K
 from constants.message_strings import DEVICE_SETTINGS_RESEND_FROM_0
 from constants.testing_constants import ADMIN_ROLES, ALL_TESTING_ROLES
 from constants.user_constants import ResearcherRole
-from database.models import ScheduledEvent
-from database.study_models import DeviceSettings, Study
+from database.models import DeviceSettings, ScheduledEvent, Study
 from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.utils.http_utils import easy_url
 from tests.common import ResearcherSessionTest

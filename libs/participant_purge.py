@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from constants import action_log_messages
 from constants.common_constants import CHUNKS_FOLDER, PROBLEM_UPLOADS
-from database.user_models_participant import Participant, ParticipantDeletionEvent
+from database.models import Participant, ParticipantDeletionEvent
 from libs.s3 import s3_delete_many_versioned, s3_list_files, s3_list_versions
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 

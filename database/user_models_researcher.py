@@ -15,9 +15,7 @@ from django.utils import timezone
 from config.settings import REQUIRE_SITE_ADMIN_MFA
 from constants.common_constants import RUNNING_TEST_OR_FROM_A_SHELL
 from constants.user_constants import ResearcherRole, SESSION_NAME
-from database.models import MaxValueValidator, TimestampedModel
-from database.study_models import Study
-from database.user_models_common import AbstractPasswordUser
+from database.models import AbstractPasswordUser, MaxValueValidator, Study, TimestampedModel
 from database.validators import B32_VALIDATOR
 from libs.utils.security_utils import (generate_random_bytestring, get_current_mfa_code,
     to_django_password_components)

@@ -6,7 +6,9 @@
 from os.path import abspath
 from sys import path
 
-from database.security_models import ApiKey
+from database.models import ApiKey
+
+
 path.insert(0, abspath(__file__).rsplit('/', 2)[0])
 
 import itertools
@@ -15,8 +17,7 @@ import requests
 
 from constants.user_constants import ResearcherRole
 from data_access_api_reference import download_data
-from database.study_models import Study
-from database.user_models_researcher import Researcher, StudyRelation
+from database.models import Researcher, Study, StudyRelation
 
 
 try:

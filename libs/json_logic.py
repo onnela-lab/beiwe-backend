@@ -3,7 +3,7 @@ from typing import Any
 
 from constants.study_constants import (COMPARATORS, FREE_RESPONSE, FREE_RESPONSE_NUMERIC,
     NUMERIC_COMPARATORS, NUMERIC_QUESTIONS)
-from database.survey_models import Survey
+from database.models import Survey
 
 
 class InvalidLogicError(Exception): pass  # this is the super class, it should not show up in any validation check

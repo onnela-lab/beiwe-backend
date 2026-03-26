@@ -5,7 +5,7 @@ from django.db.models.base import ModelBase
 from django.db.models.fields.reverse_related import ManyToOneRel, OneToOneRel
 
 from database import models as database_models
-from database.survey_models import Survey
+from database.models import Survey
 
 
 # relationships_separater = "\n#=========================================================================" * 2

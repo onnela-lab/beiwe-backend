@@ -9,7 +9,7 @@ from firebase_admin.credentials import Certificate as FirebaseCertificate
 
 from constants.celery_constants import (ANDROID_FIREBASE_CREDENTIALS, BACKEND_FIREBASE_CREDENTIALS,
     FIREBASE_APP_TEST_NAME, IOS_FIREBASE_CREDENTIALS)
-from database.system_models import FileAsText
+from database.models import FileAsText
 
 
 MANUALLY_DISABLE_FIREBASE = False

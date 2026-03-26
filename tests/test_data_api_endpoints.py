@@ -15,14 +15,9 @@ from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MES
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST
 from constants.user_constants import ANDROID_API, ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
-from database.forest_models import SummaryStatisticDaily
-from database.models import ArchivedEvent, DataProcessingStatus
-from database.profiling_models import UploadTracking
-from database.security_models import ApiKey
-from database.study_models import Study
-from database.survey_models import Survey, SurveyArchive
-from database.user_models_participant import AppHeartbeats, AppVersionHistory
-from database.user_models_researcher import StudyRelation
+from database.models import (ApiKey, AppHeartbeats, AppVersionHistory, ArchivedEvent,
+    DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily, Survey, SurveyArchive,
+    UploadTracking)
 from libs.utils.compression import compress
 from tests.common import DataApiTest, SmartRequestsTestCase, TableauAPITest
 from tests.helpers import compare_dictionaries, ParticipantTableHelperMixin

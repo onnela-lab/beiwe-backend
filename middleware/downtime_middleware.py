@@ -3,7 +3,7 @@ from types import FunctionType
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
 
-from database.system_models import GlobalSettings
+from database.models import GlobalSettings
 
 
 class DowntimeMiddleware:

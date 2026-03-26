@@ -19,9 +19,8 @@ from constants.forest_constants import (CLEANUP_ERROR as CLN_ERR, FOREST_TREE_RE
     ForestTree, NO_DATA_ERROR, ROOT_FOREST_TASK_PATH, TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS,
     YEAR_MONTH_DAY)
 from constants.raw_data_constants import CHUNK_FIELDS
-from database.data_access_models import ChunkRegistry, QuerySet
-from database.forest_models import ForestTask, SummaryStatisticDaily
-from database.models import ForestVersion, Participant
+from database.models import (ChunkRegistry, ForestTask, ForestVersion, Participant, QuerySet,
+    SummaryStatisticDaily)
 from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.intervention_utils import intervention_survey_data

@@ -10,7 +10,7 @@ from firebase_admin.messaging import (QuotaExceededError, SenderIdMismatchError,
 
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API
-from database.user_models_participant import Participant, ParticipantFCMHistory
+from database.models import Participant, ParticipantFCMHistory
 from services.celery_push_notifications import create_heartbeat_tasks
 from services.heartbeat_push_notifications import heartbeat_query
 from tests.common import CommonTestCase
