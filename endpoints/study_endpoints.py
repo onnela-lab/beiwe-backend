@@ -1,3 +1,5 @@
+import orjson
+
 import json
 import re
 from collections import defaultdict
@@ -93,12 +95,14 @@ def choose_study_page(request: ResearcherRequest):
 def manage_studies_page(request: ResearcherRequest):
     """ Site and study admin only page, shows a list of studies they can _edit_. """
     
+    # this is big, let's optimize the json
+    studies_json = orjson.dumps(get_researcher_allowed_studies_with_participants(request)).decode()
+    studies_json = bleach.clean(studies_json)
     return render(
         request,
         'manage_studies.html',
         context=dict(
-            studies=get_researcher_allowed_studies_with_participants(request),
-            unprocessed_files_count=FileToProcess.objects.count(),
+            studies_json=studies_json, unprocessed_files_count=FileToProcess.objects.count()
         )
     )
 
