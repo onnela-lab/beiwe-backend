@@ -33,7 +33,7 @@ from libs.endpoint_helpers.participant_table_helpers import (common_data_extract
 from libs.endpoint_helpers.study_summaries_helpers import get_participant_data_upload_summary
 from libs.endpoint_helpers.summary_statistic_helpers import summary_statistics_request_handler
 from libs.intervention_utils import intervention_survey_data, survey_history_export
-from libs.streaming_zip import determine_base_file_name
+from libs.utils.file_name_utils import determine_base_file_name
 
 
 #

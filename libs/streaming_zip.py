@@ -4,83 +4,15 @@ from contextlib import suppress
 from multiprocessing.pool import ThreadPool
 from zipfile import ZIP_STORED, ZipFile
 
-from constants.data_stream_constants import (AMBIENT_AUDIO, AUDIO_RECORDING, SURVEY_ANSWERS,
-    SURVEY_TIMINGS)
 from constants.s3_constants import NoSuchKeyException
 from database.models import Study
 from endpoints.participant_endpoints import SentryUtils
 from libs.s3 import s3_retrieve, s3_retrieve_no_decompress
 from libs.streaming_io import StreamingBytesIO
+from libs.utils.file_name_utils import determine_base_file_name
 
 
 class DummyError(Exception): pass
-
-
-def get_survey_id(chunk: dict) -> str:
-    survey_id = chunk.get("survey__object_id")
-    if not survey_id:
-        # example real path as it should come in: 5873fe38644ad7557b168e43/q41aozrx/voiceRecording/587442edf7321c14da193487/1524857988384.wav
-        survey_id = chunk["chunk_path"].rsplit("/", 2)[1]
-        if len(survey_id) != 24:
-            return "unknown_survey_id"  # if there still isn't a survey input unknown?
-    return survey_id
-
-
-def determine_base_file_name(chunk: dict) -> str:
-    """ Generates the correct file name to provide the file with in the zip file.
-        (This also includes the folder location files in the zip.) """
-    
-    chunk_path = chunk["chunk_path"]
-    if chunk_path.count(".") != 1:
-        raise ValueError(f"chunk_path should have exactly one '.' in it, received '{chunk_path}'")
-    if not chunk_path.count("/") >= 3:
-        raise ValueError(f"chunk_path should have at least three '/' in it, received '{chunk_path}'")
-    
-    # Some paths may have alphanumeric extensions ottached to them for storage-side deduplication purposes.
-    # This is unusual but can happen due to app bugs or crashes so we can't reeaallly get rid of it.
-    extension = chunk_path.rsplit(".", 1)[1]
-    extension = extension[-3:]
-    
-    # this is a bit of a hack, but it works.
-    patient_id = chunk["participant__patient_id"]
-    time_bin = str(chunk["time_bin"]).replace(":", "_")  # why wouldn't it be a string...?
-    data_stream = chunk["data_type"]
-    
-    if data_stream == SURVEY_ANSWERS:
-        # survey answers are not chunkable and we were getting some corrupted file names on
-        #corrupted multi-uploads from ios.
-        survey_id = get_survey_id(chunk)
-        return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
-    
-    if data_stream == SURVEY_TIMINGS:
-        # add the survey_id from the database entry.
-        survey_id = get_survey_id(chunk)
-        return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.csv"
-    
-    if data_stream == AUDIO_RECORDING:
-        # Audio surveys are also not chunkable, they have a history of file naming issues.
-        # - survey__object_id may not be populated in the provided dict.
-        # - iirc there are some SUPER old files that are missing a survey id entirely.
-        # example real path as it should be:
-        # 5873fe38644ad7557b168e43/q41aozrx/voiceRecording/587442edf7321c14da193487/1524857988384.wav
-        
-        survey_id = get_survey_id(chunk)
-        # if for some reason there is no match  just use the original extension.
-        if ".mp4" in chunk_path:
-            extension = "mp4"
-        elif ".wav" in chunk_path:
-            extension = "wav"
-        else:
-            extension = chunk_path.rsplit(".")[1]
-        
-        return f"{patient_id}/{data_stream}/{survey_id}/{time_bin}.{extension}"
-    
-    if data_stream == AMBIENT_AUDIO:
-        ext = chunk_path.split(".")[1]  # this one can be weird.
-        return f"{patient_id}/{data_stream}/{time_bin}.{ext}"
-    
-    # all other files have this form:
-    return f"{patient_id}/{data_stream}/{time_bin}.csv"
 
 
 class ZipGenerator:

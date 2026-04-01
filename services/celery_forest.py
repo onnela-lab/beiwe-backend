@@ -26,8 +26,8 @@ from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.intervention_utils import intervention_survey_data
 from libs.s3 import s3_retrieve
 from libs.sentry import SentryUtils
-from libs.streaming_zip import determine_base_file_name
 from libs.utils.date_utils import get_timezone_shortcode, legible_time
+from libs.utils.file_name_utils import determine_base_file_name
 from libs.utils.forest_utils import (save_all_bv_set_bytes, save_all_memory_dict_bytes,
     save_output_file)
 from libs.utils.threadpool_utils import s3_op_threaded_iterate

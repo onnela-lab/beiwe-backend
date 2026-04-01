@@ -22,7 +22,7 @@ from database.models import ForestVersion, S3File
 from libs.aes import encrypt_for_server
 from libs.celery_control import DebugCeleryApp
 from libs.s3 import BadS3PathException, decrypt_server, NoSuchKeyException, S3Storage
-from libs.streaming_zip import determine_base_file_name
+from libs.utils.file_name_utils import determine_base_file_name
 from libs.utils.compression import compress
 from libs.utils.forest_utils import get_forest_git_hash
 from libs.utils.participant_app_version_comparison import (is_this_version_gt_participants,
