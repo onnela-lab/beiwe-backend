@@ -96,10 +96,10 @@ def create_forest_celery_tasks():
             )
             enqueue_forest_task(args=[task.id])
 
-
 #
 ## The forest task runtime
 #
+
 @forest_celery_app.task(queue=FOREST_QUEUE)
 def celery_run_forest(forest_task_id):
     # this use of transaction.atomic should blockmultiple tasks from running at once - I don't think
