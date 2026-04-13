@@ -139,6 +139,9 @@ def filter_uploads(q1: list[tuple[str, int]]) -> list[str]:
     paths = []
     upload_info = defaultdict(int)
     for path, size in q1:
+        if "//" in path:
+            continue
+        
         for stream in UPLOAD_FILES_FILTER:
             if stream in path:
                 
