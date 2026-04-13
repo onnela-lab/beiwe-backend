@@ -134,7 +134,8 @@ class ChunkRegistry(TimestampedModel):
     
     @classmethod
     def get_chunks_time_range(
-        cls, study_id, participant_ids=None, data_types=None, start=None, end=None) -> QuerySet[ChunkRegistry]:
+        cls, study_id, participant_ids=None, data_types=None, start=None, end=None
+    ) -> QuerySet[ChunkRegistry]:
         """This function uses Django query syntax to provide datetimes and have Django do the
         comparison operation, and the 'in' operator to have Django only match the user list
         provided. """
