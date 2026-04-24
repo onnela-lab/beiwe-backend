@@ -175,6 +175,7 @@ class FileToProcess(TimestampedModel):
     deleted = BooleanField(default=False)
     
     def s3_retrieve(self) -> bytes:
+        from libs.s3 import s3_retrieve
         return s3_retrieve(self.s3_file_path, self.study, raw_path=True)
     
     @staticmethod

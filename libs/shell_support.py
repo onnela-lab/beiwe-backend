@@ -205,23 +205,6 @@ def watch_processing():
         sleep(wait)
 
 
-def watch_uploads():
-    """ Runs a loop that prints out the number of files uploaded in the past minute. ctrl+c to stop."""
-    while True:
-        start = localtime()
-        data = list(UploadTracking.fltr(
-            timestamp__gte=(start - timedelta(minutes=1))).values_list("file_size", flat=True))
-        end = localtime()
-        total = abs((start - end).total_seconds())
-        
-        # we will set a minimum time between prints at 2 seconds, database call can be slow.
-        wait = 2 - total if 0 < (2 - total) < 2 else 0
-        
-        print("time delta: %ss, %s files, %.4fMB in the past minute" % (
-            total + wait, len(data), (sum(data) / 1024.0 / 1024.0)))
-        sleep(wait)
-
-
 def watch_celery():
     """ Only works on data processing servers.
     Runs a loop that prints out the number of active, scheduled, and reserved tasks in celery. """

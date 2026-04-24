@@ -76,7 +76,6 @@ def get_next_6_minute_interval():
     return rounded_now + timedelta(minutes=6) - timedelta(seconds=5)
 
 
-
 ## uh, this use of "daily" is just to make the timer warning useful for this process.
 @CeleryDataProcessingTask()
 def daily_celery_process_file_chunks(participant_id):
