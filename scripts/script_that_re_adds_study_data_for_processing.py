@@ -59,7 +59,7 @@ UPLOAD_FILES_FILTER = [f"/{stream}/" for stream in UPLOAD_FILES_FILTER]
 ALL_DATA_STREAMS_FILTER = [f"/{stream}/" for stream in ALL_DATA_STREAMS]
 
 # there was a bug fix before which we should not reprocess survey timings
-TOO_EARLY_TOS_CLEAR = datetime(2018, 1, 1, tzinfo=UTC)
+TIMINGS_TOO_EARLY_TO_CLEAR = datetime(2018, 1, 1, tzinfo=UTC)
 
 
 def main():
@@ -72,7 +72,7 @@ def main():
             # first need to delete existing processed survey timings
             participant.chunk_registries.filter(
                 data_type=SURVEY_TIMINGS,
-                time_bin__lt=TOO_EARLY_TOS_CLEAR,
+                time_bin__lt=TIMINGS_TOO_EARLY_TO_CLEAR,
             ).delete()
             process_participant(participant, study.object_id)
             
@@ -86,10 +86,12 @@ def process_participant(p: Participant, study_obj_id: str):
     
     t0 = timezone.now()
     upload_files = list(
-        S3File.fltr(path__startswith=f"{study_obj_id}/{p.patient_id}/").vlist("path", "size_uncompressed")
+        S3File.fltr(path__startswith=f"{study_obj_id}/{p.patient_id}/")
+        .order_by("path").values_list("path", "size_uncompressed")
     )
     download_files = list(
-        S3File.fltr(path__startswith=f"CHUNKED_DATA/{study_obj_id}/{p.patient_id}/").vlist("path", "size_uncompressed")
+        S3File.fltr(path__startswith=f"CHUNKED_DATA/{study_obj_id}/{p.patient_id}/")
+        .order_by("path").values_list("path", "size_uncompressed")
     )
     
     print(f"retrieved file list in {(timezone.now() - t0).total_seconds():.2f} seconds")
@@ -104,7 +106,11 @@ def process_participant(p: Participant, study_obj_id: str):
     del upload_files, download_files
     
     # remove files already in FileToProcess
-    paths = list(set(paths) - set(p.files_to_process.vlist("s3_file_path")))
+    paths = list(set(paths) - set(p.files_to_process.values_list("s3_file_path", flat=True)))
+    
+    # paths = remove_early_files(paths)  # commented out feature to not process files from before X
+    # print(f"removed {initial_len - len(paths)} files from before 2023, {len(paths)} remain")
+    
     paths.sort()  # make this ~deterministic
     
     print()
@@ -123,6 +129,24 @@ def process_participant(p: Participant, study_obj_id: str):
     FileToProcess.objects.bulk_create(new_ftps)
     
     print(f"done adding files, took {(timezone.now() - t1).total_seconds():.2f} seconds")
+
+
+def remove_early_files(paths: list[str]) -> list[str]:
+    # removes files from before 2023 - disabled by default
+    
+    milliseconds = 1672531200 * 1000  # January 1, 2023, unix milliseconds
+    
+    filtered_paths = []
+    for path in paths:
+        try:
+            unix_time = int(path.rsplit("/", 1)[-1].split(".")[0])
+            if unix_time >= milliseconds:  # January 1, 2023 in milliseconds
+                filtered_paths.append(path)
+        except ValueError:
+            print(f"could not parse unix time from path `{path}`, skipping")
+            raise
+    
+    return filtered_paths
 
 
 def generate_file_to_process(file_path: str, participant: Participant) -> FileToProcess:
