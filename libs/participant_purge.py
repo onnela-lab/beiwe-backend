@@ -1,5 +1,6 @@
 import itertools
 from collections.abc import Generator
+from datetime import timedelta
 
 from django.utils import timezone
 
@@ -8,7 +9,6 @@ from constants.common_constants import CHUNKS_FOLDER, PROBLEM_UPLOADS
 from database.models import Participant, ParticipantDeletionEvent
 from libs.s3 import s3_delete_many_versioned, s3_list_files, s3_list_versions
 from libs.utils.security_utils import generate_easy_alphanumeric_string
-
 
 DELETION_PAGE_SIZE = 250
 
@@ -51,7 +51,7 @@ def run_next_queued_participant_data_deletion():
     # updates the database with a count of files deleted as it runs.)
     deletion_event = ParticipantDeletionEvent.objects.filter(
         purge_confirmed_time__isnull=True,
-        last_updated__lt=timezone.now() - timezone.timedelta(minutes=30),
+        last_updated__lt=timezone.now() - timedelta(minutes=30),
     ).first()
     
     #! if you are writing a test and this is happening it might be because the last_updated field
