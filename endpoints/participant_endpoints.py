@@ -48,8 +48,8 @@ from middleware.abort_middleware import abort
 @authenticate_researcher_study_access
 def reset_participant_password(request: ResearcherRequest):
     """ Takes a patient ID and resets its password. Returns the new random password."""
-    patient_id = request.POST.get('patient_id', None)
-    study_id = request.POST.get('study_id', None)  # this is validated in the decorator
+    patient_id = request.POST.get('patient_id')
+    study_id = request.POST.get('study_id')  # this is validated in the decorator
     participant_page = redirect(
         easy_url("participant_endpoints.participant_page", study_id=study_id, patient_id=patient_id)
     )
@@ -77,8 +77,8 @@ def reset_participant_password(request: ResearcherRequest):
 def clear_device_id(request: ResearcherRequest):
     """ Resets a participant's device. The participant will not be able to connect until they
     register a new device. """
-    patient_id = request.POST.get('patient_id', None)
-    study_id = request.POST.get('study_id', None)
+    patient_id = request.POST.get('patient_id')
+    study_id = request.POST.get('study_id')
     participant_page = redirect(
         easy_url("participant_endpoints.participant_page", study_id=study_id, patient_id=patient_id)
     )
@@ -106,8 +106,8 @@ def clear_device_id(request: ResearcherRequest):
 @authenticate_researcher_study_access
 def toggle_easy_enrollment(request: ResearcherRequest):
     """ Block participant from uploading further data """
-    patient_id = request.POST.get('patient_id', None)
-    study_id = request.POST.get('study_id', None)
+    patient_id = request.POST.get('patient_id')
+    study_id = request.POST.get('study_id')
     participant_page = redirect(
         easy_url("participant_endpoints.participant_page", study_id=study_id, patient_id=patient_id)
     )
@@ -137,8 +137,8 @@ def toggle_easy_enrollment(request: ResearcherRequest):
 @authenticate_researcher_study_access
 def retire_participant(request: ResearcherRequest):
     """ Block participant from uploading further data """
-    patient_id = request.POST.get('patient_id', None)
-    study_id = request.POST.get('study_id', None)
+    patient_id = request.POST.get('patient_id')
+    study_id = request.POST.get('study_id')
     participant_page = redirect(
         easy_url("participant_endpoints.participant_page", study_id=study_id, patient_id=patient_id)
     )
@@ -170,8 +170,8 @@ def retire_participant(request: ResearcherRequest):
 @authenticate_researcher_study_access
 def delete_participant(request: ResearcherRequest):
     """ Queues a participant for data purge. """
-    patient_id = request.POST.get('patient_id', None)
-    study_id = request.POST.get('study_id', None)
+    patient_id = request.POST.get('patient_id')
+    study_id = request.POST.get('study_id')
     participant_page = redirect(
         easy_url("participant_endpoints.participant_page", study_id=study_id, patient_id=patient_id)
     )
@@ -283,7 +283,7 @@ def resend_push_notification(request: ResearcherRequest, study_id: int, patient_
     messaging is merged in this should be revisited. """
     
     # 400 error if survey_id is not present
-    survey_id = request.POST.get("survey_id", None)
+    survey_id = request.POST.get("survey_id")
     if not survey_id:
         return HttpResponse(content="", status=400)
     
@@ -503,7 +503,7 @@ def participant_page(request: ResearcherRequest, study_id: int, patient_id: str)
     study_has_interventions = False
     for intervention in study.interventions.all():
         study_has_interventions = True
-        input_date = request.POST.get(f"intervention{intervention.id}", None)
+        input_date = request.POST.get(f"intervention{intervention.id}")
         intervention_date = participant.intervention_dates.get(intervention=intervention)
         if input_date:
             # FIXME: if this errors ing on invalid dates then we could hit database inconsistencies with relative schedules (until they are recalculated in an hour)
