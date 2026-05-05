@@ -4,7 +4,7 @@ from io import StringIO
 
 from constants.forest_constants import ForestTree
 from database.models import ForestTask, SummaryStatisticDaily
-from services.celery_forest import BadForestField, csv_parse_and_consume
+from services.celery_forest import BadForestField, summary_statistic_csv_parse_and_consume
 from tests.common import CommonTestCase
 
 
@@ -34,7 +34,7 @@ class TestFileConsumption(CommonTestCase):
             )
         
         # shove the csv string into a file-like object and call.
-        return csv_parse_and_consume(task, csv.DictReader(StringIO(csv_string)))
+        return summary_statistic_csv_parse_and_consume(task, csv.DictReader(StringIO(csv_string)))
     
     def one_jasmine_row(self, day: date):
         # keep this list ordered to match the order of the matching columns in the

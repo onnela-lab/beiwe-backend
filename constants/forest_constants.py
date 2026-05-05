@@ -1,11 +1,11 @@
-# trunk-ignore-all(ruff/F405)
-
 from django.db.models.fields import (BooleanField, CharField, DateField, DateTimeField, FloatField,
     IntegerField, TextField)
 
-# trunk-ignore(ruff/F403)
-from constants.data_stream_constants import *
 from constants import DjangoDropdown
+from constants.data_stream_constants import (ACCELEROMETER, AMBIENT_AUDIO, ANDROID_LOG_FILE,
+    AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE,
+    MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG,
+    WIFI)
 
 from forest.constants import Frequency
 
@@ -83,6 +83,9 @@ DEFAULT_FOREST_PARAMETERS = {
         # the rest are optionals:
         # users: Optional[List] = None,
         # history_path: Optional[str] = None
+        "augment_with_answers": True,
+        "submits_by_survey_id": True,
+        "include_audio_surveys": True,
     },
     ForestTree.willow: {
         "frequency": Frequency.DAILY,
@@ -100,20 +103,28 @@ TREE_TO_TASK_NAME = {
 }
 
 
-# special tree parameters
+# special at-runtime tree parameters
+# Jasmine
 PARAMETER_ALL_BV_SET = "all_bv_set"
 PARAMETER_ALL_MEMORY_DICT = "all_memory_dict"
+# Sycamore
 PARAMETER_CONFIG_PATH = "config_path"
 PARAMETER_INTERVENTIONS_FILEPATH = "interventions_filepath"
+PARAMETER_HISTORY_PATH = "history_path"
+SYC_PARAMETER_USERS = "users"
+
 
 # We exclude some parameters from being pickled and stored in the database
 NON_PICKLED_PARAMETERS = [
     # toolarge and not intended to be stored in the database,
     PARAMETER_ALL_BV_SET,
     PARAMETER_ALL_MEMORY_DICT,
-    # generated at runtime (temporary folders)
+    # generated at runtime (temporary folders, currently just sycamore...)
     PARAMETER_CONFIG_PATH,
     PARAMETER_INTERVENTIONS_FILEPATH,
+    PARAMETER_HISTORY_PATH,
+    # sycamore params
+    SYC_PARAMETER_USERS,
 ]
 
 
@@ -123,7 +134,7 @@ FOREST_TREE_REQUIRED_DATA_STREAMS = {
     # ForestTree.bonsai: [GPS, TEXTS_LOG],
     ForestTree.jasmine: [GPS],
     ForestTree.oak: [ACCELEROMETER],
-    ForestTree.sycamore: [SURVEY_ANSWERS, SURVEY_TIMINGS],
+    ForestTree.sycamore: [SURVEY_ANSWERS, SURVEY_TIMINGS, AUDIO_RECORDING],
     ForestTree.willow: [CALL_LOG, TEXTS_LOG],
 }
 
@@ -174,22 +185,40 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     "total_mins_out_call": "willow_outgoing_call_duration",
     "num_mis_call": "willow_missed_call_count",
     "num_mis_caller": "willow_missed_callers",
+    "mean_resposiveness_call": "willow_mean_responsiveness_call",
+    "call_reciprocity": "willow_call_reciprocity",
     
     # Willow, both
     "num_uniq_individuals_call_or_text": "willow_uniq_individual_call_or_text_count",
-    
-    # sycamore, survey frequency
-    "num_surveys": "sycamore_total_surveys",
-    "num_complete_surveys": "sycamore_total_completed_surveys",
-    "num_opened_surveys": "sycamore_total_opened_surveys",
-    "avg_time_to_submit": "sycamore_average_time_to_submit",
-    "avg_time_to_open": "sycamore_average_time_to_open",
-    "avg_duration": "sycamore_average_duration",
     
     # oak, walking metrics
     "walking_time": "oak_walking_time",
     "steps": "oak_steps",
     "cadence": "oak_cadence",
+}
+
+
+SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES = {
+    "Obs Duration": "obs_duration",
+    "Obs Day": "obs_day",
+    "Obs Night": "obs_night",
+    "Home Duration": "home_duration",
+    "Distance Traveled": "distance_traveled",
+    "Distance From Home": "distance_from_home",
+    "Gyration Radius": "gyration_radius",
+    "Distance Diameter": "distance_diameter",
+    "Significant Location Count": "significant_location_count",
+    "Significant Location Entropy": "significant_location_entropy",
+    "Total Flight Time": "total_flight_time",
+    "Flight Distance Average": "flight_distance_average",
+    "Flight Distance Stddev": "flight_distance_stddev",
+    "Flight Duration Average": "flight_duration_average",
+    "Flight Duration Stddev": "flight_duration_stddev",
+    "Pause Time": "pause_time",
+    "Av Pause Duration": "av_pause_duration",
+    "Sd Pause Duration": "sd_pause_duration",
+    "Physical Circadian Rhythm": "physical_circadian_rhythm",
+    "Physical Circadian Rhythm Stratified": "physical_circadian_rhythm_stratified",
 }
 
 
@@ -288,19 +317,30 @@ NICE_WILLOW_FIELDS = [
     name.replace("willow_", "").replace("_", " ").title() for name in WILLOW_FIELDS
 ]
 
-SYCAMORE_FIELDS = [
-    # Sycamore, Survey Frequency
-    "sycamore_total_surveys",
-    "sycamore_total_completed_surveys",
-    "sycamore_total_opened_surveys",
-    "sycamore_average_time_to_submit",
-    "sycamore_average_time_to_open",
-    "sycamore_average_duration",
+
+NEW_SYCAMORE_FIELDS = [
+    "obs_duration",
+    "obs_day",
+    "obs_night",
+    "home_duration",
+    "distance_traveled",
+    "distance_from_home",
+    "gyration_radius",
+    "distance_diameter",
+    "significant_location_count",
+    "significant_location_entropy",
+    "total_flight_time",
+    "flight_distance_average",
+    "flight_distance_stddev",
+    "flight_duration_average",
+    "flight_duration_stddev",
+    "pause_time",
+    "av_pause_duration",
+    "sd_pause_duration",
+    "physical_circadian_rhythm",
+    "physical_circadian_rhythm_stratified",
 ]
 
-NICE_SYCAMORE_FIELDS = [
-    name.replace("sycamore_", "").replace("_", " ").title() for name in SYCAMORE_FIELDS
-]
 
 OAK_FIELDS = [
     # Oak, walking statistics
@@ -314,17 +354,16 @@ NICE_OAK_FIELDS = [
 ]
 
 SERIALIZABLE_FIELD_NAMES = SUMMARY_METADATA_FIELD_NAMES + DATA_QUANTITY_FIELD_NAMES \
-    + JASMINE_FIELDS + WILLOW_FIELDS + SYCAMORE_FIELDS + OAK_FIELDS
+    + JASMINE_FIELDS + WILLOW_FIELDS + OAK_FIELDS
 
 # SERIALIZABLE_FIELD_NAMES.extend(TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS.values())
 NICE_SERIALIZABLE_FIELD_NAMES = NICE_SUMMARY_METADATA_FIELD_NAMES + NICE_BEIWE_DATA_QUANTITY_FIELD_NAMES \
-    + NICE_JASMINE_FIELDS + NICE_WILLOW_FIELDS + NICE_SYCAMORE_FIELDS + NICE_OAK_FIELDS
+    + NICE_JASMINE_FIELDS + NICE_WILLOW_FIELDS + NICE_OAK_FIELDS
 
 
 FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES = {
     ForestTree.jasmine: JASMINE_FIELDS,
     ForestTree.willow: WILLOW_FIELDS,
-    ForestTree.sycamore: SYCAMORE_FIELDS,
     ForestTree.oak: OAK_FIELDS,
 }
 

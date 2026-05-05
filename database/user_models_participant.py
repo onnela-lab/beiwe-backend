@@ -35,7 +35,8 @@ from libs.utils.security_utils import (compare_password, device_hash, django_pas
 if TYPE_CHECKING:
     from database.models import (ArchivedEvent, ChunkRegistry, EncryptionErrorMetadata,
         FileToProcess, ForestTask, InterventionDate, PushNotificationDisabledEvent, S3File,
-        ScheduledEvent, StudyField, SummaryStatisticDaily, UploadTracking)
+        ScheduledEvent, StudyField, SummaryStatisticDaily, SycamoreAnalysisOutput, UploadTracking)
+
 
 class Participant(AbstractPasswordUser):
     """ The Participant database object contains the password hashes and unique usernames of any
@@ -129,6 +130,7 @@ class Participant(AbstractPasswordUser):
     notification_reports: Manager[SurveyNotificationReport]
     s3_files: Manager[S3File]
     scheduled_events: Manager[ScheduledEvent]
+    sycamore_analyses: Manager[SycamoreAnalysisOutput]
     upload_trackers: Manager[UploadTracking]
     
     # undeclared:

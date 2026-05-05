@@ -27,7 +27,7 @@ from libs.utils.date_utils import date_is_in_the_past
 if TYPE_CHECKING:
     from database.models import (ChunkRegistry, DashboardColorSetting, FileToProcess, Intervention,
         Participant, ParticipantFieldValue, Researcher, StudyRelation, SummaryStatisticDaily,
-        Survey)
+        Survey, SycamoreAnalysisOutput)
 
 
 class Study(TimestampedModel, ObjectIDModel):
@@ -72,7 +72,7 @@ class Study(TimestampedModel, ObjectIDModel):
     dashboard_colors: Manager[DashboardColorSetting];     participants: Manager[Participant]
     device_settings: DeviceSettings;                      study_relations: Manager[StudyRelation]
     fields: Manager[StudyField];                          surveys: Manager[Survey]
-    files_to_process: Manager[FileToProcess]
+    files_to_process: Manager[FileToProcess];             sycamore_analyses: Manager[SycamoreAnalysisOutput]
     summary_statistics_daily: Manager[SummaryStatisticDaily]
     
     def save(self, *args, **kwargs):
