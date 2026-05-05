@@ -66,12 +66,12 @@ class TestUploadDetails(BasicSessionTestCase):
     @patch(f"{pyfile}.FileToProcess")
     @patch(f"{pyfile}.HttpResponse")
     @patch(f"{pyfile}.UploadTracking")
-    @patch(f"{pyfile}.s3_duplicate_name")
+    @patch(f"{pyfile}.generate_duplicate_name")
     @patch(f"{pyfile}.timezone")
     def test_empty_generator_case(  # noqa CFQ002
         self,
         timezone: MagicMock,
-        s3_duplicate_name: MagicMock,
+        generate_duplicate_name: MagicMock,
         UploadTracking: MagicMock,
         HttpResponse: MagicMock,
         FileToProcess: MagicMock,
@@ -110,7 +110,7 @@ class TestUploadDetails(BasicSessionTestCase):
         )
         
         HttpResponse.assert_called_once_with(content=b"upload successful.", status=200)
-        s3_duplicate_name.assert_not_called()
+        generate_duplicate_name.assert_not_called()
     
     
     @patch(f"{pyfile}.smart_s3_list_study_files")
@@ -118,12 +118,12 @@ class TestUploadDetails(BasicSessionTestCase):
     @patch(f"{pyfile}.FileToProcess")
     @patch(f"{pyfile}.HttpResponse")
     @patch(f"{pyfile}.UploadTracking")
-    @patch(f"{pyfile}.s3_duplicate_name")
+    @patch(f"{pyfile}.generate_duplicate_name")
     @patch(f"{pyfile}.timezone")
     def test_one_string_case_decryptor_duplicate_name(  # noqa CFQ002
         self,
         timezone: MagicMock,
-        s3_duplicate_name: MagicMock,
+        generate_duplicate_name: MagicMock,
         UploadTracking: MagicMock,
         HttpResponse: MagicMock,
         FileToProcess: MagicMock,
@@ -144,7 +144,7 @@ class TestUploadDetails(BasicSessionTestCase):
         # setup test - a list with one string - we will use a random string
         smart_s3_list_study_files.return_value = ["some_existing_file.csv"]
         decryptor_obj, decrypted_slug = self.setup_decryptor_obj(False)  # False important
-        s3_duplicate_name.return_value = NEW_PATH = "new_path"
+        generate_duplicate_name.return_value = NEW_PATH = "new_path"
         
         # run test
         upload_and_create_file_to_process_and_log(s3_file_location, p, decryptor_obj)
@@ -161,7 +161,7 @@ class TestUploadDetails(BasicSessionTestCase):
         )
         
         HttpResponse.assert_called_once_with(content=b"upload successful.", status=200)
-        s3_duplicate_name.assert_called_once_with(s3_file_location)
+        generate_duplicate_name.assert_called_once_with(s3_file_location)
 
 
 class TestAppVersionHistory(ParticipantSessionTest):

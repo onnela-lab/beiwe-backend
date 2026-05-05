@@ -1019,7 +1019,7 @@ th {
   border-bottom-width: 2px;
 }
 .table-striped > tbody > tr:nth-of-type(odd) {
-  background-color: var(--forest-green-very-dark);
+  background-color: var(--forest-green-dark);
   /* color: var(--Bwhite); */
 }
 .table-striped > tbody > tr:nth-of-type(even) {

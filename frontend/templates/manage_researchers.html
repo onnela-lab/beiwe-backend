@@ -10,8 +10,8 @@
 
 {% block content %}
 
-<div class="row">
-  <h2>All Researchers</h2>
+<div class="well">
+  <h2>Manage Researchers</h2>
 </div>
 
 <br>
@@ -19,15 +19,15 @@
 <div
   id="filterableList"
   ng-controller="FilterableListController"
-  class="row col-lg-12"
+  class="well col-lg-12"
 >
   {# Search/filter input field #}
-  <div class="form-group col-sm-4">
+  <div class="form-group col-xs-10 row">
 
     <input
       type="search"
       class="form-control"
-      placeholder="Filter by username"
+      placeholder="Filter Researchers You Can Manage by Username, or Authorized Study Name or Study ID"
       ng-model="researcherFilterText"
       autofocus
       aria-label="Search for a researcher by username to have them appear in the list below, you will be able to jump to their edit page."
@@ -56,7 +56,7 @@
     </thead>
 
     <tbody>
-      <tr ng-repeat="researcher_data in filterableObjects | filter:{username: researcherFilterText}">
+      <tr ng-repeat="researcher_data in filterableObjects | filter:{tags: researcherFilterText}">
         <td>
           <b>{% raw %}{{ researcher_data[0].username }}{% endraw %}</b>
         </td>

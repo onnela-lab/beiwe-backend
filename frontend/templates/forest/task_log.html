@@ -14,10 +14,29 @@
         $controller('FilterableListController', {$scope: $scope});
         $scope.modalLog = null
         $scope.showErrorModal = showErrorModal
+        $scope.matchesFilter = matchesFilter
 
         function showErrorModal(log) {
           $scope.modalLog = log
           $('#error-modal').modal('show')
+        }
+
+        // ai assist on creating this filter, it fixes the issue wher
+        function matchesFilter(log) {
+          var filterText = ($scope.filterText || '').toLowerCase()
+          var searchText = [
+            log.created_on_display ? log.created_on_display.join(' ') : '',
+            log.external_id,
+            log.patient_id,
+            log.forest_tree_display,  // tree name
+            log.data_date_start,
+            log.data_date_end,
+            log.status,
+          ].map(function(value) {
+            return value || ''
+          }).join(' ').toLowerCase()
+
+          return searchText.includes(filterText)
         }
       }])
       .filter('trustAsResourceUrl', ['$sce', function ($sce) {
@@ -26,6 +45,7 @@
         }
       }])
   })()
+
 </script>
 {% endblock %}
 
@@ -39,9 +59,9 @@
     <input
       type="search"
       class="form-control"
-      placeholder="Filter Forest Tasks Here (searches all columns except Actions)"
+      placeholder="Filter Tasks On The Current Page (searches all columns except Actions)"
       ng-model="filterText"
-      aria-label="Filter Forest Tasks Here (searches all columns except Actions)"
+      aria-label="Filter Tasks On The Current Page (searches all columns except Actions)"
       autofocus
     >
   </div>
@@ -73,12 +93,12 @@
 
         <tr
           ng-repeat="log in filterableObjects"
-          ng-if="(log.created_on_display + log.patient_id + log.forest_tree_display + log.data_date_start + log.data_date_end + log.status).toLowerCase().includes(filterText.toLowerCase())"
+          ng-if="matchesFilter(log)"
         >
           <td style="word-break: break-word; max-width: 110px;">
             {% raw %}{{ log.created_on_display[0] }}<br>{{ log.created_on_display[1] }}{% endraw %}</td>
           <td
-            class="text-small"
+            class="text-medium text-uppercase text-mono"
             style="word-break: break-word; max-width: 110px;"
           >{% raw %}{{ log.external_id }}{% endraw %}</td>
           <td>{% raw %}{{ log.patient_id }}{% endraw %}</td>

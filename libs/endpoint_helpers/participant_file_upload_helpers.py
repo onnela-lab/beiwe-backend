@@ -10,6 +10,7 @@ from constants.message_strings import (S3_FILE_PATH_UNIQUE_CONSTRAINT_ERROR_1,
 from database.models import FileToProcess, Participant, UploadTracking
 from libs.encryption import DeviceDataDecryptor
 from libs.s3 import s3_upload, smart_s3_list_study_files
+from libs.utils.file_name_utils import generate_duplicate_name
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 
 
@@ -31,7 +32,7 @@ def upload_and_create_file_to_process_and_log(
     else:
         # duplicate file
         old_file_location = s3_file_location
-        s3_file_location = s3_duplicate_name(s3_file_location)
+        s3_file_location = generate_duplicate_name(s3_file_location)
         log(f"renamed duplicate '{old_file_location}' to '{s3_file_location}'")
         s3_upload(s3_file_location, decryptor.decrypted_file, participant)
     
@@ -69,8 +70,3 @@ def upload_problem_file(
 ):
     file_path = f"{PROBLEM_UPLOADS}/{participant.study.object_id}/" + s3_file_path + generate_easy_alphanumeric_string(10)
     s3_upload(file_path, file_contents, participant, raw_path=True)
-
-
-def s3_duplicate_name(s3_file_path: str):
-    """ when duplicates occur we add this string onto the end and try to proceed as normal. """
-    return s3_file_path + "-duplicate-" + generate_easy_alphanumeric_string(10)

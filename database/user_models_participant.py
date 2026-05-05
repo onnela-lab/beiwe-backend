@@ -493,7 +493,7 @@ class ParticipantDeletionEvent(TimestampedModel):
     """ This is a list of participants that have been deleted, but we are keeping around for a while
     in case we need to restore them. """
     participant: Participant = OneToOneField(Participant, on_delete=PROTECT, related_name="deletion_event")
-    files_deleted_count = BigIntegerField(null=False, blank=False, default=0)
+    files_deleted_count: int = BigIntegerField(null=False, blank=False, default=0)
     purge_confirmed_time = DateTimeField(null=True, blank=True, db_index=True)
     
     @classmethod

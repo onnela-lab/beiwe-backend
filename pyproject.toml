@@ -106,15 +106,15 @@ known_local_folder = [
 ]
 
 known_first_party = [  # Force these libraries to a special spot in import order (bottom)
-    "authentication",
-    "cluster_management",
-    "config",
-    "constants",
-    "database",
-    "endpoints",
-    "libs",
-    "middleware",
-    "services",
+  "authentication",
+  "cluster_management",
+  "config",
+  "constants",
+  "database",
+  "endpoints",
+  "libs",
+  "middleware",
+  "services",
 ]
 
 
@@ -144,34 +144,47 @@ future-annotations = true
 max-cognitive-complexity = 10
 
 extend-ignore = [
-    "E127",  # continuation line over-indented for visual indent
-    "E128",  # continuation line under-indented for visual indent
-    "E225",  # missing whitespace around operator
-    # "E305",   # should have 2 blank lines after class or function definition
-    "E301",  # expected 1 blank line, found 0
-    # "E302",  # expected 2 blank lines, found 1
-    "E303",   # too many blank lines
-    "E701",  # multiple statements on one line (colon)
-    "E702",  # multiple statements on one line (semicolon)
-    # "E265",  # block comment should start with '# '
-    "E266",  # too many leading '#' for block comment
-    "E501",  # line too long
-    "R503",  # missing explicit None return
-    "W293",  # blank line contains whitespace
-    # "C408",  # unnecessary list comprehension
-    # "SIM102",  # use 'if any(...)' instead of 'if True in (...)'
-    # "CFQ002",  # missing whitespace after ',' (?)
-    # "CFQ004",
-    "E731",  # don't use lambdas alone
-    "R505",  # unnecessary elif return 
-    "R504",  # unnecessary return after assignment - is literally incorrect
-    "FS001",  # use of % on string formatting
+  "E127",  # continuation line over-indented for visual indent
+  "E128",  # continuation line under-indented for visual indent
+  "E225",  # missing whitespace around operator
+  # "E305",   # should have 2 blank lines after class or function definition
+  "E301",  # expected 1 blank line, found 0
+  # "E302",  # expected 2 blank lines, found 1
+  "E303",   # too many blank lines
+  "E701",  # multiple statements on one line (colon)
+  "E702",  # multiple statements on one line (semicolon)
+  # "E265",  # block comment should start with '# '
+  "E266",  # too many leading '#' for block comment
+  "E501",  # line too long
+  "R503",  # missing explicit None return
+  "W293",  # blank line contains whitespace
+  # "C408",  # unnecessary list comprehension
+  # "SIM102",  # use 'if any(...)' instead of 'if True in (...)'
+  # "CFQ002",  # missing whitespace after ',' (?)
+  # "CFQ004",
+  "E731",  # don't use lambdas alone
+  "R505",  # unnecessary elif return 
+  "R504",  # unnecessary return after assignment - is literally incorrect
+  "FS001",  # use of % on string formatting
+  "E302", # expected 2 blank lines, found 1   -   I just don't care anymore.
 ]
+
 exclude = [
-    ".git",
-    "__pycache__",
-    "docs",
-    "frontend",
-    "paper",
-    "private",
+  ".git",
+  "__pycache__",
+  "docs",
+  "frontend",
+  "paper",
+  "private",
 ]
+
+# YAPF may not use pyproject.toml
+[tool.yapf]
+based_on_style = "google"
+column_limit = 100
+indent_width = 4
+blank_line_before_nested_class_or_def = true
+dedent_closing_brackets = true
+indent_closing_brackets = false
+indent_blank_lines = true
+spaces_before_comment = 2

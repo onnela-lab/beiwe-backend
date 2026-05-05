@@ -25,6 +25,7 @@ MY_BEIWE_SERVER = "https://example.com"
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-studies/v1"
     # Endpoint takes no parameters, returns a json dictionary of study ids and their study name.
     # Returns the studies that the user has access to.
+    # Study names and ids are each unique.
 
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-ids/v1"
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-users/v1"  # deprecated, use get-participant-ids

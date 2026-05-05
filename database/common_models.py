@@ -197,7 +197,7 @@ class UtilityModel(models.Model):
         # GroupAggregate (cost=0.57..32464536.21 rows=244141235 width=12) ... there's more; don't care.
         #                                         ^^^^^^^^^^^^^^
         
-        t1 =  datetime.now()
+        t1 = datetime.now()
         a_column_name = cls._meta.fields[0].column
         explained = cls.objects.annotate(_=Count(a_column_name)).values("_").explain()
         count = int(explained.split("rows=")[1].split(" width=")[0])

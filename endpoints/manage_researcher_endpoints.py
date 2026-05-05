@@ -48,13 +48,18 @@ def administrator_manage_researchers_page(request: ResearcherRequest):
     
     researcher_list = []
     for researcher in get_administerable_researchers(request):
-        allowed_studies = Study.get_all_studies_by_name().filter(
+        info = list(Study.get_all_studies_by_name().filter(
             study_relations__researcher=researcher, study_relations__study__in=session_ids,
-        ).values_list('name', flat=True)
+        ).values_list("name", "object_id"))
+        
+        allowed_studies = [name for name, _ in info]
+        tags = allowed_studies + [object_id for _, object_id in info] + [researcher.username]
+        
         researcher_list.append(
-            ({'username': researcher.username, 'id': researcher.id}, list(allowed_studies))
+            [{"username": researcher.username, "id": researcher.id, "tags": tags}, allowed_studies]
         )
-    return render(request, 'manage_researchers.html', context=dict(admins=researcher_list))
+    
+    return render(request, "manage_researchers.html", context=dict(admins=researcher_list))
 
 
 @require_http_methods(['GET', 'POST'])
