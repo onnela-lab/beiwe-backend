@@ -46,8 +46,8 @@ def populate_data_quantity(
 
 def calculate_data_quantity_stats(
     participant: Participant,
-    earliest_time_bin_number: int|None = None,
-    latest_time_bin_number: int|None = None,
+    earliest_time_bin_number: int | None = None,
+    latest_time_bin_number: int | None = None,
 ):
     """ Update the SummaryStatisticDaily  stats for a participant, using ChunkRegistry data
     earliest_time_bin_number -- expressed in hours since 1/1/1970
@@ -69,13 +69,15 @@ def calculate_data_quantity_stats(
     
     # For each date, create a DataQuantity object
     for day, day_data in populate_data_quantity(query, study_timezone).items():
-        data_quantity = {
+        data_quantity: dict = {  # annoying typing issues
             "the_study_id": participant.study_id,
             "participant_id": participant.pk,
             "date": day,
             "defaults": {"timezone": get_timezone_shortcode(day, study_timezone)}
         }
+        
         for data_type, total_bytes in day_data.items():
             if data_type in ALL_DATA_STREAMS:
                 data_quantity["defaults"][f"beiwe_{data_type}_bytes"] = total_bytes
+        
         SummaryStatisticDaily.objects.update_or_create(**data_quantity)

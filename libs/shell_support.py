@@ -205,6 +205,54 @@ def watch_processing():
         sleep(wait)
 
 
+def watch_processing_lite():
+    
+    periodicity = 5
+    prior_users = 0
+    prior_count = FileToProcess.objects.count()
+    
+    while True:
+        start = localtime()
+        
+        count = FileToProcess.objects.count()
+        user_count = FileToProcess.vlist("participant_id", flat=True).distinct().count()
+        
+        if prior_users != user_count:
+            print(f"{start:} Number of participants with files to process: {user_count}")
+        
+        diff = count - prior_count
+        slug = f"+{diff:,}" if diff >= 0 else f"{diff:,}"
+        print(f"{start}: {count:,} files to process ({slug})")
+        prior_count = count
+        
+        prior_users = user_count
+        
+        # we will set a minimum time between info updates, database call can be slow.
+        end = localtime()
+        total = abs((start - end).total_seconds())
+        wait = periodicity - total if periodicity - total > 0 else 0
+        
+        print("\n=================================\n")
+        sleep(wait)
+
+
+# def watch_uploads():
+#     """ Runs a loop that prints out the number of files uploaded in the past minute. ctrl+c to stop."""
+#     while True:
+#         start = localtime()
+#         data = list(UploadTracking.fltr(
+#             timestamp__gte=(start - timedelta(minutes=1))).values_list("file_size", flat=True))
+#         end = localtime()
+#         total = abs((start - end).total_seconds())
+        
+#         # we will set a minimum time between prints at 2 seconds, database call can be slow.
+#         wait = 2 - total if 0 < (2 - total) < 2 else 0
+        
+#         print("time delta: %ss, %s files, %.4fMB in the past minute" % (
+#             total + wait, len(data), (sum(data) / 1024.0 / 1024.0)))
+#         sleep(wait)
+
+
 def watch_celery():
     """ Only works on data processing servers.
     Runs a loop that prints out the number of active, scheduled, and reserved tasks in celery. """
