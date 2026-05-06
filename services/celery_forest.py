@@ -9,7 +9,6 @@ from os.path import dirname, exists as file_exists, join as path_join
 from time import sleep
 
 from dateutil.tz import UTC
-from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -19,7 +18,7 @@ from constants.forest_constants import (CLEANUP_ERROR as CLN_ERR, FOREST_TREE_RE
     ForestTree, NO_DATA_ERROR, ROOT_FOREST_TASK_PATH, SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES,
     TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS, YEAR_MONTH_DAY)
 from constants.raw_data_constants import CHUNK_FIELDS
-from database.models import (ChunkRegistry, ForestTask, ForestVersion, Participant, QuerySet,
+from database.models import (ChunkRegistry, ForestTask, ForestVersion, QuerySet,
     SummaryStatisticDaily, SycamoreAnalysisOutput)
 from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.endpoint_helpers.copy_study_helpers import format_study
@@ -59,8 +58,7 @@ class NoSentryException(Exception): pass
 class BadForestField(Exception): pass
 
 
-# a lookup for pointing to the correct function for each tree (we need to look up by tree name)
-TREE_TO_FOREST_FUNCTION = {
+TREE_TO_FOREST_FUNCTION = {  # points to the target runtime function
     ForestTree.jasmine: gps_stats_main,
     ForestTree.oak: run_oak,
     ForestTree.sycamore: compute_survey_stats,
@@ -103,35 +101,20 @@ def create_forest_celery_tasks():
 @forest_celery_app.task(queue=FOREST_QUEUE)
 def celery_run_forest(forest_task_id):
     
-    # this use of transaction.atomic should blockmultiple tasks from running at once - I don't think
-    # our usage of celery is such that we need to worry about this.
-    with transaction.atomic():
-        forest_task = ForestTask.objects.get(id=forest_task_id)
-        participant: Participant = forest_task.participant
-        
-        # Check if there already is a running task for this participant and tree, handling
-        # concurrency and requeuing of the ask if necessary (locks db rows until end of transaction)
-        tasks = ForestTask.objects.select_for_update() \
-                .filter(participant=participant, forest_tree=forest_task.forest_tree)
-        
-        # if any other forest tasks are running, exit.
-        if tasks.filter(status=ForestTaskStatus.running).exists():
-            return
-        
-        # Get the chronologically earliest task that's queued
-        forest_task = tasks.order_by("-data_date_start").first()
-        
-        if forest_task is None:  # Should be unreachable...
-            return
-        
-        # there's a script that periodically updates the forest verison
-        forest_version = ForestVersion.singleton()
-        forest_task.update_only(  # Set metadata on the task to running
-            status=ForestTaskStatus.running,
-            process_start_time=timezone.now(),
-            forest_version=forest_version.package_version,
-            forest_commit=forest_version.git_commit,
-        )
+    task = ForestTask.objects.get(id=forest_task_id)
+    
+    if task.status != ForestTaskStatus.queued:
+        logw(f"Task {task.external_id} has status {task.status}, exiting.")
+        return
+    
+    # there's a script that periodically updates the forest verison
+    forest_version = ForestVersion.singleton()
+    task.update_only(  # Set metadata on the task to running
+        status=ForestTaskStatus.running,
+        process_start_time=timezone.now(),
+        forest_version=forest_version.package_version,
+        forest_commit=forest_version.git_commit,
+    )
     
     # ChunkRegistry "time_bin" hourly chunks are in UTC, with each file containing a discrete hour
     # of data. Manually entered data streams (like survey answers or media files) have a more
@@ -142,13 +125,13 @@ def celery_run_forest(forest_task_id):
     # the hour containing their last fractional offset. Manually entered data streams don't have
     # this issue.)
     # Code: construct two datetimes for the start and end of day in the study's timezone.
-    starttime_midnight = datetime.combine(forest_task.data_date_start, MIN_TIME, forest_task.the_study.timezone)
-    endtime_11_59pm = datetime.combine(forest_task.data_date_end, MAX_TIME, forest_task.the_study.timezone)
-    log("starttime_midnight: ", starttime_midnight.isoformat())
-    log("endtime_11_59pm: ", endtime_11_59pm.isoformat())
+    starttime_midnight = datetime.combine(task.data_date_start, MIN_TIME, task.the_study.timezone)
+    endtime_11_59pm = datetime.combine(task.data_date_end, MAX_TIME, task.the_study.timezone)
+    log(f"starttime_midnight: {legible_time(starttime_midnight)}")
+    log(f"endtime_11_59pm: {legible_time(endtime_11_59pm)}")
     
     # do the thing
-    execute_forest_task_safe(forest_task, starttime_midnight, endtime_11_59pm)
+    execute_forest_task_safe(task, starttime_midnight, endtime_11_59pm)
 
 
 def execute_forest_task_safe(task: ForestTask, start: datetime, end: datetime):
@@ -163,7 +146,7 @@ def execute_forest_task_safe(task: ForestTask, start: datetime, end: datetime):
         except Exception as e:
             # merging stack traces, handling null case, then conditionally report with tags
             task.update_only(stacktrace=((task.stacktrace or "") + CLN_ERR + traceback.format_exc()))
-            log("task.stacktrace 2:", task.stacktrace)
+            log(f"task.stacktrace 2:\n{task.stacktrace}")
             with SentryUtils.report_forest(**task.sentry_tags):
                 raise e from None
 
@@ -212,68 +195,65 @@ def run_forest_task(task: ForestTask, start: datetime, end: datetime):
     
     ## this is functionally a try-except block because all the above real try-except blocks
     ## re-raise their error inside an error sentry
-    log("task.status:", task.status)
+    log(f"task.status: {task.status}")
     log("deleting files 1")
     clean_up_files(task)  # if this fails you probably have server oversubscription issues.
     task.update_only(process_end_time=timezone.now())
 
 
-def run_one_forest_tree(forest_task: ForestTask):
-    caller_function = TREE_TO_FOREST_FUNCTION[forest_task.forest_tree]
+def run_one_forest_tree(task: ForestTask):
+    caller_function = TREE_TO_FOREST_FUNCTION[task.forest_tree]
     
     # Run Forest
-    params_dict = forest_task.get_params_dict()
-    log("params_dict:", params_dict)
-    forest_task.pickle_to_pickled_parameters(params_dict)
+    params_dict = task.get_params_dict()
+    log(f"params_dict: {params_dict}")
+    task.pickle_to_pickled_parameters(params_dict)
     
-    log("running:", forest_task.forest_tree)
+    log(f"running: {task.forest_tree}")
     caller_function(**params_dict)
-    log("done running:", forest_task.forest_tree)
+    log(f"done running: {task.forest_tree}")
     
     # Save data
-    forest_task.update_only(forest_output_exists=read_in_output_data(forest_task))
+    task.update_only(forest_output_exists=read_in_output_data(task))
 
 
 #
 ## Reading in data and adding data to database
 #
 
-def read_in_output_data(forest_task: ForestTask) -> bool:
-    if forest_task.forest_tree == ForestTree.sycamore:
-        return read_in_sycamore_output(forest_task)
-    return read_in_summary_statistic_output(forest_task)
+def read_in_output_data(task: ForestTask) -> bool:
+    if task.forest_tree == ForestTree.sycamore:
+        return read_in_sycamore_output(task)
+    return read_in_summary_statistic_output(task)
 
 
 ## Summary statistics
 
-def read_in_summary_statistic_output(forest_task: ForestTask) -> bool:
+def read_in_summary_statistic_output(task: ForestTask) -> bool:
     """ Construct summary statistics from forest output, returning whether or not any
         SummaryStatisticDaily has potentially been created or updated. """
     
-    if not file_exists(forest_task.summary_statistics_results_path):
-        loge("summary statistics path does not exist:", forest_task.summary_statistics_results_path)
+    if not file_exists(task.summary_statistics_results_path):
+        loge("summary statistics path does not exist:", task.summary_statistics_results_path)
         return False
     
-    log("tree:", forest_task.forest_tree)
-    with transaction.atomic(), open(forest_task.summary_statistics_results_path) as f:
-        log(f"opened `{forest_task.summary_statistics_results_path}`, parsing...")
-        return summary_statistic_csv_parse_and_consume(forest_task, DictReader(f))
+    log(f"tree: {task.forest_tree}")
+    with open(task.summary_statistics_results_path) as f:
+        log(f"opened `{task.summary_statistics_results_path}`, parsing...")
+        return summary_statistic_csv_parse_and_consume(task, DictReader(f))
 
 
-def summary_statistic_csv_parse_and_consume(forest_task: ForestTask, csv_reader: DictReader) -> bool:
+def summary_statistic_csv_parse_and_consume(task: ForestTask, csv_reader: DictReader) -> bool:
     """ Parse a csv file and create/update SummaryStatisticDaily objects.
         This function can be mocked with a list of dicts for testing. """
-    col_name: str
-    col_value: str
+    t = task
     
-    blow_up_on_invalid_columns(forest_task, csv_reader)
-    taskname = forest_task.taskname
-    participant = forest_task.participant
-    study = participant.study
+    blow_up_on_invalid_columns(task, csv_reader)
+    taskname, participant, tree, study = t.taskname, t.participant, t.forest_tree, t.the_study
     timezone = study.timezone
-    tree = forest_task.forest_tree
-    rows_processed = 0
+    assert participant is not None, "this code path expects a participant on a study"
     
+    rows_processed = 0
     for csv_row in csv_reader:
         if tree == ForestTree.oak:
             # Oak has a different output format, it is a json file.
@@ -285,11 +265,11 @@ def summary_statistic_csv_parse_and_consume(forest_task: ForestTask, csv_reader:
         
         # if timestamp is outside of desired range, skip (use <=, this is inclusive)
         # (Really the scenario should never occurr where this is false, but we check anyway.)
-        if not (forest_task.data_date_start <= summary_date <= forest_task.data_date_end):
+        if not (task.data_date_start <= summary_date <= task.data_date_end):
             continue
         
         updates: dict = {
-            taskname: forest_task,
+            taskname: task,
             "timezone": get_timezone_shortcode(summary_date, timezone),
         }
         
@@ -311,43 +291,23 @@ def summary_statistic_csv_parse_and_consume(forest_task: ForestTask, csv_reader:
     return rows_processed > 0
 
 
-def read_in_sycamore_output(forest_task: ForestTask) -> bool:
+def read_in_sycamore_output(task: ForestTask) -> bool:
     """ Constructs a new SycamoreAnalysisOutput from sycamore output data. """
     
-    if not file_exists(forest_task.sycamore_output_file):
-        loge("sycamore path does not exist:", forest_task.sycamore_output_file)
+    if not file_exists(task.sycamore_output_file):
+        loge(f"sycamore path does not exist: {task.sycamore_output_file}")
         return False
     
-    log("tree:", forest_task.forest_tree)
-    with transaction.atomic(), open(forest_task.sycamore_output_file) as f:
-        log(f"opened `{forest_task.sycamore_output_file}`, parsing...")
+    log(f"tree: {task.forest_tree}")
+    with open(task.sycamore_output_file) as f:
+        log(f"opened `{task.sycamore_output_file}`, parsing...")
         # returns True if it doesn't crash
-        return sycamore_analysis_csv_parse_and_consume(forest_task, DictReader(f))
+        return sycamore_analysis_csv_parse_and_consume(task, DictReader(f))
 
 
-def sycamore_csv_parse_and_consume(forest_task: ForestTask, csv_reader: DictReader):
-    # validate the output of sycamore, update or create the relevant DB object
-    participant = forest_task.participant
-    study = participant.study
-    rows = list[dict[str, str]](csv_reader)
-    assert len(rows) == 1, f"Sycamore output should only have one row, found {len(rows)}"
-    
-    updates = {}
-    for col_name, col_value in rows[0].items():
-        
-        if not (sycamore_field := SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES.get(col_name)):
-            logw(f"Unrecognized column name in sycamore output: {col_name}, skipping.")
-            continue
-        
-        updates[sycamore_field] = col_value if col_value != '' else None
-    
-    SummaryStatisticDaily.objects.update_or_create(
-        defaults=updates, participant=participant, the_study=study
-    )
-
-
-def blow_up_on_invalid_columns(forest_task: ForestTask, csv_reader: DictReader):
+def blow_up_on_invalid_columns(task: ForestTask, csv_reader: DictReader):
     assert csv_reader.fieldnames is not None
+    assert task.forest_tree != ForestTree.sycamore, "incorrect validation function used for sycamore"
     for column_name in csv_reader.fieldnames:
         # raise error on unrecognized column names. Data must be to spec.
         if column_name not in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS:
@@ -360,23 +320,24 @@ def blow_up_on_invalid_columns(forest_task: ForestTask, csv_reader: DictReader):
 #
 
 
-def sycamore_analysis_csv_parse_and_consume(forest_task: ForestTask, csv_reader: DictReader):
+def sycamore_analysis_csv_parse_and_consume(task: ForestTask, csv_reader: DictReader):
     # file is guranteed to exist at this point
     sycamore_data = validate_sycamore_output(csv_reader)
     
     SycamoreAnalysisOutput(
-        study=forest_task.the_study,
-        sycamore_task=forest_task,
-        source_data_start=forest_task.data_date_start,
-        source_data_end=forest_task.data_date_end,
+        study=task.the_study,
+        sycamore_task=task,
+        source_data_start=task.data_date_start,
+        source_data_end=task.data_date_end,
         **sycamore_data
     ).save()
     
     return True
 
 
-def blow_up_on_bad_sycamore_columns(forest_task: ForestTask, csv_reader: DictReader):
+def blow_up_on_bad_sycamore_columns(task: ForestTask, csv_reader: DictReader):
     assert csv_reader.fieldnames is not None
+    assert task.forest_tree == ForestTree.sycamore, "incorrect validation function used for non-sycamore tree"
     for column_name in csv_reader.fieldnames:
         # raise error on unrecognized column names. Data must be to spec.
         if column_name not in SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES:
@@ -426,32 +387,40 @@ def validate_sycamore_output(csv_reader: DictReader) -> dict[str, float]:
 ## Post-Run code
 
 
-def generate_report(forest_task: ForestTask):
+def generate_report(task: ForestTask):
     now = timezone.now()
-    tz_name = forest_task.the_study.timezone
-    with open(forest_task.task_report_path, "w") as f:
-        f.write(f"Completed Forest task report for {forest_task.participant.patient_id} on {legible_time(now)}\n")
+    tz_name = task.the_study.timezone
+    study = task.the_study
+    patient_id = task.participant.patient_id if task.participant else "None"
+    with open(task.task_report_path, "w") as f:
+        f.write(f"Completed Forest task report\n\n")
+        f.write(f"Generated at {legible_time(now)}\n\n")
+        
+        f.write(f"Participant: {patient_id}\n")
+            
+        f.write(f"Study: `{study.name}`\n")
+        f.write(f"Study id: {study.object_id}\n")
         
         # Forest Datapoints
-        f.write(f"Forest tree: {forest_task.forest_tree}\n")
-        f.write(f"Forest version: {forest_task.forest_version}\n")
-        f.write(f"Forest commit: {forest_task.forest_commit}\n")
-        f.write(f"Forest task id: {forest_task.external_id}\n")
+        f.write(f"Forest tree: {task.forest_tree}\n")
+        f.write(f"Forest version: {task.forest_version}\n")
+        f.write(f"Forest commit: {task.forest_commit}\n")
+        f.write(f"Forest task id: {task.external_id}\n")
         
         # data information
-        f.write(f"Data start date: {forest_task.data_date_start}\n")
-        f.write(f"Data end date: {forest_task.data_date_end} (inclusive)\n")
+        f.write(f"Data start date: {legible_time(task.data_date_start)}\n")
+        f.write(f"Data end date: {legible_time(task.data_date_end)} (inclusive)\n")
         
         ## Everthing after this point is only available if the task was successful.
         # (total_file_size might be available if the task failed)
-        if forest_task.total_file_size:
+        if task.total_file_size:
             # file size in megabytes, 2 decimal places
-            f.write(f"Total file size: {forest_task.total_file_size / 1024 / 1024:.2f}MB\n")
+            f.write(f"Total file size: {task.total_file_size / 1024 / 1024:.2f}MB\n")
         
         # time information
-        p_start = forest_task.process_start_time
-        p_end = forest_task.process_end_time
-        p_download_end = forest_task.process_download_end_time
+        p_start = task.process_start_time
+        p_end = task.process_end_time
+        p_download_end = task.process_download_end_time
         if p_start:
             f.write(f"Process start time: {legible_time(p_start)} ({legible_time(p_start.astimezone(tz_name))})\n")
         if p_download_end:
@@ -460,12 +429,12 @@ def generate_report(forest_task: ForestTask):
             f.write(f"Process end time: {legible_time(p_end)} ({legible_time(p_end.astimezone(tz_name))})\n")
         
         # runtime details, stack traces and extra parameters
-        if forest_task.stacktrace:
+        if task.stacktrace:
             f.write("\n")
-            f.write(f"This Forest task encountered an error:\n{forest_task.stacktrace}\n")
+            f.write(f"This Forest task encountered an error:\n{task.stacktrace}\n")
         
         try:
-            parameters_repr = repr(forest_task.unpickle_from_pickled_parameters())
+            parameters_repr = repr(task.unpickle_from_pickled_parameters())
         except Exception as e:
             parameters_repr = f"Could not load parameters from database:\n{e}"
         f.write(f"\n\nPython representation of any extra parameters that were passed into the Forest tree:\n{parameters_repr}\n")
@@ -477,60 +446,60 @@ def generate_report(forest_task: ForestTask):
 
 ## File utility code
 
-def clean_up_files(forest_task: ForestTask):
+def clean_up_files(task: ForestTask):
     """ Delete temporary input and output files from this Forest run. """
     for i in range(10):
         try:
-            shutil.rmtree(forest_task.root_path_for_task)
+            shutil.rmtree(task.root_path_for_task)
         except OSError:  # this is pretty expansive, but there are an endless number of os errors...
             pass
         # file system can be slightly slow, we need to sleep. (this code never executes on frontend)
         sleep(0.5)
-        if not file_exists(forest_task.root_path_for_task):
+        if not file_exists(task.root_path_for_task):
             return
     raise Exception(
-        f"Could not delete folder {forest_task.root_path_for_task} for task {forest_task.external_id}, tried {i} times."
+        f"Could not delete folder {task.root_path_for_task} for task {task.external_id}, tried {i} times."
     )
 
 
-def ensure_folders_exist(forest_task: ForestTask):
+def ensure_folders_exist(task: ForestTask):
     """ This io is minimal, simply always make sure these folder structures exist. """
     makedirs(ROOT_FOREST_TASK_PATH, exist_ok=True)
-    makedirs(forest_task.root_path_for_task, exist_ok=True)
+    makedirs(task.root_path_for_task, exist_ok=True)
     # files
-    makedirs(dirname(forest_task.input_interventions_file), exist_ok=True)
-    makedirs(dirname(forest_task.input_study_config_file), exist_ok=True)
+    makedirs(dirname(task.input_interventions_file), exist_ok=True)
+    makedirs(dirname(task.input_study_config_file), exist_ok=True)
     # folders
-    makedirs(forest_task.data_input_path, exist_ok=True)
-    makedirs(forest_task.data_output_folder_path, exist_ok=True)
-    makedirs(forest_task.tree_base_path, exist_ok=True)
+    makedirs(task.data_input_path, exist_ok=True)
+    makedirs(task.data_output_folder_path, exist_ok=True)
+    makedirs(task.tree_base_path, exist_ok=True)
 
 
 ## Download data code
 
 
-def download_data(forest_task: ForestTask, start: datetime, end: datetime):
+def download_data(task: ForestTask, start: datetime, end: datetime):
     chunks = ChunkRegistry.objects.filter(
-        participant=forest_task.participant,
+        participant=task.participant,
         time_bin__gte=start,
         time_bin__lte=end,
-        data_type__in=FOREST_TREE_REQUIRED_DATA_STREAMS[forest_task.forest_tree]
+        data_type__in=FOREST_TREE_REQUIRED_DATA_STREAMS[task.forest_tree]
     )
     file_size = chunks.aggregate(Sum('file_size')).get('file_size__sum')
     if file_size is None:
         raise NoSentryException(NO_DATA_ERROR)
-    forest_task.update_only(total_file_size=file_size)
+    task.update_only(total_file_size=file_size)
     
     # Download data
-    download_data_files(forest_task, chunks)
-    forest_task.update_only(process_download_end_time=timezone.now())
-    log("task.process_download_end_time:", forest_task.process_download_end_time.isoformat())
+    download_data_files(task, chunks)
+    task.update_only(process_download_end_time=timezone.now())
+    log(f"task.process_download_end_time: {task.legible_time(process_download_end_time)}")
     
     # get extra custom files for any trees that need them (currently just sycamore)
-    if forest_task.forest_tree == ForestTree.sycamore:
-        get_interventions_data(forest_task)
-        get_study_config_data(forest_task)
-        get_survey_history_data(forest_task)
+    if task.forest_tree == ForestTree.sycamore:
+        get_interventions_data(task)
+        get_study_config_data(task)
+        get_survey_history_data(task)
 
 
 def download_data_files(task: ForestTask, chunks: QuerySet[ChunkRegistry]) -> None:
@@ -564,65 +533,65 @@ def batch_download_and_write_file(task_and_chunk_tuple: tuple[ForestTask, dict])
 
 ## Study metadata files
 
-def get_study_config_data(forest_task: ForestTask):
+def get_study_config_data(task: ForestTask):
     """ Puts a study config file for the participant's survey in a known location. """
-    ensure_folders_exist(forest_task)
-    with open(forest_task.input_study_config_file, "wb") as f:
-        f.write(format_study(forest_task.the_study))
+    ensure_folders_exist(task)
+    with open(task.input_study_config_file, "wb") as f:
+        f.write(format_study(task.the_study))
 
 
-def get_interventions_data(forest_task: ForestTask):
+def get_interventions_data(task: ForestTask):
     """ Puts a study's interventions file for the participant's survey in a known location. """
-    ensure_folders_exist(forest_task)
-    with open(forest_task.input_interventions_file, "w") as f:
-        f.write(json.dumps(intervention_survey_data(forest_task.the_study)))
+    ensure_folders_exist(task)
+    with open(task.input_interventions_file, "w") as f:
+        f.write(json.dumps(intervention_survey_data(task.the_study)))
 
 
-def get_survey_history_data(forest_task: ForestTask):
+def get_survey_history_data(task: ForestTask):
     """ Puts the study's survey history export in a known location. """
-    ensure_folders_exist(forest_task)
-    history_json = survey_history_export(forest_task.the_study)
-    with open(forest_task.input_survey_history_file, "wb") as f:
+    ensure_folders_exist(task)
+    history_json = survey_history_export(task.the_study)
+    with open(task.input_survey_history_file, "wb") as f:
         f.write(history_json)
 
 
 ## Data Upload code
 
 
-def compress_and_upload_raw_output(forest_task: ForestTask):
+def compress_and_upload_raw_output(task: ForestTask):
     """ Compresses raw output files and uploads them to S3. """
-    object_id = forest_task.the_study.object_id
-    tree_name = forest_task.forest_tree
+    object_id = task.the_study.object_id
+    tree_name = task.forest_tree
     
-    base_file_name = f"{forest_task.id}_{timezone.now().strftime(API_TIME_FORMAT)}_output"
-    file_path = path_join(forest_task.root_path_for_task, base_file_name)
+    base_file_name = f"{task.id}_{timezone.now().strftime(API_TIME_FORMAT)}_output"
+    file_path = path_join(task.root_path_for_task, base_file_name)
     
     filename = shutil.make_archive(
         base_name=file_path,  # base_name is the zip file path minus the extension
         format="zip",  # its a zip
-        root_dir=forest_task.data_output_folder_path,  # the root directory of the zip file
+        root_dir=task.data_output_folder_path,  # the root directory of the zip file
     )
     # (this only ever runs on *nix, path_join is always correct)
-    if forest_task.participant is None:
-        s3_path = f"{object_id}/{tree_name}/{forest_task.external_id}/{base_file_name}.zip"
+    if task.forest_tree == ForestTree.sycamore:
+        s3_path = f"{object_id}/{tree_name}/{task.external_id}/{base_file_name}.zip"
     else:
-        base_file_name = f"{forest_task.forest_tree}_{base_file_name}"
-        s3_path = f"{object_id}/{forest_task.participant.patient_id}/{base_file_name}.zip"
+        base_file_name = f"{task.forest_tree}_{base_file_name}"
+        s3_path = f"{object_id}/{task.participant.patient_id}/{base_file_name}.zip"
     
-    forest_task.update(output_zip_s3_path=s3_path)
+    task.update(output_zip_s3_path=s3_path)
     
     with open(filename, "rb") as f:
-        save_output_file(forest_task, f.read())
+        save_output_file(task, f.read())
 
 
 # Extras
-def upload_cache_files(forest_task: ForestTask):
+def upload_cache_files(task: ForestTask):
     """ Find output files from forest tasks and consume them. """
     
-    if file_exists(forest_task.all_bv_set_path):
-        with open(forest_task.all_bv_set_path, "rb") as f:
-            save_all_bv_set_bytes(forest_task, f.read())
+    if file_exists(task.all_bv_set_path):
+        with open(task.all_bv_set_path, "rb") as f:
+            save_all_bv_set_bytes(task, f.read())
     
-    if file_exists(forest_task.all_memory_dict_path):
-        with open(forest_task.all_memory_dict_path, "rb") as f:
-            save_jasmine_all_memory_dict_bytes(forest_task, f.read())
+    if file_exists(task.all_memory_dict_path):
+        with open(task.all_memory_dict_path, "rb") as f:
+            save_jasmine_all_memory_dict_bytes(task, f.read())
