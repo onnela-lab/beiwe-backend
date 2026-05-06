@@ -14,7 +14,7 @@ audioread==3.1.0
     # via librosa
 backports-zstd==1.4.0
     # via pyzstd
-beiwe-forest==1.0
+beiwe-forest @ git+https://git@github.com/onnela-lab/forest@fe19564e51c0c3ad8f91d6f9e68801bce66a285e
     # via -r requirements.in
 billiard==4.2.4
     # via celery
