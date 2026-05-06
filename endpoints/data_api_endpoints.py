@@ -17,7 +17,8 @@ from authentication.data_access_authentication import (api_credential_check,
     api_study_credential_check, ApiResearcherRequest, ApiStudyResearcherRequest)
 from authentication.tableau_authentication import authenticate_tableau, TableauRequest
 from config.jinja2 import easy_url
-from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
+from constants.forest_constants import (FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES,
+    SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES)
 from constants.message_strings import MISSING_JSON_CSV_JSON_TABLE_MESSAGE
 from constants.raw_data_constants import REDUCED_CHUNK_FIELDS
 from constants.user_constants import TABLEAU_TABLE_FIELD_TYPES
@@ -203,6 +204,21 @@ def get_tableau_participant_table_data(request: TableauRequest, study_object_id:
 def get_summary_statistics(request: ApiStudyResearcherRequest, study_id: str = None):
     """ Endpoint for summary statistics and forest output using data api credentialing details. """
     return summary_statistics_request_handler(request, request.api_study.object_id)
+
+
+@require_POST
+@api_study_credential_check()
+def get_sycamore_analysis_output(request: ApiStudyResearcherRequest, study_id: str = None):
+    """Return the Sycamore analysis rows for the authenticated study ordered by creation time."""
+    fieldnames = [*SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES.values(), "created_on"]
+    
+    analyses = list(request.api_study.sycamore_analyses.order_by("created_on").values(*fieldnames))
+    for analysis in analyses:
+        for name in fieldnames:
+            analysis[name.title().replace("_", " ")] = analysis.pop(name)
+    
+    options = orjson.OPT_OMIT_MICROSECONDS | orjson.OPT_UTC_Z
+    return HttpResponse(orjson.dumps(analyses, option=options), content_type="application/json")
 
 
 @require_GET

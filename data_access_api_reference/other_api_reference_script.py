@@ -148,6 +148,8 @@ MY_BEIWE_SERVER = "https://example.com"
     #         example if a particpiant uninstalls the app. This field contains a boolean value of
     #         True if such a failure occurred, otherwise False.
 
+"get-sycamore-analysis-output/v1"
+
 # make a post request to the get-participant-upload-history/v1 endpoint, including the api key,
 # secret key, and participant_id as post parameters.
 t_start = datetime.now()

@@ -10,14 +10,15 @@ from django.utils import timezone
 from authentication.tableau_authentication import (check_tableau_permissions,
     TableauAuthenticationFailed, TableauPermissionDenied, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
 from constants.common_constants import EST
+from constants.forest_constants import ForestTree
 from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MESSAGE
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST
 from constants.user_constants import ANDROID_API, ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
 from database.models import (ApiKey, AppHeartbeats, AppVersionHistory, ArchivedEvent,
-    DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily, Survey, SurveyArchive,
-    UploadTracking)
+    DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily, Survey,
+    SurveyArchive, SycamoreAnalysisOutput, UploadTracking)
 from libs.utils.compression import compress
 from tests.common import DataApiTest, SmartRequestsTestCase, TableauAPITest
 from tests.helpers import compare_dictionaries, ParticipantTableHelperMixin
@@ -1025,6 +1026,57 @@ class TestGetSummaryStatistics(DataApiTest):
         correct["participant_id"] = self.default_participant.patient_id
         
         self.assertDictEqual(exported_summary_statistic, correct)
+
+
+class TestGetSycamoreAnalysisOutput(DataApiTest):
+    ENDPOINT_NAME = "data_api_endpoints.get_sycamore_analysis_output"
+    
+    @staticmethod
+    def as_expected_dict(analysis: SycamoreAnalysisOutput) -> dict:
+        expected = {
+            field.name.title().replace("_", " "): getattr(analysis, field.name)
+            for field in SycamoreAnalysisOutput._meta.fields
+            if field.name not in ("id", "study", "forest_task", "last_updated")
+        }
+        expected["Created On"] = expected["Created On"].strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+        return expected
+    
+    def test_no_study_param(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        self.smart_post_status_code(400)
+    
+    def test_no_data(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
+        self.assertEqual(resp.content, b"[]")
+    
+    def test_sycamore_analysis_output_ordered_and_filtered(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        first_task = self.generate_forest_task(forest_tree=ForestTree.sycamore)
+        second_task = self.generate_forest_task(forest_tree=ForestTree.sycamore)
+        
+        first = self.generate_sycamore_analysis_output(
+            created_on=datetime(2022, 1, 1, 0, 0, tzinfo=UTC),
+            forest_task=first_task,
+            obs_duration=11.0,
+        )
+        second = self.generate_sycamore_analysis_output(
+            created_on=datetime(2022, 1, 2, 0, 0, tzinfo=UTC),
+            forest_task=second_task,
+            obs_duration=22.0,
+        )
+        
+        other_study = self.generate_study("other_study")
+        self.generate_sycamore_analysis_output(
+            study=other_study,
+            created_on=datetime(2022, 1, 3, 0, 0, tzinfo=UTC),
+            obs_duration=33.0,
+        )
+        
+        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
+        payload = orjson.loads(resp.content)
+        
+        self.assertEqual(payload, [self.as_expected_dict(first), self.as_expected_dict(second)])
 
 
 class TestGetParticipantDeviceStatusHistory(DataApiTest):
