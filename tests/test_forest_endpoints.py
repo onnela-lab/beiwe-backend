@@ -15,6 +15,13 @@ from database.models import ForestTask, SummaryStatisticDaily
 from tests.common import ResearcherSessionTest
 from tests.helpers import CURRENT_TEST_DATE_BYTES, DummyThreadPool
 
+import logging
+logger = logging.getLogger("django.test")
+logi = logger.info
+logw = logger.warning
+loge = logger.error
+logd = logger.debug
+
 
 #
 ## forest endpoints
@@ -412,13 +419,9 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
         'Outgoing Call Duration',
         'Missed Call Count',
         'Missed Callers',
+        "Mean Responsiveness Call",
+        "Call Reciprocity",
         'Uniq Individual Call Or Text Count',
-        'Total Surveys',
-        'Total Completed Surveys',
-        'Total Opened Surveys',
-        'Average Time To Submit',
-        'Average Time To Open',
-        'Average Duration',
         'Walking Time',
         'Steps',
         'Cadence',
@@ -434,7 +437,7 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
             f"{self.default_study.object_id},"
             # to regenerate this next line open a shell and get the output of:
             # ",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet().values()) + "\r\n"
-            '5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0,43,44,45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61,62,63,64,65.0,66.0,67.0,68.0,69.0,70.0\r\n'
+            '5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0,43,44,45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61.0,62.0,63,64.0,65.0,66.0\r\n'
             .encode()
         )
     
@@ -514,7 +517,7 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
     # hardcode these, but generate with
     # b"Date," + ",".join(JASMINE_FIELDS).replace("jasmine_", "").replace("_", " ").title().encode()
     # b"Date," + ",".join(OAK_FIELDS).replace("oak_", "").replace("_", " ").title().encode()
-    # b"Date," + ",".join(SYCAMORE_FIELDS).replace("sycamore_", "").replace("_", " ").title().encode()
+    ###### b"Date," + ",".join(SYCAMORE_FIELDS).replace("sycamore_", "").replace("_", " ").title().encode()
     # b"Date," + ",".join(WILLOW_FIELDS).replace("willow_", "").replace("_", " ").title().encode()
     csv_columns_map = {
         ForestTree.jasmine:
@@ -525,15 +528,13 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
             b' Pause Duration,Sd Pause Duration',
         ForestTree.oak:
             b'Date,Walking Time,Steps,Cadence',
-        ForestTree.sycamore:
-            b'Date,Total Surveys,Total Completed Surveys,Total Opened Surveys,Average Time To Submit,'
-            b'Average Time To Open,Average Duration',
         ForestTree.willow:
             b'Date,Incoming Text Count,Incoming Text Degree,Incoming Text Length,Outgoing Text Count,'
             b'Outgoing Text Degree,Outgoing Text Length,Incoming Text Reciprocity,Outgoing Text'
             b' Reciprocity,Outgoing Mms Count,Incoming Mms Count,Incoming Call Count,Incoming'
             b' Call Degree,Incoming Call Duration,Outgoing Call Count,Outgoing Call Degree,Outgoing'
-            b' Call Duration,Missed Call Count,Missed Callers,Uniq Individual Call Or Text Count'
+            b' Call Duration,Missed Call Count,Missed Callers,Mean Responsiveness Call,'
+            b'Call Reciprocity,Uniq Individual Call Or Text Count'
     }
     
     # These values are PERMUTED in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet.
@@ -544,18 +545,18 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
     # When changing the fields themselves the values in this list will need to be changed to match
     # the new field values. (Field type also shifts which numbers are floats.) So, you will get an
     # error on the tests and you just need to swap in the new values.
+    
     csv_data_line_map = {
-        ForestTree.jasmine: CURRENT_TEST_DATE_BYTES + 
+        ForestTree.jasmine: CURRENT_TEST_DATE_BYTES +
             b",25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0",
-        ForestTree.oak: CURRENT_TEST_DATE_BYTES + 
-            b',68.0,69.0,70.0',
-        ForestTree.sycamore: CURRENT_TEST_DATE_BYTES + 
-            b',62,63,64,65.0,66.0,67.0',
-        ForestTree.willow: CURRENT_TEST_DATE_BYTES + 
-            b',43,44,45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61'
+        ForestTree.oak: CURRENT_TEST_DATE_BYTES +
+            b',64.0,65.0,66.0',
+        ForestTree.willow: CURRENT_TEST_DATE_BYTES +
+            b",43,44,45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61.0,62.0,63"
     }
     
     def setup_valid_tree_and_summary_statistic(self, tree_name: str) -> tuple[ForestTask, SummaryStatisticDaily]:
+        assert tree_name != ForestTree.sycamore, "Sycamore is not a daily statistic"
         task = self.default_forest_task
         task.update(forest_tree=tree_name)
         stat = self.default_summary_statistic_daily
@@ -599,6 +600,11 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
         
         # update the tree type and compare output to correct data
         for tree_name in ForestTree.values():
+            if tree_name == ForestTree.sycamore:
+                continue  # not a summary statistic anymore
+            
+            logd(f"testing tree {tree_name}")
+            
             task.update_only(forest_tree=tree_name)
             resp = self.smart_get_status_code(200, self.session_study.id, task.external_id)
             

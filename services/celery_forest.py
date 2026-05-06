@@ -297,12 +297,11 @@ def summary_statistic_csv_parse_and_consume(forest_task: ForestTask, csv_reader:
         # names, we need to look up what the column name means in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS
         # force Nones on no data fields, not empty strings (db table issue)
         # we don't need to do any column name checking, that was done in blow_up_on_invalid_columns
-        for col_name, col_value in csv_row.items():
-            if not (summary_stat_field := TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS[col_name]):
-                continue
-            updates[summary_stat_field] = col_value if col_value != '' else None
+        for column_name, value in csv_row.items():
+            if column_name in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS:
+                summary_stat_field = TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS[column_name]
+                updates[summary_stat_field] = value if value != '' else None
         
-        # TODO: this is probably slow, can we do a bulk update_or_create?
         SummaryStatisticDaily.objects.update_or_create(
             date=summary_date, defaults=updates, participant=participant, the_study=study
         )

@@ -11,6 +11,7 @@ from os.path import join as path_join
 from pprint import pprint
 from sys import argv
 
+import coloredlogs
 from deepdiff import DeepDiff
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured
@@ -51,6 +52,11 @@ class d(c, _HttpResponseRedirect): pass
 class HttpResponse2(d, _FileResponse): pass
 
 
+_color_settings = coloredlogs.parse_encoded_styles(
+    "debug=green;info=blue,bright;warning=yellow;success=green,bold;error=red;critical=background=red"
+)
+
+
 
 # if we import this from constants.url_constants then its not populated because ... Django.
 ENDPOINTS_BY_NAME = {pattern.name: pattern for pattern in urlpatterns}
@@ -59,6 +65,20 @@ ENDPOINTS_BY_NAME = {pattern.name: pattern for pattern in urlpatterns}
 # test is running with some separator.
 VERBOSE_2_OR_3 = ("-v2" in argv or "-v3" in argv) and "-v1" not in argv
 VERBOSE_3 = "-v3" in argv and "-v2" not in argv and "-v1" not in argv
+
+if VERBOSE_2_OR_3:
+    logging.getLogger("django.test").setLevel(logging.DEBUG)
+
+
+# configure colored logging - currently this is our best spot for this
+coloredlogs.install(
+    fmt="%(asctime)s %(name)s: %(message)s",
+    programname="mano",
+    level=logging.getLogger("django.test").getEffectiveLevel(),
+    datefmt="%H:%M:%S.%f",  # cutting out the date for brevity
+    level_styles=_color_settings
+)
+
 
 # 2023-11-21: for unknown reasons importing oak, jasmine, or willow from Forest anywhere at all
 # (currently that is limited to the celery forest, so this doesn't happen on webserver code) causes
@@ -69,9 +89,6 @@ VERBOSE_3 = "-v3" in argv and "-v2" not in argv and "-v1" not in argv
 # see https://github.com/onnela-lab/forest/issues/217
 # forest commit at the time: 810ef6c1f2779c46be402819fd807402b6769387
 logging.getLogger("django.request").setLevel(logging.ERROR)
-
-
-# HttpResponse2 = HttpResponse|HttpResponseRedirect
 
 
 class MisconfiguredTestException(Exception): pass

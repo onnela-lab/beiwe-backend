@@ -105,6 +105,8 @@ class TestFileConsumption(CommonTestCase):
             "num_mis_call": 0,                       # IntegerField
             "num_mis_caller": 0,                     # IntegerField
             "num_uniq_individuals_call_or_text": 0,  # IntegerField
+            "mean_resposiveness_call": 0.0,          # FloatField
+            "call_reciprocity": 0.0,                 # FloatField
         }
     
     def test_csv_parse_and_consume_willow(self):
@@ -134,21 +136,6 @@ class TestFileConsumption(CommonTestCase):
             "avg_time_to_open": 0.0,                 # FloatField
             "avg_duration": 0.0,                     # FloatField
         }
-    
-    def test_csv_parse_and_consume_sycamore(self):
-        self.default_forest_task.update(
-            data_date_start=date(2020, 1, 3),
-            data_date_end=date(2020, 1, 10),
-            forest_tree=ForestTree.sycamore,
-        )
-        csv_dict_rows = [
-            self.one_sycamore_row(date(2020, 1, 5)),
-            self.one_sycamore_row(date(2020, 1, 6)),
-        ]
-        
-        self.assertEqual(SummaryStatisticDaily.objects.count(), 0)
-        self.call_csv_parse_and_consume(self.default_forest_task, csv_dict_rows)
-        self.assertEqual(SummaryStatisticDaily.objects.count(), 2)
     
     def one_oak_row(self, day: date):
         return {

@@ -80,7 +80,7 @@ class TestGetData(DataApiTest):
         self._test_basics(as_site_admin=True)
     
     @patch("libs.streaming_zip.ThreadPool")
-    def test_downloads_and_file_naming(self, threadpool: MagicMock):
+    def test_downloads_and_file_naming__broken(self, threadpool: MagicMock):
         threadpool.return_value = DummyThreadPool()
         self._test_downloads_and_file_naming()
     

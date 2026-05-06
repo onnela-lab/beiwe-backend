@@ -1588,14 +1588,6 @@ class TestWebDataConnectorSummaryStatistics(SmartRequestsTestCase):
         "willow_missed_callers",
         "willow_uniq_individual_call_or_text_count",
         
-        # Sycamore, Survey Frequency
-        "sycamore_total_surveys",
-        "sycamore_total_completed_surveys",
-        "sycamore_total_opened_surveys",
-        "sycamore_average_time_to_submit",
-        "sycamore_average_time_to_open",
-        "sycamore_average_duration",
-        
         # Oak, walking statistics
         "oak_walking_time",
         "oak_steps",

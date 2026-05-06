@@ -310,7 +310,7 @@ class DatabaseHelperMixin:
         return self._default_survey
     
     def using_default_survey(self) -> Survey:  # for saying you are using it
-        return self.default_survey 
+        return self.default_survey
     
     def generate_survey(
         self, study: Study, survey_type: str, object_id: str = None, content: Any = False, **kwargs
@@ -878,11 +878,15 @@ class DatabaseHelperMixin:
             participant = self.default_participant
         
         field_dict = SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet()
+        skip_fields = [
+            "id", "the_study", "created_on", "last_updated", "jasmine_task", "willow_task",
+            "oak_task"
+        ]
         params = {}
         for field in SummaryStatisticDaily._meta.fields:
-            if field.name in ["id", "the_study", "created_on", "last_updated", "jasmine_task", "willow_task", "sycamore_task", "oak_task"]:
+            if field.name in skip_fields:
                 continue
-            elif field.name == "participant":
+            if field.name == "participant":
                 params[field.name] = participant
             elif field.name == "date":
                 params[field.name] = a_date or date.today()

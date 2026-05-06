@@ -198,7 +198,7 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
 }
 
 
-SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES = {
+SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES = {  # this one is just .title().replace(" ", "_")
     "Obs Duration": "obs_duration",
     "Obs Day": "obs_day",
     "Obs Night": "obs_night",
@@ -309,6 +309,8 @@ WILLOW_FIELDS = [
     "willow_outgoing_call_duration",
     "willow_missed_call_count",
     "willow_missed_callers",
+    "willow_mean_responsiveness_call",
+    "willow_call_reciprocity",
     
     "willow_uniq_individual_call_or_text_count",
 ]

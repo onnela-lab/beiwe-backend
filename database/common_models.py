@@ -183,6 +183,10 @@ class UtilityModel(models.Model):
     def rdrby(cls, *args, **kwargs) -> QuerySet[Self]:
         return cls.objects.order_by(*args, **kwargs)
     
+    @classmethod
+    def rdrdvlist(cls, *args,) -> QuerySet[Self]:
+        return cls.objects.order_by(*args).values_list(*args, **{"flat": True} if len(args) == 1 else {})
+    
     ################################## Show nice information #######################################
     
     @classmethod
