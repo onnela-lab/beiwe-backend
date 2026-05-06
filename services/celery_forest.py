@@ -107,6 +107,10 @@ def celery_run_forest(forest_task_id):
         logw(f"Task {task.external_id} has status {task.status}, exiting.")
         return
     
+    # handle old sycamore reruns by removing the participant at runtime
+    # if task.forest_tree == ForestTree.sycamore and task.participant is not None:
+    #     task.update_only(participant=None)  # fails validation
+    
     # there's a script that periodically updates the forest verison
     forest_version = ForestVersion.singleton()
     task.update_only(  # Set metadata on the task to running
@@ -493,7 +497,7 @@ def download_data(task: ForestTask, start: datetime, end: datetime):
     # Download data
     download_data_files(task, chunks)
     task.update_only(process_download_end_time=timezone.now())
-    log(f"task.process_download_end_time: {task.legible_time(process_download_end_time)}")
+    log(f"task.process_download_end_time: {legible_time(task.process_download_end_time)}")
     
     # get extra custom files for any trees that need them (currently just sycamore)
     if task.forest_tree == ForestTree.sycamore:

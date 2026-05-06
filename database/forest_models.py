@@ -28,7 +28,7 @@ class ForestTask(TimestampedModel):
     # All forest tasks are defined to be associated with a single participant
     # The 'the_study' field is name with the definite article for some weird compatibility reason...
     the_study: Study = ForeignKey(Study, on_delete=PROTECT, related_name="forest_tasks")
-    participant: Participant | None = ForeignKey(Participant, on_delete=PROTECT, db_index=True, null=True)
+    participant: Participant | None = ForeignKey(Participant, on_delete=PROTECT, db_index=True, null=True, blank=True, related_name="forest_tasks")
     
     forest_tree: str = TextField(choices=ForestTree.choices())
     forest_version = CharField(blank=True, max_length=10, null=False, default="")
