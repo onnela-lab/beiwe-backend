@@ -19,12 +19,14 @@ from constants.common_constants import DEV_TIME_FORMAT, EARLIEST_POSSIBLE_DATA_D
 from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED,
     FOREST_TASKVIEW_PICKLING_EMPTY, FOREST_TASKVIEW_PICKLING_ERROR,
     FOREST_TREE_REQUIRED_DATA_STREAMS, FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES, ForestTree,
-    NICE_SERIALIZABLE_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES)
+    NICE_SERIALIZABLE_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES,
+    SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES)
 from constants.raw_data_constants import CHUNK_FIELDS
 from database.models import ChunkRegistry, ForestTask, ForestVersion, Study, SummaryStatisticDaily
 from libs.django_forms.forms import CreateTasksForm
 from libs.efficient_paginator import EfficientQueryPaginator
-from libs.endpoint_helpers.summary_statistic_helpers import SummaryStatisticsPaginator
+from libs.endpoint_helpers.summary_statistic_helpers import (SummaryStatisticsPaginator,
+    sycamore_statistics_data_handler)
 from libs.s3 import NoSuchKeyException
 from libs.streaming_io import CSVBuffer
 from libs.streaming_zip import ZipGenerator
@@ -71,7 +73,7 @@ def create_tasks(request: ResearcherRequest, study_id=None):
     if request.method == "GET":
         return render_create_tasks(request, study)
     
-    if not (form:= CreateTasksForm(data=request.POST, study=study)).is_valid():
+    if not (form := CreateTasksForm(data=request.POST, study=study)).is_valid():
         # the errors are organized ... inexplicably...
         rebundled_messages = {key: [] for key in form.errors}  # just a dict of field name to messages
         for key, message_list in form.errors.items():
@@ -99,11 +101,11 @@ def copy_forest_task(request: ResearcherRequest, study_id=None):
     if not request.session_researcher.site_admin:
         return HttpResponse(content="", status=403)
     try:
-        study = Study.objects.get(pk=study_id)
+        _ = Study.objects.get(pk=study_id)
     except Study.DoesNotExist:
         return HttpResponse(content="", status=404)
     
-    task_id = request.POST.get("external_id", None)
+    task_id = request.POST.get("external_id")
     if not task_id:
         messages.warning(request, FOREST_NO_TASK)
         return redirect(easy_url("forest_endpoints.task_log", study_id=study_id))
@@ -116,7 +118,7 @@ def copy_forest_task(request: ResearcherRequest, study_id=None):
     
     new_task = ForestTask(
         participant=task_to_copy.participant,
-        the_study=task_to_copy.participant.study,
+        the_study=task_to_copy.the_study,
         forest_tree=task_to_copy.forest_tree,
         data_date_start=task_to_copy.data_date_start,
         data_date_end=task_to_copy.data_date_end,
@@ -138,7 +140,7 @@ def task_log(request: ResearcherRequest, study_id=None):
     except ValueError:
         return HttpResponse(content="", status=400)
     
-    query = ForestTask.objects.filter(participant__study_id=study_id)\
+    query = ForestTask.objects.filter(the_study_id=study_id)\
         .order_by("-created_on").values(*TASK_SERIALIZER_FIELDS)
     
     paginator = Paginator(query, 50)
@@ -147,60 +149,60 @@ def task_log(request: ResearcherRequest, study_id=None):
     tz = Study.objects.get(pk=study_id).timezone
     
     page = paginator.page(page)
-    tasks = []
     
-    for task_dict in page:
-        extern_id = task_dict["external_id"]
+    tasks = []
+    for task in page:
+        extern_id = task["external_id"]
         # the commit is populated when the task runs, not when it is queued.
-        task_dict["forest_commit"] = task_dict["forest_commit"] if task_dict["forest_commit"] else \
+        task["forest_commit"] = task["forest_commit"] if task["forest_commit"] else \
             "(exact commit missing)"
-        # task_dict["status"] = task_dict["status"].title()
-        # renames (could be optimized in the query, but speedup is negligible)
-        task_dict["patient_id"] = task_dict.pop("participant__patient_id")
+        
+        # We have a bunch of renames -- (provide as "Study-wide" for patient_id study-wide tasks)
+        task["patient_id"] = task.pop("participant__patient_id") or "Study-wide"
         
         # rename and transform
-        task_dict["has_output_data"] = task_dict["forest_output_exists"]
-        task_dict["download_participant_tree_data_url"] = easy_url(
+        task["has_output_data"] = task["forest_output_exists"]
+        task["download_participant_tree_data_url"] = easy_url(
             "forest_endpoints.download_participant_tree_data", study_id=study_id, forest_task_external_id=extern_id,
         )
-        task_dict["forest_tree_display"] = task_dict.pop("forest_tree").title()
-        task_dict["created_on_display"] = task_dict.pop("created_on").astimezone(tz).strftime(DEV_TIME_FORMAT).split(" ", 1)
-        task_dict["forest_output_exists_display"] = yes_no_unknown(task_dict["forest_output_exists"])
+        task["forest_tree_display"] = task.pop("forest_tree").title()
+        task["created_on_display"] = task.pop("created_on").astimezone(tz).strftime(DEV_TIME_FORMAT).split(" ", 1)
+        task["forest_output_exists_display"] = yes_no_unknown(task["forest_output_exists"])
         
-        # dates/times that require safety (yes it could be less obnoxious)
-        dict_datetime_to_display(task_dict, "process_end_time", tz, None)
-        dict_datetime_to_display(task_dict, "process_start_time", tz, None)
-        dict_datetime_to_display(task_dict, "process_download_end_time", tz, None)
-        task_dict["data_date_end"] = task_dict["data_date_end"].isoformat() if task_dict["data_date_end"] else None
-        task_dict["data_date_start"] = task_dict["data_date_start"].isoformat() if task_dict["data_date_start"] else None
+        # dates/times that require safety
+        dict_datetime_to_display(task, "process_end_time", tz, None)
+        dict_datetime_to_display(task, "process_start_time", tz, None)
+        dict_datetime_to_display(task, "process_download_end_time", tz, None)
+        task["data_date_end"] = task["data_date_end"].isoformat() if task["data_date_end"] else None
+        task["data_date_start"] = task["data_date_start"].isoformat() if task["data_date_start"] else None
         
         # urls
-        task_dict["cancel_url"] = easy_url(
+        task["copy_url"] = easy_url("forest_endpoints.copy_forest_task", study_id=study_id)
+        task["cancel_url"] = easy_url(
             "forest_endpoints.cancel_task", study_id=study_id, forest_task_external_id=extern_id,
         )
-        task_dict["copy_url"] = easy_url("forest_endpoints.copy_forest_task", study_id=study_id)
-        task_dict["download_url"] = easy_url(
+        task["download_url"] = easy_url(
             "forest_endpoints.download_task_data", study_id=study_id, forest_task_external_id=extern_id,
         )
         
         # raw output data data is only available if the task has completed successfully, and not
         # on older tasks that were run before we started saving the output data.
-        if task_dict.pop("output_zip_s3_path"):
-            task_dict["has_runtime_output_downloadable_data"] = True
-            task_dict["download_runtime_output_url"] = easy_url(
+        if task.pop("output_zip_s3_path"):
+            task["has_runtime_output_downloadable_data"] = True
+            task["download_runtime_output_url"] = easy_url(
                 "forest_endpoints.download_output_data", study_id=study_id, forest_task_external_id=extern_id,
             )
         
         # the pickled parameters have some error cases.
-        if task_dict["pickled_parameters"]:
+        if task["pickled_parameters"]:
             try:
-                task_dict["params_dict"] = repr(pickle.loads(task_dict.pop("pickled_parameters")))
+                task["params_dict"] = repr(pickle.loads(task.pop("pickled_parameters")))
             except Exception:
-                task_dict["params_dict"] = FOREST_TASKVIEW_PICKLING_ERROR
+                task["params_dict"] = FOREST_TASKVIEW_PICKLING_ERROR
         else:
-            task_dict["params_dict"] = FOREST_TASKVIEW_PICKLING_EMPTY
+            task["params_dict"] = FOREST_TASKVIEW_PICKLING_EMPTY
         
-        tasks.append(task_dict)
+        tasks.append(task)
     
     forest_info = ForestVersion.singleton()
     return render(
@@ -235,8 +237,7 @@ def cancel_task(request: ResearcherRequest, study_id: int, forest_task_external_
             stacktrace=f"Canceled by {request.session_researcher.username} on {date.today()}",
         )
     except ValidationError:
-        # malformed uuids throw a validation error
-        number_updated = 0
+        number_updated = 0  # malformed uuids throw a validation error
     
     if number_updated > 0:
         messages.success(request, FOREST_TASK_CANCELLED)
@@ -254,35 +255,35 @@ def download_task_data(request: ResearcherRequest, study_id: int, forest_task_ex
         forest_task: ForestTask = ForestTask.objects.get(
             external_id=forest_task_external_id, participant__study_id=study_id
         )
+        participant = forest_task.participant
     except ForestTask.DoesNotExist:
         return HttpResponse(content="", status=404)
     
-    # this time manipulation is copied right out of the celery forest task runner.
-    start_time_midnight = datetime.combine(
-        forest_task.data_date_start, datetime.min.time(), forest_task.participant.study.timezone
-    )
-    endtime_11_59pm = datetime.combine(
-        forest_task.data_date_end, datetime.max.time(), forest_task.participant.study.timezone
-    )
+    tz = forest_task.the_study.timezone
     
-    chunks: str = ChunkRegistry.objects.filter(
-        participant=forest_task.participant,
+    # this time manipulation is copied right out of the celery forest task runner.
+    start_time_midnight = datetime.combine(forest_task.data_date_start, datetime.min.time(), tz)
+    endtime_11_59pm = datetime.combine(forest_task.data_date_end, datetime.max.time(), tz)
+    
+    chunks = ChunkRegistry.objects.filter(
+        **({"participant": participant} if participant else {}),  # only adds if exists
+        study=forest_task.the_study,
         time_bin__gte=start_time_midnight,
         time_bin__lt=endtime_11_59pm,  # inclusive
-        data_type__in=FOREST_TREE_REQUIRED_DATA_STREAMS[forest_task.forest_tree]
+        data_type__in=FOREST_TREE_REQUIRED_DATA_STREAMS[forest_task.forest_tree],
     ).values(*CHUNK_FIELDS)
     
     filename = "_".join([
-            forest_task.participant.patient_id,
-            forest_task.forest_tree,
-            str(forest_task.data_date_start),
-            str(forest_task.data_date_end),
-            "data",
-        ]) + ".zip"
+        *([participant.patient_id] if participant else []),  # only adds if exists
+        forest_task.forest_tree,
+        str(forest_task.data_date_start),
+        str(forest_task.data_date_end),
+        "data",
+    ]) + ".zip"
     
     f = FileResponse(
         ZipGenerator(
-            study=forest_task.participant.study,
+            study=forest_task.the_study,
             files_list=chunks,
             construct_registry=False,
             threads=5,
@@ -304,17 +305,20 @@ def download_output_data(request: ResearcherRequest, study_id: int, forest_task_
         forest_task: ForestTask = ForestTask.objects.get(
             external_id=forest_task_external_id, participant__study_id=study_id
         )
+        participant = forest_task.participant
     except (ForestTask.DoesNotExist, ValidationError):
         return HttpResponse(content="", status=404)
     
-    filename = "_".join([
-            forest_task.participant.patient_id,
-            forest_task.forest_tree,
-            str(forest_task.data_date_start),
-            str(forest_task.data_date_end),
-            "output",
-            forest_task.created_on.strftime(DEV_TIME_FORMAT),
-        ]) + ".zip"
+    name_bits = [
+        *([participant.patient_id] if participant else []),
+        forest_task.forest_tree,
+        str(forest_task.data_date_start),
+        str(forest_task.data_date_end),
+        "output",
+        forest_task.created_on.strftime(DEV_TIME_FORMAT),
+    ]
+    
+    filename = "_".join(name_bits) + ".zip"
     
     try:
         file_content = download_output_file(forest_task)
@@ -343,6 +347,12 @@ def download_participant_tree_data(request: ResearcherRequest, study_id: int, fo
         participant = forest_task.participant
     except (ForestTask.DoesNotExist, ValidationError):
         return HttpResponse(content="", status=404)
+    
+    if forest_task.forest_tree == ForestTree.sycamore:
+        return thang(forest_task)
+    
+    if participant is None:
+        return HttpResponse(content="This task is not associated with a specific participant.", status=404)
     
     if participant.study.id != int(study_id):
         return HttpResponse(content="correct 404 case" if RUNNING_TESTS else "", status=404)
@@ -445,7 +455,7 @@ def download_task_log(request: ResearcherRequest, study_id=str):
         return HttpResponse(content="", status=403)
     
     # study id is already validated by the url pattern?
-    forest_tasks = ForestTask.objects.filter(participant__study_id=study_id)
+    forest_tasks = ForestTask.objects.filter(the_study_id=study_id)
     study = Study.objects.get(pk=study_id)
     return FileResponse(
         stream_forest_task_log_csv(forest_tasks, study.timezone),

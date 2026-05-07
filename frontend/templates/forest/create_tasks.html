@@ -40,131 +40,188 @@
 <h1>Run Forest</h1>
 <div class="container">
   <br>
-  <div class="alert alert-success">
-    Forest under development at Onnela Lab. The currently deployed version is {{forest_version}}
+  <div class="alert alert-success italic">
+    Forest is under development at Onnela Lab. The currently deployed version is {{forest_version}}
     ({{forest_commit}})
 
   </div>
   <br>
   <div
     class="well"
-    style="height: 33em"
+    style="min-height: 33em"
   >
-    <h1 class="h3">Queue Analyses for {{ study.name }}</h1>
-    <form
-      action=""
-      method="POST"
-    >
-      <br>
+    <h1 class="h1 center-text">Queue Forest Analyses</h1>
+    <div class="col-xs-12">
+      <h1 class="h2"><i>{{ study.name }}</i></h1>
+    </div>
+    <div class="col-xs-12">
+      <hr>
+    </div>
+    
+    {# removing this row injects a space at the end of the div? #}
+    <div class="row">  
+      <div class="col-sm-12">
+        <h2 class="h4">Queue Participant Trees</h2>
+        <form
+          action=""
+          method="POST"
+        >
+          <br>
 
-      {# Patient Selector #}
-      <div class="col-sm-4">
-        <div class="form-group">
+          <div class="row">
+            {# Patient Selector #}
+            <div class="col-sm-6">
+              <div class="form-group">
 
-          <label for="patient_selector">Select Participants to Queue Their Forest Tasks </label>
-          <select
-            id="patient_selector"
-            ng-model="selectedPatient"
-            name="participant_patient_ids"
-            class="form-control"
-            size=12
-            multiple
+                <label for="patient_selector">Select Participants to Queue Their Forest Tasks </label>
+                <select
+                  id="patient_selector"
+                  ng-model="selectedPatient"
+                  name="participant_patient_ids"
+                  class="form-control"
+                  size=12
+                  multiple
+                >
+                  {% for participant in participants %}
+                  <option>{{ participant }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            {# Trees #}
+            <div class="col-sm-4">
+              <div class="form-group">
+
+                <div class="ml-1">Select Forest Tree to Run</div>
+                {% for tree in trees %}
+                {% if tree[0] != "sycamore" %}
+                <div class="checkbox ml-3">
+
+                  <fieldset legend="Forest Trees">
+
+                    <input
+                      name="trees"
+                      type="checkbox"
+                      value="{{ tree[0] }}"
+                      aria-label="checkbox for the {{ tree[0] }} Forest Tree analysis"
+                    > {{ tree[1] }}
+
+                  </fieldset>
+                </div>
+                {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-4 h3-margins-vertical">
+              <div class="form-group">
+
+                <label for="start_date">Start Date</label>
+                <div
+                  class="input-group date"
+                  data-provide="start_datepicker"
+                  id="start_datepicker"
+                >
+
+                  <input
+                    type="text"
+                    class="form-control italic-placeholder"
+                    name="date_start"
+                    placeholder="Earliest data in this study is from {{ start_date }}"
+                    aria-label="Earliest data in this study is from {{ start_date }}"
+                    id="start_date"
+                  >
+                  <div class="input-group-addon">
+                    <span class="glyphicon glyphicon-th"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-sm-4 h3-margins-vertical">
+              <div class="form-group">
+
+                <label for="end_date">End Date</label>
+                <div
+                  class="input-group date"
+                  data-provide="end_datepicker"
+                  id="end_datepicker"
+                >
+
+                  <input
+                    type="text"
+                    class="form-control italic-placeholder"
+                    name="date_end"
+                    placeholder="Latest data in this study is from {{ end_date }}"
+                    aria-label="Latest data in this study is from {{ end_date }}"
+                    id="end_date"
+                  >
+                  <div class="input-group-addon">
+                    <span class="glyphicon glyphicon-th"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-sm-2 h3-margins-vertical pull-right mr-6">
+              <input
+                type="submit"
+                class="btn btn-success h2-margins-vertical"
+                value="Create Forest Tasks"
+                aria-label="click to create forest tasks"
+                id="forest_task_submit_button"
+              />
+            </div>
+          </div>
+          
+        </form>
+      </div>
+    </div>
+
+    <div class="row mt-2 mb-2">
+      <div class="col-sm-12">
+        <hr>
+        <h2 class="h2 mt-2">Queue Sycamore Run</h2>
+        <div class="col-sm-8 col-xs-12 text-muted h3-margins">
+          Queue a study-wide Sycamore run using the earliest and latest available study dates.
+        </div>
+        <div class="col-sm-4 col-xs-12">
+          <form
+            action=""
+            method="POST"
           >
-            {% for participant in participants %}
-            <option>{{ participant }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-
-      {# Trees #}
-      <div class="col-sm-3">
-        <div class="form-group">
-
-          <div class="ml-1">Select Forest Tree to Run</div>
-          {% for tree in trees %}
-          <div class="checkbox ml-3">
-
-            <fieldset legend="Forest Trees">
-
-              <input
-                name="trees"
-                type="checkbox"
-                value="{{ tree[0] }}"
-                {# legend="checkbox for the {{ tree[0] }} Forest Tree analysis" #}
-                aria-label="checkbox for the {{ tree[0] }} Forest Tree analysis"
-              > {{ tree[1] }}
-
-            </fieldset>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-      <br>
-
-      {# Time Range #}
-      <div class="">
-        {# Start date #}
-        <div class="col-sm-5">
-          <div class="form-group">
-
-            <label for="start_date">Start Date</label> (earliest data in this study is from {{ start_date }})
-            <div
-              class="input-group date"
-              data-provide="start_datepicker"
-              id="start_datepicker"
+        
+            <input
+              type="hidden"
+              name="trees"
+              value="sycamore"
             >
-
-              <input
-                type="text"
-                class="form-control"
-                name="date_start"
-                id="start_date"
-              >
-              <div class="input-group-addon">
-                <span class="glyphicon glyphicon-th"></span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {# End date #}
-        <div class="col-sm-5">
-          <div class="form-group">
-
-            <label for="end_date">End Date</label>
-            <div
-              class="input-group date"
-              data-provide="end_datepicker"
-              id="end_datepicker"
+        
+            <input
+              type="hidden"
+              name="date_start"
+              value="{{ start_date }}"
             >
-
-              <input
-                type="text"
-                class="form-control"
-                name="date_end"
-                id="end_date"
-              >
-              <div class="input-group-addon">
-                <span class="glyphicon glyphicon-th"></span>
-              </div>
-            </div>
-          </div>
+        
+            <input
+              type="hidden"
+              name="date_end"
+              value="{{ end_date }}"
+            >
+        
+            <input
+              type="submit"
+              class="btn btn-success pull-right"
+              value="Create Sycamore Task"
+              aria-label="click to create a study-wide sycamore task"
+            />
         </div>
+        </form>
       </div>
-      <br><br>
-      <div class="col-sm-8 mt-3">
-
-        <input
-          type="submit"
-          class="btn btn-success pull-right"
-          value="Create Forest Tasks"
-          aria-label="click to create forest tasks"
-          id="forest_task_submit_button"
-        />
-      </div>
-
-    </form>
+    </div>
   </div>
 
 </div>

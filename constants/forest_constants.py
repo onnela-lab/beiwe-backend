@@ -183,6 +183,7 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     "num_mis_call": "willow_missed_call_count",
     "num_mis_caller": "willow_missed_callers",
     "mean_resposiveness_call": "willow_mean_responsiveness_call",
+    "mean_responsiveness_text": "willow_mean_responsiveness_text",
     "call_reciprocity": "willow_call_reciprocity",
     
     # Willow, both
@@ -297,6 +298,7 @@ WILLOW_FIELDS = [
     "willow_outgoing_text_reciprocity",
     "willow_outgoing_MMS_count",
     "willow_incoming_MMS_count",
+    "willow_mean_responsiveness_text",
     # Willow, Calls
     "willow_incoming_call_count",
     "willow_incoming_call_degree",

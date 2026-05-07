@@ -41,28 +41,25 @@ class TestFileConsumption(CommonTestCase):
         # SummaryStatistcsDaily table, which is in turn supposed to be ordered to match the order
         # as declared in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS, plus the date columns
         return {
-            'year': day.year,            # ! year - int
-            'month': day.month,          # ! month of year - int
-            'day': day.day,              # ! day of month - int
-            "diameter": 0.0,             # FloatField
-            "max_dist_home": 0.0,        # FloatField
-            "dist_traveled": 0.0,        # FloatField
-            "av_flight_length": 0.0,     # FloatField
-            "sd_flight_length": 0.0,     # FloatField
-            "av_flight_duration": 0.0,   # FloatField
-            "sd_flight_duration": 0.0,   # FloatField
-            # "missing_time": 0,           # IntegerField  removed 2025-05-12
-            "home_time": 0.0,            # FloatField
-            "radius": 0.0,               # FloatField
-            "num_sig_places": 0,         # IntegerField
-            "entropy": 0.0,              # FloatField
-            "total_pause_time": "0",     # TextField
-            "obs_duration": 0.0,         # FloatField
-            "obs_day": 0.0,              # FloatField
-            "obs_night": 0.0,            # FloatField
-            "total_flight_time": 0.0,    # FloatField
-            "av_pause_duration": 0.0,    # FloatField
-            "sd_pause_duration": 0.0,    # FloatField
+            "Date": day.isoformat(),               # charfield..,...
+            "Distance Diameter": 0.0,              # FloatField
+            "Distance From Home": 0.0,             # FloatField
+            "Distance Traveled": 0.0,              # FloatField
+            "Flight Distance Average": 0.0,        # FloatField
+            "Flight Distance Stddev": 0.0,         # FloatField
+            "Flight Duration Average": 0.0,        # FloatField
+            "Flight Duration Stddev": 0.0,         # FloatField
+            "Home Duration": 0.0,                  # FloatField
+            "Gyration Radius": 0.0,                # FloatField
+            "Significant Location Count": 0,       # IntegerField
+            "Significant Location Entropy": 0.0,   # FloatField
+            "Pause Time": "0",                     # TextField
+            "Obs Duration": 0.0,                   # FloatField
+            "Obs Day": 0.0,                        # FloatField
+            "Obs Night": 0.0,                      # FloatField
+            "Total Flight Time": 0.0,              # FloatField
+            "Av Pause Duration": 0.0,              # FloatField
+            "Sd Pause Duration": 0.0,              # FloatField
         }
     
     def test_csv_parse_and_consume_jasmine(self):
@@ -83,9 +80,7 @@ class TestFileConsumption(CommonTestCase):
     
     def one_willow_row(self, day: date):
         return {
-            'year': day.year,                        # ! year - int
-            'month': day.month,                      # ! month of year - int
-            'day': day.day,                          # ! day of month - int
+            'date': day.isoformat(),                 # charfield probably
             "num_r": 0,                              # IntegerField
             "num_r_tel": 0,                          # IntegerField
             "total_char_r": 0,                       # IntegerField
@@ -94,6 +89,7 @@ class TestFileConsumption(CommonTestCase):
             "total_char_s": 0,                       # IntegerField
             "text_reciprocity_incoming": 0,          # IntegerField
             "text_reciprocity_outgoing": 0,          # IntegerField
+            "mean_responsiveness_text": 0.0,         # FloatField
             "num_mms_s": 0,                          # IntegerField
             "num_mms_r": 0,                          # IntegerField
             "num_in_call": 0,                        # IntegerField

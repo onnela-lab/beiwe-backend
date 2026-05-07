@@ -303,7 +303,7 @@ class SummaryStatisticDaily(TimestampedModel):
     timezone = CharField(max_length=10, null=False, blank=False)  # abbreviated time zone names are max 4 chars.
     
     @classmethod
-    def default_summary_statistic_daily_cheatsheet(cls) -> dict:
+    def default_summary_statistic_daily_cheatsheet(cls, prefix=None) -> dict:
         
         # this is used to populate default values in a SummaryStatisticDaily in a way that creates
         # legible output when something goes wrong in a test.
@@ -311,6 +311,9 @@ class SummaryStatisticDaily(TimestampedModel):
         for i, field in enumerate(cls._meta.fields):
             i=i-1  # we added "the_study" field and it changes tests... just offsetting here instead.
             if isinstance(field, (ForeignKey, DateField, AutoField)):
+                continue
+            
+            if prefix is not None and not field.name.startswith(prefix):
                 continue
             
             elif isinstance(field, IntegerField):
@@ -375,6 +378,7 @@ class SummaryStatisticDaily(TimestampedModel):
     willow_outgoing_text_reciprocity = IntegerField(null=True, blank=True)
     willow_outgoing_MMS_count = IntegerField(null=True, blank=True)
     willow_incoming_MMS_count = IntegerField(null=True, blank=True)
+    willow_mean_responsiveness_text = FloatField(null=True, blank=True)
     
     # Willow, Calls
     willow_incoming_call_count = IntegerField(null=True, blank=True)
@@ -386,7 +390,6 @@ class SummaryStatisticDaily(TimestampedModel):
     willow_missed_call_count = IntegerField(null=True, blank=True)
     willow_missed_callers = IntegerField(null=True, blank=True)
     willow_mean_responsiveness_call = FloatField(null=True, blank=True)
-    willow_mean_responsiveness_text = FloatField(null=True, blank=True)
     
     willow_call_reciprocity = FloatField(null=True, blank=True)
     

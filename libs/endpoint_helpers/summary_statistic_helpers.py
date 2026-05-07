@@ -7,10 +7,36 @@ from django.http import HttpResponse, StreamingHttpResponse
 
 from authentication.admin_authentication import ResearcherRequest
 from authentication.tableau_authentication import TableauRequest
-from constants.forest_constants import SERIALIZABLE_FIELD_NAMES
-from database.models import SummaryStatisticDaily
+from constants.forest_constants import (SERIALIZABLE_FIELD_NAMES,
+    SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES)
+from database.models import Study, SummaryStatisticDaily
 from libs.django_forms.forms import ApiQueryForm
 from libs.efficient_paginator import EfficientQueryPaginator
+
+
+## Sycamore
+
+def sycamore_statistics_data_handler(study: Study):
+    """ Sycamore is no longer a summary statistic but this is the best place to stick this code. """
+    # tldr: they are .title().replace("_", " "), and we don't need the dict anywhere else
+    
+    fieldnames = [*SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES.values(), "created_on"]
+    analyses = list(study.sycamore_analyses.order_by("created_on").values(*fieldnames))
+    
+    return sycamore_analysis_output_handler(analyses)
+    # return analyses
+
+
+def sycamore_analysis_output_handler(analyses: list[dict[str, float]]):
+    fieldname_map = {v: k for k, v in SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES.items()}
+    fieldname_map["created_on"] = "Created On"
+    for analysis in analyses:
+        for name in fieldname_map:
+            analysis[fieldname_map[name]] = analysis.pop(name)
+    return analyses
+
+
+## Everything else
 
 
 def summary_statistics_request_handler(

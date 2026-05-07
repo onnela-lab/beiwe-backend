@@ -16,7 +16,7 @@ from constants.celery_constants import FOREST_QUEUE, ForestTaskStatus
 from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
 from constants.forest_constants import (CLEANUP_ERROR as CLN_ERR, FOREST_TREE_REQUIRED_DATA_STREAMS,
     ForestTree, NO_DATA_ERROR, ROOT_FOREST_TASK_PATH, SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES,
-    TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS, YEAR_MONTH_DAY)
+    TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS)
 from constants.raw_data_constants import CHUNK_FIELDS
 from database.models import (ChunkRegistry, ForestTask, ForestVersion, QuerySet,
     SummaryStatisticDaily, SycamoreAnalysisOutput)
@@ -98,7 +98,7 @@ def create_forest_celery_tasks():
 ## The forest task runtime
 #
 
-# @forest_celery_app.task(queue=FOREST_QUEUE)
+@forest_celery_app.task(queue=FOREST_QUEUE)
 def celery_run_forest(forest_task_id):
     
     task = ForestTask.objects.get(id=forest_task_id)
@@ -253,7 +253,7 @@ def summary_statistic_csv_parse_and_consume(task: ForestTask, csv_reader: DictRe
     t = task
     
     blow_up_on_invalid_columns(task, csv_reader)
-    taskname, participant, tree, study = t.taskname, t.participant, t.forest_tree, t.the_study
+    taskname, participant, study = t.taskname, t.participant, t.the_study
     timezone = study.timezone
     assert participant is not None, "this code path expects a participant on a study"
     

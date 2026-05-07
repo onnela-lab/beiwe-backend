@@ -17,8 +17,7 @@ from authentication.data_access_authentication import (api_credential_check,
     api_study_credential_check, ApiResearcherRequest, ApiStudyResearcherRequest)
 from authentication.tableau_authentication import authenticate_tableau, TableauRequest
 from config.jinja2 import easy_url
-from constants.forest_constants import (FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES,
-    SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES)
+from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MISSING_JSON_CSV_JSON_TABLE_MESSAGE
 from constants.raw_data_constants import REDUCED_CHUNK_FIELDS
 from constants.user_constants import TABLEAU_TABLE_FIELD_TYPES
@@ -32,7 +31,8 @@ from libs.endpoint_helpers.data_api_helpers import (check_request_for_omit_keys_
 from libs.endpoint_helpers.participant_table_helpers import (common_data_extraction_for_apis,
     get_table_columns)
 from libs.endpoint_helpers.study_summaries_helpers import get_participant_data_upload_summary
-from libs.endpoint_helpers.summary_statistic_helpers import summary_statistics_request_handler
+from libs.endpoint_helpers.summary_statistic_helpers import (summary_statistics_request_handler,
+    sycamore_statistics_data_handler)
 from libs.intervention_utils import intervention_survey_data, survey_history_export
 from libs.utils.file_name_utils import determine_base_file_name
 
@@ -210,13 +210,7 @@ def get_summary_statistics(request: ApiStudyResearcherRequest, study_id: str = N
 @api_study_credential_check()
 def get_sycamore_analysis_output(request: ApiStudyResearcherRequest, study_id: str = None):
     """Return the Sycamore analysis rows for the authenticated study ordered by creation time."""
-    fieldnames = [*SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES.values(), "created_on"]
-    
-    analyses = list(request.api_study.sycamore_analyses.order_by("created_on").values(*fieldnames))
-    for analysis in analyses:
-        for name in fieldnames:
-            analysis[name.title().replace("_", " ")] = analysis.pop(name)
-    
+    analyses = sycamore_statistics_data_handler(request.api_study)
     options = orjson.OPT_OMIT_MICROSECONDS | orjson.OPT_UTC_Z
     return HttpResponse(orjson.dumps(analyses, option=options), content_type="application/json")
 
