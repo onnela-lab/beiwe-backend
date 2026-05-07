@@ -135,7 +135,7 @@ class Participant(AbstractPasswordUser):
     
     # undeclared:
     encryptionerrormetadata_set: Manager[EncryptionErrorMetadata]
-    foresttask_set: Manager[ForestTask]
+    forest_tasks: Manager[ForestTask]
     pushnotificationdisabledevent_set: Manager[PushNotificationDisabledEvent]
     summarystatisticdaily_set: Manager[SummaryStatisticDaily]
     

@@ -98,7 +98,7 @@ def create_forest_celery_tasks():
 ## The forest task runtime
 #
 
-@forest_celery_app.task(queue=FOREST_QUEUE)
+# @forest_celery_app.task(queue=FOREST_QUEUE)
 def celery_run_forest(forest_task_id):
     
     task = ForestTask.objects.get(id=forest_task_id)
@@ -257,15 +257,14 @@ def summary_statistic_csv_parse_and_consume(task: ForestTask, csv_reader: DictRe
     timezone = study.timezone
     assert participant is not None, "this code path expects a participant on a study"
     
+    assert (fieldnames := csv_reader.fieldnames) is not None  # yuck
+    DATE = "Date" if "Date" in fieldnames else "date" if "date" in fieldnames else None
+    if DATE is None:
+        raise BadForestField("'Date'/'date' column is missing")
+    
     rows_processed = 0
     for csv_row in csv_reader:
-        if tree == ForestTree.oak:
-            # Oak has a different output format, it is a json file.
-            summary_date = date.fromisoformat(csv_row['date'])
-        else:
-            summary_date = date(
-                int(float(csv_row['year'])), int(float(csv_row['month'])), int(float(csv_row['day']))
-            )
+        summary_date = date.fromisoformat(csv_row[DATE])
         
         # if timestamp is outside of desired range, skip (use <=, this is inclusive)
         # (Really the scenario should never occurr where this is false, but we check anyway.)
@@ -312,11 +311,14 @@ def read_in_sycamore_output(task: ForestTask) -> bool:
 def blow_up_on_invalid_columns(task: ForestTask, csv_reader: DictReader):
     assert csv_reader.fieldnames is not None
     assert task.forest_tree != ForestTree.sycamore, "incorrect validation function used for sycamore"
+    valid_names = [*TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS, "Date", "date"]
+    bad_names = []
     for column_name in csv_reader.fieldnames:
         # raise error on unrecognized column names. Data must be to spec.
-        if column_name not in TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS:
-            if column_name not in YEAR_MONTH_DAY and column_name != "date":
-                raise BadForestField(column_name)
+        if column_name not in valid_names:
+            bad_names.append(column_name)
+    if bad_names:
+        raise BadForestField("Bad Columns Encountered: " + ", ".join(bad_names))
 
 
 #
@@ -339,19 +341,11 @@ def sycamore_analysis_csv_parse_and_consume(task: ForestTask, csv_reader: DictRe
     return True
 
 
-def blow_up_on_bad_sycamore_columns(task: ForestTask, csv_reader: DictReader):
-    assert csv_reader.fieldnames is not None
-    assert task.forest_tree == ForestTree.sycamore, "incorrect validation function used for non-sycamore tree"
-    for column_name in csv_reader.fieldnames:
-        # raise error on unrecognized column names. Data must be to spec.
-        if column_name not in SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES:
-            raise BadForestField(column_name)
-
-
 def validate_sycamore_output(csv_reader: DictReader) -> dict[str, float]:
     ## Validate output - # file is guranteed to exist at this point
     
     all_rows = [row for row in csv_reader]
+    #! fixme: this is probably wrong
     if len(all_rows) != 1:
         raise Exception(f"Sycamore output should only have one row, found {len(all_rows)}")
     
@@ -371,7 +365,7 @@ def validate_sycamore_output(csv_reader: DictReader) -> dict[str, float]:
             loge(f"Invalid value for column `{k}` in sycamore output: `{v}`")
     
     if bad_fields:
-        raise Exception(f"Found {len(bad_fields)} unrecognized columns in sycamore output: {bad_fields}")
+        raise BadForestField(f"Found {len(bad_fields)} unrecognized columns in sycamore output: {bad_fields}")
     
     bad_fields = []
     for k in SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES:
@@ -380,12 +374,12 @@ def validate_sycamore_output(csv_reader: DictReader) -> dict[str, float]:
             loge(f"Expected column {k} not found in sycamore output.")
     
     if bad_fields:
-        raise Exception(f"Found {len(bad_fields)} missing columns in sycamore output: {bad_fields}")
+        raise BadForestField(f"Found {len(bad_fields)} missing columns in sycamore output: {bad_fields}")
     
     if bad_values:
-        raise Exception(f"Found {len(bad_values)} columns with invalid values in sycamore output: {bad_values}")
+        raise BadForestField(f"Found {len(bad_values)} columns with invalid values in sycamore output: {bad_values}")
     
-    return {k.lower().replace(" ", "_"): float(v) for k, v in row_dict.items()}
+    return {SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES[k]: float(v) for k, v in row_dict.items()}
 
 
 ## Post-Run code

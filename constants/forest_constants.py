@@ -36,7 +36,6 @@ class ForestTree(DjangoDropdown):
 
 
 # generic constants?
-YEAR_MONTH_DAY = ('year', 'month', 'day')
 SYCAMORE_DATE_FORMAT = "%Y-%m-%d"
 OAK_DATE_FORMAT_PARAMETER = "%Y-%m-%d %H_%M_%S"  # YYYY-mm-dd HH_MM_SS
 # OAK_DATE_FORMAT_CSV = "%Y-%m-%d"  # we use date.fromisoformat, but keep this line as documentation
@@ -139,30 +138,28 @@ FOREST_TREE_REQUIRED_DATA_STREAMS = {
 }
 
 
-## The following dictionary is a mapping of output CSV fields from various Forest Trees to their
-# summary statistic names.  Note that this data structure is imported and used in tableau constants.
-
-# FIXME: need to update this so that to handle summary statistics with the same names from different trees.
+# This is a mapping of output CSV fields from various Forest Trees to their summary statistic names.
+# Note that this data structure is imported and used in tableau constants.
 TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     # Jasmine, GPS
-    "diameter": "jasmine_distance_diameter",
-    "max_dist_home": "jasmine_distance_from_home",
-    "dist_traveled": "jasmine_distance_traveled",
-    "av_flight_length": "jasmine_flight_distance_average",
-    "sd_flight_length": "jasmine_flight_distance_stddev",
-    "av_flight_duration": "jasmine_flight_duration_average",
-    "sd_flight_duration": "jasmine_flight_duration_stddev",
-    "home_time": "jasmine_home_duration",
-    "radius": "jasmine_gyration_radius",
-    "num_sig_places": "jasmine_significant_location_count",
-    "entropy": "jasmine_significant_location_entropy",
-    "total_pause_time": "jasmine_pause_time",
-    "obs_duration": "jasmine_obs_duration",
-    "obs_day": "jasmine_obs_day",
-    "obs_night": "jasmine_obs_night",
-    "total_flight_time": "jasmine_total_flight_time",
-    "av_pause_duration": "jasmine_av_pause_duration",
-    "sd_pause_duration": "jasmine_sd_pause_duration",
+    "Distance Diameter": "jasmine_distance_diameter",
+    "Distance From Home": "jasmine_distance_from_home",
+    "Distance Traveled": "jasmine_distance_traveled",
+    "Flight Distance Average": "jasmine_flight_distance_average",
+    "Flight Distance Stddev": "jasmine_flight_distance_stddev",
+    "Flight Duration Average": "jasmine_flight_duration_average",
+    "Flight Duration Stddev": "jasmine_flight_duration_stddev",
+    "Home Duration": "jasmine_home_duration",
+    "Gyration Radius": "jasmine_gyration_radius",
+    "Significant Location Count": "jasmine_significant_location_count",
+    "Significant Location Entropy": "jasmine_significant_location_entropy",
+    "Pause Time": "jasmine_pause_time",
+    "Obs Duration": "jasmine_obs_duration",
+    "Obs Day": "jasmine_obs_day",
+    "Obs Night": "jasmine_obs_night",
+    "Total Flight Time": "jasmine_total_flight_time",
+    "Av Pause Duration": "jasmine_av_pause_duration",
+    "Sd Pause Duration": "jasmine_sd_pause_duration",
     
     # Willow, Texts
     "num_r": "willow_incoming_text_count",

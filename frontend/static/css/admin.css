@@ -441,6 +441,7 @@ td.custom-field-value:hover span.custom-field-edit-link {
 /* Text modifiers */
 .bold { font-weight: bold; }
 .italic { font-style: italic; }
+.italic-placeholder::placeholder { font-style: italic; }
 .underline { text-decoration: underline; }
 .text-blackish{ color: rgb(32, 32, 32); }
 .center-text { text-align: center; }

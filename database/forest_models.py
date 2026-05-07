@@ -386,6 +386,8 @@ class SummaryStatisticDaily(TimestampedModel):
     willow_missed_call_count = IntegerField(null=True, blank=True)
     willow_missed_callers = IntegerField(null=True, blank=True)
     willow_mean_responsiveness_call = FloatField(null=True, blank=True)
+    willow_mean_responsiveness_text = FloatField(null=True, blank=True)
+    
     willow_call_reciprocity = FloatField(null=True, blank=True)
     
     willow_uniq_individual_call_or_text_count = IntegerField(null=True, blank=True)
