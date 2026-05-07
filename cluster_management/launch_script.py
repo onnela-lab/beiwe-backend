@@ -1,6 +1,4 @@
 import warnings  # run this to suppress a message out of a required library before importing it.
-
-
 warnings.filterwarnings(action='ignore', module='.*paramiko.*')
 
 import argparse

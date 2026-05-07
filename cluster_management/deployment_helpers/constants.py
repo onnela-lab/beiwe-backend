@@ -69,6 +69,8 @@ BASE_INSTALLS = [
     "python3.12",
     "python3.12-dev",
     "python3.12-venv",
+    
+    "ffmpeg", # needed by newer versions of forest
 ]
 
 APT_WORKER_INSTALLS = copy(BASE_INSTALLS) + copy(PYTHON_COMPILE_REQUIREMENTS)
