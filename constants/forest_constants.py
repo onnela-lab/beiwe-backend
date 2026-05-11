@@ -35,6 +35,8 @@ class ForestTree(DjangoDropdown):
     # poplar = "poplar"  # Poplar is just documentation and examples.
 
 
+PARTICIPANT_TREES = [ForestTree.jasmine, ForestTree.oak, ForestTree.willow]
+
 # generic constants?
 SYCAMORE_DATE_FORMAT = "%Y-%m-%d"
 OAK_DATE_FORMAT_PARAMETER = "%Y-%m-%d %H_%M_%S"  # YYYY-mm-dd HH_MM_SS

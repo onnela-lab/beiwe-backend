@@ -4,7 +4,7 @@ import bleach
 from django import forms
 
 from constants.celery_constants import ForestTaskStatus
-from constants.forest_constants import (ForestTree, SERIALIZABLE_FIELD_NAMES,
+from constants.forest_constants import (ForestTree, PARTICIPANT_TREES, SERIALIZABLE_FIELD_NAMES,
     SERIALIZABLE_FIELD_NAMES_DROPDOWN, VALID_QUERY_PARAMETERS)
 from database.models import ForestTask, Participant, Study
 from libs.django_forms.form_fields import CommaSeparatedListCharField, CommaSeparatedListChoiceField
@@ -30,7 +30,8 @@ class DisableApiKeyForm(forms.Form):
 class CreateTasksForm(forms.Form):
     date_start = forms.DateField()
     date_end = forms.DateField()
-    participant_patient_ids = CommaSeparatedListCharField()  # not actually a comma separated field?
+    # participants is not required here, but it is checked manually
+    participant_patient_ids = CommaSeparatedListCharField(required=False)  # not actually a comma separated field?
     trees = CommaSeparatedListChoiceField(choices=ForestTree.choices())
     
     def __init__(self, *args, **kwargs):
@@ -54,7 +55,10 @@ class CreateTasksForm(forms.Form):
             self.add_error("date_start", error_message)
             self.add_error("date_end", error_message)
         
-        if not cleaned_data.get("participant_ids"):
+        selected_trees = cleaned_data.get("trees", [])
+        participant_required_trees = [tree for tree in selected_trees if tree in PARTICIPANT_TREES]
+        
+        if participant_required_trees and not cleaned_data.get("participant_ids"):
             self.add_error(
                 "participant_patient_ids",
                 "At least one valid participant must be provided."
@@ -70,12 +74,23 @@ class CreateTasksForm(forms.Form):
         # trees is required,  this code doesn't execute when it is missing. validity is already
         # checked by the CommaSeparatedListChoiceField, but we still need to use getlist to access
         # the many values in the multidict.
+        # trees = self.data.getlist("trees", [])
+        # for tree in trees:
+        #     if tree not in ALL_FOREST_TREES:
+        #         tree = bleach.clean(tree)
+        #         raise forms.ValidationError(f"an invalid tree '{tree}' was provided.")
+        ## we alroady do the above check in the main clean method
         return self.data.getlist("trees", [])
     
     def clean_participant_patient_ids(self):
         """ Filter participants to those who are registered in this study and specified in this
         field (instead of raising a ValidationError if an invalid or non-study patient id is
         specified). """
+        
+        not_sycamore = ForestTree.sycamore not in self.clean_trees()
+        if not_sycamore and not self.data.get("participant_patient_ids"):
+            raise forms.ValidationError("You must select at least one participant id.")
+        
         # need to use getlist to access the many values in the multidict
         patient_ids = self.data.getlist("participant_patient_ids")
         participants = Participant.objects \
@@ -89,9 +104,11 @@ class CreateTasksForm(forms.Form):
         # generates forest task objects for each selected option.
         forest_tasks = []
         participant_ids = self.cleaned_data["participant_ids"]
+        trees = self.cleaned_data["trees"]
+        participant_required_trees = [tree for tree in trees if tree != ForestTree.sycamore]
         
         for participant_id in participant_ids:
-            for tree in self.cleaned_data["trees"]:
+            for tree in participant_required_trees:
                 forest_tasks.append(
                     ForestTask(
                         participant_id=participant_id,
@@ -102,6 +119,18 @@ class CreateTasksForm(forms.Form):
                         the_study=self.study,
                     )
                 )
+        
+        if ForestTree.sycamore in trees:
+            forest_tasks.append(
+                ForestTask(
+                    participant=None,
+                    forest_tree=ForestTree.sycamore,
+                    data_date_start=self.cleaned_data["date_start"],
+                    data_date_end=self.cleaned_data["date_end"],
+                    status=ForestTaskStatus.queued,
+                    the_study=self.study,
+                )
+            )
         
         if not ForestTask.objects.bulk_create(forest_tasks):
             log.error("Failed to create forest tasks")

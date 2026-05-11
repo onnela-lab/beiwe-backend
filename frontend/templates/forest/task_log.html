@@ -127,6 +127,7 @@
             <div>
               <a
                 class="btn btn-link"
+                ng-if="log.download_url"
                 ng-href="{% raw %}{{ log.download_url|trustAsResourceUrl }}{% endraw %}"
                 aria-label="click to download the source data for this Forest task"
                 style="padding: 0;"
@@ -135,18 +136,19 @@
               </a>
             </div>
 
-            <div ng-if="log.has_runtime_output_downloadable_data">
+            <div>
               <a
+                ng-if="log.has_runtime_output_downloadable_data"
                 class="btn btn-link"
                 ng-href="{% raw %}{{ log.download_runtime_output_url|trustAsResourceUrl }}{% endraw %}"
                 aria-label="click to download the full runtime output data for this Forest task"
                 style="padding: 0;"
               >
-                Download Runtime Output Data
+                Download Runtime Output Files
               </a>
             </div>
 
-            <div ng-if="log.has_output_data">
+            <div ng-if="log.has_output_tree_data">
               <a
                 class="btn btn-link"
                 ng-href="{% raw %}{{ log.download_participant_tree_data_url|trustAsResourceUrl }}{% endraw %}"

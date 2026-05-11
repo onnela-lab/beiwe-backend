@@ -28,6 +28,7 @@ def sycamore_statistics_data_handler(study: Study):
 
 
 def sycamore_analysis_output_handler(analyses: list[dict[str, float]]):
+    # provide the dict with the nice field names
     fieldname_map = {v: k for k, v in SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES.items()}
     fieldname_map["created_on"] = "Created On"
     for analysis in analyses:
