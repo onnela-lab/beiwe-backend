@@ -156,6 +156,11 @@
     background: var(--Bblack);
 }
 
+.active{
+    animation: pulse-text 10s infinite;
+}
+
+
 /* inputs have blazing white backgrounds - text color does not work consistently*/
 input:not([type=submit]) {
     background: #1a1c1d !important;
@@ -166,6 +171,7 @@ input:not([type=submit]) {
         color: #888 !important;
     }
 }
+input::placeholder { font-style: italic !important; }
 input[type=text]:hover { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
 input[type=text]:focus { outline: solid 1pt var(--deep-ocean); border-radius: 3px; }
 input[type=text]:focus-within { outline: solid 2pt var(--Bwhite); border-radius: 3px; animation: pulse-outline 3s infinite !important;}

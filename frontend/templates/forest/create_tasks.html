@@ -37,8 +37,18 @@
 {% block title %}Create Forest Tasks{% endblock %}
 
 {% block content %}
-<h1>Run Forest</h1>
-<div class="container">
+
+<ol class="breadcrumb">
+  <li>
+    <a
+      href="{{ easy_url('study_endpoints.view_study_page', study.id) }}"
+      aria-label="click to go to the study page for {{ study.name }}"
+    >{{ study.name }}</a>
+  </li>
+  <li class="active">Create Forest Tasks</li>
+</ol>
+
+<div>
   <br>
   <div class="alert alert-success italic">
     Forest is under development at Onnela Lab. The currently deployed version is {{forest_version}}

@@ -51,6 +51,22 @@
 
 {% block content %}
 
+<ol class="breadcrumb">
+  <li>
+    <a
+      href="{{ easy_url('study_endpoints.view_study_page', study.id) }}"
+      aria-label="click to go to the study page for {{ study.name }}"
+    >{{ study.name }}</a>
+  </li>
+  <li class="active">
+    {# <a #}
+      {# href="{{ easy_url('forest_endpoints.create_tasks', study.id) }}" #}
+      {# aria-label="Create Forest Tasks for {{ study.name }}" #}
+    Forest Task Log
+  </li>
+</ol>
+
+
 <div ng-controller="ForestLogController">
 
   <div class="form-group col-xs-12 well">
@@ -58,7 +74,7 @@
 
     <input
       type="search"
-      class="form-control"
+      class="form-control "
       placeholder="Filter Tasks On The Current Page (searches all columns except Actions)"
       ng-model="filterText"
       aria-label="Filter Tasks On The Current Page (searches all columns except Actions)"
