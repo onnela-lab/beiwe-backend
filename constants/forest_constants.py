@@ -1,5 +1,6 @@
 from django.db.models.fields import (BooleanField, CharField, DateField, DateTimeField, FloatField,
     IntegerField, TextField)
+from forest.jasmine.traj2stats import Hyperparameters
 
 from constants import DjangoDropdown
 from constants.data_stream_constants import (ACCELEROMETER, AMBIENT_AUDIO, ANDROID_LOG_FILE,
@@ -59,6 +60,9 @@ OAK_DATE_FORMAT_PARAMETER = "%Y-%m-%d %H_%M_%S"  # YYYY-mm-dd HH_MM_SS
 #     And also they are named start_date and end_date.
 #   Code for all of this is in forest models.
 
+_jasmine_hyper = Hyperparameters()
+_jasmine_hyper.pcr_bool = True
+
 DEFAULT_FOREST_PARAMETERS = {
     ForestTree.jasmine: {
         "frequency": Frequency.DAILY,
@@ -72,6 +76,7 @@ DEFAULT_FOREST_PARAMETERS = {
         # osm_tags: Optional[List[OSMTags]] = None,
         # participant_ids: Optional[list] = None,
         # parameters: Optional[Hyperparameters] = None,
+        "parameters": _jasmine_hyper,
     },
     ForestTree.oak: {
         "frequency": Frequency.DAILY,

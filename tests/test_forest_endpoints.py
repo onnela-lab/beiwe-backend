@@ -32,10 +32,17 @@ class TestForestCreateTasks(ResearcherSessionTest):
     ENDPOINT_NAME = "forest_endpoints.create_tasks"
     REDIRECT_ENDPOINT_NAME = "forest_endpoints.task_log"
     
+    def assert_invalid_create_task_request(self, **post_params):
+        resp = self.smart_post(self.session_study.id, **post_params)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ForestTask.objects.count(), 0)
+        return resp
+    
     def test_page_render(self):
         self.session_researcher
         self.set_session_study_relation(ResearcherRole.site_admin)
         resp = self.smart_get(self.default_study.pk)
+        # extremely sophisticated indeed
         self.assert_present("Participant Trees", resp.content)
         self.assert_present("Create Sycamore Task", resp.content)
     
@@ -49,7 +56,7 @@ class TestForestCreateTasks(ResearcherSessionTest):
             participant_patient_ids=f'{self.default_participant.patient_id}',
         )
         self.assertEqual(ForestTask.objects.count(), 1)
-
+    
     def test_sycamore_task_creation_without_participant(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
         self.smart_post_redirect(
@@ -63,7 +70,7 @@ class TestForestCreateTasks(ResearcherSessionTest):
         self.assertIsNone(task.participant)
         self.assertEqual(task.the_study, self.session_study)
         self.assertEqual(task.forest_tree, ForestTree.sycamore)
-
+    
     def test_sycamore_task_visible_in_task_log(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
         ForestTask.objects.create(
@@ -78,21 +85,39 @@ class TestForestCreateTasks(ResearcherSessionTest):
         self.assert_present("Study-wide", content)
         self.assert_present("Sycamore", content)
     
+    def test_missing_participant_ids_for_participant_tree(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.assert_invalid_create_task_request(
+            trees=ForestTree.jasmine, date_start="2020-01-01", date_end="2020-01-05"
+        )
+        self.assert_message_fragment("You must select at least one participant id.")
+        self.assert_message_fragment("At least one valid participant must be provided.")
+    
+    def test_non_study_participant_rejected(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        other_study = self.generate_study("other study")
+        other_participant = self.generate_participant(other_study, patient_id="otherpt")
+        
+        self.assert_invalid_create_task_request(
+            trees=ForestTree.jasmine,
+            date_start="2020-01-01",
+            date_end="2020-01-05",
+            participant_patient_ids=other_participant.patient_id,
+        )
+        self.assert_message_fragment("At least one valid participant must be provided.")
+    
     def test_bad_participant_list(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
-        resp = self.smart_post(
-            self.session_study.id,
+        resp = self.assert_invalid_create_task_request(
             trees=f'jasmine',
             date_start="2020-01-01",
             date_end="2020-01-05",
             participant_patient_ids=f'{self.default_participant.patient_id},',  # trailing comma
         )
-        self.assertEqual(resp.status_code, 200)
         self.assert_present(
             'At least one valid participant must be provided.',
             resp.content,
         )
-        self.assertEqual(ForestTask.objects.count(), 0)
     
     # cannot work out what is going on when there is a second patient id.  The backend seems to receive
     # the field parsed into a python list object before our code accesses it inside request.POST.
@@ -114,27 +139,33 @@ class TestForestCreateTasks(ResearcherSessionTest):
     
     def test_no_trees_selected(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
-        resp = self.smart_post(
-            self.session_study.id,
+        resp = self.assert_invalid_create_task_request(
             date_start="2020-01-01",
             date_end="2020-01-05",
             participant_patient_ids=f'{self.default_participant.patient_id}',
         )
-        self.assertEqual(resp.status_code, 200)
         self.assert_present(
             'At least one forest tree must be selected.',
             resp.content,
         )
-        self.assertEqual(ForestTask.objects.count(), 0)
+    
+    def test_invalid_tree_selected(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.assert_invalid_create_task_request(
+            trees="not_a_tree",
+            date_start="2020-01-01",
+            date_end="2020-01-05",
+            participant_patient_ids=self.default_participant.patient_id,
+        )
+        self.assert_message_fragment("Select a valid choice. not_a_tree is not one of the available choices.")
+        self.assert_message_fragment("At least one forest tree must be selected.")
     
     def test_dates_selected(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
-        resp = self.smart_post(
-            self.session_study.id,
+        resp = self.assert_invalid_create_task_request(
             trees=f'jasmine',
             participant_patient_ids=f'{self.default_participant.patient_id}',
         )
-        self.assertEqual(resp.status_code, 200)
         self.assert_present(
             'date end was not provided.',
             resp.content.lower(),
@@ -143,7 +174,50 @@ class TestForestCreateTasks(ResearcherSessionTest):
             'date start was not provided.',
             resp.content.lower(),
         )
-        self.assertEqual(ForestTask.objects.count(), 0)
+    
+    def test_start_date_must_be_before_end_date(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.assert_invalid_create_task_request(
+            trees=ForestTree.jasmine,
+            date_start="2020-01-05",
+            date_end="2020-01-01",
+            participant_patient_ids=self.default_participant.patient_id,
+        )
+        self.assert_message_fragment("Start date must be before or the same as end date.")
+    
+    def test_invalid_start_date(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.assert_invalid_create_task_request(
+            trees=ForestTree.jasmine,
+            date_start="not-a-date",
+            date_end="2020-01-05",
+            participant_patient_ids=self.default_participant.patient_id,
+        )
+        self.assert_message_fragment("Enter a valid date.")
+        self.assert_message_fragment("Date start was not provided.")
+    
+    def test_invalid_end_date(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.assert_invalid_create_task_request(
+            trees=ForestTree.jasmine,
+            date_start="2020-01-01",
+            date_end="not-a-date",
+            participant_patient_ids=self.default_participant.patient_id,
+        )
+        self.assert_message_fragment("Enter a valid date.")
+        self.assert_message_fragment("Date end was not provided.")
+    
+    def test_study_not_found(self):
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.smart_get_status_code(404, 999999)
+        self.smart_post_status_code(
+            404,
+            999999,
+            trees=ForestTree.jasmine,
+            date_start="2020-01-01",
+            date_end="2020-01-05",
+            participant_patient_ids=self.default_participant.patient_id,
+        )
 
 # class TestForestTaskLog(ResearcherSessionTest):
 #     ENDPOINT_NAME = "forest_endpoints.task_log"
@@ -531,7 +605,7 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
         p2 = self.generate_participant(self.session_study, patient_id="patient2")
         self.default_summary_statistic_daily
         self.generate_summary_statistic_daily(date(2020,1,1), p2)
-        resp = self.smart_get_status_code(200, self.session_study.id)        
+        resp = self.smart_get_status_code(200, self.session_study.id)
         correct = b"".join((
             self.CSV_HEADER,
             self.EMPTY_PARTICIPANT,

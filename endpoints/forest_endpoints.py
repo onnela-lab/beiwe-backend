@@ -1,6 +1,7 @@
 import csv
 import pickle
-from datetime import date, datetime, tzinfo
+from datetime import date, datetime, timedelta, tzinfo
+from io import StringIO
 
 import orjson
 from django.contrib import messages
@@ -19,10 +20,10 @@ from constants.common_constants import DEV_TIME_FORMAT, EARLIEST_POSSIBLE_DATA_D
 from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED,
     FOREST_TASKVIEW_PICKLING_EMPTY, FOREST_TASKVIEW_PICKLING_ERROR,
     FOREST_TREE_REQUIRED_DATA_STREAMS, FOREST_TREE_TO_SERIALIZABLE_FIELD_NAMES, ForestTree,
-    NICE_SERIALIZABLE_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES,
-    SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES)
+    NICE_SERIALIZABLE_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES)
 from constants.raw_data_constants import CHUNK_FIELDS
-from database.models import ChunkRegistry, ForestTask, ForestVersion, Study, SummaryStatisticDaily
+from database.models import (ChunkRegistry, ForestTask, ForestVersion, Participant, Study,
+    SummaryStatisticDaily)
 from libs.django_forms.forms import CreateTasksForm
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.endpoint_helpers.summary_statistic_helpers import (SummaryStatisticsPaginator,
@@ -93,6 +94,40 @@ def create_tasks(request: ResearcherRequest, study_id=None):
     return redirect(easy_url("forest_endpoints.task_log", study_id=study_id))
 
 
+def render_create_tasks(request: ResearcherRequest, study: Study):
+    # buffer of one day because timezones are dumb
+    day_before_creation = study.created_on.date() - timedelta(days=1)
+    
+    # THIS IS THE FASTEST WAY TO GET EARLIEST AND LATEST DATES. Even for very large numbers of matches.
+    dates = list(
+        study.summary_statistics_daily \
+        .exclude(date__lte=max(EARLIEST_POSSIBLE_DATA_DATE, day_before_creation))
+        .order_by("date")
+        .values_list("date", flat=True)
+    )
+    start_date = dates[0] if dates else study.created_on.date()
+    end_date = dates[-1] if dates else timezone.now().date()
+    forest_info = ForestVersion.singleton()
+    
+    # start_date = dates[0] if dates and dates[0] >= EARLIEST_POSSIBLE_DATA_DATE else study.created_on.date()
+    # end_date = dates[-1] if dates and dates[-1] <= timezone.now().date() else timezone.now().date()
+    return render(
+        request,
+        "forest/create_tasks.html",
+        context=dict(
+            study=study,
+            participants=list(
+                study.participants.order_by("patient_id").values_list("patient_id", flat=True)
+            ),
+            trees=ForestTree.choices(),
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+            forest_version=forest_info.package_version.title(),
+            forest_commit=forest_info.git_commit,
+        )
+    )
+
+
 @require_http_methods(['GET', 'POST'])
 @authenticate_admin
 @forest_enabled
@@ -161,7 +196,7 @@ def task_log(request: ResearcherRequest, study_id=None):
         task["patient_id"] = task.pop("participant__patient_id") or "Study-wide"
         
         # rename and transform
-        task["has_output_data"] = task["forest_output_exists"]
+        task["has_output_tree_data"] = task["forest_output_exists"]
         task["download_participant_tree_data_url"] = easy_url(
             "forest_endpoints.download_participant_tree_data", study_id=study_id, forest_task_external_id=extern_id,
         )
@@ -349,8 +384,14 @@ def download_participant_tree_data(request: ResearcherRequest, study_id: int, fo
         return HttpResponse(content="", status=404)
     
     if forest_task.forest_tree == ForestTree.sycamore:
-        return thang(forest_task)
-    
+        return export_sycamore_data(forest_task)
+    else:
+        return export_summary_statistics_data(forest_task, participant, study_id)
+
+
+def export_summary_statistics_data(
+    forest_task: ForestTask, participant: Participant | None, study_id: int
+):
     if participant is None:
         return HttpResponse(content="This task is not associated with a specific participant.", status=404)
     
@@ -365,7 +406,7 @@ def download_participant_tree_data(request: ResearcherRequest, study_id: int, fo
     nice_names = [
         # e.g. jasmine_distance_from_home -> Distance From Home
         name.replace(f"{forest_task.forest_tree}_", "").replace("_", " ").title()
-            for name in fields_names
+        for name in fields_names
     ]
     
     # protect our users from themselves, handle case of no data with a conformant header plus newline
@@ -384,7 +425,28 @@ def download_participant_tree_data(request: ResearcherRequest, study_id: int, fo
         as_attachment=True,
         filename=f"{participant.patient_id}_{forest_task.forest_tree}_data_{contextually_accurate_date}.csv",
     )
-    f.set_headers(None)  # this is just a thing you have to do, its a django bug.
+    f.set_headers(None)  # type: ignore - this is just a thing you have to do, its a django bug.
+    return f
+
+
+def export_sycamore_data(forest_task: ForestTask):
+    analyses = sycamore_statistics_data_handler(forest_task.the_study)
+    contextually_accurate_date = forest_task.the_study.now().date()
+    
+    if not analyses:
+        return HttpResponse(content="No matching data found.", status=404)
+    si = StringIO()
+    writer = csv.DictWriter(si, fieldnames=analyses[0].keys())
+    writer.writeheader()
+    writer.writerows(analyses)
+    
+    f = FileResponse(
+        si.read(),
+        content_type="text/csv",
+        as_attachment=True,
+        filename=f"Sycamore_data_{forest_task.the_study.object_id}_{contextually_accurate_date}.csv",
+    )
+    f.set_headers(None)  # type: ignore - this is just a thing you have to do, its a django bug.
     return f
 
 
@@ -413,39 +475,6 @@ def download_summary_statistics_csv(request: ResearcherRequest, study_id):
     )
     fr.set_headers(None)
     return fr
-
-
-def render_create_tasks(request: ResearcherRequest, study: Study):
-    # this is the fastest way to get earliest and latest dates, even for large numbers of matches.
-    # SummaryStatisticDaily is orders of magnitude smaller than ChunkRegistry.
-    dates = list(
-        SummaryStatisticDaily.objects
-        .exclude(date__lte=max(EARLIEST_POSSIBLE_DATA_DATE, study.created_on.date()))
-        .filter(participant__in=study.participants.all())
-        .order_by("date")
-        .values_list("date", flat=True)
-    )
-    start_date = dates[0] if dates else study.created_on.date()
-    end_date = dates[-1] if dates else timezone.now().date()
-    forest_info = ForestVersion.singleton()
-    
-    # start_date = dates[0] if dates and dates[0] >= EARLIEST_POSSIBLE_DATA_DATE else study.created_on.date()
-    # end_date = dates[-1] if dates and dates[-1] <= timezone.now().date() else timezone.now().date()
-    return render(
-        request,
-        "forest/create_tasks.html",
-        context=dict(
-            study=study,
-            participants=list(
-                study.participants.order_by("patient_id").values_list("patient_id", flat=True)
-            ),
-            trees=ForestTree.choices(),
-            start_date=start_date.isoformat(),
-            end_date=end_date.isoformat(),
-            forest_version=forest_info.package_version.title(),
-            forest_commit=forest_info.git_commit,
-        )
-    )
 
 
 @require_GET

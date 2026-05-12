@@ -209,7 +209,7 @@ def run_one_forest_tree(task: ForestTask):
     caller_function = TREE_TO_FOREST_FUNCTION[task.forest_tree]
     
     # Run Forest
-    params_dict = task.get_params_dict()
+    params_dict = task.get_tree_default_params_dict()
     log(f"params_dict: {params_dict}")
     task.pickle_to_pickled_parameters(params_dict)
     
@@ -232,6 +232,7 @@ def read_in_output_data(task: ForestTask) -> bool:
 
 
 ## Summary statistics
+
 
 def read_in_summary_statistic_output(task: ForestTask) -> bool:
     """ Construct summary statistics from forest output, returning whether or not any

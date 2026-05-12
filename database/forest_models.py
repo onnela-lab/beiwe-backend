@@ -104,7 +104,7 @@ class ForestTask(TimestampedModel):
     #
     ## forest tree parameters
     #
-    def get_params_dict(self) -> dict:
+    def get_tree_default_params_dict(self) -> dict:
         """ Return a dict of params to pass into the Forest function. The task flag is used to
         indicate whether this is being called for use in the serializer or for use in a task (in
         which case we can call additional functions as needed). """
