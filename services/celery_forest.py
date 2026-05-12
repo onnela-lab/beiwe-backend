@@ -479,7 +479,7 @@ def ensure_folders_exist(task: ForestTask):
 
 def download_data(task: ForestTask, start: datetime, end: datetime):
     chunks = ChunkRegistry.objects.filter(
-        participant=task.participant,
+        **{"participant": task.participant} if task.participant else {"study": task.the_study},
         time_bin__gte=start,
         time_bin__lte=end,
         data_type__in=FOREST_TREE_REQUIRED_DATA_STREAMS[task.forest_tree]

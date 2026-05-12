@@ -366,6 +366,8 @@ class SummaryStatisticDaily(TimestampedModel):
     jasmine_total_flight_time = FloatField(null=True, blank=True)
     jasmine_av_pause_duration = FloatField(null=True, blank=True)
     jasmine_sd_pause_duration = FloatField(null=True, blank=True)
+    jasmine_physical_circadian_rhythm = FloatField(null=True, blank=True)
+    jasmine_physical_circadian_rhythm_stratified = FloatField(null=True, blank=True)
     
     # Willow, Texts
     willow_incoming_text_count = IntegerField(null=True, blank=True)
@@ -453,5 +455,3 @@ class SycamoreAnalysisOutput(TimestampedModel):
     pause_time = FloatField(null=True)
     av_pause_duration = FloatField(null=True)
     sd_pause_duration = FloatField(null=True)
-    physical_circadian_rhythm = FloatField(null=True)
-    physical_circadian_rhythm_stratified = FloatField(null=True)

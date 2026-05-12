@@ -8,7 +8,7 @@ from constants.celery_constants import ForestTaskStatus
 from constants.common_constants import EDT, UTC
 from constants.data_stream_constants import GPS
 from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED, ForestTree,
-    TREE_TO_TASK_NAME)
+    TREE_TO_TASK_NAME, JASMINE_FIELDS, OAK_FIELDS, WILLOW_FIELDS)
 from constants.testing_constants import EMPTY_ZIP, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ResearcherRole
 from database.models import ForestTask, SummaryStatisticDaily
@@ -505,6 +505,8 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
         'Total Flight Time',
         'Av Pause Duration',
         'Sd Pause Duration',
+        "Physical Circadian Rhythm",
+        "Physical Circadian Rhythm Stratified",
         'Incoming Text Count',
         'Incoming Text Degree',
         'Incoming Text Length',
@@ -542,7 +544,7 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
             f"{self.default_study.object_id},"
             # to regenerate this next line open a shell and get the output of:
             # print(",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet().values()) + "\\r\\n")
-            '5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0,43,44,45,46,47,48,49,50,51,52,53.0,54,55,56.0,57,58,59.0,60,61,62.0,63.0,64,65.0,66.0,67.0\r\n'
+            '5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0,43.0,44.0,45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61.0,62,63,64.0,65.0,66,67.0,68.0,69.0\r\n'
             .encode()
         )
     
@@ -626,11 +628,11 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
     # b"Date," + ",".join(WILLOW_FIELDS).replace("willow_", "").replace("_", " ").title().encode()
     csv_columns_map = {
         ForestTree.jasmine:
-            b'Date,Distance Diameter,Distance From Home,Distance Traveled,Flight Distance Average,Flight Distance Stddev,Flight Duration Average,Flight Duration Stddev,Home Duration,Gyration Radius,Significant Location Count,Significant Location Entropy,Pause Time,Obs Duration,Obs Day,Obs Night,Total Flight Time,Av Pause Duration,Sd Pause Duration',
+            b"Date," + ",".join(JASMINE_FIELDS).replace("jasmine_", "").replace("_", " ").title().encode(),
         ForestTree.oak:
-            b'Date,Walking Time,Steps,Cadence',
+            b"Date," + ",".join(OAK_FIELDS).replace("oak_", "").replace("_", " ").title().encode(),
         ForestTree.willow:
-            b'Date,Incoming Text Count,Incoming Text Degree,Incoming Text Length,Outgoing Text Count,Outgoing Text Degree,Outgoing Text Length,Incoming Text Reciprocity,Outgoing Text Reciprocity,Outgoing Mms Count,Incoming Mms Count,Mean Responsiveness Text,Incoming Call Count,Incoming Call Degree,Incoming Call Duration,Outgoing Call Count,Outgoing Call Degree,Outgoing Call Duration,Missed Call Count,Missed Callers,Mean Responsiveness Call,Call Reciprocity,Uniq Individual Call Or Text Count',
+            b"Date," + ",".join(WILLOW_FIELDS).replace("willow_", "").replace("_", " ").title().encode(),
     }
     
     # These values are PERMUTED in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet.
@@ -642,14 +644,17 @@ class TestDownloadParticipantTreeData(ResearcherSessionTest):
     # the new field values. (Field type also shifts which numbers are floats.) So, you will get an
     # error on the tests and you just need to swap in the new values.
     # generate with (etc):
-    # print"," + ",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet("willow").values()))
+    # print("," + ",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet("willow").values()))
     csv_data_line_map = {
         ForestTree.jasmine: CURRENT_TEST_DATE_BYTES +
-            b",25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0",
+            # b",25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0,43.0,44.0",
+            b"," + (",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet("jasmine").values()).encode()),
         ForestTree.oak: CURRENT_TEST_DATE_BYTES +
-            b',65.0,66.0,67.0',
+            # b',67.0,68.0,69.0',
+            b"," + (",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet("oak").values()).encode()),
         ForestTree.willow: CURRENT_TEST_DATE_BYTES +
-            b",43,44,45,46,47,48,49,50,51,52,53.0,54,55,56.0,57,58,59.0,60,61,62.0,63.0,64",
+            b"," + (",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet("willow").values()).encode()),
+            # b",45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61.0,62,63,64.0,65.0,66",
     }
     
     def setup_valid_tree_and_summary_statistic(self, tree_name: str) -> tuple[ForestTask, SummaryStatisticDaily]:

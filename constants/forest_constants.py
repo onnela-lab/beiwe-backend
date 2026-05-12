@@ -167,6 +167,8 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     "Total Flight Time": "jasmine_total_flight_time",
     "Av Pause Duration": "jasmine_av_pause_duration",
     "Sd Pause Duration": "jasmine_sd_pause_duration",
+    "Physical Circadian Rhythm": "jasmine_physical_circadian_rhythm",
+    "Physical Circadian Rhythm Stratified": "jasmine_physical_circadian_rhythm_stratified",
     
     # Willow, Texts
     "num_r": "willow_incoming_text_count",
@@ -222,8 +224,6 @@ SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES = {  # this one is just .title().rep
     "Pause Time": "pause_time",
     "Av Pause Duration": "av_pause_duration",
     "Sd Pause Duration": "sd_pause_duration",
-    "Physical Circadian Rhythm": "physical_circadian_rhythm",
-    "Physical Circadian Rhythm Stratified": "physical_circadian_rhythm_stratified",
 }
 
 
@@ -287,6 +287,8 @@ JASMINE_FIELDS = [
     "jasmine_total_flight_time",
     "jasmine_av_pause_duration",
     "jasmine_sd_pause_duration",
+    "jasmine_physical_circadian_rhythm",
+    "jasmine_physical_circadian_rhythm_stratified",
 ]
 NICE_JASMINE_FIELDS = [
     name.replace("jasmine_", "").replace("_", " ").title() for name in JASMINE_FIELDS
