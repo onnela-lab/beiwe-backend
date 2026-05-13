@@ -92,6 +92,7 @@ $(document).ready(function() {
                   class="form-control"
                   size=12
                   multiple
+                  required
                 >
                   {% for participant in participants %}
                   <option>{{ participant }}</option>
@@ -116,6 +117,7 @@ $(document).ready(function() {
                       type="checkbox"
                       value="{{ tree[0] }}"
                       aria-label="checkbox for the {{ tree[0] }} Forest Tree analysis"
+                      required
                     > {{ tree[1] }}
 
                   </fieldset>
@@ -143,6 +145,7 @@ $(document).ready(function() {
                     placeholder="First study data is from {{ start_date }}"
                     aria-label="First study data is from {{ start_date }}"
                     id="start_date"
+                    required
                   >
                   <div class="input-group-addon">
                     <span class="glyphicon glyphicon-th"></span>
@@ -167,6 +170,7 @@ $(document).ready(function() {
                     placeholder="Latest study data is from {{ end_date }}"
                     aria-label="Latest study data is from {{ end_date }}"
                     id="end_date"
+                    required
                   >
                   <div class="input-group-addon">
                     <span class="glyphicon glyphicon-th"></span>
