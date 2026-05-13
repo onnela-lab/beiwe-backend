@@ -65,8 +65,6 @@ class ForestTask(TimestampedModel):
     willow_summary_statistics: Manager[SummaryStatisticDaily]
     oak_summary_statistics: Manager[SummaryStatisticDaily]
     
-    sycamore_analysis_output: Manager[SycamoreAnalysisOutput]
-    
     @property
     def taskname(self) -> str:
         # this is the Foreign key reference field name in SummaryStatisticDaily
@@ -234,10 +232,10 @@ class ForestTask(TimestampedModel):
         return path_join(self.data_output_folder_path, "daily", f"{self.participant.patient_id}.csv")
     
     @property
-    def sycamore_output_file(self) -> str:
-        """ Path to the file that contains the output of Sycamore. """
-        # /tmp/forest/<uuid>/<tree>/output/sycamore_output.csv
-        return path_join(self.data_output_folder_path, SycamoreAnalysisOutput.SOURCE_DATA_FILE_PATH)
+    def sycamore_output_folders(self) -> tuple[str, str]:
+        """ Path to the folders that contain the output of Sycamore. """
+        return path_join(self.data_output_folder_path, "by_survey"), \
+               path_join(self.data_output_folder_path, "summaries")
     
     ## Input paths
     
@@ -427,31 +425,3 @@ class SummaryStatisticDaily(TimestampedModel):
     @classmethod
     def oak_fields(cls):
         return [field.name for field in cls._meta.get_fields() if field.name.startswith("oak_")]
-
-
-# contains the output of data from runs of the Onnela Lab Forest Tree called Sycamore
-class SycamoreAnalysisOutput(TimestampedModel):
-    
-    SOURCE_DATA_FILE_PATH = "sycamore_output.csv"
-    
-    forest_task: ForestTask = ForeignKey(ForestTask, blank=True, null=True, on_delete=PROTECT, related_name="sycamore_analysis_output")
-    study: Study = ForeignKey(Study, on_delete=PROTECT, related_name="sycamore_analyses")
-    
-    obs_duration = FloatField(null=True)
-    obs_day = FloatField(null=True)
-    obs_night = FloatField(null=True)
-    home_duration = FloatField(null=True)
-    distance_traveled = FloatField(null=True)
-    distance_from_home = FloatField(null=True)
-    gyration_radius = FloatField(null=True)
-    distance_diameter = FloatField(null=True)
-    significant_location_count = FloatField(null=True)
-    significant_location_entropy = FloatField(null=True)
-    total_flight_time = FloatField(null=True)
-    flight_distance_average = FloatField(null=True)
-    flight_distance_stddev = FloatField(null=True)
-    flight_duration_average = FloatField(null=True)
-    flight_duration_stddev = FloatField(null=True)
-    pause_time = FloatField(null=True)
-    av_pause_duration = FloatField(null=True)
-    sd_pause_duration = FloatField(null=True)

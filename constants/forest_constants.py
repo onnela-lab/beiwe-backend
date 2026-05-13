@@ -205,28 +205,6 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
 }
 
 
-SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES = {  # this one is just .title().replace(" ", "_")
-    "Obs Duration": "obs_duration",
-    "Obs Day": "obs_day",
-    "Obs Night": "obs_night",
-    "Home Duration": "home_duration",
-    "Distance Traveled": "distance_traveled",
-    "Distance From Home": "distance_from_home",
-    "Gyration Radius": "gyration_radius",
-    "Distance Diameter": "distance_diameter",
-    "Significant Location Count": "significant_location_count",
-    "Significant Location Entropy": "significant_location_entropy",
-    "Total Flight Time": "total_flight_time",
-    "Flight Distance Average": "flight_distance_average",
-    "Flight Distance Stddev": "flight_distance_stddev",
-    "Flight Duration Average": "flight_duration_average",
-    "Flight Duration Stddev": "flight_duration_stddev",
-    "Pause Time": "pause_time",
-    "Av Pause Duration": "av_pause_duration",
-    "Sd Pause Duration": "sd_pause_duration",
-}
-
-
 # Metadata
 SUMMARY_METADATA_FIELD_NAMES = [
     "date",
@@ -326,31 +304,6 @@ WILLOW_FIELDS = [
 NICE_WILLOW_FIELDS = [
     name.replace("willow_", "").replace("_", " ").title() for name in WILLOW_FIELDS
 ]
-
-
-NEW_SYCAMORE_FIELDS = [
-    "obs_duration",
-    "obs_day",
-    "obs_night",
-    "home_duration",
-    "distance_traveled",
-    "distance_from_home",
-    "gyration_radius",
-    "distance_diameter",
-    "significant_location_count",
-    "significant_location_entropy",
-    "total_flight_time",
-    "flight_distance_average",
-    "flight_distance_stddev",
-    "flight_duration_average",
-    "flight_duration_stddev",
-    "pause_time",
-    "av_pause_duration",
-    "sd_pause_duration",
-    "physical_circadian_rhythm",
-    "physical_circadian_rhythm_stratified",
-]
-
 
 OAK_FIELDS = [
     # Oak, walking statistics

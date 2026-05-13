@@ -1,40 +1,40 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Generator
 
 from django.db.models import F
 from django.http import HttpResponse, StreamingHttpResponse
 
 from authentication.admin_authentication import ResearcherRequest
 from authentication.tableau_authentication import TableauRequest
-from constants.forest_constants import (SERIALIZABLE_FIELD_NAMES,
-    SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES)
+from constants.forest_constants import ForestTree, SERIALIZABLE_FIELD_NAMES
+from constants.s3_constants import NoSuchKeyException
 from database.models import Study, SummaryStatisticDaily
 from libs.django_forms.forms import ApiQueryForm
 from libs.efficient_paginator import EfficientQueryPaginator
+from libs.utils.forest_utils import (download_one_forest_task_runtime_output_file,
+    forest_task_runtime_output_file_handler)
 
 
+#
 ## Sycamore
+#
 
-def sycamore_statistics_data_handler(study: Study):
+def sycamore_statistics_data_handler(study: Study) -> HttpResponse:
     """ Sycamore is no longer a summary statistic but this is the best place to stick this code. """
-    # tldr: they are .title().replace("_", " "), and we don't need the dict anywhere else
-    
-    fieldnames = [*SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES.values(), "created_on"]
-    analyses = list(study.sycamore_analyses.order_by("created_on").values(*fieldnames))
-    
-    return sycamore_analysis_output_handler(analyses)
-    # return analyses
+    forest_task = study.forest_tasks.order_by("-created_on").first()
+    if not forest_task:
+        return HttpResponse(content="No forest tasks found for this study.", status=404)
+    return forest_task_runtime_output_file_handler(forest_task)
 
 
-def sycamore_analysis_output_handler(analyses: list[dict[str, float]]):
-    # provide the dict with the nice field names
-    fieldname_map = {v: k for k, v in SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES.items()}
-    fieldname_map["created_on"] = "Created On"
-    for analysis in analyses:
-        for name in fieldname_map:
-            analysis[fieldname_map[name]] = analysis.pop(name)
-    return analyses
+def sycamore_statistics_data_handler_all(study: Study) -> Generator[tuple[bytes, str], None, None]:
+    for forest_task in study.forest_tasks.order_by("created_on").filter(forest_tree=ForestTree.sycamore):
+        try:
+            yield download_one_forest_task_runtime_output_file(forest_task)
+        except NoSuchKeyException:
+            continue  # we don't even care if one cannot download, just skip
 
 
 ## Everything else
@@ -134,7 +134,7 @@ class SummaryStatisticsPaginator(EfficientQueryPaginator):
         # need it
         if  "patient_id" in self.field_names:
             self.mutate_query_results = self._mutate_query_results
-        
+    
     def _mutate_query_results(self, page: list[dict]):
         for values_dict in page:
             values_dict["participant_id"] = values_dict.pop("patient_id")

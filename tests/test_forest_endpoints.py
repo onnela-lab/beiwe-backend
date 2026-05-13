@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import date, datetime
 from unittest.mock import MagicMock, patch
@@ -5,17 +6,18 @@ from unittest.mock import MagicMock, patch
 from django.http import FileResponse
 
 from constants.celery_constants import ForestTaskStatus
-from constants.common_constants import EDT, UTC
+from constants.common_constants import DEV_TIME_FORMAT, EDT, UTC
 from constants.data_stream_constants import GPS
 from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED, ForestTree,
-    TREE_TO_TASK_NAME, JASMINE_FIELDS, OAK_FIELDS, WILLOW_FIELDS)
+    JASMINE_FIELDS, OAK_FIELDS, TREE_TO_TASK_NAME, WILLOW_FIELDS)
 from constants.testing_constants import EMPTY_ZIP, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ResearcherRole
 from database.models import ForestTask, SummaryStatisticDaily
+from libs.s3 import NoSuchKeyException
 from tests.common import ResearcherSessionTest
 from tests.helpers import CURRENT_TEST_DATE_BYTES, DummyThreadPool
 
-import logging
+
 logger = logging.getLogger("django.test")
 logi = logger.info
 logw = logger.warning
@@ -332,6 +334,28 @@ class TestForestDownloadOutput(ResearcherSessionTest):
     ENDPOINT_NAME = "forest_endpoints.download_output_data"
     REDIRECT_ENDPOINT_NAME = ResearcherSessionTest.IGNORE_THIS_ENDPOINT
     
+    @staticmethod
+    def get_expected_output_filename(task: ForestTask) -> str:
+        assert task.participant is not None, "Participant is only None for Sycamore tasks."
+        return "_".join([
+            task.participant.patient_id,
+            task.forest_tree,
+            str(task.data_date_start),
+            str(task.data_date_end),
+            "output",
+            task.created_on.strftime(DEV_TIME_FORMAT),
+        ]) + ".zip"
+    
+    @staticmethod
+    def get_sycamore_output_filename(task: ForestTask) -> str:
+        return "_".join([
+            "sycamore",
+            str(task.data_date_start),
+            str(task.data_date_end),
+            "output",
+            task.created_on.strftime(DEV_TIME_FORMAT),
+        ]) + ".zip"
+    
     def test_no_relation_cannot(self):
         self.smart_get_status_code(403, self.session_study.id, self.default_forest_task.external_id)
     
@@ -346,6 +370,11 @@ class TestForestDownloadOutput(ResearcherSessionTest):
         resp = self.smart_get_status_code(
             200, self.session_study.id, self.default_forest_task.external_id)
         self.assertEqual(resp.content, SIMPLE_FILE_CONTENTS)
+        self.assertEqual(resp["Content-Type"], "zip")
+        self.assertEqual(
+            resp["Content-Disposition"],
+            f"attachment; filename={self.get_expected_output_filename(self.default_forest_task)}",
+        )
     
     @patch("libs.utils.forest_utils.s3_retrieve")
     def test_site_admin_can(self, s3_retrieve: MagicMock):
@@ -354,6 +383,34 @@ class TestForestDownloadOutput(ResearcherSessionTest):
         resp = self.smart_get_status_code(
             200, self.session_study.id, self.default_forest_task.external_id)
         self.assertEqual(resp.content, SIMPLE_FILE_CONTENTS)
+    
+    @patch("libs.utils.forest_utils.s3_retrieve")
+    def test_sycamore_task_filename_omits_participant(self, s3_retrieve: MagicMock):
+        s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        self.default_forest_task.update(participant=None, forest_tree=ForestTree.sycamore)
+        self.default_forest_task.refresh_from_db()
+        resp = self.smart_get_status_code(
+            200, self.session_study.id, self.default_forest_task.external_id)
+        self.assertEqual(resp.content, SIMPLE_FILE_CONTENTS)
+        self.assertEqual(
+            resp["Content-Disposition"],
+            f"attachment; filename={self.get_sycamore_output_filename(self.default_forest_task)}",
+        )
+    
+    @patch("libs.utils.forest_utils.s3_retrieve")
+    def test_missing_report_file_returns_404(self, s3_retrieve: MagicMock):
+        s3_retrieve.side_effect = NoSuchKeyException("missing")
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        resp = self.smart_get_status_code(
+            404, self.session_study.id, self.default_forest_task.external_id)
+        self.assertEqual(resp.content, b"Unable to access report file.")
+    
+    def test_wrong_study_id(self):
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        other_study = self.generate_study("wrongone")
+        self.generate_study_relation(self.session_researcher, other_study, ResearcherRole.study_admin)
+        self.smart_get_status_code(404, other_study.id, self.default_forest_task.external_id)
     
     def test_404(self):
         self.set_session_study_relation(ResearcherRole.site_admin)

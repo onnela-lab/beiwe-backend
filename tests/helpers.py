@@ -23,8 +23,7 @@ from database.models import (AbsoluteSchedule, AppHeartbeats, ArchivedEvent, Chu
     DeviceSettings, DeviceStatusReportHistory, FileToProcess, ForestTask, generate_objectid_string,
     Intervention, InterventionDate, Participant, ParticipantActionLog, ParticipantDeletionEvent,
     ParticipantFCMHistory, ParticipantFieldValue, RelativeSchedule, Researcher, ScheduledEvent,
-    Study, StudyField, StudyRelation, SummaryStatisticDaily, Survey, SycamoreAnalysisOutput,
-    WeeklySchedule)
+    Study, StudyField, StudyRelation, SummaryStatisticDaily, Survey, WeeklySchedule)
 from libs.aes import encrypt_for_server
 from libs.schedules import repopulate_weekly_survey_schedule_events
 from libs.utils.compression import compress
@@ -820,17 +819,23 @@ class DatabaseHelperMixin:
     
     def generate_sycamore_forest_task(
         self,
+        study: Study = None,
         data_date_start: datetime = timezone.now(),    # generated once at import time. will differ,
         data_date_end: datetime = timezone.now(),      # slightly, but end is always after start.
         **kwargs
     ):
-        return self.generate_forest_task(
-            participant=None,
+        if study is None:
+            study = self.default_study
+        task = ForestTask(
+            the_study=study,
             data_date_start=data_date_start,
             data_date_end=data_date_end,
             forest_tree=ForestTree.sycamore,
+            status=ForestTaskStatus.queued,
             **kwargs
         )
+        task.save()
+        return task
     
     #
     ## ChunkRegistry
@@ -911,31 +916,6 @@ class DatabaseHelperMixin:
         stats = SummaryStatisticDaily(**params)
         stats.save()
         return stats
-    
-    def generate_sycamore_analysis_output(
-        self,
-        study: Study = None,
-        forest_task: ForestTask | None = None,
-        **kwargs,
-    ) -> SycamoreAnalysisOutput:
-        params = {
-            "study": study or self.session_study,
-            "forest_task": forest_task or self.generate_sycamore_forest_task()
-        }
-        for i, fieldname in enumerate([field.name for field in SycamoreAnalysisOutput._meta.fields]):
-            if fieldname not in ("id", "study", "forest_task", "created_on", "last_updated"):
-                params[fieldname] = float(i)  # type: ignore
-        params.update(kwargs)
-        analysis = SycamoreAnalysisOutput(**params)
-        analysis.save()
-        
-        if created_on := kwargs.get("created_on"):
-            SycamoreAnalysisOutput.objects.filter(pk=analysis.pk).update(
-                created_on=created_on, last_updated=created_on
-            )
-            analysis.refresh_from_db()
-        
-        return analysis
     
     #
     ## DeviceStatusReportHistory

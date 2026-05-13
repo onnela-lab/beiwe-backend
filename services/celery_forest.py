@@ -15,11 +15,11 @@ from django.utils import timezone
 from constants.celery_constants import FOREST_QUEUE, ForestTaskStatus
 from constants.common_constants import API_TIME_FORMAT, RUNNING_TESTS
 from constants.forest_constants import (CLEANUP_ERROR as CLN_ERR, FOREST_TREE_REQUIRED_DATA_STREAMS,
-    ForestTree, NO_DATA_ERROR, ROOT_FOREST_TASK_PATH, SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES,
-    TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS)
+    ForestTree, NO_DATA_ERROR, ROOT_FOREST_TASK_PATH, TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS)
+from constants.message_strings import SYCAMORE_TOO_OLD
 from constants.raw_data_constants import CHUNK_FIELDS
 from database.models import (ChunkRegistry, ForestTask, ForestVersion, QuerySet,
-    SummaryStatisticDaily, SycamoreAnalysisOutput)
+    SummaryStatisticDaily)
 from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.intervention_utils import intervention_survey_data, survey_history_export
@@ -102,20 +102,26 @@ def create_forest_celery_tasks():
 def celery_run_forest(forest_task_id):
     
     task = ForestTask.objects.get(id=forest_task_id)
-    
+    now = timezone.now()
     if task.status != ForestTaskStatus.queued:
         logw(f"Task {task.external_id} has status {task.status}, exiting.")
         return
     
     # handle old sycamore reruns by removing the participant at runtime
-    # if task.forest_tree == ForestTree.sycamore and task.participant is not None:
-    #     task.update_only(participant=None)  # fails validation
+    if task.forest_tree == ForestTree.sycamore and task.participant is not None:
+        task.update_only(
+            stacktrace=SYCAMORE_TOO_OLD,
+            status=ForestTaskStatus.cancelled,
+            process_start_time=now,
+            process_end_time=now,
+        )
+        return
     
     # there's a script that periodically updates the forest verison
     forest_version = ForestVersion.singleton()
     task.update_only(  # Set metadata on the task to running
         status=ForestTaskStatus.running,
-        process_start_time=timezone.now(),
+        process_start_time=now,
         forest_version=forest_version.package_version,
         forest_commit=forest_version.git_commit,
     )
@@ -227,7 +233,7 @@ def run_one_forest_tree(task: ForestTask):
 
 def read_in_output_data(task: ForestTask) -> bool:
     if task.forest_tree == ForestTree.sycamore:
-        return read_in_sycamore_output(task)
+        return check_any_sycamore_output(task)
     return read_in_summary_statistic_output(task)
 
 
@@ -295,18 +301,18 @@ def summary_statistic_csv_parse_and_consume(task: ForestTask, csv_reader: DictRe
     return rows_processed > 0
 
 
-def read_in_sycamore_output(task: ForestTask) -> bool:
-    """ Constructs a new SycamoreAnalysisOutput from sycamore output data. """
+def check_any_sycamore_output(task: ForestTask) -> bool:
+    """ checks for the folders in the sycamore_output """
+    s = task.tree_base_path  # strip off the task path to get nice paths for error messages
     
-    if not file_exists(task.sycamore_output_file):
-        loge(f"sycamore path does not exist: {task.sycamore_output_file}")
-        return False
+    missing_folders = [
+        folder.replace(s, "") for folder in task.sycamore_output_folders if not file_exists(folder)
+    ]
+    if missing_folders:
+        loge(msg:=f"sycamore paths do not exist: {", ".join(missing_folders)}")
+        raise NoSentryException(msg)
     
-    log(f"tree: {task.forest_tree}")
-    with open(task.sycamore_output_file) as f:
-        log(f"opened `{task.sycamore_output_file}`, parsing...")
-        # returns True if it doesn't crash
-        return sycamore_analysis_csv_parse_and_consume(task, DictReader(f))
+    return True
 
 
 def blow_up_on_invalid_columns(task: ForestTask, csv_reader: DictReader):
@@ -322,67 +328,6 @@ def blow_up_on_invalid_columns(task: ForestTask, csv_reader: DictReader):
         raise BadForestField("Bad Columns Encountered: " + ", ".join(bad_names))
 
 
-#
-## Sycamore (not a daily summary statistic) has it's own machinery
-#
-
-
-def sycamore_analysis_csv_parse_and_consume(task: ForestTask, csv_reader: DictReader):
-    # file is guranteed to exist at this point
-    sycamore_data = validate_sycamore_output(csv_reader)
-    
-    SycamoreAnalysisOutput(
-        study=task.the_study,
-        sycamore_task=task,
-        source_data_start=task.data_date_start,
-        source_data_end=task.data_date_end,
-        **sycamore_data
-    ).save()
-    
-    return True
-
-
-def validate_sycamore_output(csv_reader: DictReader) -> dict[str, float]:
-    ## Validate output - # file is guranteed to exist at this point
-    
-    all_rows = [row for row in csv_reader]
-    #! fixme: this is probably wrong
-    if len(all_rows) != 1:
-        raise Exception(f"Sycamore output should only have one row, found {len(all_rows)}")
-    
-    row_dict = all_rows[0]
-    
-    bad_fields = []
-    bad_values = {}
-    for k, v in row_dict.items():
-        if k not in SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES:
-            bad_fields.append(k)
-            loge(f"Unrecognized column name in sycamore output: {k}, skipping.")
-        
-        try:
-            _ = float(v)
-        except ValueError:
-            bad_values[k] = v
-            loge(f"Invalid value for column `{k}` in sycamore output: `{v}`")
-    
-    if bad_fields:
-        raise BadForestField(f"Found {len(bad_fields)} unrecognized columns in sycamore output: {bad_fields}")
-    
-    bad_fields = []
-    for k in SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES:
-        if k not in row_dict:
-            bad_fields.append(k)
-            loge(f"Expected column {k} not found in sycamore output.")
-    
-    if bad_fields:
-        raise BadForestField(f"Found {len(bad_fields)} missing columns in sycamore output: {bad_fields}")
-    
-    if bad_values:
-        raise BadForestField(f"Found {len(bad_values)} columns with invalid values in sycamore output: {bad_values}")
-    
-    return {SYCAMORE_OUTPUT_COLUMN_NAMES_TO_FIELD_NAMES[k]: float(v) for k, v in row_dict.items()}
-
-
 ## Post-Run code
 
 
@@ -396,7 +341,7 @@ def generate_report(task: ForestTask):
         f.write(f"Generated at {legible_time(now)}\n\n")
         
         f.write(f"Participant: {patient_id}\n")
-            
+        
         f.write(f"Study: `{study.name}`\n")
         f.write(f"Study id: {study.object_id}\n")
         
@@ -574,6 +519,7 @@ def compress_and_upload_raw_output(task: ForestTask):
     if task.forest_tree == ForestTree.sycamore:
         s3_path = f"{object_id}/{tree_name}/{task.external_id}/{base_file_name}.zip"
     else:
+        assert task.participant is not None
         base_file_name = f"{task.forest_tree}_{base_file_name}"
         s3_path = f"{object_id}/{task.participant.patient_id}/{base_file_name}.zip"
     

@@ -209,10 +209,8 @@ def get_summary_statistics(request: ApiStudyResearcherRequest, study_id: str = N
 @require_POST
 @api_study_credential_check()
 def get_sycamore_analysis_output(request: ApiStudyResearcherRequest, study_id: str = None):
-    """Return the Sycamore analysis rows for the authenticated study ordered by creation time."""
-    analyses = sycamore_statistics_data_handler(request.api_study)
-    options = orjson.OPT_OMIT_MICROSECONDS | orjson.OPT_UTC_Z
-    return HttpResponse(orjson.dumps(analyses, option=options), content_type="application/json")
+    """Return the most recent Sycamore runtime output data."""
+    return sycamore_statistics_data_handler(request.api_study)
 
 
 @require_GET

@@ -1,7 +1,6 @@
 import csv
 import pickle
 from datetime import date, datetime, timedelta, tzinfo
-from io import StringIO
 
 import orjson
 from django.contrib import messages
@@ -26,12 +25,11 @@ from database.models import (ChunkRegistry, ForestTask, ForestVersion, Participa
     SummaryStatisticDaily)
 from libs.django_forms.forms import CreateTasksForm
 from libs.efficient_paginator import EfficientQueryPaginator
-from libs.endpoint_helpers.summary_statistic_helpers import (SummaryStatisticsPaginator,
-    sycamore_statistics_data_handler)
+from libs.endpoint_helpers.summary_statistic_helpers import SummaryStatisticsPaginator
 from libs.s3 import NoSuchKeyException
 from libs.streaming_io import CSVBuffer
 from libs.streaming_zip import ZipGenerator
-from libs.utils.forest_utils import download_output_file
+from libs.utils.forest_utils import forest_task_runtime_output_file_handler
 from libs.utils.http_utils import easy_url
 
 
@@ -338,37 +336,12 @@ def download_task_data(request: ResearcherRequest, study_id: int, forest_task_ex
 def download_output_data(request: ResearcherRequest, study_id: int, forest_task_external_id: str):
     try:
         forest_task: ForestTask = ForestTask.objects.get(
-            external_id=forest_task_external_id, participant__study_id=study_id
+            external_id=forest_task_external_id, the_study=study_id
         )
-        participant = forest_task.participant
     except (ForestTask.DoesNotExist, ValidationError):
         return HttpResponse(content="", status=404)
     
-    name_bits = [
-        *([participant.patient_id] if participant else []),
-        forest_task.forest_tree,
-        str(forest_task.data_date_start),
-        str(forest_task.data_date_end),
-        "output",
-        forest_task.created_on.strftime(DEV_TIME_FORMAT),
-    ]
-    
-    filename = "_".join(name_bits) + ".zip"
-    
-    try:
-        file_content = download_output_file(forest_task)
-    except NoSuchKeyException:
-        # limit the error scope we are catching here, we want those errors reported.
-        return HttpResponse(content="Unable to find report file. ¯\\_(ツ)_/¯", status=404)
-    
-    # for some reason FileResponse doesn't work when handed a bytes object, so we are forcing the
-    # headers for attachment and filename in a custom HttpResponse. Baffling. I guess FileResponse
-    # is really only for file-like objects.
-    return HttpResponse(
-        file_content,
-        content_type="zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
+    return forest_task_runtime_output_file_handler(forest_task)
 
 
 @require_GET
@@ -384,7 +357,7 @@ def download_participant_tree_data(request: ResearcherRequest, study_id: int, fo
         return HttpResponse(content="", status=404)
     
     if forest_task.forest_tree == ForestTree.sycamore:
-        return export_sycamore_data(forest_task)
+        return HttpResponse(content="Sycamore output is not available for download in this way.", status=400)
     else:
         return export_summary_statistics_data(forest_task, participant, study_id)
 
@@ -424,27 +397,6 @@ def export_summary_statistics_data(
         content_type="text/csv",
         as_attachment=True,
         filename=f"{participant.patient_id}_{forest_task.forest_tree}_data_{contextually_accurate_date}.csv",
-    )
-    f.set_headers(None)  # type: ignore - this is just a thing you have to do, its a django bug.
-    return f
-
-
-def export_sycamore_data(forest_task: ForestTask):
-    analyses = sycamore_statistics_data_handler(forest_task.the_study)
-    contextually_accurate_date = forest_task.the_study.now().date()
-    
-    if not analyses:
-        return HttpResponse(content="No matching data found.", status=404)
-    si = StringIO()
-    writer = csv.DictWriter(si, fieldnames=analyses[0].keys())
-    writer.writeheader()
-    writer.writerows(analyses)
-    
-    f = FileResponse(
-        si.read(),
-        content_type="text/csv",
-        as_attachment=True,
-        filename=f"Sycamore_data_{forest_task.the_study.object_id}_{contextually_accurate_date}.csv",
     )
     f.set_headers(None)  # type: ignore - this is just a thing you have to do, its a django bug.
     return f

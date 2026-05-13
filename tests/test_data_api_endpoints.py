@@ -1,5 +1,6 @@
 # trunk-ignore-all(ruff/B018,bandit/B105)
 from datetime import date, datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import orjson
 import time_machine
@@ -9,16 +10,16 @@ from django.utils import timezone
 
 from authentication.tableau_authentication import (check_tableau_permissions,
     TableauAuthenticationFailed, TableauPermissionDenied, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
-from constants.common_constants import EST
-from constants.forest_constants import ForestTree
+from constants.common_constants import DEV_TIME_FORMAT, EST
 from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MESSAGE
 from constants.schedule_constants import ScheduleTypes
-from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST
+from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ANDROID_API, ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
 from database.models import (ApiKey, AppHeartbeats, AppVersionHistory, ArchivedEvent,
-    DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily, Survey,
-    SurveyArchive, SycamoreAnalysisOutput, UploadTracking)
+    DataProcessingStatus, ForestTask, Study, StudyRelation, SummaryStatisticDaily, Survey,
+    SurveyArchive, UploadTracking)
+from libs.s3 import NoSuchKeyException
 from libs.utils.compression import compress
 from tests.common import DataApiTest, SmartRequestsTestCase, TableauAPITest
 from tests.helpers import compare_dictionaries, ParticipantTableHelperMixin
@@ -1032,14 +1033,14 @@ class TestGetSycamoreAnalysisOutput(DataApiTest):
     ENDPOINT_NAME = "data_api_endpoints.get_sycamore_analysis_output"
     
     @staticmethod
-    def as_expected_dict(analysis: SycamoreAnalysisOutput) -> dict:
-        expected = {
-            field.name.title().replace("_", " "): getattr(analysis, field.name)
-            for field in SycamoreAnalysisOutput._meta.fields
-            if field.name not in ("id", "study", "forest_task", "last_updated")
-        }
-        expected["Created On"] = expected["Created On"].strftime("%Y-%m-%dT%H:%M:%S") + "Z"
-        return expected
+    def get_output_filename(task: ForestTask):
+        return "_".join([
+            "sycamore",
+            str(task.data_date_start),
+            str(task.data_date_end),
+            "output",
+            task.created_on.strftime(DEV_TIME_FORMAT),
+        ]) + ".zip"
     
     def test_no_study_param(self):
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -1047,36 +1048,65 @@ class TestGetSycamoreAnalysisOutput(DataApiTest):
     
     def test_no_data(self):
         self.set_session_study_relation(ResearcherRole.researcher)
-        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
-        self.assertEqual(resp.content, b"[]")
+        resp = self.smart_post_status_code(404, study_id=self.session_study.object_id)
+        self.assertEqual(resp.content, b"No forest tasks found for this study.")
     
-    def test_sycamore_analysis_output_ordered_and_filtered(self):
+    def test_no_relation(self):
+        self.assertFalse(StudyRelation.objects.exists())
+        self.smart_post_status_code(403, study_id=self.session_study.object_id)
+        self.assertFalse(StudyRelation.objects.exists())
+    
+    @patch("libs.utils.forest_utils.s3_retrieve")
+    def test_returns_latest_forest_task_output(self, s3_retrieve: MagicMock):
+        s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
         self.set_session_study_relation(ResearcherRole.researcher)
-        first_task = self.generate_forest_task(forest_tree=ForestTree.sycamore)
-        second_task = self.generate_forest_task(forest_tree=ForestTree.sycamore)
         
-        first = self.generate_sycamore_analysis_output(
-            created_on=datetime(2022, 1, 1, 0, 0, tzinfo=UTC),
-            forest_task=first_task,
-            obs_duration=11.0,
-        )
-        second = self.generate_sycamore_analysis_output(
-            created_on=datetime(2022, 1, 2, 0, 0, tzinfo=UTC),
-            forest_task=second_task,
-            obs_duration=22.0,
-        )
-        
-        other_study = self.generate_study("other_study")
-        self.generate_sycamore_analysis_output(
-            study=other_study,
-            created_on=datetime(2022, 1, 3, 0, 0, tzinfo=UTC),
-            obs_duration=33.0,
-        )
+        older_task = self.generate_sycamore_forest_task()
+        newer_task = self.generate_sycamore_forest_task()
+        older_task.update_only(created_on=datetime(2022, 1, 1, 0, 0, tzinfo=UTC))
+        newer_task.update_only(created_on=datetime(2022, 1, 2, 0, 0, tzinfo=UTC))
+        newer_task.refresh_from_db()
+        older_task.refresh_from_db()
         
         resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
-        payload = orjson.loads(resp.content)
+        self.assertEqual(resp.content, SIMPLE_FILE_CONTENTS)
+        self.assertEqual(resp["Content-Type"], "zip")
+        assert datetime(2022, 1, 2).strftime(DEV_TIME_FORMAT) in self.get_output_filename(newer_task)
+        self.assertEqual(
+            resp["Content-Disposition"],
+            f"attachment; filename={self.get_output_filename(newer_task)}",
+        )
+        # and assert called once
+        s3_retrieve.assert_called_once_with(newer_task.output_zip_s3_path, self.session_study, raw_path=True)
+    
+    @patch("libs.utils.forest_utils.s3_retrieve")
+    def test_site_admin_can(self, s3_retrieve: MagicMock):
+        s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        task = self.generate_sycamore_forest_task()
+        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
+        self.assertEqual(resp.content, SIMPLE_FILE_CONTENTS)
+        self.assertEqual(
+            resp["Content-Disposition"],
+            f"attachment; filename={self.get_output_filename(task)}",
+        )
+    
+    @patch("libs.utils.forest_utils.s3_retrieve")
+    def test_study_admin_can(self, s3_retrieve: MagicMock):
+        s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        self.generate_sycamore_forest_task()
+        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
+        self.assertEqual(resp.content, SIMPLE_FILE_CONTENTS)
+    
+    @patch("libs.utils.forest_utils.s3_retrieve")
+    def test_missing_report_file_returns_404(self, s3_retrieve: MagicMock):
+        s3_retrieve.side_effect = NoSuchKeyException("missing")
+        self.set_session_study_relation(ResearcherRole.researcher)
+        self.generate_sycamore_forest_task()
         
-        self.assertEqual(payload, [self.as_expected_dict(first), self.as_expected_dict(second)])
+        resp = self.smart_post_status_code(404, study_id=self.session_study.object_id)
+        self.assertEqual(resp.content, b"Unable to access report file.")
 
 
 class TestGetParticipantDeviceStatusHistory(DataApiTest):

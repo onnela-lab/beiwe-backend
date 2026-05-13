@@ -6,11 +6,13 @@ import pickle
 from posixpath import join as path_join
 from typing import TYPE_CHECKING
 
-from constants.common_constants import BEIWE_PROJECT_ROOT
+from django.http.response import HttpResponse
+
+from constants.common_constants import BEIWE_PROJECT_ROOT, DEV_TIME_FORMAT
 from constants.forest_constants import (PARAMETER_ALL_BV_SET, PARAMETER_ALL_MEMORY_DICT,
     PARAMETER_CONFIG_PATH, PARAMETER_HISTORY_PATH, PARAMETER_INTERVENTIONS_FILEPATH,
     SYC_PARAMETER_USERS)
-from libs.s3 import s3_retrieve, s3_upload
+from libs.s3 import NoSuchKeyException, s3_retrieve, s3_upload
 
 
 if TYPE_CHECKING:
@@ -24,8 +26,35 @@ def save_output_file(task: ForestTask, output_file_bytes):
     s3_upload(task.output_zip_s3_path, output_file_bytes, task.the_study, raw_path=True)
 
 
-def download_output_file(task: ForestTask) -> bytes:
-    return s3_retrieve(task.output_zip_s3_path, task.the_study, raw_path=True)
+def forest_task_runtime_output_file_handler(forest_task: ForestTask) -> HttpResponse:
+    try:
+        file_content, filename = download_one_forest_task_runtime_output_file(forest_task)
+    except NoSuchKeyException:
+        # limit the error scope we are catching here, we want those errors reported.
+        return HttpResponse(content="Unable to access report file.", status=404)
+    
+    # for some reason FileResponse doesn't work when handed a bytes object, so we are forcing the
+    # headers for attachment and filename in a custom HttpResponse. Baffling. I guess FileResponse
+    # is really only for file-like objects.
+    return HttpResponse(
+        file_content,
+        content_type="zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def download_one_forest_task_runtime_output_file(forest_task: ForestTask) -> tuple[bytes, str]:
+    name_bits = [
+        *([forest_task.participant.patient_id] if forest_task.participant else []),
+        forest_task.forest_tree,
+        str(forest_task.data_date_start),
+        str(forest_task.data_date_end),
+        "output",
+        forest_task.created_on.strftime(DEV_TIME_FORMAT),
+    ]
+    return s3_retrieve(forest_task.output_zip_s3_path, forest_task.the_study, raw_path=True), \
+           "_".join(name_bits) + ".zip"
+
 
 ## obscure parameter management
 
