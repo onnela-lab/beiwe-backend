@@ -306,6 +306,13 @@ LOGGING: dict[str, Any] = {
     },
 }
 
+if not DEBUG:
+    LOGGING["loggers"]["django.security.DisallowedHost"] = {
+        "handlers": ["null"],
+        # "level": "ERROR",
+        "propagate": False,
+    }
+
 
 if DEBUG or RUNNING_TESTS:
     # LOGGING["loggers"]["root"] = {      # change the root logger in debug / tests mode
