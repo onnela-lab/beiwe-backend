@@ -101,7 +101,7 @@ class TestFileConsumption(CommonTestCase):
             "num_mis_call": 0,                       # IntegerField
             "num_mis_caller": 0,                     # IntegerField
             "num_uniq_individuals_call_or_text": 0,  # IntegerField
-            "mean_resposiveness_call": 0.0,          # FloatField
+            "mean_responsiveness_call": 0.0,         # FloatField
             "call_reciprocity": 0.0,                 # FloatField
         }
     

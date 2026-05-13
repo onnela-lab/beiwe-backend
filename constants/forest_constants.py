@@ -191,7 +191,7 @@ TREE_COLUMN_NAMES_TO_SUMMARY_STATISTICS = {
     "total_mins_out_call": "willow_outgoing_call_duration",
     "num_mis_call": "willow_missed_call_count",
     "num_mis_caller": "willow_missed_callers",
-    "mean_resposiveness_call": "willow_mean_responsiveness_call",
+    "mean_responsiveness_call": "willow_mean_responsiveness_call",
     "mean_responsiveness_text": "willow_mean_responsiveness_text",
     "call_reciprocity": "willow_call_reciprocity",
     
