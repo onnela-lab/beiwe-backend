@@ -25,3 +25,4 @@
 # restart supervisord once a day at 4:28am (utc?)
 29 4 * * *: supervisorctl restart all
 28 4 * * WED: export DEBIAN_FRONTEND=noninteractive; apt update; apt full-upgrade -yq; shutdown -r
+@daily : daily; journalctl --vacuum-time=1w

@@ -23,6 +23,5 @@
 
 # see notes in cron_manager.txt
 
-@daily : daily; journalctl --vacuum-time=1w
 @daily : daily; cd $PROJECT_PATH; chronic /home/ubuntu/.pyenv/versions/beiwe/bin/python run_script.py upload_logs.py
 @daily : daily; apt autoclean

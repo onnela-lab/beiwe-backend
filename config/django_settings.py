@@ -306,6 +306,8 @@ LOGGING: dict[str, Any] = {
     },
 }
 
+# stop logging the stack trace (on servers) for disallowed host errors, which occur on the
+# trillions of script-kiddie scraping the internet attacks that we always get.
 if not DEBUG:
     LOGGING["loggers"]["django.security.DisallowedHost"] = {
         "handlers": ["null"],
