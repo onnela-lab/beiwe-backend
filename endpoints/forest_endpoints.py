@@ -194,10 +194,11 @@ def task_log(request: ResearcherRequest, study_id=None):
         task["patient_id"] = task.pop("participant__patient_id") or "Study-wide"
         
         # rename and transform
-        task["has_output_tree_data"] = task["forest_output_exists"]
-        task["download_participant_tree_data_url"] = easy_url(
-            "forest_endpoints.download_participant_tree_data", study_id=study_id, forest_task_external_id=extern_id,
-        )
+        task["show_tree_data_download_link"] = task["forest_output_exists"] and task["forest_tree"] != ForestTree.sycamore
+        if task["show_tree_data_download_link"]:
+            task["download_participant_tree_data_url"] = easy_url(
+                "forest_endpoints.download_participant_tree_data", study_id=study_id, forest_task_external_id=extern_id,
+            )
         task["forest_tree_display"] = task.pop("forest_tree").title()
         task["created_on_display"] = task.pop("created_on").astimezone(tz).strftime(DEV_TIME_FORMAT).split(" ", 1)
         task["forest_output_exists_display"] = yes_no_unknown(task["forest_output_exists"])

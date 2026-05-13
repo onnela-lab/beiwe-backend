@@ -1071,7 +1071,7 @@ class TestGetSycamoreAnalysisOutput(DataApiTest):
         resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
         self.assertEqual(resp.content, SIMPLE_FILE_CONTENTS)
         self.assertEqual(resp["Content-Type"], "zip")
-        assert datetime(2022, 1, 2).strftime(DEV_TIME_FORMAT) in self.get_output_filename(newer_task)
+        assert datetime(2022, 1, 2, tzinfo=UTC).strftime(DEV_TIME_FORMAT) in self.get_output_filename(newer_task)
         self.assertEqual(
             resp["Content-Disposition"],
             f"attachment; filename={self.get_output_filename(newer_task)}",

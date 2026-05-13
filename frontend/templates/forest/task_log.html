@@ -164,7 +164,7 @@
               </a>
             </div>
 
-            <div ng-if="log.has_output_tree_data">
+            <div ng-if="log.show_tree_data_download_link">
               <a
                 class="btn btn-link"
                 ng-href="{% raw %}{{ log.download_participant_tree_data_url|trustAsResourceUrl }}{% endraw %}"
