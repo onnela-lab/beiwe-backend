@@ -19,18 +19,38 @@
 
 <script type="text/javascript">
 $(document).ready(function() {
-  $('#start_datepicker').datepicker({
+  // old school jquery
+  const startDateField = $('#start_date');
+  const endDateField = $('#end_date');
+  const patient_selector = $('#patient_selector');
+  const forestTaskSubmitButton = $('#forest_task_submit_button');
+  const treesCheckboxes = $('input[name="trees"]');
+
+  function updateForestTaskSubmitButtonState() {
+    const datesArePopulated = startDateField.val().trim() && endDateField.val().trim() && 
+    patient_selector.val() && patient_selector.val().length > 0 && treesCheckboxes.is(':checked');
+    forestTaskSubmitButton.prop('disabled', !datesArePopulated);
+  }
+
+  startDateField.datepicker({
     format: "yyyy-mm-dd",
     startDate: "{{ start_date }}",
     endDate: "{{ end_date }}",
     defaultViewDate: "{{ start_date }}",
   })
-  $('#end_datepicker').datepicker({
+  endDateField.datepicker({
     format: "yyyy-mm-dd",
     startDate: "{{ start_date }}",
     endDate: "{{ end_date }}",
     defaultViewDate: "{{ end_date }}",
   })
+
+  startDateField.on('input change', updateForestTaskSubmitButtonState);
+  endDateField.on('input change', updateForestTaskSubmitButtonState);
+  $('#start_datepicker, #end_datepicker').on('changeDate', updateForestTaskSubmitButtonState);
+  patient_selector.on('change', updateForestTaskSubmitButtonState);
+  treesCheckboxes.on('change', updateForestTaskSubmitButtonState);
+  updateForestTaskSubmitButtonState();
 });
 </script>
 {% endblock %}
@@ -73,6 +93,7 @@ $(document).ready(function() {
     <div class="row">  
       <div class="col-sm-12">
         <h2 class="h4">Queue Participant Trees</h2>
+        <span class="italic"> all fields are required</span>
         <form
           action=""
           method="POST"
@@ -117,7 +138,6 @@ $(document).ready(function() {
                       type="checkbox"
                       value="{{ tree[0] }}"
                       aria-label="checkbox for the {{ tree[0] }} Forest Tree analysis"
-                      required
                     > {{ tree[1] }}
 
                   </fieldset>
@@ -186,6 +206,7 @@ $(document).ready(function() {
                 value="Create Forest Tasks"
                 aria-label="click to create forest tasks"
                 id="forest_task_submit_button"
+                disabled
               />
             </div>
           </div>
