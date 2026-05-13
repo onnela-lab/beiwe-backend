@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING
 
 from constants.common_constants import BEIWE_PROJECT_ROOT
 from constants.forest_constants import (PARAMETER_ALL_BV_SET, PARAMETER_ALL_MEMORY_DICT,
-    PARAMETER_CONFIG_PATH, PARAMETER_INTERVENTIONS_FILEPATH, PARAMETER_HISTORY_PATH,
+    PARAMETER_CONFIG_PATH, PARAMETER_HISTORY_PATH, PARAMETER_INTERVENTIONS_FILEPATH,
     SYC_PARAMETER_USERS)
-from libs.s3 import s3_retrieve
+from libs.s3 import s3_retrieve, s3_upload
 
 
 if TYPE_CHECKING:
@@ -20,11 +20,8 @@ if TYPE_CHECKING:
 
 def save_output_file(task: ForestTask, output_file_bytes):
     """ Saves the output zip file to a per-participant file s3 on s3. """
-    from libs.s3 import s3_upload
-
     # output_zip_s3_path includes the study id, so we can use raw path
     s3_upload(task.output_zip_s3_path, output_file_bytes, task.the_study, raw_path=True)
-    task.save(update_fields=["output_zip_s3_path"])  # its already committed to the database
 
 
 def download_output_file(task: ForestTask) -> bytes:
