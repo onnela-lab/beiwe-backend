@@ -26,7 +26,6 @@ from database.models import (ChunkRegistry, ForestTask, ForestVersion, Participa
 from libs.django_forms.forms import CreateTasksForm
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.endpoint_helpers.summary_statistic_helpers import SummaryStatisticsPaginator
-from libs.s3 import NoSuchKeyException
 from libs.streaming_io import CSVBuffer
 from libs.streaming_zip import ZipGenerator
 from libs.utils.forest_utils import forest_task_runtime_output_file_handler

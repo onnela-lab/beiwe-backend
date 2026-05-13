@@ -18,20 +18,21 @@
 />
 
 <script type="text/javascript">
-    $(document).ready(function() {
-    /* Set up Date/Time pickers */
-      $('#start_datepicker').datepicker({
-          format: "yyyy-m-d",
-          startDate: "{{ start_date }}",
-          endDate: "{{ end_date }}"
-      });
-      $('#end_datepicker').datepicker({
-          format: "yyyy-m-d",
-          startDate: "{{ start_date }}",
-          endDate: "{{ end_date }}"
-      });
-    });
-  </script>
+$(document).ready(function() {
+  $('#start_datepicker').datepicker({
+    format: "yyyy-mm-dd",
+    startDate: "{{ start_date }}",
+    endDate: "{{ end_date }}",
+    defaultViewDate: "{{ start_date }}",
+  })
+  $('#end_datepicker').datepicker({
+    format: "yyyy-mm-dd",
+    startDate: "{{ start_date }}",
+    endDate: "{{ end_date }}",
+    defaultViewDate: "{{ end_date }}",
+  })
+});
+</script>
 {% endblock %}
 
 {% block title %}Create Forest Tasks{% endblock %}
