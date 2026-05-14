@@ -23,7 +23,7 @@ from database.models import (ChunkRegistry, ForestTask, ForestVersion, QuerySet,
 from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.intervention_utils import intervention_survey_data, survey_history_export
-from libs.s3 import s3_retrieve
+from libs.s3 import s3_retrieve_no_decompress
 from libs.sentry import SentryUtils
 from libs.utils.date_utils import get_timezone_shortcode, legible_time
 from libs.utils.file_name_utils import determine_base_file_name
@@ -392,6 +392,10 @@ def generate_report(task: ForestTask):
 
 def clean_up_files(task: ForestTask):
     """ Delete temporary input and output files from this Forest run. """
+    # uncomment to get a list of files that were present at the end of the run (may need to install `tree`)
+    # from subprocess import run
+    # run(["tree", task.root_path_for_task])
+    
     for i in range(10):
         try:
             shutil.rmtree(task.root_path_for_task)
@@ -460,13 +464,14 @@ def batch_download_and_write_file(task_and_chunk_tuple: tuple[ForestTask, dict])
     
     # weird unpack of variables, do s3_retrieve.
     forest_task, chunk = task_and_chunk_tuple
-    contents = s3_retrieve(chunk["chunk_path"], chunk["study__object_id"], raw_path=True)
+    contents = s3_retrieve_no_decompress(chunk["chunk_path"], chunk["study__object_id"], raw_path=True)
+    
     # file ops, sometimes we have to add folder structure (surveys)
-    file_name = path_join(forest_task.data_input_path, determine_base_file_name(chunk))
+    file_name = path_join(forest_task.data_input_path, determine_base_file_name(chunk)) + ".zst"
     makedirs(dirname(file_name), exist_ok=True)
     
     try:
-        with open(file_name, "xb") as f:
+        with open(file_name, "wb") as f:
             f.write(contents)
     except FileExistsError:
         # we used to track this, it happens when someone uploads duplicate files, which we handle
