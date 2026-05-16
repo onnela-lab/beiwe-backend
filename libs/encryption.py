@@ -1,17 +1,13 @@
-# trunk-ignore-all(ruff/B904)
 import json
 from typing import Counter
 
 from Cryptodome.Cipher import AES
 from Cryptodome.PublicKey import RSA
-from django.forms import ValidationError
 
 from constants.security_constants import URLSAFE_BASE64_CHARACTERS
-from constants.user_constants import ANDROID_API, IOS_API
 from database.models import EncryptionErrorMetadata, Participant
 from libs.sentry import send_sentry_warning
-from libs.utils.base64_utils import (Base64LengthException, decode_base64, encode_base64,
-    PaddingException)
+from libs.utils.base64_utils import Base64LengthException, decode_base64, PaddingException
 
 
 class DecryptionKeyInvalidError(Exception): pass

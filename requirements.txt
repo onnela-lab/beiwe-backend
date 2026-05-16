@@ -8,21 +8,23 @@ amqp==5.3.1
     # via kombu
 asgiref==3.11.1
     # via django
+ast-serialize==0.4.0
+    # via mypy
 asttokens==3.0.1
     # via stack-data
 audioread==3.1.0
     # via librosa
-backports-zstd==1.4.0
+backports-zstd==1.5.0
     # via pyzstd
-beiwe-forest @ git+https://git@github.com/onnela-lab/forest@fe19564e51c0c3ad8f91d6f9e68801bce66a285e
+beiwe-forest @ git+https://git@github.com/onnela-lab/forest@9bdeee682b19a7206aadbe4d8abe65a626f2319b
     # via -r requirements.in
 billiard==4.2.4
     # via celery
 bleach==6.3.0
     # via -r requirements.in
-boto3==1.43.4
+boto3==1.43.9
     # via -r requirements.in
-botocore==1.43.4
+botocore==1.43.9
     # via
     #   boto3
     #   s3transfer
@@ -70,9 +72,9 @@ django==5.2.14
     #   django-stubs-ext
 django-extensions==4.1
     # via -r requirements.in
-django-stubs[1-15-0,1.15.0]==6.0.3
+django-stubs==6.0.4
     # via -r requirements.in
-django-stubs-ext==6.0.3
+django-stubs-ext==6.0.4
     # via django-stubs
 executing==2.2.1
     # via stack-data
@@ -87,9 +89,9 @@ google-api-core[grpc]==2.30.3
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.195.0
+google-api-python-client==2.196.0
     # via firebase-admin
-google-auth==2.50.0
+google-auth==2.53.0
     # via
     #   google-api-core
     #   google-api-python-client
@@ -97,9 +99,9 @@ google-auth==2.50.0
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-auth-httplib2==0.3.1
+google-auth-httplib2==0.4.0
     # via google-api-python-client
-google-cloud-core==2.5.1
+google-cloud-core==2.6.0
     # via
     #   google-cloud-firestore
     #   google-cloud-storage
@@ -111,9 +113,9 @@ google-crc32c==1.8.0
     # via
     #   google-cloud-storage
     #   google-resumable-media
-google-resumable-media==2.8.2
+google-resumable-media==2.9.0
     # via google-cloud-storage
-googleapis-common-protos==1.74.0
+googleapis-common-protos==1.75.0
     # via
     #   google-api-core
     #   grpcio-status
@@ -134,7 +136,7 @@ httplib2==0.31.2
     # via
     #   google-api-python-client
     #   google-auth-httplib2
-idna==3.13
+idna==3.15
     # via requests
 ipython==9.13.0
     # via -r requirements.in
@@ -158,17 +160,19 @@ lazy-loader==0.5
     # via librosa
 librosa==0.11.0
     # via beiwe-forest
+librt==0.11.0
+    # via mypy
 llvmlite==0.47.0
     # via numba
 markupsafe==3.0.3
     # via jinja2
-matplotlib-inline==0.2.1
+matplotlib-inline==0.2.2
     # via ipython
 msgpack==1.1.2
     # via
     #   cachecontrol
     #   librosa
-mypy==1.15.0
+mypy==2.1.0
     # via -r requirements.in
 mypy-extensions==1.1.0
     # via mypy
@@ -176,7 +180,7 @@ numba==0.65.1
     # via
     #   librosa
     #   ssqueezepy
-numpy==2.4.4
+numpy==2.4.5
     # via
     #   beiwe-forest
     #   librosa
@@ -191,7 +195,7 @@ numpy==2.4.4
     #   timezonefinder
 openrouteservice==2.3.3
     # via beiwe-forest
-orjson==3.11.8
+orjson==3.11.9
     # via -r requirements.in
 packaging==26.2
     # via
@@ -199,10 +203,12 @@ packaging==26.2
     #   kombu
     #   lazy-loader
     #   pooch
-pandas==3.0.2
+pandas==3.0.3
     # via beiwe-forest
 parso==0.8.7
     # via jedi
+pathspec==1.1.1
+    # via mypy
 pexpect==4.9.0
     # via ipython
 platformdirs==4.9.6
@@ -213,7 +219,7 @@ prompt-toolkit==3.0.52
     # via
     #   click-repl
     #   ipython
-proto-plus==1.27.2
+proto-plus==1.28.0
     # via
     #   google-api-core
     #   google-cloud-firestore
@@ -270,7 +276,7 @@ ratelimit==2.2.1
     # via beiwe-forest
 rcssmin==1.2.2
     # via -r requirements.in
-requests==2.33.1
+requests==2.34.2
     # via
     #   beiwe-forest
     #   cachecontrol
@@ -288,7 +294,7 @@ scipy==1.17.1
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.59.0
+sentry-sdk==2.60.0
     # via cronutils
 shapely==2.1.2
     # via beiwe-forest
@@ -308,11 +314,11 @@ threadpoolctl==3.6.0
     # via scikit-learn
 timezonefinder==8.2.4
     # via beiwe-forest
-traitlets==5.14.3
+traitlets==5.15.0
     # via
     #   ipython
     #   matplotlib-inline
-types-pyyaml==6.0.12.20260408
+types-pyyaml==6.0.12.20260510
     # via django-stubs
 typing-extensions==4.15.0
     # via
@@ -329,7 +335,7 @@ tzdata==2026.2
     #   kombu
 uritemplate==4.2.0
     # via google-api-python-client
-urllib3==2.6.3
+urllib3==2.7.0
     # via
     #   botocore
     #   requests
@@ -343,3 +349,5 @@ wcwidth==0.7.0
     # via prompt-toolkit
 webencodings==0.5.1
     # via bleach
+zstandard==0.25.0
+    # via beiwe-forest

@@ -5,8 +5,8 @@ firebase-admin==5.4.0
 Jinja2
 orjson
 
-mypy==1.15.0
-django-stubs[1.15.0]
+mypy>=1.15.0
+django-stubs>=1.15.0
 pyzstd
 
 # django-extensions for some really nice management commands and terminal helpers.
@@ -26,7 +26,7 @@ pypng
 pyotp
 
 # This version of pycryptodome results in "from Cryptodome import ..." imports.
-pycryptodomex==3.23.0
+pycryptodomex>=3.23.0
 
 # error reporting
 cronutils==0.4.2
@@ -52,7 +52,7 @@ boto3
 #! YOU MUST manually update the following line to the correct git hash. it must be 40 characters.
 # current_forest_git_hash: fe19564e51c0c3ad8f91d6f9e68801bce66a285e
 # manual override prefix is git+https://git@github.com/onnela-lab/forest@haaash_goooeees_heeerreee
-git+https://git@github.com/onnela-lab/forest@fe19564e51c0c3ad8f91d6f9e68801bce66a285e
+git+https://git@github.com/onnela-lab/forest@9bdeee682b19a7206aadbe4d8abe65a626f2319b
 # beiwe-forest==1.0
 
 celery==5.4.0
