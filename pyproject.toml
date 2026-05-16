@@ -131,10 +131,40 @@ indent-style = "space"  # use spaces for indentation
 line-ending = "lf"  # use \n for line endings
 
 [tool.ruff.lint.pycodestyle]
-max-line-length = 120  # maximum line length
+max-line-length = 120
 
 [tool.ruff.lint]
 future-annotations = true
+select = [
+  "A",     # flake8-builtins: shadowing builtins (id, type, list, etc.)
+  "C4",    # flake8-comprehensions: unnecessary list/dict/set comprehensions
+  "DTZ",   # flake8-datetimez: naive datetime usage (missing timezone)
+  "E",     # pycodestyle: style errors
+  "F",     # pyflakes: undefined names, unused imports, etc.
+  "G",     # flake8-logging-format: logging antipatterns (% formatting, etc.)
+  "PERF",  # perflint: performance antipatterns
+  "RUF",   # ruff-specific rules
+  "S",     # flake8-bandit: security checks (bandit equivalent)
+  "SIM",   # flake8-simplify: redundant code patterns
+  "T10",   # flake8-debugger: leftover breakpoint() / pdb calls
+  "T20",   # flake8-print: leftover print() calls
+  "UP",    # pyupgrade: outdated Python syntax
+]
+
+extend-ignore = [
+  "S101",  # assert_used — asserts are used intentionally in this codebase
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Disable bandit (S) checks on dirs excluded from the bandit config
+"compression_tests/**" = ["S"]
+"docs/**"              = ["S"]
+"frontend/**"          = ["S"]
+"paper/**"             = ["S"]
+"private/**"           = ["S"]
+"scraps/**"            = ["S"]
+"scratch/**"           = ["S"]
+"tests/**"             = ["S"]
 
 
 [tool.flake8]
@@ -177,6 +207,31 @@ exclude = [
   "paper",
   "private",
 ]
+
+
+[tool.bandit]
+targets = ["."]
+exclude_dirs = [
+  ".git",
+  "__pycache__",
+  "compression_tests",
+  "docs",
+  "frontend",
+  "paper",
+  "private",
+  "scraps",
+  "scratch",
+  "tests",
+]
+recursive = true
+# tests = []  # empty means all tests run
+skips = [
+  "B101",  # B101: assert_used — asserts are used intentionally in this codebase
+]
+# severity and confidence thresholds: LOW catches everything
+severity = "LOW"
+confidence = "LOW"
+
 
 # YAPF may not use pyproject.toml
 [tool.yapf]
