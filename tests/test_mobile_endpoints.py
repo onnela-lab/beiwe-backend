@@ -1,5 +1,3 @@
-# trunk-ignore-all(bandit/B106)
-# trunk-ignore-all(ruff/B018)
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 

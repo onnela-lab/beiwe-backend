@@ -1,4 +1,3 @@
-# trunk-ignore-all(bandit/B101,bandit/B106,ruff/B018,ruff/E701)
 from __future__ import annotations
 
 from datetime import date, datetime, time as dt_time, timedelta

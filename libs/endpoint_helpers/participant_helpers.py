@@ -1,4 +1,3 @@
-# trunk-ignore-all(bandit/B101)
 from datetime import date, datetime, tzinfo
 from uuid import UUID
 

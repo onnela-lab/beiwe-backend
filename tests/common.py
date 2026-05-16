@@ -1,4 +1,3 @@
-# trunk-ignore-all(ruff/B018)
 import logging
 import os
 import traceback

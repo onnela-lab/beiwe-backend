@@ -1,4 +1,3 @@
-# trunk-ignore-all(isort,black,ruff/E402)
 # add the root of the project into the path to allow cd-ing into this folder and running the script.
 from os.path import abspath
 from sys import argv, path

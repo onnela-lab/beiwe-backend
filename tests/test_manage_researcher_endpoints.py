@@ -365,8 +365,6 @@ class TestAdministratorAddResearcherToStudy(ResearcherSessionTest):
             self.assertEqual(redirect_or_response.url, f"/edit_study/{self.session_study.id}")
 
 
-# trunk-ignore-all(ruff/B018)
-
 #
 ## manage_study_endpoints
 #

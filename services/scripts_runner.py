@@ -14,7 +14,6 @@ reporting, warning of long runs, etc. etc.
 """
 
 
-# trunk-ignore(ruff/E402)
 from libs.celery_control import scripts_celery_app  # must be in the namespace for celery to work.
 
 
@@ -66,7 +65,7 @@ def daily_purge_invalid_time_data():
 
 #
 ## Compress the S3 bucket access logs - these files are only present if a bucket policy is in place
-## to log access.  It creates a LOT of files, so we compress them daily.  
+## to log access.  It creates a LOT of files, so we compress them daily.
 #
 @CeleryScriptTask()
 def daily_compress_bucket_access_logs():

@@ -1,4 +1,3 @@
-# trunk-ignore-all(ruff/E701)
 from __future__ import annotations
 
 import json

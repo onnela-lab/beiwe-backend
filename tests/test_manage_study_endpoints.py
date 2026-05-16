@@ -1,4 +1,3 @@
-# trunk-ignore-all(ruff/B018)
 from datetime import datetime, timedelta
 
 import orjson

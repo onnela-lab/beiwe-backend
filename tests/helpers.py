@@ -1,5 +1,3 @@
-# trunk-ignore-all(bandit/B404,bandit/B105,ruff/B018,bandit/B101)
-
 import subprocess
 import uuid
 from datetime import date, datetime, timedelta, tzinfo

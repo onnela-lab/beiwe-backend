@@ -1,4 +1,3 @@
-# trunk-ignore-all(ruff/B018)
 from copy import copy
 from datetime import date, timedelta
 from io import BytesIO
