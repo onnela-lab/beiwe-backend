@@ -8,8 +8,6 @@ amqp==5.3.1
     # via kombu
 asgiref==3.11.1
     # via django
-ast-serialize==0.4.0
-    # via mypy
 asttokens==3.0.1
     # via stack-data
 audioread==3.1.0
@@ -22,9 +20,9 @@ billiard==4.2.4
     # via celery
 bleach==6.3.0
     # via -r requirements.in
-boto3==1.43.9
+boto3==1.43.11
     # via -r requirements.in
-botocore==1.43.9
+botocore==1.43.11
     # via
     #   boto3
     #   s3transfer
@@ -44,7 +42,7 @@ cffi==2.0.0
     #   timezonefinder
 charset-normalizer==3.4.7
     # via requests
-click==8.3.3
+click==8.4.0
     # via
     #   celery
     #   click-didyoumean
@@ -60,7 +58,7 @@ cronutils==0.4.2
     # via -r requirements.in
 cryptography==48.0.0
     # via google-auth
-decorator==5.2.1
+decorator==5.3.1
     # via
     #   ipython
     #   librosa
@@ -68,14 +66,8 @@ django==5.2.14
     # via
     #   -r requirements.in
     #   django-extensions
-    #   django-stubs
-    #   django-stubs-ext
 django-extensions==4.1
     # via -r requirements.in
-django-stubs==6.0.4
-    # via -r requirements.in
-django-stubs-ext==6.0.4
-    # via django-stubs
 executing==2.2.1
     # via stack-data
 firebase-admin==5.4.0
@@ -130,7 +122,7 @@ gunicorn==26.0.0
     # via -r requirements.in
 h3==4.4.2
     # via timezonefinder
-holidays==0.96
+holidays==0.97
     # via beiwe-forest
 httplib2==0.31.2
     # via
@@ -160,8 +152,6 @@ lazy-loader==0.5
     # via librosa
 librosa==0.11.0
     # via beiwe-forest
-librt==0.11.0
-    # via mypy
 llvmlite==0.47.0
     # via numba
 markupsafe==3.0.3
@@ -172,15 +162,11 @@ msgpack==1.1.2
     # via
     #   cachecontrol
     #   librosa
-mypy==2.1.0
-    # via -r requirements.in
-mypy-extensions==1.1.0
-    # via mypy
 numba==0.65.1
     # via
     #   librosa
     #   ssqueezepy
-numpy==2.4.5
+numpy==2.4.6
     # via
     #   beiwe-forest
     #   librosa
@@ -207,8 +193,6 @@ pandas==3.0.3
     # via beiwe-forest
 parso==0.8.7
     # via jedi
-pathspec==1.1.1
-    # via mypy
 pexpect==4.9.0
     # via ipython
 platformdirs==4.9.6
@@ -318,15 +302,10 @@ traitlets==5.15.0
     # via
     #   ipython
     #   matplotlib-inline
-types-pyyaml==6.0.12.20260510
-    # via django-stubs
 typing-extensions==4.15.0
     # via
-    #   django-stubs
-    #   django-stubs-ext
     #   grpcio
     #   librosa
-    #   mypy
     #   psycopg
     #   pyzstd
 tzdata==2026.2

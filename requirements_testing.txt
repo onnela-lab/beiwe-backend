@@ -6,3 +6,5 @@ time-machine
 isort
 mypy
 deepdiff
+django-stubs
+pandas-stubs
