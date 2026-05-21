@@ -53,9 +53,7 @@ class Participant(AbstractPasswordUser):
     study: Study = ForeignKey(Study, on_delete=PROTECT, related_name='participants', null=False)  # type: ignore
     
     # see timezone property
-    timezone_name = CharField(
-        max_length=256, default="America/New_York", null=False, blank=False
-    )
+    timezone_name = CharField(max_length=256, default="America/New_York", null=False, blank=False)
     unknown_timezone = BooleanField(default=True)  # flag for using participant's timezone.
     
     push_notification_unreachable_count = SmallIntegerField(default=0, null=False, blank=False)
@@ -306,7 +304,7 @@ class Participant(AbstractPasswordUser):
         except ParticipantDeletionEvent.DoesNotExist:
             return False
     
-    @property 
+    @property
     def can_handle_push_notification_resends(self) -> bool:
         if self.os_type != IOS_API or self.last_version_code is None or self.last_version_name is None:
             return False
@@ -447,7 +445,7 @@ class Participant(AbstractPasswordUser):
             pprint(json.loads(rn_uuids), width=columns)
         else:
             print("\n(No raw notification report.)")
-            
+        
         # it can be None, and empty string
         if dsr:
             print("\nDevice Status Report:")
