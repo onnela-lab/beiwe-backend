@@ -423,7 +423,7 @@ def download_summary_statistics_csv(request: ResearcherRequest, study_id):
         paginator.stream_csv(NICE_SERIALIZABLE_FIELD_NAMES),
         content_type="text/csv",
         as_attachment=True,
-        filename=f"Data Volumes and Summary Statistics - {study.name}.csv",
+        filename=f"Data Volumes and Summary Statistics - {study.name} - {timezone.now().strftime(DEV_TIME_FORMAT)}.csv",
     )
     fr.set_headers(None)
     return fr
@@ -441,7 +441,7 @@ def download_task_log(request: ResearcherRequest, study_id=str):
     return FileResponse(
         stream_forest_task_log_csv(forest_tasks, study.timezone),
         content_type="text/csv",
-        filename=f"forest_task_log_{timezone.now().isoformat()}.csv",
+        filename=f"Forest Task History - {study.name} - {timezone.now().strftime(DEV_TIME_FORMAT)}.csv",
         as_attachment=True,
     )
 

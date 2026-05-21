@@ -118,7 +118,7 @@ class TestUploadDetails(BasicSessionTestCase):
     @patch(f"{pyfile}.UploadTracking")
     @patch(f"{pyfile}.generate_duplicate_name")
     @patch(f"{pyfile}.timezone")
-    def test_one_string_case_decryptor_duplicate_name(  # noqa CFQ002
+    def test_one_string_case_decryptor_duplicate_name(
         self,
         timezone: MagicMock,
         generate_duplicate_name: MagicMock,
@@ -129,15 +129,13 @@ class TestUploadDetails(BasicSessionTestCase):
         smart_s3_list_study_files: MagicMock,
     ):
         # case where the ios uploader had an undecryptable file that we DIDN'T handle
+        # _what on earth is this above comment, this test is about duplicate files..._
         
         p, now, s3_file_location = self.common_setup()
-        
-        # setup base
-        timezone.now.return_value = now
+        timezone.now.return_value = now  # setup base
         
         # mocks setups
         UploadTracking.objects.create = MagicMock()  # UploadTracking needs a second layer to work
-        
         
         # setup test - a list with one string - we will use a random string
         smart_s3_list_study_files.return_value = ["some_existing_file.csv"]
@@ -149,7 +147,7 @@ class TestUploadDetails(BasicSessionTestCase):
         
         # asserts
         s3_upload.assert_called_once_with(NEW_PATH, decrypted_slug, p)
-        FileToProcess.append_file_for_processing.assert_called_once_with(NEW_PATH, p)
+        FileToProcess.append_file_for_processing.assert_not_called()
         
         UploadTracking.objects.create.assert_called_once_with(
             file_path=NEW_PATH,

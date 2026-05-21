@@ -7,11 +7,13 @@ from django.contrib import messages
 from django.db.models import ProtectedError
 from django.http import FileResponse, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from authentication.admin_authentication import (assert_admin, authenticate_admin,
     authenticate_researcher_study_access, authenticate_researcher_study_access_and_call,
     ResearcherRequest)
+from constants.common_constants import DEV_TIME_FORMAT
 from database.models import (Intervention, InterventionDate, Participant, ParticipantFieldValue,
     Study, StudyField)
 from libs.endpoint_helpers.participant_table_helpers import (common_data_extraction_for_apis,
@@ -35,14 +37,11 @@ def interventions_page(request: ResearcherRequest, study_id=None):
         return render(
             request,
             'study_interventions.html',
-            context=dict(
-                study=study,
-                interventions=study.interventions.all(),
-            ),
+            context={"study": study, "interventions": study.interventions.all()},
         )
     
     # slow but safe
-    new_intervention = request.POST.get('new_intervention', None)
+    new_intervention = request.POST.get('new_intervention')
     if new_intervention:
         intervention, _ = Intervention.objects.get_or_create(study=study, name=new_intervention)
         for participant in study.participants.all():
@@ -60,13 +59,10 @@ def study_fields(request: ResearcherRequest, study_id=None):
         return render(
             request,
             'study_custom_fields.html',
-            context=dict(
-                study=study,
-                fields=study.fields.all(),
-            ),
+            context={"study": study, "fields": study.fields.all()},
         )
     
-    new_field = request.POST.get('new_field', None)
+    new_field = request.POST.get('new_field')
     if new_field:
         study_field, _ = StudyField.objects.get_or_create(study=study, field_name=new_field)
         for participant in study.participants.all():
@@ -189,7 +185,7 @@ def download_participants_csv(request: ResearcherRequest, study_id: int = None):
         buffer.read(),
         content_type="text/csv",
         as_attachment=True,
-        filename=f"participant info - {study.name}.csv",
+        filename=f"Participant Info - {study.name} - {timezone.now().strftime(DEV_TIME_FORMAT)}.csv",
     )
     fr.set_headers(None)
     return fr
