@@ -1,3 +1,5 @@
+from io import StringIO
+from os.path import join as path_join
 from pprint import pprint, pp, pformat
 import os
 import struct
@@ -8,13 +10,41 @@ from time import perf_counter as p
 
 import numpy
 import pandas
-# there are multiple different zstd libraries for python, not counting blosc which has zstd as an option
-# but it isn't actually better, and is way more complex to use, and if we used the blosc specific
-# bit packing then we can't distribute the data in raw form, we have to decompress it at user
-# download time on the server. Sooooo we aren't using blosc.
-# among pyzstd, zstandard, and zstd, pyzstd is the fastest and has decent extra configuration options.
-import pyzstd
 from numpy.typing import NDArray
+
+# now uses the python zstd backport / std lib, not counting blosc which has zstd as an
+# option but it isn't actually better, and is way more complex to use, and if we used the blosc
+# specific bit packing then we can't distribute the data in raw form, we have to decompress it at
+# user download time on the server. Sooooo we aren't using blosc.
+from backports.zstd import Strategy, compress, CompressionParameter
+from sqlparse import engine
+
+# In [47]: {x.name: x.bounds() for x in c}
+# {'compression_level': (-131072, 22),
+#  'window_log': (10, 31),
+#  'hash_log': (6, 30),
+#  'chain_log': (6, 30),
+#  'search_log': (1, 30),
+#  'min_match': (3, 7),
+#  'target_length': (0, 131072),
+#  'strategy': (1, 9),
+#  'enable_long_distance_matching': (0, 2),
+#  'ldm_hash_log': (6, 30),
+#  'ldm_min_match': (4, 4096),
+#  'ldm_bucket_size_log': (1, 8),
+#  'ldm_hash_rate_log': (0, 25),
+#  'content_size_flag': (0, 1),
+#  'checksum_flag': (0, 1),
+#  'dict_id_flag': (0, 1),
+#  'nb_workers': (0, 256),
+#  'job_size': (0, 1073741824),
+#  'overlap_log': (0, 9)}
+backport_options = {
+    CompressionParameter.compression_level: 2,
+    CompressionParameter.strategy: Strategy.dfast,
+    CompressionParameter.nb_workers: 1,
+    CompressionParameter.enable_long_distance_matching: 1,
+}
 
 
 # this is the ZSTD compression level. values of 1,2,3,4 are reasonably fast and still give excellent
@@ -163,6 +193,7 @@ class m:
     total_to_binary_bytes = 0
     total_zstd_compressed_size = 0
     zstd_compression_time = 0.0
+    raw_zstd_compression_time = 0.0
     fpzip_size = 0
     
     adjusted_uncompressed = 0
@@ -171,6 +202,7 @@ class m:
 class pm:
     data_import_time = 0.0
     data_uncompressed = 0
+    data_raw_compressed = 0
     
     pyarrow_size = 0
     pyarrow_export_time = 0.0
@@ -181,6 +213,14 @@ class pm:
     fastparquet_export_time = 0.0
     fastparquet_zstd_size = 0.0
     fastparquet_zstd_time = 0.0
+
+
+class bm:
+    line_split_time = 0.0
+    header_time = 0.0
+    row_split_time = 0.0
+    total_time = 0.0
+    experimental_line_split_time = 0.0
 
 
 # we need to measure speed and compression ratio, this is just a global that we can stick stuff in
@@ -198,6 +238,50 @@ class m_xor:
     
     adjusted_uncompressed = 0
 
+
+# string types required because it has to consume the values correctly
+PANDAS_ACCELEROMETER_DTYPES = [
+    ("timestamp", numpy.uint64),
+    ("UTC time", numpy.str_),
+    ("accuracy", numpy.str_),
+    ("x", numpy.float64),
+    ("y", numpy.float64),
+    ("z", numpy.float64),
+]
+# PANDAS_ACCELEROMETER_DTYPES = [
+#     ("timestamp", numpy.uint64), ("UTC time", numpy.str_), ("accuracy", numpy.str_),
+#     ("x", numpy.float32), ("y", numpy.float32), ("z", numpy.float32),
+# ]
+
+CSV_IMPORT_SETTINGS = dict(  # noqa
+    # low_memory=False,               # low memory might have performance impact - nvm almost none
+    # low_memory=True,
+    header=0,                       # header, names, are probably redundant... wwhatever
+    names=["timestamp", "UTC time", "accuracy", "x", "y", "z"],
+    dtype=PANDAS_ACCELEROMETER_DTYPES,  # type: ignore
+    # usecols=[0, 3, 4, 5],              # specify the columns you want to use
+    # usecols=["timestamp", "UTC time", "accuracy", "x", "y", "z"],
+    usecols=["timestamp", "x", "y", "z"],
+    
+    delimiter=",",
+    # lineterminator="\n",
+    skip_blank_lines=True,
+    # engine="python",     # incompatible with the low_memory option
+    engine="c",          # 10x faster than the python engine - does not slow down when zstd decompression is on
+    # engine="pyarrow",      # must specify columns by name - only ~twice as fast as "python"
+    # float_precision="high",  # high is fastest and most precise...
+    # dtype_backend="pyarrow",  # don't enable, causes nulls to be allowed.
+    # memory_map -- not relevant for my usecase
+)
+
+# CSV_IMPORT_SETTINGS = dict(
+#     header=0,                       # header, names, are probably redundant... wwhatever
+#     names=["timestamp", "UTC time", "accuracy", "x", "y", "z"],
+#     dtype=PANDAS_ACCELEROMETER_DTYPES, # type: ignore
+#     usecols=["timestamp", "x", "y", "z"],              # you have to specify the columns you want to use
+#     delimiter=",",
+#     engine="pyarrow",
+# )
 
 
 ####################################################################################################
@@ -219,6 +303,7 @@ def csv_to_list(file_contents: bytes) -> Generator[list[bytes], None, None]:
     _ = b",".join(next(line_iterator))
     return line_iterator
 
+
 def isplit(source: bytes) -> Generator[list[bytes], None, None]:
     start = 0
     while True:
@@ -239,33 +324,42 @@ def iterate_all_files():
             if user_datastream != "accelerometer":
                 continue
             
-            user_datastream_path = f"{DATA_FOLDER}/{user_path}/{user_datastream}/"
+            user_datastream_path = path_join(DATA_FOLDER, user_path, user_datastream)
             for user_datastream_file in os.listdir(user_datastream_path):
-                user_datastream_file_path = f"{user_datastream_path}/{user_datastream_file}"
+                user_datastream_file_path = path_join(user_datastream_path, user_datastream_file)
+                
                 if not os.path.isdir(user_datastream_file_path):
                     with open(user_datastream_file_path, "rb") as f:
                         data: bytes = f.read()
-                        if data: # skip empty files
+                        if data:  # skip empty files
+                            # print("file: user_datastream_file_path:", user_datastream_file_path)
                             yield user_datastream_file_path, data
 
 
 ####################################################################################################
 
 
-# uses pyzstd python library - it has an extra runtime option, richmem_compress, that is faster than
-# zstd. Current backend uses zstd but could easily be swapped.
 def compress_zstd(some_bytes):
     t1 = p()
-    output = pyzstd.RichMemZstdCompressor(ZSTD_KWARGS).compress(some_bytes)  # type: ignore
+    output = compress(some_bytes, options=backport_options)
     t = p() - t1
     m.zstd_compression_time += t
     m.total_zstd_compressed_size += len(output)
     return output
 
 
+def compress_zstd_input(some_bytes):
+    t1 = p()
+    output = compress(some_bytes, options=backport_options)
+    t = p() - t1
+    m.raw_zstd_compression_time += t
+    m.total_zstd_compressed_size += len(output)
+    return output
+
+
 def compress_xor(some_bytes):
     t1 = p()
-    output = pyzstd.RichMemZstdCompressor(ZSTD_KWARGS).compress(some_bytes)  # type: ignore
+    output = compress(some_bytes, options=backport_options)
     t = p() - t1
     m_xor.zstd_compression_time += t
     m_xor.total_zstd_compressed_size += len(output)
@@ -274,7 +368,7 @@ def compress_xor(some_bytes):
 
 def compress_pyarrow(some_bytes):
     t1 = p()
-    output = pyzstd.RichMemZstdCompressor(ZSTD_KWARGS).compress(some_bytes)  # type: ignore
+    output = compress(some_bytes, options=backport_options)
     t2 = p()
     duration = t2 - t1
     pm.pyarrow_zstd_time += duration
@@ -284,7 +378,7 @@ def compress_pyarrow(some_bytes):
 
 def compress_fastparquet(some_bytes):
     t1 = p()
-    output = pyzstd.RichMemZstdCompressor(ZSTD_KWARGS).compress(some_bytes)  # type: ignore
+    output = compress(some_bytes, options=backport_options)
     t2 = p()
     duration = t2 - t1
     pm.fastparquet_zstd_time += duration
@@ -303,15 +397,7 @@ ACCELEROMETER_DTYPES = [
     ("timestamp", numpy.uint64), ("x", numpy.float64), ("y", numpy.float64), ("z", numpy.float64),
 ]
 
-# string types required because it has to consume the values correctly
-# PANDAS_ACCELEROMETER_DTYPES = [
-#     ("timestamp", numpy.uint64), ("UTC time", numpy.str_), ("accuracy", numpy.str_),
-#     ("x", numpy.float64), ("y", numpy.float64), ("z", numpy.float64),
-# ]
-PANDAS_ACCELEROMETER_DTYPES = [
-    ("timestamp", numpy.uint64), ("UTC time", numpy.str_), ("accuracy", numpy.str_),
-    ("x", numpy.float32), ("y", numpy.float32), ("z", numpy.float32),
-]
+
 import pyarrow
 
 ARROW_DTYPES = [
@@ -342,39 +428,14 @@ XOR_DTYPES = [
 ####################################################################################################
 
 
+ZSTD_COMPRESSION_LEVEL = 2
 
-# ZSTD_COMPRESSION_LEVEL = 2
-# ZSTD_OPT = pyzstd.Strategy.dfast  # use at 2
-ZSTD_COMPRESSION_LEVEL = 10
-ZSTD_OPT = pyzstd.Strategy.btopt  # use at 10
-ZSTD_KWARGS = {
-    pyzstd.CParameter.nbWorkers: 1,
-    pyzstd.CParameter.compressionLevel: ZSTD_COMPRESSION_LEVEL,
-    pyzstd.CParameter.strategy: ZSTD_OPT,
-}
+
 
 PARQUET_KWARGS = {  # options: snappy, gzip, lz4, zstd, None, (and brotli, but it is too slow)
     "index": False, "compression": "snappy",
 }
 
-csv_import_settings = dict(
-    low_memory=False,               # low memory might have performance impact
-    header=0,                       # header, names, are probably redundant... wwhatever
-    names=["timestamp", "UTC time", "accuracy", "x", "y", "z"],
-    dtype=PANDAS_ACCELEROMETER_DTYPES, # type: ignore
-    usecols=[0,3,4,5],              # you have to specify the columns you want to use
-    delimiter=",",   lineterminator="\n",
-)
-
-# csv_import_settings = dict(
-#     header=0,                       # header, names, are probably redundant... wwhatever
-#     names=["timestamp", "UTC time", "accuracy", "x", "y", "z"],
-#     dtype=PANDAS_ACCELEROMETER_DTYPES, # type: ignore
-#     usecols=["timestamp", "x", "y", "z"],              # you have to specify the columns you want to use
-#     delimiter=",",
-    
-#     engine="pyarrow",
-# )
 
 
 ####################################################################################################
@@ -390,15 +451,32 @@ def do_it_parquet(in_data: bytes, path: str):
         print(ERROR_SEP)
         raise
 
+import csv
 
 def _do_it_parquet(in_data: bytes, path: str):
     pm.data_uncompressed += len(in_data)
     
-    t_bytes_start = p()
-    bytes_io = BytesIO(in_data)
+    # in_data.count(b"\n")
+    # raw_compressed = compress_zstd_input(in_data)  # does its own timing and stats
+    # pm.data_raw_compressed += len(raw_compressed)
+    # str_for_io = in_data.decode("utf-8")
     
-    df = pandas.read_csv(bytes_io, **csv_import_settings)  # type: ignore
-    t_bytes_end = p();  pm.data_import_time += t_bytes_end - t_bytes_start
+    t_bytes_start = p()
+    df = pandas.read_csv(BytesIO(in_data), **CSV_IMPORT_SETTINGS)  # type: ignore
+    # df = pandas.read_csv(BytesIO(raw_compressed), compression="zstd", **CSV_IMPORT_SETTINGS)  # type: ignore  Wow that does not slow it doewn cool
+    # df = pandas.read_csv(StringIO(str_for_io), **CSV_IMPORT_SETTINGS)  # type: ignore
+    # df = pandas.read_csv(path, memory_map=True, **CSV_IMPORT_SETTINGS)  # type: ignore
+    
+    # x = list(csv.DictReader(StringIO(str_for_io), ["timestamp", "x", "y", "z"]))
+    # x = list(csv.reader(StringIO(str_for_io)))
+    # x = [x for x in csv.reader(BytesIO(in_data), ["timestamp", "x", "y", "z"])]
+    
+    t_bytes_end = p()
+    pm.data_import_time += t_bytes_end - t_bytes_start
+    
+    
+    return
+    
     
     # pyarrow parquet export
     t_pyarrow_start = p()
@@ -410,7 +488,7 @@ def _do_it_parquet(in_data: bytes, path: str):
     
     # fastparquet parquet export
     t_fastparquet_start = p()
-    par2 = df.to_parquet(engine='fastparquet',**PARQUET_KWARGS)  # type: ignore
+    par2 = df.to_parquet(engine='fastparquet', **PARQUET_KWARGS)  # type: ignore
     t_fastparquet_end = p()
     pm.fastparquet_size += len(par2)
     pm.fastparquet_export_time += t_fastparquet_end - t_fastparquet_start
@@ -427,13 +505,13 @@ def print_stuff_parquet():
     zstd_pyarrow_megs = megs(pm.pyarrow_zstd_size)
     zstd_fastparquet_megs = megs(pm.fastparquet_zstd_size)
     
-    pyarrow_ratio = rnd(pm.pyarrow_size / orig_size)
-    fastparquet_ratio = rnd(pm.fastparquet_size / orig_size)
+    pyarrow_orig_ratio = rnd(pm.pyarrow_size / orig_size)
+    fastparquet_orig_ratio = rnd(pm.fastparquet_size / orig_size)
     
-    zstd_pyarrow_ratio = rnd(pm.pyarrow_zstd_size / pm.pyarrow_size)
-    zstd_fastparquet_ratio = rnd(pm.fastparquet_zstd_size / orig_size)
+    pyarrow_zstd_ratio = rnd(pm.pyarrow_zstd_size / orig_size)
+    fastparquet_zstd_ratio = rnd(pm.fastparquet_zstd_size / orig_size)
     
-    # print("pyarrow compression ratio:", pyarrow_ratio,
+    # print("arrow compression ratio:", pyarrow_ratio,
     #       f"{uncompressed_megs}MB -> ({pyarrow_megs}MB) -> {zstd_pyarrow_megs}MB",
     #       "\npyarrow zstd compression ratio:", zstd_pyarrow_ratio)
     
@@ -441,31 +519,45 @@ def print_stuff_parquet():
     #       f"{uncompressed_megs}MB -> ({fastparquet_megs}MB) -> {zstd_fastparquet_megs}MB"
     #       "\nfastparquet zstd compression ratio:", zstd_fastparquet_ratio)
     
-    # total_import_time = rnd(pm.data_import_time)  # needs to be non-zero
-    # if total_import_time < 0.001:
-        # print("insufficient import time, not printing speed")
-    # import_mbps = rnd(uncompressed_megs / pm.data_import_time)
+    total_import_time = rnd(pm.data_import_time)  # needs to be non-zero
+    import_mbps = rnd(uncompressed_megs / pm.data_import_time)
     # export_pyarrow_mbps = rnd(pyarrow_megs / pm.pyarrow_export_time)
     # export_fastparquet_mbps = rnd(fastparquet_megs / pm.fastparquet_export_time)
     
     # total_pyarrow_time = rnd(pm.pyarrow_export_time)
     # total_fastparquet_time = rnd(pm.fastparquet_export_time)
-        
-        # print("import time:", total_import_time, "s", "import speed:", import_mbps, "MB/s")
-        # print("pyarrow time:", total_pyarrow_time, "s", "export speed:", export_pyarrow_mbps, "MB/s")
-        # print("fastparquet time:", total_fastparquet_time, "s", "export speed:", export_fastparquet_mbps, "MB/s")
     
+    # print("pyarrow time:", total_pyarrow_time, "s", "export speed:", export_pyarrow_mbps, "MB/s")
+    # print("fastparquet time:", total_fastparquet_time, "s", "export speed:", export_fastparquet_mbps, "MB/s")
+    
+    raw_compressed_megs = pm.data_raw_compressed / 1024 / 1024 if pm.data_raw_compressed else 0
+    if pm.data_uncompressed:
+        print("import time:", total_import_time, "s", "import speed:", import_mbps, "MB/s")
+        print(f"raw size: {uncompressed_megs}MB, raw compressed size: {rnd(raw_compressed_megs)}MB, ratio: {rnd(pm.data_raw_compressed / orig_size)}")
+    
+    if m.raw_zstd_compression_time:
+        print(f"raw zstd compression time: {rnd(m.raw_zstd_compression_time)}s, speed: {rnd(uncompressed_megs / m.raw_zstd_compression_time)} MB/s")
     # print it like this:
     # pyarrow ratio: 0.552 (179.399MB -> (99.086MB) -> 80.076MB)
     # pyarrow zstd ratio: 0.446, combined ratio: 0.087
     # fastparquet ratio: 1.015  (179.399MB -> (182.149MB) -> 70.026MB)
     # fastparquet zstd ratio, combined: 0.39 | 0.077
     
-    # ug this wrong.... ok whatever
-    print(f"pyarrow ratio: {pyarrow_ratio} ({uncompressed_megs}MB -> ({pyarrow_megs}MB) -> {zstd_pyarrow_megs}MB)")
-    print(f"pyarrow zstd ratio: {zstd_pyarrow_ratio}, combined ratio: {rnd(pyarrow_ratio * zstd_pyarrow_ratio)}")
-    print(f"fastparquet ratio: {fastparquet_ratio}  ({uncompressed_megs}MB -> ({fastparquet_megs}MB) -> {zstd_fastparquet_megs}MB)")
-    print(f"fastparquet zstd ratio, combined: {zstd_fastparquet_ratio} | {rnd(fastparquet_ratio * zstd_fastparquet_ratio)}")
+    if pm.pyarrow_size:
+        print(f"pyarrow ratio: {pyarrow_orig_ratio} ({uncompressed_megs}MB -> ({pyarrow_megs}MB) -> {zstd_pyarrow_megs}MB)")
+        print(f"just pyarrow ratio: {pyarrow_orig_ratio}, pyarrow+zstd ratio: {rnd(pyarrow_zstd_ratio)}")
+    if pm.fastparquet_size:
+        print(f"fastparquet ratio: {fastparquet_orig_ratio}  ({uncompressed_megs}MB -> ({fastparquet_megs}MB) -> {zstd_fastparquet_megs}MB)")
+        print(f"fastparquet zstd ratio: {fastparquet_orig_ratio}, fastparquet+combined ratio: {rnd(fastparquet_zstd_ratio)}")
+    
+    # bm.data_import_time
+    # bm
+    if bm.total_time:
+        print(f"Beiwe import time: {rnd(bm.total_time)}s, speed: {rnd(uncompressed_megs / bm.total_time)} MB/s")
+        print(f"Beiwe header time: {rnd(bm.header_time)}s, beiwe line split time: {rnd(bm.line_split_time)}s, beiwe_row_split_time: {rnd(bm.row_split_time)}s")
+        if bm.experimental_line_split_time > 0:
+            print(f"Experimental line split time: {rnd(bm.experimental_line_split_time)}s")
+    
     print()
 
 
@@ -705,7 +797,7 @@ def do_delta_and_xor_numpy(in_data: bytes, path: str):
     #     new_x.append(fxor_float(x[i], x[i-1]))
     #     new_y.append(fxor_float(y[i], y[i-1]))
     #     new_z.append(fxor_float(z[i], z[i-1]))
-        
+    
     #     # print(x[i], y[i], z[i])
     #     pass
     # for i in range(1, len(array)):
@@ -783,7 +875,7 @@ def print_stuff_numpy_xor():
 
 ####################################################################################################
 
-def benchmark_pandas_csv_import():
+def do_pandas_csv_import(path: str):
     """
     This function benchmarks the pandas CSV import performance.
     It reads a CSV file and measures the time taken to import it.
@@ -791,23 +883,72 @@ def benchmark_pandas_csv_import():
     import time
     import pandas as pd
     
-    csv_file_path = "path/to/your/csvfile.csv"  # replace with your actual CSV file path
     start_time = time.time()
     
-    df = pd.read_csv(csv_file_path, **csv_import_settings)  # type: ignore
+    df = pd.read_csv(path, **CSV_IMPORT_SETTINGS)  # type: ignore
     
     end_time = time.time()
+    # print(df.columns)
     print(f"CSV import took {end_time - start_time:.2f} seconds.")
 
 
 ####################################################################################################
 
 
+def do_roughly_the_beiwe_thing(in_data: bytes, path: str):
+    # fakes stuff but leaves memory usage the same?
+    class o: pass
+    
+    t1 = p()
+    lines = in_data.splitlines()
+    # lines = in_data.splitlines()[1:]
+    t2 = p()
+    o.header = lines.pop(0)
+    # o.header = lines[0]
+    t3 = p()
+    # o.file_lines = [line.split(b",") for line in lines[1:]]
+    o.file_lines = [line.split(b",") for line in lines]
+    t4 = p()
+    
+    # SPLIT = bytes.split
+    # print(lines[2].count(b","))
+    
+    # this
+    exp1 = p()
+    # THIS REALLY IS ALWAYS SLIGHTLY FASTER THAN THE FIRST ONE, PROBABLY CACHING..
+    # o.experiment = [line.split(b",") for line in lines]
+    # o.experiment = [line.split(b",") for line in in_data.splitlines()]
+    # o.experiment = [line.split(b",") for line in lines[1:]]
+    # o.experiment = [line.split(b",", 5) for line in lines]
+    # o.experiment = [SPLIT(line, b",") for line in lines]
+    
+    
+    exp2 = p()
+    
+    
+    bm.line_split_time += t2 - t1
+    bm.header_time += t3 - t2
+    bm.row_split_time += t4 - t3
+    bm.total_time += t4 - t1
+    bm.experimental_line_split_time += exp2 - exp1
+    # from pprint import pprint, pp, pformat
+    # pprint(o.experiment[:5])
+    # pprint(o.file_lines[:5])
+    if hasattr(o, "experiment"):
+        assert o.experiment == o.file_lines, "Experiment and file_lines do not match"
+        # for line in o.file_lines:
+        #     assert len(line) == 6, f"Line did not have 5 commas: {line}"
+    return
+
+
 def main():
     m.start_time = p()
     
+    print("zstd compression level:", ZSTD_COMPRESSION_LEVEL)
     for path, data in iterate_all_files():
-        print("zstd compression level:", ZSTD_COMPRESSION_LEVEL)
+        do_roughly_the_beiwe_thing(data, path)
+        # do_pandas_csv_import(path)
+        
         # uncomment to run with the delta feeding into parquet
         # delta_data, size = do_delta_numpy(data, path)
         # do_it_parquet_delta(delta_data, path, size)
@@ -815,7 +956,6 @@ def main():
         # uncomment to run with raw data feeding into parquet
         # do_it_numpy(data, path)
         do_it_parquet(data, path)
-        
         print_stuff_parquet()
         # print_stuff_delta()
         # print_stuff_numpy()
@@ -826,4 +966,14 @@ def main():
         # print()
         # print_stuff_delta()
 
+
+def main_consume_data():
+    m.start_time = p()
+    
+    print("zstd compression level:", ZSTD_COMPRESSION_LEVEL)
+    for path, data in iterate_all_files():
+        do_pandas_csv_import(path)
+
+
 main()
+# main_consume_data()
