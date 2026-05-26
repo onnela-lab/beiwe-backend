@@ -8,3 +8,4 @@ mypy
 deepdiff
 django-stubs
 pandas-stubs
+coloredlogs
