@@ -4,7 +4,7 @@ from datetime import datetime
 from multiprocessing.pool import ThreadPool
 from typing import Generator
 
-from pyzstd import decompress
+from backports.zstd import decompress
 
 from constants.common_constants import UTC
 from constants.data_stream_constants import (ACCELEROMETER, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS,

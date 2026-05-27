@@ -4,8 +4,8 @@ from typing import DefaultDict
 
 import blosc2
 import brotli
-import paq
-import pyppmd
+# import paq
+# import pyppmd
 import pyzstd
 from blosc2 import Filter
 
@@ -78,17 +78,17 @@ def iterate_all_files():
         for datastream in os.listdir(path_join(DATA_FOLDER, user_path)):
             # Pick one data stream, compression is only consistent for a single data stream
             if datastream != "accelerometer":
-            # if datastream != "gyro":
-            # if datastream != "gps":
-            # if datastream != "wifi":
-            # if datastream != "texts":
-            # if datastream != "ios_log":
-            # if datastream != "app_log":
-            # low quantities of data:
-            # if datastream != "reachability":
-            # if datastream != "power_state":
-            # if datastream != "identifiers":
-            # if datastream != "calls":
+                # if datastream != "gyro":
+                # if datastream != "gps":
+                # if datastream != "wifi":
+                # if datastream != "texts":
+                # if datastream != "ios_log":
+                # if datastream != "app_log":
+                # low quantities of data:
+                # if datastream != "reachability":
+                # if datastream != "power_state":
+                # if datastream != "identifiers":
+                # if datastream != "calls":
                 continue
             
             # go through datastream files and read them in
@@ -105,6 +105,7 @@ def iterate_all_files():
 def print_stats(data_stream, running_counts, compress_time):
     print()
     total_size = running_counts[data_stream]
+    
     for k, v in sorted(running_counts.items(), key=lambda x: x[0]):
         if k.endswith("_dec") or k == data_stream:
             continue
@@ -197,14 +198,18 @@ def run_both():
         running_counts[data_stream] += len(content)
         
         # for comp_level in [0,1,2,3,4,5,6,7,8,9]:  # goes up to 22
-        #     # if comp_level in [0,1,2,3,4,5]:
-        #     #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.fast)
+            # if comp_level in [0,1,2,3,4,5]:
+            # if comp_level in [2]:
+                # compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.dfast)
+                # compress_backport(data_stream, comp_level, content, running_time, running_counts)
         #     # if comp_level in [0,1,2,4,5]:
         #     #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.dfast)
         #     # if comp_level in [0,1,2,3,4,5]:
         #     #     compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.greedy)
-        #     if comp_level in [9]:#[1,3,5,7,9]:
-        #         compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.lazy)
+            # if comp_level in [9]:#[1,3,5,7,9]:
+                # compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.lazy)
+                # compress_backport(data_stream, comp_level, content, running_time, running_counts)
+                
         #     if comp_level in [9]:#[1,2,4,5,6,7,8,9]:
         #         compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, pyzstd.Strategy.lazy2)
         #     if comp_level in [9]:#[1,2,4,5,6,7,8,9]:
@@ -218,6 +223,7 @@ def run_both():
         # compress_pyzstd(data_stream, 19, content, running_time, running_counts, pyzstd.Strategy.btultra)
         # compress_pyzstd(data_stream, 19, content, running_time, running_counts, pyzstd.Strategy.btultra2)
         # compress_pyzstd(data_stream, 19, content, running_time, running_counts, pyzstd.Strategy.btlazy2)
+        # compress_backport(data_stream, 22, content, running_time, running_counts)
         
         # for comp_level in [0, 1, 2, 3, 4, 5, 6]:
         #     compress_brotli(data_stream, comp_level, content, running_time, running_counts)
@@ -364,9 +370,10 @@ gyro_pyzstd_09_strat4lazy	12.69%	1.05(sec)	149.98	MB/s encode	2065.34	MB/s decod
 """
 def compress_pyzstd(data_stream, comp_level, content, running_time, running_counts, strat):
     output_name = data_stream + "_pyzstd_" + comp_disp(comp_level) + "_strat" + str(int(strat)) + PYZSTD_STRAT_NAMES[strat]
-    
+    # print("level:", comp_level, type(comp_level))
     # the zstd dictionary miiiight be useful if we can make it good, but it cuts speed in half,
     # and basic tests show it doesn't improve compression at all. Woo!
+    t1 = perf_counter()
     thang = pyzstd.RichMemZstdCompressor(
         { # type: ignore
             pyzstd.CParameter.compressionLevel: comp_level,
@@ -387,10 +394,8 @@ def compress_pyzstd(data_stream, comp_level, content, running_time, running_coun
         # the_zstd_dictionary,
     )
     
-    t1 = perf_counter()
     output = thang.compress(content)
     t1 = perf_counter() - t1
-    
     
     try:
         t2 = perf_counter()
@@ -406,6 +411,49 @@ def compress_pyzstd(data_stream, comp_level, content, running_time, running_coun
     running_counts[output_name] += len(output)
     running_time[output_name + "_dec"] += t2
     running_counts[output_name + "_dec"] += len(decompressed_output)
+
+
+# And this is a test for the new backport of zstd
+from backports.zstd import Strategy as _Strategy, compress as _compress, CompressionParameter as _CompressionParameter, decompress as _decompress
+
+# there has been substantial testing of the zstd compression modes for data produced by beiwe.
+
+# backport_options = {
+#     CompressionParameter.strategy: Strategy.dfast,
+#     CompressionParameter.nb_workers: 1,
+#     CompressionParameter.enable_long_distance_matching: 1,
+# }
+
+def compress_backport(data_stream, comp_level, content, running_time, running_counts):
+    output_name = data_stream + "_backp_" + comp_disp(comp_level)  # + "_strat" + str(int(strat)) + PYZSTD_STRAT_NAMES[strat]
+    options = {
+        _CompressionParameter.compression_level: comp_level,
+        _CompressionParameter.enable_long_distance_matching: 0,
+        _CompressionParameter.nb_workers: -1,
+        
+        **({} if comp_level > 4 else {_CompressionParameter.strategy: _Strategy.dfast}),
+    }
+    # print("level:", comp_level, type(comp_level))
+    t1 = perf_counter()
+    output = _compress(
+        content, None, options
+    )
+    t1 = perf_counter() - t1
+    
+    try:
+        t2 = perf_counter()
+        decompressed_output = _decompress(output)
+        t2 = perf_counter() - t2
+    except Exception:  # never had this error
+        print(f"\n'{content}'")
+        raise
+    
+    assert decompressed_output == content
+    running_time[output_name] += t1
+    running_counts[output_name] += len(output)
+    running_time[output_name + "_dec"] += t2
+    running_counts[output_name + "_dec"] += len(decompressed_output)
+
 
 
 """ even faster, but possibly problematic
@@ -436,6 +484,8 @@ def compress_blosc(
         key = data_stream + "_blosc_zstd_" + comp_disp(comp_level) \
                 + "_" + a_filter.name[:5] + "_ts" + str(typesize) + "_blk" + str(block_size) \
                 # + "_d" + str(use_dict) + "_m" + comp_disp(meta)
+        
+        
         # print(key, comp_level, a_filter, typesize, block_size, use_dict, meta)
         t1 = perf_counter()
         output = blosc2.compress2(
@@ -449,7 +499,7 @@ def compress_blosc(
             # Any value other than 0 (no filter) ruins reduces compression ratio substantially.
             # I don't even know what meta is.
             
-            filters={0, 0, 0, 0, 0, 0},  
+            filters={0, 0, 0, 0, 0, 0},
             # filters={a_filter.value, a_filter.value, a_filter.value, a_filter.value, a_filter.value, a_filter.value},  # any value not 0 (no filter) kill compression ratio
             # filters={0, a_filter.value, 0, 0, 0, 0},  # no effect?
             filters_meta={0, 0, 0, 0, 0, 0},  # no effect?
@@ -474,9 +524,9 @@ def compress_blosc(
         
         t2 = perf_counter()
         decompressed_output1 = blosc2.decompress(output)
+        
         t2 = perf_counter() - t2
         assert decompressed_output1 == content
-        
         # really weird code for how we print stats sorry
         running_time[key] += t1
         running_counts[key] += len(output)
@@ -521,7 +571,7 @@ def compress_pyppmd(data_stream, content, running_time, running_counts, variant)
     # if output.endswith(b"\x00"):
     #     # output = output + b"\x00"
     #     output = output[:-1]
-        
+    
     
     try:
         t2 = perf_counter()
@@ -593,7 +643,6 @@ def compress_brotli(data_stream, comp_level, content, running_time, running_coun
     try:
         t2 = perf_counter()
         decompressed_output = brotli.decompress(output)
-        # decompressed_output = pyzstd.decompress(output, the_zstd_dictionary)
         t2 = perf_counter() - t2
     except Exception:  # never had this error
         print(f"\n'{content}'")
@@ -633,7 +682,6 @@ def compress_paq(data_stream, comp_level, content, running_time, running_counts)
     running_counts[output_name] += len(output)
     running_time[output_name + "_dec"] += t2
     running_counts[output_name + "_dec"] += len(decompressed_output)
-
 
 
 # if you want to play around with creating a zstd dictionary for pyzstd do this and then read it in

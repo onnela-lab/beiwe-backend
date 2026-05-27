@@ -4,8 +4,7 @@ Django<5.3
 firebase-admin==5.4.0
 Jinja2
 orjson
-
-pyzstd
+backports.zstd
 
 # django-extensions for some really nice management commands and terminal helpers.
 django-extensions

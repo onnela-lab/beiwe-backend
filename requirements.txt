@@ -13,16 +13,16 @@ asttokens==3.0.1
 audioread==3.1.0
     # via librosa
 backports-zstd==1.5.0
-    # via pyzstd
+    # via -r requirements.in
 beiwe-forest @ git+https://git@github.com/onnela-lab/forest@9bdeee682b19a7206aadbe4d8abe65a626f2319b
     # via -r requirements.in
 billiard==4.2.4
     # via celery
 bleach==6.3.0
     # via -r requirements.in
-boto3==1.43.11
+boto3==1.43.15
     # via -r requirements.in
-botocore==1.43.11
+botocore==1.43.15
     # via
     #   boto3
     #   s3transfer
@@ -30,7 +30,7 @@ cachecontrol==0.14.4
     # via firebase-admin
 celery==5.4.0
     # via -r requirements.in
-certifi==2026.4.22
+certifi==2026.5.20
     # via
     #   pyproj
     #   requests
@@ -42,7 +42,7 @@ cffi==2.0.0
     #   timezonefinder
 charset-normalizer==3.4.7
     # via requests
-click==8.4.0
+click==8.4.1
     # via
     #   celery
     #   click-didyoumean
@@ -128,7 +128,7 @@ httplib2==0.31.2
     # via
     #   google-api-python-client
     #   google-auth-httplib2
-idna==3.15
+idna==3.16
     # via requests
 ipython==9.13.0
     # via -r requirements.in
@@ -254,8 +254,6 @@ python-dateutil==2.9.0.post0
     #   pandas
 pytz==2026.2
     # via beiwe-forest
-pyzstd==0.19.1
-    # via -r requirements.in
 ratelimit==2.2.1
     # via beiwe-forest
 rcssmin==1.2.2
@@ -268,7 +266,7 @@ requests==2.34.2
     #   google-cloud-storage
     #   openrouteservice
     #   pooch
-s3transfer==0.17.0
+s3transfer==0.17.1
     # via boto3
 scikit-learn==1.8.0
     # via librosa
@@ -307,7 +305,6 @@ typing-extensions==4.15.0
     #   grpcio
     #   librosa
     #   psycopg
-    #   pyzstd
 tzdata==2026.2
     # via
     #   celery
