@@ -44,7 +44,7 @@ RELATED_NAMES = [
 ]
 
 
-def run_next_queued_participant_data_deletion():
+def run_next_participant_data_deletion() -> str | None:
     """ checks ParticipantDeletionEvent for un-run events, runs deletion over all of them. """
     # only deletion events that have not been confirmed completed (purge_confirmed_time) and only
     # events that have last_updated times more than 30 minutes ago. (The deletion process constantly
@@ -57,7 +57,7 @@ def run_next_queued_participant_data_deletion():
     #! if you are writing a test and this is happening it might be because the last_updated field
     #! is specifically updated over in confirm_deleted as a control mechanism to prevent overlaps.
     if not deletion_event:
-        return
+        return None
     
     deletion_event.save()  # mark the event as processing...
     participant = deletion_event.participant
@@ -82,6 +82,7 @@ def run_next_queued_participant_data_deletion():
     confirm_deleted(deletion_event)
     participant.update(deleted=True)
     participant.log(action_log_messages.PARTICIPANT_DELETION_EVENT_DONE)
+    return participant.patient_id
 
 
 def delete_participant_data(deletion_event: ParticipantDeletionEvent):
@@ -134,12 +135,13 @@ def all_participant_file_paths(participant: Participant) -> Generator[list[tuple
             many_file_version_ids.append(key_path_version_id_tuple)
             # yield a page of files, reset page
             if len(many_file_version_ids) % DELETION_PAGE_SIZE == 0:
+                print(f"{len(many_file_version_ids)} files for deletion for participant {participant.patient_id}")
                 yield many_file_version_ids
-                print(many_file_version_ids)
                 many_file_version_ids = []
     
     # yield any overflow files
     if many_file_version_ids:
+        print(f"{len(many_file_version_ids)} files for deletion for participant {participant.patient_id}")
         yield many_file_version_ids
 
 

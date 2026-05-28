@@ -153,6 +153,7 @@ select = [
 
 extend-ignore = [
   "S101",  # assert_used — asserts are used intentionally in this codebase
+  "T201",  # print_found — print() calls are used intentionally in this codebase
 ]
 
 [tool.ruff.lint.per-file-ignores]

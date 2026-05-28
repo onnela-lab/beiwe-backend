@@ -23,7 +23,7 @@ from libs.file_processing.utility_functions_simple import (BadTimecodeError, bin
     clean_java_timecode, convert_unix_to_human_readable_timestamps, ensure_sorted_by_timestamp,
     normalize_s3_file_path, resolve_survey_id_from_file_name, s3_file_path_to_data_type)
 from libs.participant_purge import (confirm_deleted, get_all_file_path_prefixes,
-    run_next_queued_participant_data_deletion)
+    run_next_participant_data_deletion)
 from tests.common import CommonTestCase
 
 
@@ -488,14 +488,14 @@ class TestParticipantDataDeletion(CommonTestCase):
     
     def test_no_participants_at_all(self):
         self.assertFalse(Participant.objects.exists())
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         self.assertFalse(Participant.objects.exists())
     
     def test_no_participant_but_with_a_participant_in_the_db(self):
         last_update = self.default_participant.last_updated  # create!
         self.assertEqual(Participant.objects.count(), 1)
         self.assertEqual(ParticipantDeletionEvent.objects.count(), 0)
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         self.assertEqual(Participant.objects.count(), 1)
         self.assertEqual(ParticipantDeletionEvent.objects.count(), 0)
         self.default_participant.refresh_from_db()
@@ -511,7 +511,7 @@ class TestParticipantDataDeletion(CommonTestCase):
     ):
         self.default_participant_deletion_event  # includes default_participant creation
         self.assertEqual(Participant.objects.count(), 1)
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         self.assertEqual(Participant.objects.count(), 1)  # we don't actually delete the db object just the data...
         self.default_participant.refresh_from_db()
         self.assert_default_participant_end_state()
@@ -532,7 +532,7 @@ class TestParticipantDataDeletion(CommonTestCase):
         # not empty. in principle this may change the exact error, as long as it fails its working.
         s3_list_files.return_value = ["some_file"]
         self.default_participant_deletion_event
-        self.assertRaises(AssertionError, run_next_queued_participant_data_deletion)
+        self.assertRaises(AssertionError, run_next_participant_data_deletion)
         # this should fail because the participant is not marked as deleted.
         self.assertRaises(AssertionError, self.assert_default_participant_end_state)
         self.assert_correct_s3_parameters_called(
@@ -568,21 +568,21 @@ class TestParticipantDataDeletion(CommonTestCase):
         self.default_participant_deletion_event
         self.default_chunkregistry
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)  # errors means test failure
     
     @data_purge_mock_s3_calls
     def test_confirm_SummaryStatisticDaily(self):
         self.default_summary_statistic_daily
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_ForestTask(self):
         self.generate_forest_task()
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
@@ -591,35 +591,35 @@ class TestParticipantDataDeletion(CommonTestCase):
             file_name="a", total_lines=1, number_errors=1, error_lines="a", error_types="a", participant=self.default_participant
         )
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_FileToProcess(self):
         self.generate_file_to_process("a_path")
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_PushNotificationDisabledEvent(self):
         PushNotificationDisabledEvent.objects.create(participant=self.default_participant, count=1)
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_ParticipantFCMHistory(self):
         self.default_fcm_token
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_ParticipantFieldValue(self):
         self.default_participant_field_value
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     @data_purge_mock_s3_calls
     def test_confirm_UploadTracking(self):
@@ -627,14 +627,14 @@ class TestParticipantDataDeletion(CommonTestCase):
             file_path=" ", file_size=0, timestamp=timezone.now(), participant=self.default_participant
         )
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_ScheduledEvent(self):
         self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
@@ -642,21 +642,21 @@ class TestParticipantDataDeletion(CommonTestCase):
         sched_event = self.generate_easy_absolute_scheduled_event_with_absolute_schedule(timezone.now())
         sched_event.archive(self.default_participant, status="deleted")
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_InterventionDate(self):
         self.default_populated_intervention_date
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
     def test_confirm_AppHeartbeats(self):
         AppHeartbeats.create(self.default_participant, timezone.now())
         self.assert_confirm_deletion_raises_then_reset_last_updated
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     @data_purge_mock_s3_calls
@@ -665,7 +665,7 @@ class TestParticipantDataDeletion(CommonTestCase):
         
         self.default_participant_deletion_event
         self.assertEqual(ParticipantActionLog.objects.count(), 0)
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         self.assertEqual(ParticipantActionLog.objects.count(), 2)
     
     @data_purge_mock_s3_calls
@@ -673,7 +673,7 @@ class TestParticipantDataDeletion(CommonTestCase):
         self.default_participant.generate_device_status_report_history("some_endpoint_path")
         self.default_participant_deletion_event
         self.assertEqual(DeviceStatusReportHistory.objects.count(), 1)
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         self.assertEqual(DeviceStatusReportHistory.objects.count(), 0)
     
     @data_purge_mock_s3_calls
@@ -681,7 +681,7 @@ class TestParticipantDataDeletion(CommonTestCase):
         self.default_participant.generate_app_version_history("11", "11", "11")
         self.default_participant_deletion_event
         self.assertEqual(AppVersionHistory.objects.count(), 1)
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         self.assertEqual(AppVersionHistory.objects.count(), 0)
     
     @data_purge_mock_s3_calls
@@ -690,7 +690,7 @@ class TestParticipantDataDeletion(CommonTestCase):
             participant=self.default_participant, notification_uuid=uuid.uuid4())
         self.default_participant_deletion_event
         self.assertEqual(SurveyNotificationReport.objects.count(), 1)
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         self.assertEqual(SurveyNotificationReport.objects.count(), 0)
     
     def test_confirm_S3File(self):
@@ -698,7 +698,7 @@ class TestParticipantDataDeletion(CommonTestCase):
         # the function runs without error.
         self.default_participant_deletion_event
         S3File.objects.create(participant=self.default_participant, path="whatever")
-        run_next_queued_participant_data_deletion()
+        run_next_participant_data_deletion()
         confirm_deleted(self.default_participant_deletion_event)
     
     def test_for_all_related_fields(self):
