@@ -50,7 +50,7 @@ class ForestTask(TimestampedModel):
     process_download_end_time = DateTimeField(null=True, blank=True)
     process_end_time = DateTimeField(null=True, blank=True)
     status = TextField(choices=ForestTaskStatus.choices())
-    stacktrace = TextField(null=True, blank=True, default=None)
+    stacktrace = TextField(null=True, blank=True, default=None)  # also the task log if it went fine
     # Whether or not there was any data output by Forest (None means construct_summary_statistics errored)
     forest_output_exists = BooleanField(null=True, blank=True)
     

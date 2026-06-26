@@ -215,7 +215,7 @@ def task_log(request: ResearcherRequest, study_id=None):
             "forest_endpoints.cancel_task", study_id=study_id, forest_task_external_id=extern_id,
         )
         task["download_url"] = easy_url(
-            "forest_endpoints.download_task_data", study_id=study_id, forest_task_external_id=extern_id,
+            "forest_endpoints.download_source_data", study_id=study_id, forest_task_external_id=extern_id,
         )
         
         # raw output data data is only available if the task has completed successfully, and not
@@ -283,10 +283,10 @@ def cancel_task(request: ResearcherRequest, study_id: int, forest_task_external_
 @require_GET
 @authenticate_admin
 @forest_enabled
-def download_task_data(request: ResearcherRequest, study_id: int, forest_task_external_id: str):
+def download_source_data(request: ResearcherRequest, study_id: int, forest_task_external_id: str):
     try:
         forest_task: ForestTask = ForestTask.objects.get(
-            external_id=forest_task_external_id, participant__study_id=study_id
+            external_id=forest_task_external_id, the_study_id=study_id
         )
         participant = forest_task.participant
     except ForestTask.DoesNotExist:

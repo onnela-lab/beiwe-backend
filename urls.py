@@ -254,8 +254,8 @@ path(
     forest_endpoints.download_output_data
 )
 path(
-    "studies/<str:study_id>/forest/tasks/<str:forest_task_external_id>/download",
-    forest_endpoints.download_task_data
+    "studies/<str:study_id>/forest/tasks/<str:forest_task_external_id>/download_source_data",
+    forest_endpoints.download_source_data
 )
 
 ## Weird system status endpoint

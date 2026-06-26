@@ -32,7 +32,9 @@ from libs.utils.http_utils import numformat
 class ObjectIdError(Exception): pass
 
 
+
 def Q_ifier(l_of_q_params: list[dict]) -> Q:
+    # Q_ifier([{"path__startswith":path} for path in x])
     q = Q(**l_of_q_params[0])
     for d in l_of_q_params[1:]:
         q |= Q(**d)

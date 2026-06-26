@@ -7,7 +7,7 @@ from django.http import FileResponse
 
 from constants.celery_constants import ForestTaskStatus
 from constants.common_constants import DEV_TIME_FORMAT, EDT, UTC
-from constants.data_stream_constants import GPS
+from constants.data_stream_constants import GPS, SURVEY_TIMINGS
 from constants.forest_constants import (FOREST_NO_TASK, FOREST_TASK_CANCELLED, ForestTree,
     JASMINE_FIELDS, OAK_FIELDS, TREE_TO_TASK_NAME, WILLOW_FIELDS)
 from constants.testing_constants import EMPTY_ZIP, SIMPLE_FILE_CONTENTS
@@ -418,11 +418,11 @@ class TestForestDownloadOutput(ResearcherSessionTest):
         self.smart_get_status_code(404, self.session_study.id, uuid.uuid4())
 
 
-class TestForestDownloadTaskData(ResearcherSessionTest):
+class TestForestDownloadSourceData(ResearcherSessionTest):
     # you need to look at tests/test_data_access_api.py to understand the weird problems that can
     # happen with this use of the data access api code. I'm not redocumenting it.
     
-    ENDPOINT_NAME = "forest_endpoints.download_task_data"
+    ENDPOINT_NAME = "forest_endpoints.download_source_data"
     REDIRECT_ENDPOINT_NAME = ResearcherSessionTest.IGNORE_THIS_ENDPOINT
     
     def test_no_relation_cannot(self):
@@ -460,8 +460,30 @@ class TestForestDownloadTaskData(ResearcherSessionTest):
             data_date_end=datetime(2020, 1, 4, tzinfo=UTC),
             forest_tree=ForestTree.jasmine,
         )
+        self.default_chunkregistry.update(time_bin=datetime(2020, 1, 2, tzinfo=UTC), data_type=GPS)
+        # hit endpoint, check for our SIMPLE_FILE_CONTENTS nonce
+        resp = self.smart_get_status_code(
+            200, self.session_study.id, self.default_forest_task.external_id
+        )
+        self.assertIn(SIMPLE_FILE_CONTENTS, b"".join(resp.streaming_content))
+    
+    @patch("libs.streaming_zip.s3_retrieve")
+    @patch("libs.streaming_zip.ThreadPool")  # see tests/test_data_access_api.py
+    def test_full_request_no_participant(self, threadpool: MagicMock, s3_retrieve: MagicMock):
+        threadpool.return_value = DummyThreadPool()
+        s3_retrieve.return_value = SIMPLE_FILE_CONTENTS
+        
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        # make a jasmine task and a single file within the time range that should download (gps)
+        self.default_forest_task.update(
+            data_date_start=datetime(2020, 1, 1, tzinfo=UTC),
+            data_date_end=datetime(2020, 1, 4, tzinfo=UTC),
+            forest_tree=ForestTree.sycamore,  # changes file below a little
+            participant=None,
+        )
+        
         self.default_chunkregistry.update(
-            time_bin=datetime(2020, 1, 2, tzinfo=UTC), data_type=GPS
+            time_bin=datetime(2020, 1, 2, tzinfo=UTC), data_type=SURVEY_TIMINGS
         )
         # hit endpoint, check for our SIMPLE_FILE_CONTENTS nonce
         resp = self.smart_get_status_code(

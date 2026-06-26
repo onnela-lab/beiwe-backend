@@ -8,6 +8,7 @@
 .vscode
 htmlcov/
 .ropeproject
+.prettierrc
 
 # A place to stick your files
 env/*
