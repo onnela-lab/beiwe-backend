@@ -198,6 +198,7 @@ extend-ignore = [
   "R504",  # unnecessary return after assignment - is literally incorrect
   "FS001",  # use of % on string formatting
   "E302", # expected 2 blank lines, found 1   -   I just don't care anymore.
+  "CFQ004", # too many returns
 ]
 
 exclude = [
