@@ -11,7 +11,8 @@ from django.utils import timezone
 
 from config.settings import FILE_PROCESS_PAGE_SIZE
 from constants import common_constants
-from constants.data_processing_constants import AllBinifiedData, BinifyDict, DEBUG_FILE_PROCESSING
+from constants.data_processing_constants import (AllBinifiedData, BinifyDict,
+    CHUNK_TIMESLICE_QUANTUM, DEBUG_FILE_PROCESSING)
 from constants.data_stream_constants import (ACCELEROMETER, DATA_STREAM_TO_S3_FILE_NAME_STRING,
     DEVICEMOTION, GPS, GYRO, MAGNETOMETER)
 from database.models import ChunkRegistry, FileToProcess, Participant, Q, S3File, Study
@@ -408,6 +409,12 @@ class FileProcessingTracker():
                 file_contents,
             )
             file_for_processing.delete_ftp()
+            
+            # function expects the time _bin_ integer - timestamp is guaranteed 10 digits
+            chunk_time_bin = timestamp // CHUNK_TIMESLICE_QUANTUM
+            calculate_data_quantity_stats(
+                file_for_processing.file_to_process.participant, chunk_time_bin, chunk_time_bin,
+            )
         except ValidationError as ve:
             if len(ve.messages) != 1:
                 # case: the error case (below) is very specific, we only want that singular error.

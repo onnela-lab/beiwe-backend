@@ -15,7 +15,7 @@ from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, AN
     MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG,
     WIFI)
 from constants.user_constants import ANDROID_API, IOS_API
-from database.models import ChunkRegistry, FileToProcess, S3File, Survey
+from database.models import ChunkRegistry, FileToProcess, S3File, SummaryStatisticDaily, Survey
 from libs.aes import decrypt_server
 from libs.file_processing.csv_merger import construct_s3_chunk_path, CsvMerger
 from libs.file_processing.file_for_processing import FileForProcessing
@@ -354,7 +354,7 @@ class TestCsvMerger(CommonTestCase):
         base = f"{CHUNKS_FOLDER}/study_id/patient_id"
         survey_id = "survey_id"
         
-        all_data_streams = {
+        most_data_streams = {
             ACCELEROMETER:    f"{base}/{ACCELEROMETER}/{time_bin_str}.csv",
             ANDROID_LOG_FILE: f"{base}/{ANDROID_LOG_FILE}/{time_bin_str}.csv",
             BLUETOOTH:        f"{base}/{BLUETOOTH}/{time_bin_str}.csv",
@@ -376,14 +376,14 @@ class TestCsvMerger(CommonTestCase):
             SURVEY_TIMINGS:   f"{base}/{SURVEY_TIMINGS}/{survey_id}/{time_bin_str}.csv",
         }
         
-        for stream in all_data_streams:
+        for stream in most_data_streams:
             if stream == SURVEY_TIMINGS:
                 
                 with self.assertRaises(ValueError):
                     construct_s3_chunk_path("study_id", "patient_id", stream, time_bin, None)
                 
                 path = construct_s3_chunk_path("study_id", "patient_id", stream, time_bin, survey_id)
-                self.assertEqual(path, all_data_streams[stream])
+                self.assertEqual(path, most_data_streams[stream])
             
             else:
                 
@@ -391,14 +391,14 @@ class TestCsvMerger(CommonTestCase):
                     construct_s3_chunk_path("study_id", "patient_id", stream, time_bin, survey_id)
                 
                 path = construct_s3_chunk_path("study_id", "patient_id", stream, time_bin, None)
-                self.assertEqual(path, all_data_streams[stream])
+                self.assertEqual(path, most_data_streams[stream])
         
         actual_data_streams = set(ALL_DATA_STREAMS)
         actual_data_streams.remove(SURVEY_ANSWERS)
         actual_data_streams.remove(AUDIO_RECORDING)
         actual_data_streams.remove("ambient_audio")
         # actual_data_streams.remove(AI_CHAT_LOGS)
-        self.assertEqual(set(all_data_streams), actual_data_streams)
+        self.assertEqual(set(most_data_streams), actual_data_streams)
     
     def test_csv_merger_initialization_with_empty_data(self):
         merger = CsvMerger(*self.binified_and_handler, self.default_participant, None, None)
@@ -1601,6 +1601,79 @@ class TestFileProcessingTracker(CommonTestCase):
             t = line.split(b",")[0]
             self.assertIn(t, upload2_body)
             self.assertNotIn(t, upload1_body)
+    
+    @patch("libs.s3.conn")
+    def test_easy_run_creates_summary_statistic_daily(self, conn: Mock):
+        conn.put_object = Mock()
+        encrypted_responses = [
+            self.true_default_s3_form(FILE_DATA1),
+            self.true_default_s3_form(FILE_DATA2),
+            self.true_default_s3_form(FILE_DATA3),
+        ]
+        conn.get_object.side_effect = [
+            {"Body": BytesIO(encrypted_responses[0])},
+            {"Body": BytesIO(encrypted_responses[1])},
+            {"Body": BytesIO(encrypted_responses[2])},
+        ]
+        
+        t1, t2, t3 = "1768928568332", "1768929245717", "1768932200000"
+        base_str = f"{self.study_participant_start}/powerState"
+        for t in (t1, t2, t3):
+            path = f"{base_str}/{t}.csv"
+            S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+            self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        
+        self.assertEqual(SummaryStatisticDaily.objects.count(), 0)
+        
+        with patch("libs.file_processing.file_processing_core.logd"):
+            easy_run(self.default_participant)
+        
+        # all 3 files land on the same calendar day, so one SummaryStatisticDaily record
+        self.assertEqual(SummaryStatisticDaily.objects.count(), 1)
+        self.assertEqual(ChunkRegistry.objects.count(), 2)
+        stat = SummaryStatisticDaily.objects.get()
+        self.assertEqual(stat.participant, self.default_participant)
+        self.assertGreater(stat.beiwe_power_state_bytes, 0)
+        byte_count = sum(ChunkRegistry.vlist("file_size"))
+        self.assertEqual(stat.beiwe_power_state_bytes, byte_count)
+    
+    @patch("libs.s3.conn")
+    def test_easy_run_creates_summary_statistic_daily_for_audio(self, conn: Mock):
+        conn.put_object = Mock()
+        
+        # Create audio file data
+        audio_data_1 = b"audio data 1" * 100
+        audio_data_2 = b"audio data 2" * 150
+        
+        encrypted_responses = [
+            self.true_default_s3_form(audio_data_1),
+            self.true_default_s3_form(audio_data_2),
+        ]
+        conn.get_object.side_effect = [
+            {"Body": BytesIO(encrypted_responses[0])},
+            {"Body": BytesIO(encrypted_responses[1])},
+        ]
+        
+        base_str = f"{self.study_participant_start}/voiceRecording"
+        for i, _ in enumerate(encrypted_responses):
+            path = f"{base_str}/1768928568332_{i}.wav"
+            S3File(path=path + ".zst", sha1=path.encode()[:16]).save()
+            self.generate_file_to_process(path=path, os_type=ANDROID_API)
+        
+        self.assertEqual(SummaryStatisticDaily.objects.count(), 0)
+        
+        with patch("libs.file_processing.file_processing_core.logd"):
+            easy_run(self.default_participant)
+        
+        # Audio files are unchunkable, so one SummaryStatisticDaily record
+        self.assertEqual(SummaryStatisticDaily.objects.count(), 1)
+        self.assertEqual(ChunkRegistry.objects.count(), 2)
+        stat = SummaryStatisticDaily.objects.get()
+        self.assertEqual(stat.participant, self.default_participant)
+        self.assertGreater(stat.beiwe_audio_recordings_bytes, 0)
+        
+        byte_count = sum(ChunkRegistry.vlist("file_size"))
+        self.assertEqual(stat.beiwe_audio_recordings_bytes, byte_count)
     
     @patch("libs.s3.conn")
     def test_easy_run_with_survey_timings_multiple_mixed_surveys(self, conn: Mock):

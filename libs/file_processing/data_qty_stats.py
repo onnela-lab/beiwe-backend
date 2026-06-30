@@ -53,6 +53,8 @@ def calculate_data_quantity_stats(
     earliest_time_bin_number -- expressed in hours since 1/1/1970
     latest_time_bin_number -- expressed in hours since 1/1/1970 """
     
+    # Todo: convert this to use dt objects, time bins is silly.
+    
     # they can be equal, but they have to be populated or else the query is unbounded
     if earliest_time_bin_number is None or latest_time_bin_number is None:
         return
