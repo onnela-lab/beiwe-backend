@@ -12,9 +12,9 @@ from django.db.models.query import QuerySet
 from django.utils import timezone
 from django.utils.timezone import localtime
 
-from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, AMBIENT_AUDIO,
-    AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, MAGNETOMETER, POWER_STATE,
-    PROXIMITY, REACHABILITY, TEXTS_LOG, WIFI)
+from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, AUDIO_RECORDING,
+    BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, MAGNETOMETER, POWER_STATE, PROXIMITY,
+    REACHABILITY, TEXTS_LOG, WIFI)
 from constants.message_strings import DEFAULT_HEARTBEAT_MESSAGE
 from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT,
     DEFAULT_CONSENT_SECTIONS_JSON, SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
@@ -25,9 +25,9 @@ from libs.utils.date_utils import date_is_in_the_past
 
 
 if TYPE_CHECKING:
-    from database.models import (ChunkRegistry, DashboardColorSetting, FileToProcess, Intervention,
-        Participant, ParticipantFieldValue, Researcher, StudyRelation, SummaryStatisticDaily,
-        Survey, ForestTask)
+    from database.models import (ChunkRegistry, DashboardColorSetting, FileToProcess, ForestTask,
+        Intervention, Participant, ParticipantFieldValue, Researcher, StudyRelation,
+        SummaryStatisticDaily, Survey)
 
 
 class Study(TimestampedModel, ObjectIDModel):
@@ -191,7 +191,6 @@ class DeviceSettings(TimestampedModel):
     ENABLEMENT_FIELD_NAMES = {
         ACCELEROMETER: "accelerometer",
         AUDIO_RECORDING: "voice_recording",
-        AMBIENT_AUDIO: "ambient_audio",
         BLUETOOTH: "bluetooth",
         CALL_LOG: "calls",
         DEVICEMOTION: "devicemotion",
@@ -231,7 +230,6 @@ class DeviceSettings(TimestampedModel):
     use_gps_fuzzing = BooleanField(default=False)
     call_clinician_button_enabled = BooleanField(default=True)
     call_research_assistant_button_enabled = BooleanField(default=True)
-    ambient_audio = BooleanField(default=False)
     
     # Whether iOS-specific data streams are turned on
     proximity = BooleanField(default=False)
@@ -247,10 +245,6 @@ class DeviceSettings(TimestampedModel):
     accelerometer_off_duration_seconds = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     accelerometer_on_duration_seconds = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     accelerometer_frequency = PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
-    ambient_audio_off_duration_seconds = PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_on_duration_seconds = PositiveIntegerField(default=10*60, validators=[MinValueValidator(1)])
-    ambient_audio_bitrate = PositiveIntegerField(default=24000, validators=[MinValueValidator(16000)])
-    ambient_audio_sampling_rate = PositiveIntegerField(default=44100, validators=[MinValueValidator(16000)])
     bluetooth_on_duration_seconds = PositiveIntegerField(default=60, validators=[MinValueValidator(1)])
     bluetooth_total_duration_seconds = PositiveIntegerField(default=300, validators=[MinValueValidator(1)])
     bluetooth_global_offset_seconds = PositiveIntegerField(default=0)

@@ -1,6 +1,5 @@
 ## Constants for for the keys in DATA_STREAM_TO_S3_FILE_NAME_STRING
 ACCELEROMETER = "accelerometer"
-AMBIENT_AUDIO = "ambient_audio"
 AUDIO_RECORDING = "audio_recordings"
 ANDROID_LOG_FILE = "app_log"
 BLUETOOTH = "bluetooth"
@@ -23,7 +22,6 @@ WIFI = "wifi"
 ALL_DATA_STREAMS = [  # these strings are used in chunked files
     ACCELEROMETER,
     AUDIO_RECORDING,
-    AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
     BLUETOOTH,
     CALL_LOG,
@@ -65,7 +63,6 @@ UPLOAD_FILE_TYPE_MAPPING = {  # These weird (non-constants) strings are used in 
     "wifiLog": WIFI,
     "proximity": PROXIMITY,
     "ios_log": IOS_LOG_FILE,  # I don't know why this one doesn't have a slash
-    "ambientAudio": AMBIENT_AUDIO,
     "identifiers": IDENTIFIERS,  # not processed through data upload.
 }
 
@@ -92,7 +89,6 @@ DATA_STREAM_TO_S3_FILE_NAME_STRING = {  # These weird (non-constants) strings ar
     DEVICEMOTION: "devicemotion",
     REACHABILITY: "reachability",
     IOS_LOG_FILE: "ios/log",  # this one has a slash because we screwed up historically and can never change it
-    AMBIENT_AUDIO: "ambientAudio",
 }
 
 CHUNKABLE_FILES = {
@@ -123,7 +119,6 @@ DEVICE_IDENTIFIERS_HEADER = \
 
 DASHBOARD_DATA_STREAMS = [
     ACCELEROMETER,
-    AMBIENT_AUDIO,
     ANDROID_LOG_FILE,
     BLUETOOTH,
     CALL_LOG,
@@ -146,7 +141,6 @@ DASHBOARD_DATA_STREAMS = [
 COMPLETE_DATA_STREAM_DICT = {
     ACCELEROMETER: "Accelerometer",
     AUDIO_RECORDING: "Audio Recordings",
-    AMBIENT_AUDIO: "Ambient Audio",
     ANDROID_LOG_FILE: "Android Log File",
     BLUETOOTH: "Bluetooth",
     CALL_LOG: "Call Log",

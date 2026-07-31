@@ -203,9 +203,7 @@ class TestS3FilePathToDataType(CommonTestCase):
     
     def test_the_one(self):
         # the ai chat log isn't actually uploaded
-        ai_set = set(["ambient_audio"])  # noqa
         all_data_streams_set = set(ALL_DATA_STREAMS)
-        acceptable_streams = all_data_streams_set - ai_set  # type: ignore
         
         test_cases = [
             (ACCELEROMETER, "study/participant/accel/1234567890.csv"),
@@ -231,7 +229,7 @@ class TestS3FilePathToDataType(CommonTestCase):
         ]
         self.assertEqual(
             {stream for stream, _ in test_cases},
-            acceptable_streams,
+            all_data_streams_set,
             "Test cases should cover all data streams defined in ALL_DATA_STREAMS except AI_CHAT_LOGS")
         
         for expected_stream, file_path in test_cases:

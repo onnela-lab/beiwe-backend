@@ -11,7 +11,7 @@ from django.db.models import (BinaryField, BooleanField, CharField, Count, DateT
 from django.utils import timezone
 
 from constants.common_constants import CHUNKS_FOLDER
-from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS, AMBIENT_AUDIO,
+from constants.data_stream_constants import (ACCELEROMETER, ALL_DATA_STREAMS,
     ANDROID_LOG_FILE, AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DATA_STREAM_TO_S3_FILE_NAME_STRING,
     DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE, MAGNETOMETER, POWER_STATE, PROXIMITY,
     REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG, UPLOAD_FILE_TYPE_MAPPING, WIFI)
@@ -462,7 +462,6 @@ class S3File(TimestampedModel):
         # it _should_ always be a map of ACCELEROMETER: ACCELEROMETER buuuuut we aren't that lucky.
         MAPPING = {
             ACCELEROMETER:    ("accel", ACCELEROMETER, ),
-            AMBIENT_AUDIO:    ("ambientAudio", AMBIENT_AUDIO, ),
             ANDROID_LOG_FILE: ("logFile", ANDROID_LOG_FILE, ),
             BLUETOOTH:        ("bluetoothLog", BLUETOOTH, ),
             CALL_LOG:         ("callLog", CALL_LOG, ),
@@ -484,7 +483,7 @@ class S3File(TimestampedModel):
             "forest":         ("forest", ),
         }
         
-        not_chunked = AMBIENT_AUDIO, SURVEY_ANSWERS, AUDIO_RECORDING, "key_file", "forest"
+        not_chunked = SURVEY_ANSWERS, AUDIO_RECORDING, "key_file", "forest"
         
         for label, filters in MAPPING.items():
             path_contains = Q()

@@ -548,7 +548,6 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
         'Study Id',
         'Timezone',
         'Accelerometer Bytes',
-        'Ambient Audio Bytes',
         'App Log Bytes',
         'Bluetooth Bytes',
         'Calls Bytes',
@@ -623,7 +622,7 @@ class TestDownloadSummaryStatisticsSummary(ResearcherSessionTest):
             f"{self.default_study.object_id},"
             # to regenerate this next line open a shell and get the output of:
             # print(",".join(str(x) for x in SummaryStatisticDaily.default_summary_statistic_daily_cheatsheet().values()) + "\\r\\n")
-            '5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34,35.0,36,37.0,38.0,39.0,40.0,41.0,42.0,43.0,44.0,45,46,47,48,49,50,51,52,53,54,55.0,56,57,58.0,59,60,61.0,62,63,64.0,65.0,66,67.0,68.0,69.0\r\n'
+            '5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24.0,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33,34.0,35,36.0,37.0,38.0,39.0,40.0,41.0,42.0,43.0,44,45,46,47,48,49,50,51,52,53,54.0,55,56,57.0,58,59,60.0,61,62,63.0,64.0,65,66.0,67.0,68.0\r\n'
             .encode()
         )
     

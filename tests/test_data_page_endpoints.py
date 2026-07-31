@@ -183,11 +183,11 @@ class TestDashboardParticipantDisplay(ResearcherSessionTest):
         # sanity check that the number of fields has not changed (update test if they do)
         field_names = [f.name for f in SummaryStatisticDaily._meta.local_fields
                        if f.name.startswith("beiwe_") and f.name.endswith("_bytes")]
-        self.assertEqual(len(field_names), 19)
+        self.assertEqual(len(field_names), 18)
         
         # there should be 7 of each byte count one for each day in the forced 7 day period, from 8
         # to 25 based on the summary statistic cheat sheet.
-        for i in range(6, 25):
+        for i in range(6, 24):
             self.assertEqual(html1.count(f'<td class="bytes"> {i} </td>'.encode()), 7)
             self.assertEqual(html2.count(f'<td class="bytes"> {i} </td>'.encode()), 7)
         

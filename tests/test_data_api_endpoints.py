@@ -292,7 +292,6 @@ class TestGetParticipantDataInfo(DataApiTest):
         # this is manual so that if you change the fields in the future we will get a failure
         return {
             'accelerometer_bytes': 0,
-            'ambient_audio_bytes': 0,
             'app_log_bytes': 0,
             'bluetooth_bytes': 0,
             'calls_bytes': 0,
@@ -1607,7 +1606,6 @@ class TestWebDataConnectorSummaryStatistics(SmartRequestsTestCase):
         
         # Data quantities
         "beiwe_accelerometer_bytes",
-        "beiwe_ambient_audio_bytes",
         "beiwe_app_log_bytes",
         "beiwe_bluetooth_bytes",
         "beiwe_calls_bytes",

@@ -1,14 +1,13 @@
 from django.db.models.fields import (BooleanField, CharField, DateField, DateTimeField, FloatField,
     IntegerField, TextField)
-from forest.jasmine.traj2stats import Hyperparameters
 
 from constants import DjangoDropdown
-from constants.data_stream_constants import (ACCELEROMETER, AMBIENT_AUDIO, ANDROID_LOG_FILE,
-    AUDIO_RECORDING, BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE,
-    MAGNETOMETER, POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG,
-    WIFI)
+from constants.data_stream_constants import (ACCELEROMETER, ANDROID_LOG_FILE, AUDIO_RECORDING,
+    BLUETOOTH, CALL_LOG, DEVICEMOTION, GPS, GYRO, IDENTIFIERS, IOS_LOG_FILE, MAGNETOMETER,
+    POWER_STATE, PROXIMITY, REACHABILITY, SURVEY_ANSWERS, SURVEY_TIMINGS, TEXTS_LOG, WIFI)
 
 from forest.constants import Frequency
+from forest.jasmine.traj2stats import Hyperparameters
 
 
 # the canonical location where any files are allocated for forest tasks.
@@ -220,7 +219,6 @@ NICE_SUMMARY_METADATA_FIELD_NAMES = [
 # Data quantities
 DATA_QUANTITY_FIELD_MAP = {
     ACCELEROMETER: "beiwe_accelerometer_bytes",
-    AMBIENT_AUDIO: "beiwe_ambient_audio_bytes",
     ANDROID_LOG_FILE: "beiwe_app_log_bytes",
     BLUETOOTH: "beiwe_bluetooth_bytes",
     CALL_LOG: "beiwe_calls_bytes",

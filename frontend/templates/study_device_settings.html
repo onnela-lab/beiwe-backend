@@ -32,7 +32,7 @@
       </div>
       <div class="col-xs-12 col-md-6 well well-sm well-right" style="min-height: 6em;">
         <p>Device Motion, Reachability, and Proximity are iOS-only.
-        <p>Ambient Audio, Wifi, Calls, Texts, and Bluetooth are Android-only.
+        <p>Wifi, Calls, Texts, and Bluetooth are Android-only.
       </div>
 
       <div class="well container-fluid">
@@ -423,139 +423,6 @@
             >
           </div>
         </div>
-        <div class="col-xs-12">
-          <hr>
-        </div>
-
-        {# Ambient Audio #}
-        <div class="col-xs-12 col-md-2">
-          <div class="form-group">
-
-            <label
-              for="ambient_audio"
-              class="control-label"
-            >Ambient Audio:</label>
-
-            <input
-              name="ambient_audio"
-              id="ambient_audio"
-              type="checkbox"
-              aria-label="Enable or disable Ambient Audio data collection"
-              {{ "checked" if settings["ambient_audio"] }}
-              {{ "disabled" if readonly }}
-            />
-          </div>
-        </div>
-        <div class="col-xs-12 col-md-5">
-          <div class="form-group">
-
-            <label
-              for="ambient_audio_on_duration_seconds"
-              class="control-label app-settings-align-70"
-            >Ambient Audio <b class="text-medium text-actual-white">on</b> duration <i class="text-sea-foam">(seconds):</i></label>
-
-            <input
-              id="ambient_audio_on_duration_seconds"
-              name="ambient_audio_on_duration_seconds"
-              class="form-control"
-              type="number"
-              aria-label="Set the duration of a recording session when Ambient Audio is enabled."
-              value="{{ settings['ambient_audio_on_duration_seconds'] }}"
-              {{ "disabled" if readonly }}
-            />
-          </div>
-        </div>
-        <div class="col-xs-12 col-md-5">
-          <div class="form-group">
-
-            <label
-              for="ambient_audio_off_duration_seconds"
-              class="control-label app-settings-align-70"
-            >Ambient Audio <b class="text-medium text-actual-white">off</b> duration <i class="text-sea-foam">(seconds):</i></label>
-
-            <input
-              id="ambient_audio_off_duration_seconds"
-              name="ambient_audio_off_duration_seconds"
-              class="form-control"
-              type="number"
-              aria-label="Set the duration of the sleep session when Ambient Audio is disabled"
-              value="{{ settings['ambient_audio_off_duration_seconds'] }}"
-              {{ "disabled" if readonly }}
-            />
-          </div>
-        </div>
-
-        <div class="col-xs-12 col-md-2">
-          <hr>
-        </div>
-
-        <div class="col-xs-12 col-md-5">
-          <div class="form-group">
-
-            <label
-              for="ambient_audio_bitrate"
-              class="control-label app-settings-align-70"
-            >Ambient Audio Bitrate:</label>
-            <select
-              id="ambient_audio_bitrate"
-              name="ambient_audio_bitrate"
-              class="form-control"
-              aria-label="Set the bitrate of the Ambient Audio recording session."
-              {{ "disabled" if readonly }}
-            >
-              <option
-                value="16000"
-                {{ 'selected' if settings['ambient_audio_bitrate'] == 16000 }}
-              >16Kbps</option>
-              <option
-                value="24000"
-                {{ 'selected' if settings['ambient_audio_bitrate'] == 24000 or not settings['ambient_audio_bitrate'] }}
-              >24Kbps</option>
-              <option
-                value="32000"
-                {{ 'selected' if settings['ambient_audio_bitrate'] == 32000 }}
-              >32Kbps</option>
-              <option
-                value="48000"
-                {{ 'selected' if settings['ambient_audio_bitrate'] == 48000 }}
-              >48Kbps</option>
-              <option
-                value="64000"
-                {{ 'selected' if settings['ambient_audio_bitrate'] == 64000 }}
-              >64Kbps</option>
-            </select>
-          </div>
-        </div>
-        <div class="col-xs-12 col-md-5">
-          <div class="form-group">
-
-            <label
-              for="ambient_audio_sampling_rate"
-              class="control-label app-settings-align-70"
-            >Ambient Audio sampling rate:</label>
-            <select
-              id="ambient_audio_sampling_rate"
-              name="ambient_audio_sampling_rate"
-              class="form-control"
-              aria-label="Set the audio sampling rate of the Ambient Audio recording session."
-              {{ "disabled" if readonly }}
-            >
-              <option
-                value="16000"
-                {{ 'selected' if settings['ambient_audio_sampling_rate'] == 16000 }}
-              >16,000Hz</option>
-              <option
-                value="22050"
-                {{ 'selected' if settings['ambient_audio_sampling_rate'] == 22050 }}
-              >22,050Hz</option>
-              <option
-                value="44100"
-                {{ 'selected' if settings['ambient_audio_sampling_rate'] == 44100 or not settings['ambient_audio_sampling_rate'] }}
-              >44,100Hz</option>
-            </select>
-          </div>
-        </div>
-
         <div class="col-xs-12">
           <hr>
         </div>

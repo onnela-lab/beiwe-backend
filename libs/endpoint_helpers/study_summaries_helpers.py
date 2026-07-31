@@ -103,7 +103,6 @@ def reference_summarize_data_summaries(study: Study) -> Generator[dict[str, int]
     # For every field name in DATA_QUANTITY_FIELD_NAMES, generate an annotated field that sums all
     # values of that field for each participant. Structure is a dict every line that looks like this:
     #  'Accelerometer Bytes Total': 1347977012
-    #  'Ambient Audio Bytes Total': 0
     #  'App Log Bytes Total': 450205033
     #  'Audio Recordings Bytes Total': 53804
     #  'Bluetooth Bytes Total': 0

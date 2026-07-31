@@ -396,7 +396,6 @@ class TestCsvMerger(CommonTestCase):
         actual_data_streams = set(ALL_DATA_STREAMS)
         actual_data_streams.remove(SURVEY_ANSWERS)
         actual_data_streams.remove(AUDIO_RECORDING)
-        actual_data_streams.remove("ambient_audio")
         # actual_data_streams.remove(AI_CHAT_LOGS)
         self.assertEqual(set(most_data_streams), actual_data_streams)
     
