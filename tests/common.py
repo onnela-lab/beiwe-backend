@@ -202,7 +202,8 @@ class CommonTestCase(TestCase, DatabaseHelperMixin):
         """ Overrides and inserts our diff_strings func to make the error easy to parse. """
         from libs.shell_support import diff_strings
         
-        assert type(first) == type(second), f"types are not equal: {type(first)}, {type(second)}"
+        msg2 = "" if msg is None else msg + " - "
+        assert type(first) == type(second), f"{msg2}types are not equal: {type(first)}, {type(second)}"
         
         try:
             return super().assertEqual(first, second, msg)
@@ -614,23 +615,24 @@ class ParticipantSessionTest(SmartRequestsTestCase):
         tracker_vals = Participant.objects.filter(pk=self.session_participant.pk) \
                         .values(*self.DEVICE_TRACKING_FIELDS).get()
         
+        msg = f"status code {ret.status_code} and "
         # keep this code explicit or else it becomes unmaintainable
         if self.INJECT_DEVICE_TRACKER_PARAMS:
             self.assertEqual(tracker_vals["last_version_code"], post_params["version_code"],
-                             msg="last_version_code did not update")
+                             msg=f"{msg}last_version_code did not update")
             self.assertEqual(tracker_vals["last_version_name"], post_params["version_name"],
-                             msg="last_version_name did not update")
+                             msg=f"{msg}last_version_name did not update")
             self.assertEqual(tracker_vals["last_os_version"], post_params["os_version"],
-                             msg="last_os_version did not update")
+                             msg=f"{msg}last_os_version did not update")
             self.assertEqual(tracker_vals["device_status_report"], post_params["device_status_report"],
-                             msg="device_status_report did not update")
+                             msg=f"{msg}device_status_report did not update")
         
         # ensure there is only 1 of these in all situations
         if self.INJECT_RECEIVED_SURVEY_UUIDS:
             self.assertEqual(
                 SurveyNotificationReport.objects.filter(  # 
                     notification_uuid="a1019758-63f1-48a9-96bf-08208f2c9055").count(), 1,
-                    msg="SurveyNotificationReport count is wrong."
+                    msg=f"{msg}SurveyNotificationReport count is wrong."
                 )
         
         # reset the toggle after every request

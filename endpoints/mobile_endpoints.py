@@ -225,6 +225,15 @@ def register_user(request: ParticipantRequest, OS_API=""):
     
     if participant.permanently_retired:
         return abort(400)
+
+    # You cannot register a device if there is a already a platform (Android or iOS) and it doesn't
+    # match. There is no way to make guarantees that this is not violated in reality, and it is too
+    # complex of a problem to support. For example (and this is from real world experience) a
+    # participant may have their phone stolen, get a temporary other-os phone, install the app for a
+    # week, have both versions of the app simultaneously running and uploading data, then get a new
+    # phone of the original os, and re-register, with the stolen phone just eventually stopping.
+    if participant.os_type and participant.os_type != device_os:
+        return abort(400)
     
     # At this point the device has been checked for validity and will be registered successfully.
     # Any errors after this point will be server errors and return 500 codes. the final return

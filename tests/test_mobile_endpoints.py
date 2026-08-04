@@ -14,6 +14,7 @@ from constants.schedule_constants import EMPTY_WEEKLY_SURVEY_TIMINGS
 from constants.study_constants import (ABOUT_PAGE_TEXT, CONSENT_FORM_TEXT, DEFAULT_CONSENT_SECTIONS,
     SURVEY_SUBMIT_SUCCESS_TOAST_TEXT)
 from constants.testing_constants import MIDNIGHT_EVERY_DAY_OF_WEEK, THURS_OCT_6_NOON_2022_NY
+from constants.user_constants import ANDROID_API
 from database.models import (AbsoluteSchedule, AppHeartbeats, AppVersionHistory, FileToProcess,
     Participant, ParticipantFCMHistory, ScheduledEvent, WeeklySchedule)
 from endpoints.mobile_endpoints import ProblemUploadFileException
@@ -480,7 +481,7 @@ class TestRegisterParticipant(ParticipantSessionTest):
             'patient_id': self.session_participant.patient_id,
             'phone_number': "0000000000",
             'device_id': "pretty_much anything",
-            'device_os': "something",
+            'device_os': ANDROID_API,
             'os_version': "something",
             "product": "something",
             "brand": "something",
@@ -598,6 +599,20 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.INJECT_DEVICE_TRACKER_PARAMS = False
         self.INJECT_RECEIVED_SURVEY_UUIDS = False
         resp = self.smart_post_status_code(403, **params)
+        self.assertEqual(resp.content, b"")
+        self.session_participant.refresh_from_db()
+        self.assertFalse(self.session_participant.validate_password(self.NEW_PASSWORD_HASHED))
+        self.assertIsNone(self.default_participant.last_register_user)
+        self.assertIsNone(self.default_participant.first_register_user)
+
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_bad_os_type(self, get_participant_public_key_string: MagicMock):
+        get_participant_public_key_string.return_value = "a_private_key"
+        params = self.BASIC_PARAMS
+        params['device_os'] = "nope!"
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
+        resp = self.smart_post_status_code(400, **params)
         self.assertEqual(resp.content, b"")
         self.session_participant.refresh_from_db()
         self.assertFalse(self.session_participant.validate_password(self.NEW_PASSWORD_HASHED))
