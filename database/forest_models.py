@@ -29,6 +29,7 @@ class ForestTask(TimestampedModel):
     # The 'the_study' field is name with the definite article for some weird compatibility reason...
     the_study: Study = ForeignKey(Study, on_delete=PROTECT, related_name="forest_tasks")
     participant: Participant | None = ForeignKey(Participant, on_delete=PROTECT, db_index=True, null=True, blank=True, related_name="forest_tasks")
+    creator = TextField(blank=True, null=False)
     
     forest_tree: str = TextField(choices=ForestTree.choices())
     forest_version = CharField(blank=True, max_length=10, null=False, default="")
@@ -59,6 +60,7 @@ class ForestTask(TimestampedModel):
     # Jasmine has special parameters, these are their s3 file paths.
     all_bv_set_s3_key = TextField(blank=True)
     all_memory_dict_s3_key = TextField(blank=True)
+    # todo all_bv_set_s3_key and all_memory_dict_s3_key are very weird and don't save much on runtime. remove?
     
     # related field typings (IDE halp)
     jasmine_summary_statistics: Manager[SummaryStatisticDaily]

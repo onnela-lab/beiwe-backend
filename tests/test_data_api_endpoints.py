@@ -10,7 +10,8 @@ from django.utils import timezone
 from authentication.tableau_authentication import (check_tableau_permissions,
     TableauAuthenticationFailed, TableauPermissionDenied, X_ACCESS_KEY_ID, X_ACCESS_KEY_SECRET)
 from constants.common_constants import DEV_TIME_FORMAT, EST
-from constants.forest_constants import DATA_QUANTITY_FIELD_NAMES, SERIALIZABLE_FIELD_NAMES
+from constants.forest_constants import (DATA_QUANTITY_FIELD_NAMES, ForestTree,
+    SERIALIZABLE_FIELD_NAMES)
 from constants.message_strings import MESSAGE_SEND_SUCCESS, MISSING_JSON_CSV_MESSAGE
 from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST, SIMPLE_FILE_CONTENTS
@@ -1815,3 +1816,53 @@ class TestCheckMyCredentials(DataApiTest):
         # self.session_secret_key = "bad"
         resp = self.smart_post_status_code(403)
         self.assertEqual(resp.content, b"")
+
+
+class TestGetForestTasks(DataApiTest):
+    ENDPOINT_NAME = "data_api_endpoints.get_forest_tasks"
+    
+    def test_empty_forest_tasks_returns_empty_list(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
+        self.assertEqual(orjson.loads(resp.content), [])
+    
+    def test_returns_forest_tasks_for_one_study(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        task = self.generate_forest_task(self.default_participant)
+        other_study = self.generate_study("study2")
+        other_participant = self.generate_participant(other_study)
+        self.generate_forest_task(other_participant)
+        
+        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
+        response_object = orjson.loads(resp.content)
+        self.assertEqual(len(response_object), 1)
+        self.assertEqual(response_object[0]["study"], self.session_study.object_id)
+        self.assertEqual(response_object[0]["patient_id"], self.default_participant.patient_id)
+        self.assertEqual(response_object[0]["forest_tree"], task.forest_tree)
+    
+    def test_returns_multiple_forest_tasks_for_one_study(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        task1 = self.generate_forest_task(self.default_participant)
+        task1.update(forest_tree=ForestTree.jasmine)
+        task2 = self.generate_forest_task(self.default_participant)
+        task2.update(forest_tree=ForestTree.sycamore)
+        
+        # other_participant is alphabetically before the default participant
+        other_participant = self.generate_participant(self.default_study, patient_id="11111111")
+        task3 = self.generate_forest_task(other_participant)
+        task3.update(forest_tree=ForestTree.jasmine)
+        task4 = self.generate_forest_task(other_participant)
+        task4.update(forest_tree=ForestTree.sycamore)
+
+        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
+        response_object = orjson.loads(resp.content)
+        # test for order grouping first 2 as tree "a" together with participant 2, then default particiant
+        self.assertEqual(len(response_object), 4)
+        self.assertEqual(response_object[0]["patient_id"], other_participant.patient_id)
+        self.assertEqual(response_object[0]["forest_tree"], ForestTree.jasmine)
+        self.assertEqual(response_object[1]["patient_id"], self.default_participant.patient_id)
+        self.assertEqual(response_object[1]["forest_tree"], ForestTree.jasmine)
+        self.assertEqual(response_object[2]["patient_id"], other_participant.patient_id)
+        self.assertEqual(response_object[2]["forest_tree"], ForestTree.sycamore)
+        self.assertEqual(response_object[3]["patient_id"], self.default_participant.patient_id)
+        self.assertEqual(response_object[3]["forest_tree"], ForestTree.sycamore)

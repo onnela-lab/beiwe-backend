@@ -66,12 +66,16 @@ def create_tasks(request: ResearcherRequest, study_id=None):
         study = Study.objects.get(pk=study_id)
     except Study.DoesNotExist:
         return HttpResponse(content="", status=404)
+
     
     # FIXME: remove this double endpoint pattern, it is bad.
     if request.method == "GET":
         return render_create_tasks(request, study)
-    
-    if not (form := CreateTasksForm(data=request.POST, study=study)).is_valid():
+
+    researcher = request.session_researcher
+    form = CreateTasksForm(data=request.POST, study=study, creator=researcher.username)
+
+    if not form.is_valid():
         # the errors are organized ... inexplicably...
         rebundled_messages = {key: [] for key in form.errors}  # just a dict of field name to messages
         for key, message_list in form.errors.items():

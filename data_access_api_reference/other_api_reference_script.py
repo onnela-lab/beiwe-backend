@@ -14,41 +14,57 @@ SECRET_KEY = "your secret key"
 # Enter the top-level component of your Beiwe server.
 MY_BEIWE_SERVER = "https://example.com"
 
-# these are the current assortment of endpoints, other than get-data/v1.
+#
+## Study API Endpoints
+#
 
-
+## Test My Credentials - check that your credentials are valid
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/check-my-credentials/v1"
-# This endpoint takes no parameters
-# This endpoint returns "The provided credentials are valid" with a 200 status code
-# if your credentials are valid.
+# - This endpoint takes no parameters other than the credentials themselves.
+# Returns
+#   HTTP 200 and literally the string "The provided credentials are valid" for valid credentials.
+#   HTTP 403 if the credentials are invalid.
+#   HTTP 404 if the server is out of date.
 
+
+## Get Studies - retrieve the studies you have access to
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-studies/v1"
-# Endpoint takes no parameters, returns a json dictionary of study ids and their study name.
-# Returns the studies that the user has access to.
-# Study names and ids are each unique.
+# - This endpoint takes no parameters other than the credentials themselves.
+# Returns a json dictionary of study ids and their study name of studies that you have access to.
+# - Study names and ids are both unique.
 
+
+## Get Participant IDs - retrieve the participant ids for a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-ids/v1"
-# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-users/v1"  # deprecated, use get-participant-ids
-# Endpoint takes one parameter, study_id, returns a json list of participant ids for that study.
-# This endpoint is provisionally deprecated, it is not guaranteed to be available in the future.
+# ~TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-users/v1"  # (deprecated, use get-participant-ids)~
+# - Endpoint takes one parameter, study_id, returns a json list of participant ids for that study.
 
+
+## Get Participant Data Quantities - retrieve data quantity metrics for participants in a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-data-quantities/v1"
-# Endpoint takes one parameter, study_id, returns complex json of participants and their data
-# quantity metrics as reported on the dashboard.
+# - Endpoint takes only the required parameter "study_id"
+# Returns complex json of participants and their data quantity metrics as reported on the dashboard.
 
+
+## Get Interventions - retrieve the interventions for participants in a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-interventions/v1"
-# Endpoint takes one parameter, study_id, returns complex json of participants and their
-# interventions, including dates and times
+# - Endpoint takes only the required parameter "study_id"
+# Returns complex json of participants and their interventions, including dates and times
 
+
+## Get Survey History - retrieve the edit history of all surveys in a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-survey-history/v1"
-# Endpoint takes one parameter, study_id, returns complex json of the edit history all surveys
-# on the study, including dates and times, and the json representation of the surveys.
+# - Endpoint takes only the required parameter "study_id"
+# Returns complex json of the edit history all surveys on the study, including dates and times, and
+#   the json representation of the surveys.
 
+
+## Get Study Settings - retrieve the settings for a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-study-settings/v1"
-# This endpoint returns the same json dictionary of the study settings download button on the
-# study settings page.  It takes exactly one parameter, a study_id.
-# This endpoint contains a data set that can be consumed by the duplicate study json section
-# when creating a new study.
+# - Endpoint takes only the required parameter "study_id"
+# Returns the same json dictionary of the study settings download button on the study settings page.
+# - This endpoint contains a data set that can be consumed by the duplicate study json section
+#   when creating a new study.
 # The study settings dictionary contains 3 keys:
 #   "surveys" - a dictionary of the study's current survey content, settings, and schedules.
 #   "device_settings" - The settings defined for the study - note that the values here may have
@@ -56,81 +72,88 @@ MY_BEIWE_SERVER = "https://example.com"
 #   "interventions" - a list of the names of the interventions defined for the study, and used
 #       in the survey schedules.
 
+
+## Forest Tasks - get information about all of the forest tasks that have run on a study
+# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-forest-tasks/v1"
+# - Endpoint takes only the required parameter "study_id"
+# Returns a json list of all forest tasks sorted by forest tree, patient id, and creation date.
+
+#
+## Participant API Endpoints
+#
+
+## Get Participant Upload History - retrieve the upload history for a participant in a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-upload-history/v1"
-# Endpoint takes one required parameter, participant_id, which must match a participant id in a
-# study the user has access to.
+# - Endpoint takes one required parameter, participant_id, which must match a participant id in a
+#   study you have access to.
+# - Accepts the omit_keys parameter.
 # Returns a json list of dictionaries, containing the file size in bytes, timestamp of the
-# upload, and name of the file. The name can be parsed to identify the data stream, and contains
-# a unix timestamp of the creation time of that file on the device.
-# Accepts the omit_keys parameter.
-# Upload tracking has been in place for the majority of Beiwe's existence, it is pretty reliable.
-# WARNING: this endpoint can return a very large amount of data, and it may be VERY slow.
+#   upload, and name of the file. The name can be parsed to identify the data stream, and contains
+#   a unix timestamp of the creation time of that file on the device.
+# - Upload tracking has been in place for the majority of Beiwe's existence, it is pretty reliable.
+# - WARNING: this endpoint can return a very large amount of data, and it may be VERY slow.
 
+
+## Get Participant Heartbeat History - retrieve the heartbeat history for a participant in a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-heartbeat-history/v1"
-# Endpoint takes one required parameter, participant_id, which must match a participant id in a
-# study the user has access to.
+# - Endpoint takes one required parameter, participant_id", which must match a participant id in a
+#   study you have access to.
 # Returns a json list of timestamps of the "heartbeats" that a participant's device has sent to
-# the server. These events are sent periodically on a short interval.  (Data may be slightly
-# chaotic for numerous reasons.)
-# Heartbeats were introduced in Beiwe version 2.5.0 for iOS, and 3.6.0 for Android.
+#   the server. These events are sent periodically on a short interval.  (Data may be slightly
+#   chaotic for numerous reasons.)
+# - Heartbeats were introduced in Beiwe version 2.5.0 for iOS, and 3.6.0 for Android.
 
+
+## Get Participant Version History - retrieve the version history for a participant in a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-version-history/v1"
-# Endpoint takes one required parameter, participant_id, which must match a participant id in a
-# study the user has access to.  Endpoint also accepts the omit_keys parameter.
-# returns a json list of dictionaries, or a json list of lists, containing the app_version_code,
-# app_version_name, and os_version.
-# Version history was introduced in early 2024.
+# - Endpoint takes one required parameter, participant_id, which must match a participant id in a
+#   study you have access to.  
+# - Accepts the omit_keys parameter.
+# Returns a json list of dictionaries, or a json list of lists, containing the app_version_code,
+#   app_version_name, and os_version.
+# - Version history was introduced in early 2024.
 
+
+## Get Participant Summary Data - retrieve the main participant summary table for a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-table-data/v1"
-# Endpoint takes two parameters, study_id and data_format.
-# data_format is required and must contain one of "json", "json_table", "csv".
+# - Endpoint takes two parameters, "study_id" and "data_format".
+# - data_format is required and must contain one of "json", "json_table", "csv".
 # Returns a json list of dictionaries, json list of lists, or csv data containing an extended
-# version of the data on the main participant table on the view study page for a study.
-# The complete list of datapoints returned is: Created On, Patient ID, Status, OS Type, Last
-# Upload, Last Survey Download, Last Registration, Last Set Password, Last Push Token Update,
-# Last Device Settings Update, Last OS Version, App Version Code, App Version Name, and Last
-# Heartbeat.
+#   version of the data on the main participant table on the view study page for a study.
+#   The complete list of datapoints returned is: Created On, Patient ID, Status, OS Type, Last
+#   Upload, Last Survey Download, Last Registration, Last Set Password, Last Push Token Update,
+#   Last Device Settings Update, Last OS Version, App Version Code, App Version Name, and Last
+#   Heartbeat.
 
+
+## Get Summary Statistics - retrieve summary statistics for a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-summary-statistics/v1"
-# Endoint takes many parameters, and has one required parameter, study_id.
-# This endpoint is identical to the Tableau API endpoint. It returns a json list of
-# dictionaries, based on the query parameters.  The query parameters are:
-# `end_date`, a dat of the form YYYY-MM-DD that specifies the last date to include in the search.
-# `start_date`, a date of the form YYYY-MM-DD that specifies the first date to include in the search.
-# `fields`, a comma separated list that of all specific summary statistic fields to return.
+# - Endpoint takes many parameters, and has one required parameter, study_id.
+# - `end_date`, a date of the form YYYY-MM-DD that specifies the last date to include in the search.
+# - `start_date`, a date of the form YYYY-MM-DD that specifies the first date to include in the search.
+# - `fields`, a comma separated list that of all specific summary statistic fields to return.
 #           Providing no value for fields will return all fields.
-# `limit`, an integer that specifies the maximum number of data points to return.
-# `ordered_by`, a field name that specifies the parameter to sort the output by.
-# `order_direction`, either "ascending" or "descending", specifies the order to sort in.
+# - `limit`, an integer that specifies the maximum number of data points to return.
+# - `ordered_by`, a field name that specifies the parameter to sort the output by.
+# - `order_direction`, either "ascending" or "descending", specifies the order to sort in.
+# Returns a json list of dictionaries, based on the query parameters.
+# - This endpoint is identical to the Tableau API endpoint.
 
-# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-device-status-history/v1"
-# Endpoint takes one required parameter, participant_id, which must match a participant id in a
-# study the user has access to.
-# Returns a json list of dictionaries, including complex json of any device status history.
-# Device status history is a feature that must be enabled on a per participant feature by a
-# site admin on the participant experiments page. It is not enabled by default.
 
-# The exact format of the data _differs based on app version_, and was introduced during the
-# latter half of 2023. It is subject to change without warning based on the app version. Some of
-# this data is intended for developer-level debugging and troubleshooting, the exact details of
-# which data points simply require knowledge of the app's internal workings.
-
-# WARNING: this endpoint can return a very large amount of data.
-
-# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-notification-history/v1"
-# Endpoint takes one required parameter, participant_id, which must match a participant id in a
-# study the user has access to.
-
-# This endpoint takes exactly one optional parameter, `utc`.  If this parameter is present with
-# any value the timestamps will be returned in the UTC timezone, in the usual shorthand
-# indicator of a Z.  If this parameter is not present the timestamps will be returned in the
-# timezone offset of the study that the participant is enrolled in.  (Note that the backend's
-# push notification system is aware of the device's timezone and sends out its notifications
-# accordingly; participants receive notificationss on individualized schedules.)
-
+## TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-notification-history/v1"
+# - Endpoint takes one required parameter, participant_id, which must match a participant id in a
+#   study you have access to.
+# - Endpoint takes one optional parameter, `utc`.  If this parameter is present with
+#   any value the timestamps will be returned in the UTC timezone, in the usual shorthand
+#   indicator of a Z.  If this parameter is not present the timestamps will be returned in the
+#   timezone offset of the study that the participant is enrolled in.  (Note that the backend's
+#   push notification system is aware of the device's timezone and sends out its notifications
+#   accordingly; participants receive notificationss on individualized schedules.)
+# 
 # Returns a json dictionary.  The keys of the dictionary are strings of the IDs of the survey
-# that the notification was sent for.  These map to a list of dictionaries of data for every
-# notification sent to a participant.  The data has the following keys:
+#   that the notification was sent for.  These map to a list of dictionaries of data for every
+#   notification sent to a participant.  The data has the following keys:
+#
 #   timestamp - The time the notification was sent.
 #   type - The type of schedule that the notification event was based on.
 #   scheduled_time - The scheduled time for this notification - note that sometimes this value
@@ -147,6 +170,23 @@ MY_BEIWE_SERVER = "https://example.com"
 #   push_rejected - Notificattions can fail on the server backend for a variety of reasons, tor
 #         example if a particpiant uninstalls the app. This field contains a boolean value of
 #         True if such a failure occurred, otherwise False.
+
+
+## Get Participant Device Status History - retrieve the device status history for a participant
+# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-device-status-history/v1"
+# - Endpoint takes one required parameter, participant_id, which must match a participant id in a
+#   study you have access to.
+# Returns a json list of dictionaries, including complex json of any device status history.
+# - Device status history is a feature that must be enabled on a per participant feature by a
+#   site admin on the participant experiments page. It is not enabled by default.
+#   The exact format of the data _differs based on app version_, and was introduced during the
+#   latter half of 2023. It is subject to change without warning based on the app version. Some of
+#   this data is intended for developer-level debugging and troubleshooting, the exact details of
+#   which data points simply require knowledge of the app's internal workings.
+# - WARNING: this endpoint can return a very large amount of data.
+
+
+## -------------------------------------------------------------------------------------------------
 
 "get-sycamore-analysis-output/v1"
 

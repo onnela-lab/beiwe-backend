@@ -227,6 +227,7 @@ path("get-summary-statistics/v1", data_api_endpoints.get_summary_statistics)
 path("get-sycamore-analysis-output/v1", data_api_endpoints.get_sycamore_analysis_output)
 path("get-participant-device-status-history/v1", data_api_endpoints.get_participant_device_status_report_history)
 path("get-participant-notification-history/v1", data_api_endpoints.get_participant_notification_history)
+path("get-forest-tasks/v1", data_api_endpoints.get_forest_tasks)
 path("check-my-credentials/v1", data_api_endpoints.check_my_credentials)
 
 # tableau - legacy endpaints - these were UNFATHOMABLY poorly constructed, can't get rid of them

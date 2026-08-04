@@ -21,7 +21,7 @@ from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MISSING_JSON_CSV_JSON_TABLE_MESSAGE
 from constants.raw_data_constants import REDUCED_CHUNK_FIELDS
 from constants.user_constants import TABLEAU_TABLE_FIELD_TYPES
-from database.models import DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily
+from database.models import F, DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily
 from endpoints.raw_data_api_endpoints import combined_chunk_query
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.endpoint_helpers.copy_study_helpers import study_settings_fileresponse
@@ -459,3 +459,40 @@ def get_participant_file_hashes(request: ApiStudyResearcherRequest):
 @api_credential_check
 def check_my_credentials(request: ApiStudyResearcherRequest):
     return HttpResponse("The provided credentials are valid", status=200)
+
+
+@require_POST
+@api_study_credential_check()
+def get_forest_tasks(request: ApiStudyResearcherRequest):
+    
+    fields = [
+        "created_on",
+        "last_updated",  # yes, this is important to show
+        "patient_id",    # renamed
+        "study",         # renamed
+        "creator",
+        "forest_tree",
+        "forest_version",
+        "forest_commit",
+        "external_id",
+        # "pickled_parameters",  # people don't need to see this, it is _too_ technical
+        "data_date_start",
+        "data_date_end",
+        "total_file_size",
+        "process_start_time",
+        "process_download_end_time",
+        "process_end_time",
+        "status",
+        "stacktrace",
+        "forest_output_exists",
+    ]
+    
+    forest_tasks = request.api_study.forest_tasks.annotate(
+        study=F("the_study__object_id"),
+        patient_id=F("participant__patient_id"),
+    ).order_by(
+        "forest_tree", "patient_id", "created_on"
+    )
+    
+    q = EfficientQueryPaginator(filtered_query=forest_tasks, page_size=1000, values=fields)
+    return HttpResponse(q.stream_orjson_paginate(), status=200, content_type="application/json")

@@ -158,7 +158,7 @@ class EfficientQueryPaginator:
             yield si.getvalue()
             si.empty()
     
-    def stream_json_paginate(self, **kwargs):
+    def stream_json_paginate(self, **kwargs) -> Generator[bytes, None, None]:
         return self.stream_orjson_paginate(**kwargs)
     
     def stream_orjson_paginate(self, **kwargs) -> Generator[bytes, None, None]:

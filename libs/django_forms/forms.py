@@ -37,6 +37,7 @@ class CreateTasksForm(forms.Form):
     def __init__(self, *args, **kwargs):
         # we provide a study parameter, somewhat like a ModelForm
         self.study: Study = kwargs.pop("study")
+        self.creator = kwargs.pop("creator")
         super().__init__(*args, **kwargs)
     
     def clean(self):
@@ -117,6 +118,7 @@ class CreateTasksForm(forms.Form):
                         data_date_end=self.cleaned_data["date_end"],
                         status=ForestTaskStatus.queued,
                         the_study=self.study,
+                        creator=self.creator,
                     )
                 )
         
@@ -129,12 +131,12 @@ class CreateTasksForm(forms.Form):
                     data_date_end=self.cleaned_data["date_end"],
                     status=ForestTaskStatus.queued,
                     the_study=self.study,
+                    creator=self.creator,
                 )
             )
         
         if not ForestTask.objects.bulk_create(forest_tasks):
             log.error("Failed to create forest tasks")
-
 
 
 class ApiQueryForm(forms.Form):

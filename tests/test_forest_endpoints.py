@@ -58,6 +58,8 @@ class TestForestCreateTasks(ResearcherSessionTest):
             participant_patient_ids=f'{self.default_participant.patient_id}',
         )
         self.assertEqual(ForestTask.objects.count(), 1)
+        task = ForestTask.objects.get()
+        self.assertEqual(task.creator, self.session_researcher.username)
     
     def test_sycamore_task_creation_without_participant(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
@@ -72,6 +74,7 @@ class TestForestCreateTasks(ResearcherSessionTest):
         self.assertIsNone(task.participant)
         self.assertEqual(task.the_study, self.session_study)
         self.assertEqual(task.forest_tree, ForestTree.sycamore)
+        self.assertEqual(task.creator, self.session_researcher.username)
     
     def test_sycamore_task_visible_in_task_log(self):
         self.set_session_study_relation(ResearcherRole.site_admin)
