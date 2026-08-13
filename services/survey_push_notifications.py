@@ -349,18 +349,7 @@ def failed_send_survey_handler(
     
     if participant.push_notification_unreachable_count >= PUSH_NOTIFICATION_ATTEMPT_COUNT:
         # disable the credential
-        now = timezone.now()
-        fcm_hist = ParticipantFCMHistory.objects.get(token=fcm_token)
-        fcm_hist.unregistered = now
-        fcm_hist.save()
-        
-        PushNotificationDisabledEvent(
-            participant=participant, timestamp=now,
-            count=participant.push_notification_unreachable_count
-        ).save()
-        
-        logd(f"Participant {participant.patient_id} has had push notifications "
-              f"disabled after {PUSH_NOTIFICATION_ATTEMPT_COUNT} failed attempts to send.")
+        disable_participant_fcm(participant, fcm_token)
     
     else:
         participant.update_only(
@@ -389,7 +378,8 @@ def handle_invalid_argument_Error(
     after a patch that should have addressed that by splitting up api calls. That participant had
     not had activity in 6 months. So ... we now only report this to sentry on participants with a
     heartbeat checkin more recent than .... 6 weeks seems good?
-    Update 2026/8/13 - it happened on a participant with last checkin of 2 weeks, changing to 1 week
+    Update 2026/8/13 - it happened on a participant with last checkin of 2 weeks, but noticed the
+    error message could be inspected to disable the participant's push notifications.
     """
     p.refresh_from_db()
     hbc = p.last_heartbeat_checkin
@@ -399,13 +389,30 @@ def handle_invalid_argument_Error(
         failed_send_survey_handler(p, fcm_token, "InvalidArgumentError", scheduled_events, debug)
         return
     
-    # otherwise...
+    if "APNs device token is disabled" in str(e):
+        p.update_only(push_notification_unreachable_count=p.push_notification_unreachable_count + 1)
+        disable_participant_fcm(p, fcm_token)
+        return
+    
+    # otherwise, if its been over 6 weeks, start warning us about it
     msg = f"{p.patient_id} - InvalidArgumentError on survey - last checkin was {hbc.isoformat()}"
     loge(msg)
-    if hbc < (timezone.now() - timedelta(weeks=1)):
+    if hbc < (timezone.now() - timedelta(weeks=6)):
         failed_send_survey_handler(p, fcm_token, "InvalidArgumentError", scheduled_events, debug)
+        # can't raise this error fr because we are inside of a transaction, cancels the increment
         with SentryUtils.report_push_notifications():
             raise InvalidArgumentError(msg) from e
+
+
+def disable_participant_fcm(p: Participant, fcm_token: str):
+    now = timezone.now()
+    unreachable_count = p.push_notification_unreachable_count
+    PushNotificationDisabledEvent(participant=p, timestamp=now, count=unreachable_count).save()
+    fcm_hist = ParticipantFCMHistory.objects.get(token=fcm_token)
+    fcm_hist.unregistered = now
+    fcm_hist.save()
+    logd(f"Participant {p.patient_id} has had push notifications "
+         f"disabled after {unreachable_count} failed attempts to send.")
 
 
 def create_archived_events(events: list[ScheduledEvent], participant: Participant, status: str):
