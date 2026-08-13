@@ -149,6 +149,8 @@ select = [
   "T10",   # flake8-debugger: leftover breakpoint() / pdb calls
   "T20",   # flake8-print: leftover print() calls
   "UP",    # pyupgrade: outdated Python syntax
+  "DJ",    # flake8-django: Django-specific linting rules
+  
 ]
 
 extend-ignore = [
