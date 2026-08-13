@@ -6,23 +6,21 @@
 #
 amqp==5.3.1
     # via kombu
-asgiref==3.11.1
+asgiref==3.12.1
     # via django
-asttokens==3.0.1
+asttokens==3.0.2
     # via stack-data
-audioread==3.1.0
-    # via librosa
-backports-zstd==1.5.0
+backports-zstd==1.6.0
     # via -r requirements.in
-beiwe-forest @ git+https://git@github.com/onnela-lab/forest@9bdeee682b19a7206aadbe4d8abe65a626f2319b
+beiwe-forest==1.0
     # via -r requirements.in
 billiard==4.2.4
     # via celery
-bleach==6.3.0
+bleach==6.4.0
     # via -r requirements.in
-boto3==1.43.15
+boto3==1.43.70
     # via -r requirements.in
-botocore==1.43.15
+botocore==1.43.70
     # via
     #   boto3
     #   s3transfer
@@ -30,19 +28,19 @@ cachecontrol==0.14.4
     # via firebase-admin
 celery==5.4.0
     # via -r requirements.in
-certifi==2026.5.20
+certifi==2026.7.22
     # via
     #   pyproj
     #   requests
     #   sentry-sdk
-cffi==2.0.0
+cffi==2.1.1
     # via
     #   cryptography
     #   soundfile
     #   timezonefinder
-charset-normalizer==3.4.7
+charset-normalizer==3.5.0
     # via requests
-click==8.4.1
+click==8.4.2
     # via
     #   celery
     #   click-didyoumean
@@ -56,13 +54,11 @@ click-repl==0.3.0
     # via celery
 cronutils==0.4.2
     # via -r requirements.in
-cryptography==48.0.0
+cryptography==50.0.0
     # via google-auth
 decorator==5.3.1
-    # via
-    #   ipython
-    #   librosa
-django==5.2.14
+    # via librosa
+django==5.2.17
     # via
     #   -r requirements.in
     #   django-extensions
@@ -74,16 +70,16 @@ firebase-admin==5.4.0
     # via -r requirements.in
 flatbuffers==25.12.19
     # via timezonefinder
-google-api-core[grpc]==2.30.3
+google-api-core[grpc]==2.34.0
     # via
     #   firebase-admin
     #   google-api-python-client
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.196.0
+google-api-python-client==2.198.0
     # via firebase-admin
-google-auth==2.53.0
+google-auth==2.56.3
     # via
     #   google-api-core
     #   google-api-python-client
@@ -91,46 +87,46 @@ google-auth==2.53.0
     #   google-cloud-core
     #   google-cloud-firestore
     #   google-cloud-storage
-google-auth-httplib2==0.4.0
+google-auth-httplib2==0.4.1
     # via google-api-python-client
-google-cloud-core==2.6.0
+google-cloud-core==2.6.1
     # via
     #   google-cloud-firestore
     #   google-cloud-storage
-google-cloud-firestore==2.27.0
+google-cloud-firestore==2.28.1
     # via firebase-admin
-google-cloud-storage==3.10.1
+google-cloud-storage==3.13.1
     # via firebase-admin
 google-crc32c==1.8.0
     # via
     #   google-cloud-storage
     #   google-resumable-media
-google-resumable-media==2.9.0
+google-resumable-media==2.10.1
     # via google-cloud-storage
-googleapis-common-protos==1.75.0
+googleapis-common-protos==1.75.1
     # via
     #   google-api-core
     #   grpcio-status
-grpcio==1.80.0
+grpcio==1.83.0
     # via
     #   google-api-core
     #   google-cloud-firestore
     #   grpcio-status
-grpcio-status==1.80.0
+grpcio-status==1.83.0
     # via google-api-core
 gunicorn==26.0.0
     # via -r requirements.in
-h3==4.4.2
+h3==4.5.0
     # via timezonefinder
-holidays==0.97
+holidays==0.102
     # via beiwe-forest
-httplib2==0.31.2
+httplib2==0.32.0
     # via
     #   google-api-python-client
     #   google-auth-httplib2
-idna==3.16
+idna==3.18
     # via requests
-ipython==9.13.0
+ipython==9.16.1
     # via -r requirements.in
 ipython-pygments-lexers==1.1.1
     # via ipython
@@ -150,23 +146,25 @@ kombu==5.6.2
     # via celery
 lazy-loader==0.5
     # via librosa
-librosa==0.11.0
+librosa==1.0.0
     # via beiwe-forest
-llvmlite==0.47.0
+llvmlite==0.49.0
     # via numba
 markupsafe==3.0.3
     # via jinja2
 matplotlib-inline==0.2.2
     # via ipython
-msgpack==1.1.2
+msgpack==1.2.1
     # via
     #   cachecontrol
     #   librosa
-numba==0.65.1
+narwhals==2.24.0
+    # via scikit-learn
+numba==0.67.0
     # via
     #   librosa
     #   ssqueezepy
-numpy==2.4.6
+numpy==2.5.2
     # via
     #   beiwe-forest
     #   librosa
@@ -183,31 +181,31 @@ openrouteservice==2.3.3
     # via beiwe-forest
 orjson==3.11.9
     # via -r requirements.in
-packaging==26.2
+packaging==26.3
     # via
     #   gunicorn
     #   kombu
     #   lazy-loader
     #   pooch
-pandas==3.0.3
+pandas==3.0.5
     # via beiwe-forest
 parso==0.8.7
     # via jedi
 pexpect==4.9.0
     # via ipython
-platformdirs==4.9.6
+platformdirs==4.11.2
     # via pooch
 pooch==1.9.0
     # via librosa
-prompt-toolkit==3.0.52
+prompt-toolkit==3.0.53
     # via
     #   click-repl
     #   ipython
-proto-plus==1.28.0
+proto-plus==1.28.3
     # via
     #   google-api-core
     #   google-cloud-firestore
-protobuf==6.33.6
+protobuf==7.35.1
     # via
     #   google-api-core
     #   google-cloud-firestore
@@ -222,7 +220,7 @@ ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.3
     # via stack-data
-pyasn1==0.6.3
+pyasn1==0.6.4
     # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
@@ -234,7 +232,7 @@ pygments==2.20.0
     # via
     #   ipython
     #   ipython-pygments-lexers
-pyotp==2.9.0
+pyotp==2.10.0
     # via -r requirements.in
 pyparsing==3.3.2
     # via httplib2
@@ -252,7 +250,7 @@ python-dateutil==2.9.0.post0
     #   celery
     #   holidays
     #   pandas
-pytz==2026.2
+pytz==2026.3.post1
     # via beiwe-forest
 ratelimit==2.2.1
     # via beiwe-forest
@@ -266,23 +264,23 @@ requests==2.34.2
     #   google-cloud-storage
     #   openrouteservice
     #   pooch
-s3transfer==0.17.1
+s3transfer==0.19.2
     # via boto3
-scikit-learn==1.8.0
+scikit-learn==1.9.0
     # via librosa
-scipy==1.17.1
+scipy==1.18.0
     # via
     #   beiwe-forest
     #   librosa
     #   scikit-learn
     #   ssqueezepy
-sentry-sdk==2.60.0
+sentry-sdk==2.68.0
     # via cronutils
 shapely==2.1.2
     # via beiwe-forest
 six==1.17.0
     # via python-dateutil
-soundfile==0.13.1
+soundfile==0.14.0
     # via librosa
 soxr==1.1.0
     # via librosa
@@ -294,18 +292,18 @@ stack-data==0.6.3
     # via ipython
 threadpoolctl==3.6.0
     # via scikit-learn
-timezonefinder==8.2.4
+timezonefinder==8.2.5
     # via beiwe-forest
-traitlets==5.15.0
+traitlets==5.16.1
     # via
     #   ipython
     #   matplotlib-inline
-typing-extensions==4.15.0
+typing-extensions==4.16.0
     # via
     #   grpcio
-    #   librosa
     #   psycopg
-tzdata==2026.2
+    #   soundfile
+tzdata==2026.3
     # via
     #   celery
     #   kombu
@@ -321,9 +319,7 @@ vine==5.1.0
     #   amqp
     #   celery
     #   kombu
-wcwidth==0.7.0
+wcwidth==0.8.2
     # via prompt-toolkit
 webencodings==0.5.1
     # via bleach
-zstandard==0.25.0
-    # via beiwe-forest
