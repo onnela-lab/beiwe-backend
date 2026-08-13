@@ -385,10 +385,11 @@ def handle_invalid_argument_Error(
     debug: bool,
 ):
     """
-    Thought this was caused by too many ~details (survey ids) in the send, then it occurred after a
-    patch that should have addressed that by splitting up api calls. That participant that had not
-    activity in 6 months. So ... we now only report this to sentry on participants withe a heartbeat
-    checkin more recent than .... 6 weeks seems good?
+    Thought this was caused by a notification with too many details (survey ids), then it occurred
+    after a patch that should have addressed that by splitting up api calls. That participant had
+    not had activity in 6 months. So ... we now only report this to sentry on participants with a
+    heartbeat checkin more recent than .... 6 weeks seems good?
+    Update 2026/8/13 - it happened on a participant with last checkin of 2 weeks, changing to 1 week
     """
     p.refresh_from_db()
     hbc = p.last_heartbeat_checkin
@@ -399,11 +400,12 @@ def handle_invalid_argument_Error(
         return
     
     # otherwise...
-    msg = f"{p.patient_id} - InvalidArgumentError - last heartbeat = {hbc.isoformat()}"
+    msg = f"{p.patient_id} - InvalidArgumentError on survey - last checkin was {hbc.isoformat()}"
     loge(msg)
-    if hbc < (timezone.now() - timedelta(weeks=6)):
+    if hbc < (timezone.now() - timedelta(weeks=1)):
         failed_send_survey_handler(p, fcm_token, "InvalidArgumentError", scheduled_events, debug)
-        raise InvalidArgumentError(msg) from e
+        with SentryUtils.report_push_notifications():
+            raise InvalidArgumentError(msg) from e
 
 
 def create_archived_events(events: list[ScheduledEvent], participant: Participant, status: str):
