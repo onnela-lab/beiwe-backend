@@ -148,7 +148,11 @@ class TestAPIGetStudies(DataApiTest):
         self.set_session_study_relation(ResearcherRole.researcher)
         self.session_study.update_only(deleted=True)
         resp = self.smart_post_status_code(200)
-        self.assertEqual(orjson.loads(resp.content), {})
+        # 2026/8/19 - now we get deleted studies
+        # self.assertEqual(orjson.loads(resp.content), {})
+        self.assertEqual(
+            orjson.loads(resp.content), {self.session_study.object_id: self.DEFAULT_STUDY_NAME}
+        )
     
     def test_multiple_studies(self):
         self.set_session_study_relation(ResearcherRole.researcher)
@@ -173,7 +177,11 @@ class TestAPIGetStudies(DataApiTest):
         self.set_session_study_relation(ResearcherRole.site_admin)
         self.session_study.update_only(deleted=True)
         resp = self.smart_post_status_code(200)
-        self.assertEqual(orjson.loads(resp.content), {})
+        # 2026/8/19 - now we get deleted studies
+        # self.assertEqual(orjson.loads(resp.content), {})
+        self.assertEqual(
+            orjson.loads(resp.content), {self.session_study.object_id: self.DEFAULT_STUDY_NAME}
+        )
 
 
 class TestAPIStudyUserAccess(DataApiTest):

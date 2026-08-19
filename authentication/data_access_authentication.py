@@ -201,7 +201,7 @@ def api_get_study_confirm_exists(request: ResearcherRequest) -> Study:
         
         # If no Study with the given ID exists, we return a 404
         try:
-            return Study.objects.get(object_id=study_object_id, deleted=False)
+            return Study.objects.get(object_id=study_object_id)
         except Study.DoesNotExist:
             log(f"study '{study_object_id}' does not exist (obj id)")
             return abort(404)
@@ -216,7 +216,7 @@ def api_get_study_confirm_exists(request: ResearcherRequest) -> Study:
         
         # If no Study with the given ID exists, we return a 404
         try:
-            return Study.objects.get(pk=study_pk, deleted=False)
+            return Study.objects.get(pk=study_pk)
         except Study.DoesNotExist:
             log("study '%s' does not exist (study pk)" % study_object_id)
             return abort(404)

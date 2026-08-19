@@ -60,19 +60,15 @@ def get_studies(request: ApiResearcherRequest):
     a POST request (strongly preferred!), access_key and secret_key must be in the POST
     request body.
     """
-    # site admin needs to get all non-deleted studies
+    # site admin needs to get all studies
     if request.api_researcher.site_admin:
-        return HttpResponse(
-            orjson.dumps(
-                dict(Study.objects.filter(deleted=False).values_list("object_id", "name"))
-            )
-        )
+        return HttpResponse(orjson.dumps(Study.make_lookup_dict("object_id", "name")))
     
     # non-site-admins get their related studies
     return HttpResponse(
         orjson.dumps(
             dict(
-                StudyRelation.objects.filter(researcher=request.api_researcher, study__deleted=False)
+                StudyRelation.objects.filter(researcher=request.api_researcher)
                 .values_list("study__object_id", "study__name")
             )
         )
