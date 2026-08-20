@@ -5,6 +5,7 @@
 .idea/
 .python-version
 .coverage
+coverage.xml
 .vscode
 htmlcov/
 .ropeproject
