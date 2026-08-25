@@ -602,3 +602,9 @@ def diff_strings(s1: str|bytes, s2: str|bytes):
         print(f"chars -20 to +20 of s2: '{s2[start:i+20].encode('unicode_escape').decode()}'")
 
 string_diff = diff_strings  # I have never once remembered which name I used.
+
+
+def nice_len(x):
+    return f"{len(x):,}"
+
+nlen = nice_len

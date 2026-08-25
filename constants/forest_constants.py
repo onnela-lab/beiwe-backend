@@ -217,7 +217,7 @@ NICE_SUMMARY_METADATA_FIELD_NAMES = [
 ]
 
 # Data quantities
-DATA_QUANTITY_FIELD_MAP = {
+DATA_QUANTITY_FIELD_MAP = {  # used in the script that generates backfilled data quantities
     ACCELEROMETER: "beiwe_accelerometer_bytes",
     ANDROID_LOG_FILE: "beiwe_app_log_bytes",
     BLUETOOTH: "beiwe_bluetooth_bytes",
