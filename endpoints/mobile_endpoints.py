@@ -311,8 +311,7 @@ def mobile_heartbeat(request: ParticipantRequest, OS_API=""):
     now = timezone.now()
     # AppHeartbeats is the historical record of app checkins.
     # .create updates the field on the participant.
-    AppHeartbeats.create(participant=request.session_participant, timestamp=now,
-                         message = request.POST.get("message", None))
+    AppHeartbeats.create(participant=request.session_participant, timestamp=now)
     return HttpResponse(status=200)
 
 

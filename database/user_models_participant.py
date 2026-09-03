@@ -547,14 +547,11 @@ class AppHeartbeats(UtilityModel):
     notification) """
     participant = ForeignKey(Participant, null=False, on_delete=PROTECT, related_name="heartbeats")
     timestamp = DateTimeField(null=False, blank=False, db_index=True)
-    # TODO: message is not intended to be surfaced to anyone other than developers, at time of comment
-    # contains ios debugging info.
-    message = TextField(null=True, blank=True)
     
     @classmethod
-    def create(cls, participant: Participant, timestamp: datetime, message: str = None) -> AppHeartbeats:
+    def create(cls, participant: Participant, timestamp: datetime) -> AppHeartbeats:
         participant.update_only(last_heartbeat_checkin=timestamp)
-        return cls.objects.create(participant=participant, timestamp=timestamp, message=message)
+        return cls.objects.create(participant=participant, timestamp=timestamp)
 
 
 # todo: add more ParticipantActionLog entries
