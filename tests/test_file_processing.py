@@ -19,6 +19,7 @@ from constants.user_constants import ANDROID_API, IOS_API
 from database.models import ChunkRegistry, FileToProcess, S3File, Survey
 from libs.aes import decrypt_server
 from libs.file_processing.csv_merger import construct_s3_chunk_path, CsvMerger
+from libs.file_processing.data_fixes import fix_survey_timings
 from libs.file_processing.file_for_processing import FileForProcessing
 from libs.file_processing.file_processing_core import easy_run, FileProcessingTracker
 from libs.file_processing.utility_functions_csvs import construct_csv_as_bytes
@@ -459,6 +460,61 @@ POWER_STATE_ROWS_2 = [
 ]
 POWERSTATE_OUT_LINE_1 = b"1770358145197,2026-02-06T06:09:05.197,Locked"
 POWERSTATE_OUT_LINE_2 = b"1770358250000,2026-02-06T06:10:50.000,Unlocked"
+
+
+class TestSurveyTimingsFix(CommonTestCase):
+    """ fix_survey_timings inserts the survey id column, and upgrades files from older app versions
+    whose header is a strict prefix of the current reference header for that os. """
+    
+    file_path = "study/patient/surveyTimings/survey_abc12300000000000/1768928568332.csv"
+    
+    def test_ios_current_header_only_gets_survey_id(self):
+        header = b"timestamp,question id,question type,question text,question answer options,answer,event,schedule uuids"
+        rows = [[b"1", b"q1", b"radio", b"text", b"a;b", b"a", b"present", b"uuid1;uuid2"]]
+        result = fix_survey_timings(header, rows, self.file_path, IOS_API)
+        self.assertEqual(
+            result,
+            b"timestamp,question id,survey id,question type,question text,question answer options,answer,event,schedule uuids",
+        )
+        self.assertEqual(
+            rows, [[b"1", b"q1", b"survey_abc12300000000000", b"radio", b"text", b"a;b", b"a", b"present", b"uuid1;uuid2"]]
+        )
+    
+    def test_ios_pre_2_5_7_header_is_padded_to_reference(self):
+        # iOS before 2.5.7 did not have the "schedule uuids" column
+        header = b"timestamp,question id,question type,question text,question answer options,answer,event"
+        rows = [
+            [b"1", b"q1", b"radio", b"text", b"a;b", b"a", b"present"],
+            [b"2", b"q1", b"radio", b"text", b"a;b", b"b", b"changed"],
+        ]
+        result = fix_survey_timings(header, rows, self.file_path, IOS_API)
+        self.assertEqual(
+            result,
+            b"timestamp,question id,survey id,question type,question text,question answer options,answer,event,schedule uuids",
+        )
+        for row in rows:
+            self.assertEqual(len(row), len(result.split(b",")))
+            self.assertEqual(row[-1], b"")
+            self.assertEqual(row[2], b"survey_abc12300000000000")
+        # the upgraded upload header plus the UTC time column is exactly the chunk reference header
+        chunk_reference = REFERENCE_CHUNKREGISTRY_HEADERS[SURVEY_TIMINGS][IOS_API]
+        self.assertEqual(result.replace(b"timestamp,", b"timestamp,UTC time,", 1), chunk_reference)
+    
+    def test_android_header_is_not_padded(self):
+        header = b"timestamp,question id,question type,question text,question answer options,answer"
+        rows = [[b"1", b"q1", b"radio", b"text", b"a;b", b"a"]]
+        result = fix_survey_timings(header, rows, self.file_path, ANDROID_API)
+        self.assertEqual(
+            result, b"timestamp,question id,survey id,question type,question text,question answer options,answer"
+        )
+        self.assertEqual(len(rows[0]), 7)
+    
+    def test_non_prefix_header_is_left_for_the_merger_to_report(self):
+        header = b"timestamp,bad,header"
+        rows = [[b"1", b"x", b"y"]]
+        result = fix_survey_timings(header, rows, self.file_path, IOS_API)
+        self.assertEqual(result, b"timestamp,bad,survey id,header")
+        self.assertEqual(len(rows[0]), 4)
 
 
 class TestCsvMerger(CommonTestCase):

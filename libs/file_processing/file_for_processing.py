@@ -131,7 +131,9 @@ class FileForProcessing():
         if self.data_type == IDENTIFIERS:
             self.header = fix_identifier_csv(self.header, self.file_lines, self.file_to_process.s3_file_path)
         if self.data_type == SURVEY_TIMINGS:
-            self.header = fix_survey_timings(self.header, self.file_lines, self.file_to_process.s3_file_path)
+            self.header = fix_survey_timings(
+                self.header, self.file_lines, self.file_to_process.s3_file_path, self.file_to_process.os_type
+            )
         
         # sometimes there is whitespace in the header? clean it.
         self.header = b",".join(tuple(column_name.strip() for column_name in self.header.split(b",")))
