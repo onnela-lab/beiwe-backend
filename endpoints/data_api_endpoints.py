@@ -434,7 +434,6 @@ def get_participant_notification_history(request: ApiStudyResearcherRequest):
     return HttpResponse(resp_bytes, status=200, content_type="application/json")
 
 
-# TODO: build tests.
 @require_POST
 @api_credential_check
 def get_participant_file_hashes(request: ApiStudyResearcherRequest):
@@ -445,8 +444,10 @@ def get_participant_file_hashes(request: ApiStudyResearcherRequest):
     
     ret = dict[str, str]()
     for chunk in chunks:
-        chunk["time_bin"] = chunk["time_bin"].isoformat()
-        ret[determine_base_file_name(chunk)] = chunk["sha1"]
+        basename = determine_base_file_name(chunk)
+        if isinstance(hsh := chunk["sha1"], bytes):
+            hsh = hsh.decode()
+        ret[basename] = hsh
     
     return HttpResponse(orjson.dumps(ret), status=200, content_type="application/json")
 

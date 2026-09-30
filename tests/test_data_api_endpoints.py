@@ -17,7 +17,7 @@ from constants.schedule_constants import ScheduleTypes
 from constants.testing_constants import MONDAY_JAN_10_NOON_2022_EST, SIMPLE_FILE_CONTENTS
 from constants.user_constants import ANDROID_API, ResearcherRole, TABLEAU_TABLE_FIELD_TYPES
 from database.models import (ApiKey, AppHeartbeats, AppVersionHistory, ArchivedEvent,
-    DataProcessingStatus, ForestTask, Study, StudyRelation, SummaryStatisticDaily, Survey,
+    DataProcessingStatus, ForestTask, S3File, Study, StudyRelation, SummaryStatisticDaily, Survey,
     SurveyArchive, UploadTracking)
 from libs.s3 import NoSuchKeyException
 from libs.utils.compression import compress
@@ -1861,7 +1861,7 @@ class TestGetForestTasks(DataApiTest):
         task3.update(forest_tree=ForestTree.jasmine)
         task4 = self.generate_forest_task(other_participant)
         task4.update(forest_tree=ForestTree.sycamore)
-
+        
         resp = self.smart_post_status_code(200, study_id=self.session_study.object_id)
         response_object = orjson.loads(resp.content)
         # test for order grouping first 2 as tree "a" together with participant 2, then default particiant
@@ -1874,3 +1874,56 @@ class TestGetForestTasks(DataApiTest):
         self.assertEqual(response_object[2]["forest_tree"], ForestTree.sycamore)
         self.assertEqual(response_object[3]["patient_id"], self.default_participant.patient_id)
         self.assertEqual(response_object[3]["forest_tree"], ForestTree.sycamore)
+
+
+class TestGetParticipantFileHashes(DataApiTest):
+    ENDPOINT_NAME = "data_api_endpoints.get_participant_file_hashes"
+    
+    def test_empty_list(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        p = self.default_participant
+        resp = self.smart_post_status_code(200, study_id=self.session_study.object_id, participant_id=p.patient_id)
+        response_object = orjson.loads(resp.content)
+        self.assertEqual(response_object, {})
+
+    @time_machine.travel("2024-01-01", tick=False)
+    def test_one_file_no_hash(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        p = self.default_participant
+        c = self.default_chunkregistry
+        resp = self.smart_post_status_code(
+            200, study_id=self.session_study.object_id, participant_id=p.patient_id
+        )
+        r = orjson.loads(resp.content)
+        r_expected = {"patient1/identifiers/2024-01-01 00_00_00+00_00.csv": None}
+        self.assertEqual(r, r_expected)
+        
+    @time_machine.travel("2024-01-01", tick=False)
+    def test_one_file_with_sha1(self):
+        self.set_session_study_relation(ResearcherRole.researcher)
+        p = self.default_participant
+        c = self.default_chunkregistry  # chunk_hash is None
+        
+        # sha1 is a binary field
+        S3File.objects.create(path=c.chunk_path + ".zst", sha1=b"dummyhashsha1")
+        resp = self.smart_post_status_code(
+            200, study_id=self.session_study.object_id, participant_id=p.patient_id
+        )
+        r = orjson.loads(resp.content)
+        r_expected = {"patient1/identifiers/2024-01-01 00_00_00+00_00.csv": "dummyhashsha1"}
+        self.assertEqual(r, r_expected)
+
+    # def test_one_file_with_old_hash_oops_no_nevermind(self):
+    #         self.set_session_study_relation(ResearcherRole.researcher)
+    #         p = self.default_participant
+    #         c = self.default_chunkregistry
+    #         c.update(chunk_hash="dummyhashmd5")  # we don't use this hash anymore
+    #         # sha1 is a binary field
+    #         S3File.objects.create(path=c.chunk_path + ".zst", sha1=)
+    #         resp = self.smart_post_status_code(
+    #             200, study_id=self.session_study.object_id, participant_id=p.patient_id
+    #         )
+    #         r = orjson.loads(resp.content)
+    #         r_expected = {"patient1/identifiers/2024-01-01 00_00_00+00_00.csv": "dummyhashmd5"}
+    #         self.assertEqual(r, r_expected)
+    
