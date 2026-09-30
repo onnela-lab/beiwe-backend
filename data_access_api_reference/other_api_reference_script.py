@@ -39,6 +39,13 @@ MY_BEIWE_SERVER = "https://example.com"
 # ~TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-users/v1"  # (deprecated, use get-participant-ids)~
 # - Endpoint takes one parameter, study_id, returns a json list of participant ids for that study.
 
+## Get a list of a Participant's data files and their hashes
+# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-file-hashes/v1"
+# - Endpoint takes one required parameter, participant_id, which must match a participant id in a
+#   study you have access to.
+# - returns a JSON response containing the file names and hashes for the participant's downloadable
+#   files.
+
 
 ## Get Participant Data Quantities - retrieve data quantity metrics for participants in a study
 # TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-data-quantities/v1"
@@ -140,7 +147,8 @@ MY_BEIWE_SERVER = "https://example.com"
 # - This endpoint is identical to the Tableau API endpoint.
 
 
-## TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-notification-history/v1"
+## Get a participant's notification history - all survey notifications sent to a participant
+# TARGET_ENDPOINT_URL = f"{MY_BEIWE_SERVER}/get-participant-notification-history/v1"
 # - Endpoint takes one required parameter, participant_id, which must match a participant id in a
 #   study you have access to.
 # - Endpoint takes one optional parameter, `utc`.  If this parameter is present with
