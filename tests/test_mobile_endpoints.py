@@ -649,6 +649,36 @@ class TestRegisterParticipant(ParticipantSessionTest):
         self.assertIsInstance(self.default_participant.first_register_user, datetime)
         self.assertEqual(self.default_participant.last_register_user,
                          self.default_participant.first_register_user)
+
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_participant_different_os(self, get_participant_public_key_string: MagicMock):
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
+        get_participant_public_key_string.return_value = "a_private_key"
+        params = self.BASIC_PARAMS
+        self.default_participant.update(easy_enrollment=True, os_type="IOS")
+        params['password'] = "nope!"  # sure vary it up
+        resp = self.smart_post_status_code(400, **params)
+
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_participant_different_os_ios(self, get_participant_public_key_string: MagicMock):
+        self.INJECT_DEVICE_TRACKER_PARAMS = False
+        self.INJECT_RECEIVED_SURVEY_UUIDS = False
+        get_participant_public_key_string.return_value = "a_private_key"
+        params = self.BASIC_PARAMS
+        params['device_os'] = "iOS"  # it is in fact in lower case
+        self.default_participant.update(easy_enrollment=True, os_type="ANDROID")
+        # params['password'] = "nope!"
+        resp = self.smart_post_status_code(400, **params)
+    
+    @patch("endpoints.mobile_endpoints.get_participant_public_key_string")
+    def test_participant_success_lower(self, get_participant_public_key_string: MagicMock):
+        get_participant_public_key_string.return_value = "a_private_key"
+        params = self.BASIC_PARAMS
+        params['device_os'] = "iOS"  # it is in fact in lower case
+        self.default_participant.update(easy_enrollment=True, os_type="IOS")
+        # params['password'] = "nope!"
+        resp = self.smart_post_status_code(200, **params)
     
     def test_deleted_participant(self):
         self.INJECT_DEVICE_TRACKER_PARAMS = False

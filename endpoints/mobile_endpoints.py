@@ -229,7 +229,7 @@ def register_user(request: ParticipantRequest, OS_API=""):
     # participant may have their phone stolen, get a temporary other-os phone, install the app for a
     # week, have both versions of the app simultaneously running and uploading data, then get a new
     # phone of the original os, and re-register, with the stolen phone just eventually stopping.
-    if participant.os_type and participant.os_type != device_os:
+    if participant.os_type and participant.os_type.lower() != device_os.lower():
         return abort(400)
     
     # At this point the device has been checked for validity and will be registered successfully.
