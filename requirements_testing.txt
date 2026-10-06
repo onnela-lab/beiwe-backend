@@ -9,3 +9,4 @@ deepdiff
 django-stubs
 pandas-stubs
 coloredlogs
+ruff

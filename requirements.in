@@ -25,8 +25,8 @@ pyotp
 # This version of pycryptodome results in "from Cryptodome import ..." imports.
 pycryptodomex>=3.23.0
 
-# error reporting
-cronutils==0.4.2
+# error reporting - we had some reason to pin cronutils that has been lost to time...
+cronutils #==0.4.2
 
 # data sanitization
 bleach>=4.1.0
@@ -49,10 +49,14 @@ boto3
 #! YOU MUST manually update the following line to the correct git hash. it must be 40 characters.
 # current_forest_git_hash: fe19564e51c0c3ad8f91d6f9e68801bce66a285e
 # manual override prefix is git+https://git@github.com/onnela-lab/forest@haaash_goooeees_heeerreee
-git+https://git@github.com/onnela-lab/forest@9bdeee682b19a7206aadbe4d8abe65a626f2319b
+# for easy testing purposes: git+https://github.com/onnela-lab/forest/tree/branch_name_goes_heeeere
+git+https://git@github.com/onnela-lab/forest@4aeb47c01e016f1101d0014685ec51734cb65b1c
+
 # beiwe-forest==1.0
 
 celery==5.4.0
 
 
 rcssmin  # extremely fast css minifier
+# fix(simulate_gps_data): add User-Agent header to OSM Overpass API req…
+# 977ad65

@@ -29,7 +29,7 @@ from libs.utils.forest_utils import (save_all_bv_set_bytes, save_jasmine_all_mem
 from libs.utils.threadpool_utils import s3_op_threaded_iterate
 
 from forest.jasmine.traj2stats import gps_stats_main
-from forest.oak.base import run as run_oak
+from forest.oak.runners import run as run_oak
 from forest.sycamore.base import compute_survey_stats
 from forest.willow.log_stats import log_stats_main
 
