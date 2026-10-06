@@ -1,8 +1,7 @@
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-import orjson
-import time_machine
+import orjson, time_machine
 from cronutils import ErrorHandler
 from dateutil.tz import gettz
 from django.http import HttpResponse

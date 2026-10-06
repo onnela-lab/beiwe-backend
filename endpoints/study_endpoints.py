@@ -1,10 +1,7 @@
-import orjson
-
-import json
-import re
+import json, re
 from collections import defaultdict
 
-import bleach
+import bleach, orjson
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http.response import HttpResponse

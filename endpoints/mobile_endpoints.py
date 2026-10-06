@@ -1,7 +1,4 @@
-import calendar
-import json
-import plistlib
-import time
+import calendar, json, plistlib, time
 from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError

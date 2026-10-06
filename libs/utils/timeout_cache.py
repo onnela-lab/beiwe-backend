@@ -1,9 +1,9 @@
 # source adapted from: https://gist.github.com/biblicabeebli/033fa16546a4f5ebe1ee401c1528fd9f
 
-import inspect
 from time import perf_counter
+from types import FunctionType, MethodType
 from typing import Callable
-from types import MethodType, FunctionType
+
 
 # Keys are the functions themselves, values are a tuple containing the timeout expiry
 # of the cache entry, and the cached return value.

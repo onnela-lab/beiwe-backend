@@ -1,5 +1,4 @@
-import time
-import uuid
+import time, uuid
 from datetime import datetime, timedelta
 from typing import Optional
 from unittest.mock import MagicMock, patch

@@ -1,6 +1,4 @@
-import os
-import platform
-import warnings
+import os, platform, warnings
 from sys import argv
 from typing import Any
 

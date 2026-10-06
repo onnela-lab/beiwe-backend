@@ -1,5 +1,4 @@
-import logging
-import uuid
+import logging, uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import functools
-import typing
+import functools, typing
 from collections.abc import Callable
 from datetime import datetime, timedelta
 

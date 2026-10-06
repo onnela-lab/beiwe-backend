@@ -1,12 +1,9 @@
 import warnings  # run this to suppress a message out of a required library before importing it.
+
+
 warnings.filterwarnings(action='ignore', module='.*paramiko.*')
 
-import argparse
-import json
-import os
-import re
-import shutil
-import sys
+import argparse, json, os, re, shutil, sys
 from os import environ
 from os.path import abspath, join as path_join, relpath
 from time import sleep

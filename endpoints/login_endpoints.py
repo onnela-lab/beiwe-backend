@@ -2,8 +2,7 @@ import functools
 from collections.abc import Callable
 from datetime import timedelta
 
-import bleach
-import django
+import bleach, django
 from django.contrib import messages
 from django.db.transaction import atomic
 from django.shortcuts import redirect, render

@@ -2,8 +2,7 @@ import csv
 from datetime import datetime, timedelta
 from io import StringIO
 
-import bleach
-import orjson
+import bleach, orjson
 from dateutil.tz import UTC
 from django.db.models.fields import Field
 from django.db.models.functions import Substr
@@ -21,7 +20,7 @@ from constants.forest_constants import FIELD_TYPE_MAP, SERIALIZABLE_FIELD_NAMES
 from constants.message_strings import MISSING_JSON_CSV_JSON_TABLE_MESSAGE
 from constants.raw_data_constants import REDUCED_CHUNK_FIELDS
 from constants.user_constants import TABLEAU_TABLE_FIELD_TYPES
-from database.models import F, DataProcessingStatus, Study, StudyRelation, SummaryStatisticDaily
+from database.models import DataProcessingStatus, F, Study, StudyRelation, SummaryStatisticDaily
 from endpoints.raw_data_api_endpoints import combined_chunk_query
 from libs.efficient_paginator import EfficientQueryPaginator
 from libs.endpoint_helpers.copy_study_helpers import study_settings_fileresponse

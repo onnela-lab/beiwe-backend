@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-import multiprocessing
-import os
-import sys
+import multiprocessing, os, sys
 
 
 if __name__ == "__main__":

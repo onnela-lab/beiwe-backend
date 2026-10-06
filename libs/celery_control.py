@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import functools
-import json
-import logging
+import functools, json, logging
 from collections.abc import Callable
 from datetime import timedelta
 from pprint import pformat

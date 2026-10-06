@@ -1,9 +1,6 @@
-import io
-import json
-import os
-import zipfile
-
+import io, json, os, zipfile
 from os import path
+
 
 try:
     import requests
@@ -15,7 +12,7 @@ except ImportError as e:
 
 # Comment out the following import to disable the credentials file.
 try:
-    from my_data_access_api_credentials import ACCESS_KEY, SECRET_KEY, API_URL_BASE
+    from my_data_access_api_credentials import ACCESS_KEY, API_URL_BASE, SECRET_KEY
 except ImportError:
     ACCESS_KEY, SECRET_KEY, API_URL_BASE = None, None, ""
 

@@ -3,8 +3,7 @@ from datetime import datetime
 # You need 2 libraries installed to run this script, run `pip install orjson requests`
 # requests is a (fantastic) library for making http requests
 # orjson is a highly optimized library for parsing json, I assure you, you will want to use it.
-import orjson
-import requests
+import orjson, requests
 
 
 # provide your Beiwe access keys here

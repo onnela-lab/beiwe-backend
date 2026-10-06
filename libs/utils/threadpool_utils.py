@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterable, Generator
+from collections.abc import Callable, Generator, Iterable
 from multiprocessing.pool import ThreadPool
 from typing import Any, TypeVar
 

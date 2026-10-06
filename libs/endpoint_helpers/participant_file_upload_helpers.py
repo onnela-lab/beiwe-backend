@@ -15,6 +15,7 @@ from libs.s3 import s3_upload, smart_s3_list_study_files
 from libs.utils.file_name_utils import generate_duplicate_name
 from libs.utils.security_utils import generate_easy_alphanumeric_string
 
+
 log = logging.getLogger(__name__)
 if UPLOAD_LOGGING_ENABLED:
     log.setLevel(logging.DEBUG)

@@ -4,10 +4,10 @@ postgres needs to allow rabbitmq server, celery workers, eb servers
 rabbitmq needs to allow workers
 """
 from botocore.exceptions import ClientError
-
-from deployment_helpers.aws.boto_helpers import create_ec2_resource, create_ec2_client
+from deployment_helpers.aws.boto_helpers import create_ec2_client, create_ec2_resource
 from deployment_helpers.constants import get_global_config
 from deployment_helpers.general_utils import log
+
 
 GLOBAL_CONFIGURATION = get_global_config()
 

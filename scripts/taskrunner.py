@@ -1,6 +1,5 @@
-import os
-import sys
-import traceback
+import os, sys, traceback
+
 
 # hack that inserts the root of the project folder into the python path so we can import the codebase
 repo_root = os.path.abspath(__file__).rsplit('/', 2)[0]

@@ -8,7 +8,7 @@ from authentication.admin_authentication import (authenticate_researcher_login,
 from constants.data_stream_constants import (ALL_DATA_STREAMS, COMPLETE_DATA_STREAM_DICT,
     DASHBOARD_DATA_STREAMS)
 from constants.message_strings import DATA_DOWNLOAD_NO_CREDS
-from database.models import Study, Participant
+from database.models import Participant, Study
 from libs.endpoint_helpers.dashboard_helpers import (create_next_past_urls, dashboard_data_query,
     extract_date_args_from_request, get_bytes_data_stream_match, get_first_and_last_days_of_data,
     get_unique_dates, handle_filters, parse_data_streams)

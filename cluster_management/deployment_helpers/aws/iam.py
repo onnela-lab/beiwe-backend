@@ -1,9 +1,7 @@
-from pprint import pprint
-
 ## The various errors we use.
 from deployment_helpers.aws.boto_helpers import create_iam_client, create_iam_resource
-from deployment_helpers.constants import (EB_INSTANCE_PROFILE_ROLE, EB_INSTANCE_PROFILE_NAME,
-    EB_SERVICE_ROLE, get_automation_policy, BEIWE_AUTOMATION_POLICY_NAME, get_aws_access_policy)
+from deployment_helpers.constants import (BEIWE_AUTOMATION_POLICY_NAME, EB_INSTANCE_PROFILE_NAME,
+    EB_INSTANCE_PROFILE_ROLE, EB_SERVICE_ROLE, get_automation_policy, get_aws_access_policy)
 
 
 class PythonPlatformDiscoveryError(Exception): pass

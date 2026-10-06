@@ -3,13 +3,11 @@
 
 # This script is tested to have identical output and be compatible with Python 2.7 and 3.6.
 # (It really should be compatible with any version of Python 3.)
-import base64
-import csv
-import hashlib
-import sys
+import base64, csv, hashlib, sys
 from datetime import datetime
 from os.path import sep as SYSTEM_FOLDER_SEPARATOR
 from sys import argv
+
 
 # This script has 2 dependencies: pytz and python-dateutil
 # pytz is effectively part of the python std library, but it needs to be updated more frequently

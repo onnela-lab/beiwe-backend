@@ -1,7 +1,4 @@
-import json
-import logging
-import shutil
-import traceback
+import json, logging, shutil, traceback
 from csv import DictReader
 from datetime import date, datetime, timedelta
 from os import makedirs

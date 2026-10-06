@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
-import os
-import uuid
+import json, os, uuid
 from datetime import datetime, timedelta, tzinfo
 from pprint import pprint
 from typing import Self, TYPE_CHECKING
@@ -282,7 +280,7 @@ class Participant(AbstractPasswordUser):
         return False
     
     @property
-    def most_recent_activity(self):
+    def most_recent_activity(self) -> datetime | None:
         # get the most recent timestamp out of the active participant fields, handle Nones
         values = [getattr(self, key) for key in ACTIVE_PARTICIPANT_FIELDS]
         return max([v for v in values if v is not None], default=None)

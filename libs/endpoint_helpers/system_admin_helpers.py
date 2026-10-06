@@ -1,5 +1,4 @@
-import json
-import plistlib
+import json, plistlib
 
 from database.models import Researcher
 

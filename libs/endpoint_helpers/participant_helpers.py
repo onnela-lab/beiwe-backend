@@ -5,7 +5,6 @@ import bleach
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import F, Manager, QuerySet
-
 from django.shortcuts import render
 
 from authentication.admin_authentication import ResearcherRequest

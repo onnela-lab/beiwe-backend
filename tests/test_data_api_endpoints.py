@@ -1,8 +1,7 @@
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-import orjson
-import time_machine
+import orjson, time_machine
 from dateutil.tz import UTC
 from django.core.exceptions import ValidationError
 from django.utils import timezone

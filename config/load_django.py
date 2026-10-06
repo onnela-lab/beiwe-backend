@@ -1,5 +1,4 @@
-import builtins
-import os
+import builtins, os
 
 import django
 from django.conf import settings

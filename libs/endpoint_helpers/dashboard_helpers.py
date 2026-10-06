@@ -1,5 +1,4 @@
-import json
-import operator
+import json, operator
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import reduce

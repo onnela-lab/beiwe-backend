@@ -1,5 +1,4 @@
-import functools
-import json
+import functools, json
 from typing import Callable
 
 from django import forms

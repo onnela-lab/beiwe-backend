@@ -1,5 +1,4 @@
-import logging
-import uuid
+import logging, uuid
 from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 

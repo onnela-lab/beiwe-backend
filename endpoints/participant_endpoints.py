@@ -1,5 +1,4 @@
-import json
-import random
+import json, random
 from csv import writer
 from datetime import datetime
 from itertools import chain

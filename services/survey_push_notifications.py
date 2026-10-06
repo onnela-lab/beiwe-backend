@@ -1,6 +1,4 @@
-import logging
-import random
-import uuid
+import logging, random, uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
 

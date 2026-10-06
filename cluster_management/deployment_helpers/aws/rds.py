@@ -1,5 +1,4 @@
-import json
-import os
+import json, os
 from time import sleep
 
 from deployment_helpers.aws.boto_helpers import create_ec2_resource, create_rds_client

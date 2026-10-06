@@ -1,5 +1,6 @@
-from types import FunctionType
 import logging
+from types import FunctionType
+
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
 from jinja2.exceptions import TemplateNotFound

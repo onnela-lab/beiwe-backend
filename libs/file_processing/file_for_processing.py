@@ -1,5 +1,4 @@
-import sys
-import traceback
+import sys, traceback
 from types import TracebackType
 from typing import TypeAlias
 

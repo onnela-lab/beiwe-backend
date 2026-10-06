@@ -1,12 +1,5 @@
 # Do not import from other utils files here
-import logging
-import os
-import random
-import shutil
-import string
-import traceback
-import zipfile
-
+import logging, os, random, shutil, string, traceback, zipfile
 from datetime import datetime
 from os.path import join as path_join, split as path_split
 from pprint import pformat
@@ -14,9 +7,9 @@ from time import sleep
 
 import botocore.exceptions as botoexceptions
 import coloredlogs
+from deployment_helpers.constants import DEV_MODE
 from fabric.exceptions import NetworkError
 
-from deployment_helpers.constants import DEV_MODE
 
 coloredlogs.install(fmt="%(levelname)s %(name)s: %(message)s")
 

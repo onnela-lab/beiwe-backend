@@ -1,7 +1,9 @@
-import boto3
 from pprint import pprint
+
+import boto3
 from botocore.exceptions import ClientError
 from Cryptodome.Cipher import AES
+
 
 # THIS SCRIPT IS NOT INTENDED TO BE RUN VIA run_scripts.py
 

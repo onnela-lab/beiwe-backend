@@ -88,13 +88,13 @@ keywords = [
 #
 
 [tool.isort]
+combine_straight_imports = true
+force_single_line = false
 combine_as_imports = true
-float_to_top = true
 honor_noqa = true
 line_length = 100
 lines_after_imports = 2
 multi_line_output = 10  # "HANGING_INDENT_WITH_PARENTHESES"
-py_version = 312
 remove_redundant_aliases = true
 star_first = true
 use_parentheses = true
@@ -124,6 +124,7 @@ indent-width = 4
 
 extend-ignore =[
   "E701", # multiple statements on one line (colon)
+  "E401",  # for the love of god, why is "combine top-level imports on one line" discouraged.
 ]
 
 [tool.ruff.format]

@@ -1,9 +1,12 @@
 # add the root of the project into the path to allow cd-ing into this folder and running the script.
-from sys import path
 from os.path import abspath
+from sys import path
+
+
 path.insert(0, abspath(__file__).rsplit('/', 2)[0])
 
 from psutil import process_iter
+
 
 for python_process in process_iter():
     # find python processes, identify celery push notification processes, and kill any zombies.

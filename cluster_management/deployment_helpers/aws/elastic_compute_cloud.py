@@ -1,7 +1,6 @@
 from time import sleep
 
 from botocore.exceptions import ClientError
-
 from deployment_helpers.aws.boto_helpers import create_ec2_client, create_ec2_resource
 from deployment_helpers.aws.rds import get_rds_security_groups_by_eb_name
 from deployment_helpers.aws.security_groups import (

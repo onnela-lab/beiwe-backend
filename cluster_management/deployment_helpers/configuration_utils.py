@@ -1,6 +1,4 @@
-import json
-import os
-import re
+import json, os, re
 from os.path import exists as file_exists, relpath
 from time import sleep
 

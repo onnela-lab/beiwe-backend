@@ -6,8 +6,7 @@ from os.path import join as path_join
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-import boto3
-import botocore
+import boto3, botocore
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError as Boto3ClientError
 from botocore.paginate import Paginator
@@ -21,11 +20,10 @@ from constants.common_constants import (CHUNKS_FOLDER, CUSTOM_ONDEPLOY_PREFIX, P
 from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException, Boto3Response,
     COMPRESSED_DATA_MISSING_AT_UPLOAD, COMPRESSED_DATA_MISSING_ON_POP,
     COMPRESSED_DATA_PRESENT_AT_COMPRESSION, COMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
-    COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, MetaDotDict,
-    MUST_BE_ZSTD_FORMAT, NoSuchKeyException, S3DeletionException, SMART_GET_ERROR,
-    UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION, UNCOMPRESSED_DATA_MISSING_ON_POP,
-    UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT, UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD,
-    UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
+    COMPRESSED_DATA_PRESENT_ON_DOWNLOAD, MetaDotDict, MUST_BE_ZSTD_FORMAT, NoSuchKeyException,
+    S3DeletionException, SMART_GET_ERROR, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
+    UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
+    UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD, UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
 from libs.aes import decrypt_server, encrypt_for_server
 from libs.utils.compression import compress, decompress
 

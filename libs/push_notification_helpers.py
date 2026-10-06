@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import logging
-import operator
-import random
+import logging, operator, random
 from datetime import datetime
 from functools import reduce
 from threading import Lock

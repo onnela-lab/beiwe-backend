@@ -2,8 +2,7 @@ import json
 from io import BytesIO
 from os import path
 
-import bleach
-import orjson
+import bleach, orjson
 from django.contrib import messages
 from django.http.response import FileResponse
 

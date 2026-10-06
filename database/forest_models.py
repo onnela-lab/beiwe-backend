@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import pickle
-import uuid
+import pickle, uuid
 from datetime import timedelta
 from os.path import join as path_join
 
@@ -12,11 +11,11 @@ from django.db.models import (AutoField, BigIntegerField, BinaryField, BooleanFi
 from config.settings import DOMAIN_NAME
 from constants.celery_constants import ForestTaskStatus
 from constants.forest_constants import (DEFAULT_FOREST_PARAMETERS, FOREST_PICKLING_ERROR,
-    ForestTree, NON_PICKLED_PARAMETERS, OAK_DATE_FORMAT_PARAMETER, ROOT_FOREST_TASK_PATH, SYCAMORE_DATE_FORMAT)
+    ForestTree, NON_PICKLED_PARAMETERS, OAK_DATE_FORMAT_PARAMETER, ROOT_FOREST_TASK_PATH,
+    SYCAMORE_DATE_FORMAT)
 from database.models import Participant, Study, TimestampedModel
 from libs.utils.date_utils import datetime_to_list
-from libs.utils.forest_utils import (assemble_jasmine_dynamic_params,
-    assemble_sycamore_params)
+from libs.utils.forest_utils import assemble_jasmine_dynamic_params, assemble_sycamore_params
 
 
 #

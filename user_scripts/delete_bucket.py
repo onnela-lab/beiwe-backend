@@ -1,10 +1,14 @@
 # add the root of the project into the path to allow cd-ing into this folder and running the script.
 from os.path import abspath
 from sys import path
+
+
 path.insert(0, abspath(__file__).rsplit('/', 2)[0])
 
-import boto3
 from pprint import pprint
+
+import boto3
+
 
 conn = boto3.client(
     's3',

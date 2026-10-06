@@ -2,6 +2,7 @@
 # the logic is in libs.participant_purge
 from libs.participant_purge import run_next_participant_data_deletion
 
+
 def main():
     while True:
         patient_id = run_next_participant_data_deletion()

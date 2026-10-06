@@ -1,7 +1,4 @@
-import contextlib
-import functools
-import typing
-import uuid
+import contextlib, functools, typing, uuid
 from collections.abc import Callable
 
 import orjson

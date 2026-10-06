@@ -1,6 +1,5 @@
 # This is the target file that is executed by the server to run the Beiwe Django application.
-import os
-import sys
+import os, sys
 
 from django.core.wsgi import get_wsgi_application
 

@@ -1,5 +1,6 @@
 import string
 
+
 ## Password Check Regexes
 SYMBOL_REGEX = "[^a-zA-Z0-9]"
 LOWERCASE_REGEX = "[a-z]"

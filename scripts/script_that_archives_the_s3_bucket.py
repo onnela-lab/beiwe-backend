@@ -3,8 +3,7 @@ from io import BytesIO
 from multiprocessing.pool import ThreadPool
 from zipfile import ZIP_STORED, ZipFile
 
-import boto3
-import botocore
+import boto3, botocore
 from botocore.exceptions import ClientError as Boto3ClientError
 
 
