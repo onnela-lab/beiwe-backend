@@ -46,13 +46,15 @@ boto3
 # pip-tools>=7.3.0
 
 
+
 #! YOU MUST manually update the following line to the correct git hash. it must be 40 characters.
-# current_forest_git_hash: fe19564e51c0c3ad8f91d6f9e68801bce66a285e
+# current_forest_git_hash: 7ba88ee9597d6bd19344c2487a3d1427b35aebf7
+git+https://git@github.com/onnela-lab/forest@7ba88ee9597d6bd19344c2487a3d1427b35aebf7
+
 # manual override prefix is git+https://git@github.com/onnela-lab/forest@haaash_goooeees_heeerreee
 # for easy testing purposes: git+https://github.com/onnela-lab/forest/tree/branch_name_goes_heeeere
-git+https://git@github.com/onnela-lab/forest@4aeb47c01e016f1101d0014685ec51734cb65b1c
+# beiwe-forest==1.0  # or this with a version target
 
-# beiwe-forest==1.0
 
 celery==5.4.0
 
