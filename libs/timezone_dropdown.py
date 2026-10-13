@@ -3,7 +3,6 @@
 from collections import defaultdict
 from datetime import timedelta
 
-import pytz
 from dateutil import tz
 
 
@@ -23,6 +22,11 @@ def string_sorter(key: str):
 
 
 def build_dictionary_of_timezones():
+    """ This function is used to build that dictionary of timezones below, it was written
+    ages ago and depends on pytz. This is unused code, it will need to be updated to be
+    used again as pytz is probably out of date (deprecated, I think). """
+    import pytz
+    
     # defaultdicts are cool.
     zones_by_offset = defaultdict(list)
 
