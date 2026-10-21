@@ -493,8 +493,13 @@ class CreateNewParticipant(ResearcherSessionTest):
         
         content = self.redirect_get_contents(self.session_study.id)
         new_participant: Participant = Participant.objects.get()
-        self.assert_present("Created a new patient", content)
+        self.assert_present("Created a new participant", content)
         self.assert_present(new_participant.patient_id, content)
+        # the message is html, it must contain an unescaped link to the participant page
+        self.assert_present(
+            f'<a href="/view_study/{self.session_study.id}/participant/{new_participant.patient_id}">',
+            content,
+        )
         
         self.assertEqual(S3File.objects.count(), 3)
         patient_id = new_participant.patient_id

@@ -10,6 +10,7 @@ from django.core.paginator import EmptyPage, Paginator
 from django.http.response import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.html import format_html
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from firebase_admin.exceptions import FirebaseError
 from firebase_admin.messaging import (AndroidConfig, Message, Notification,
@@ -215,7 +216,17 @@ def create_new_participant(request: ResearcherRequest):
     create_participant_key_pair(patient_id, study_object_id)
     repopulate_all_survey_scheduled_events(study, participant)
     
-    messages.success(request, f'Created a new patient\npatient_id: {patient_id}\npassword: {password}')
+    # format_html escapes the values and marks the message safe, Django's message storage preserves
+    # that so the link renders as html.
+    messages.success(
+        request,
+        format_html(
+            '<div class="text-large">Created a new participant<br>'
+            'Patient ID: <a href="/view_study/{}/participant/{}"><b>{}</b></a><br>'
+            'Password: <b>{}</b></div>',
+            study_id, patient_id, patient_id, password,
+        )
+    )
     return redirect(f'/view_study/{study_id}')
 
 
