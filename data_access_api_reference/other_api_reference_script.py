@@ -143,6 +143,7 @@ MY_BEIWE_SERVER = "https://example.com"
 # - `limit`, an integer that specifies the maximum number of data points to return.
 # - `ordered_by`, a field name that specifies the parameter to sort the output by.
 # - `order_direction`, either "ascending" or "descending", specifies the order to sort in.
+# - `participant_ids`, a comma separated list of participant IDs.
 # Returns a json list of dictionaries, based on the query parameters.
 # - This endpoint is identical to the Tableau API endpoint.
 
@@ -196,7 +197,9 @@ MY_BEIWE_SERVER = "https://example.com"
 
 ## -------------------------------------------------------------------------------------------------
 
-"get-sycamore-analysis-output/v1"
+# todo: we have the new but untested sycamore analysis output endpoint
+# "get-sycamore-analysis-output/v1"
+
 
 # make a post request to the get-participant-upload-history/v1 endpoint, including the api key,
 # secret key, and participant_id as post parameters.
