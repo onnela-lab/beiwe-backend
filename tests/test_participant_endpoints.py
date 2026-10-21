@@ -37,11 +37,15 @@ class TestDeleteParticipant(ResearcherSessionTest):
         study2 = self.generate_study("study2")
         self.generate_study_relation(self.session_researcher, study2, ResearcherRole.researcher)
         self.smart_post_redirect(patient_id=self.default_participant.patient_id, study_id=study2.id)
+        # The message is asserted on view_study_page, NOT on participant_page, matching
+        # TestResetDevice and TestUnregisterParticipant. participant_page is now scoped to the
+        # study, so it 404s for a participant outside it -- which is the point: the old
+        # assertion only passed because that page rendered a foreign participant.
         self.assert_present(
             "is not in study",
-            self.redirect_get_contents(
-                patient_id=self.default_participant.patient_id, study_id=study2.id
-            )
+            self.easy_get(
+                "study_endpoints.view_study_page", status_code=200, study_id=self.session_study.id
+            ).content
         )
         self.default_participant.refresh_from_db()
         self.assertEqual(self.default_participant.is_dead, False)
@@ -719,6 +723,17 @@ class TestNotificationHistory(ResearcherSessionTest):
         self.smart_get_status_code(200, self.session_study.id, self.default_participant.patient_id, data=dict(page=3))
 
 
+    def test_cross_study_participant_is_rejected(self):
+        """ The decorator validates study_id, never patient_id. A researcher with access to study2
+        must not be able to read a participant in another study by pairing their own study_id with
+        a foreign patient_id -- patient_ids are not secret, they appear in exported filenames. """
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        study2 = self.generate_study("study2")
+        self.generate_study_relation(self.session_researcher, study2, ResearcherRole.study_admin)
+        # default_participant belongs to session_study, NOT study2.
+        self.smart_get_status_code(404, study2.id, self.default_participant.patient_id)
+
+
 class TestParticipantPage(ResearcherSessionTest):
     ENDPOINT_NAME = "participant_endpoints.participant_page"
     REDIRECT_ENDPOINT_NAME = "participant_endpoints.participant_page"
@@ -803,6 +818,35 @@ class TestParticipantPage(ResearcherSessionTest):
         )
 
 
+    def test_cross_study_participant_is_rejected_on_get(self):
+        """ Reads device info, intervention dates and custom field values for a foreign participant. """
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        study2 = self.generate_study("study2")
+        self.generate_study_relation(self.session_researcher, study2, ResearcherRole.study_admin)
+        ret = self.smart_get(study2.id, self.default_participant.patient_id)
+        self.assertEqual(ret.status_code, 404)
+    
+    def test_cross_study_participant_cannot_be_written(self):
+        """ The POST branch is the serious half -- it WROTE attacker-supplied values onto a
+        participant in someone else's study. The field is created on study2 because that is what
+        the vulnerable code iterated: it joined a foreign participant to the attacker's own study
+        fields. Assert the 404 and that nothing was persisted. """
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        study2 = self.generate_study("study2")
+        self.generate_study_relation(self.session_researcher, study2, ResearcherRole.study_admin)
+        study_field = self.generate_study_field(study2, "obscure_name_of_study_field")
+        self.assertFalse(self.default_participant.field_values.exists())
+        
+        ret = self.smart_post(
+            study2.id, self.default_participant.patient_id,
+            **{"field" + str(study_field.id): "written across a study boundary"}
+        )
+        self.assertEqual(ret.status_code, 404)
+        # Nothing created: not the field value, and not the rows add_fields_and_interventions
+        # would otherwise have joined to the attacker's study.
+        self.assertFalse(self.default_participant.field_values.exists())
+
+
 class TestParticipantExperimentsPage(ResearcherSessionTest):
     ENDPOINT_NAME = "participant_endpoints.experiments_page"
     
@@ -816,3 +860,22 @@ class TestParticipantExperimentsPage(ResearcherSessionTest):
             patient_id=self.default_participant.patient_id
         )
         assert x  # assert its not empty
+
+    def test_cross_study_participant_is_rejected(self):
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        study2 = self.generate_study("study2")
+        self.generate_study_relation(self.session_researcher, study2, ResearcherRole.study_admin)
+        ret = self.smart_get(study2.id, self.default_participant.patient_id)
+        self.assertEqual(ret.status_code, 404)
+
+
+class TestUpdateExperiments(ResearcherSessionTest):
+    ENDPOINT_NAME = "participant_endpoints.update_experiments"
+    
+    def test_cross_study_participant_is_rejected(self):
+        """ This endpoint mutates the participant and had no study scoping at all. """
+        self.set_session_study_relation(ResearcherRole.study_admin)
+        study2 = self.generate_study("study2")
+        self.generate_study_relation(self.session_researcher, study2, ResearcherRole.study_admin)
+        ret = self.smart_post(study2.id, self.default_participant.patient_id)
+        self.assertEqual(ret.status_code, 404)

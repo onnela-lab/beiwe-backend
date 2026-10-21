@@ -24,7 +24,7 @@ class TestToggleStudyEasyEnrollment(ResearcherSessionTest):
     
     def _test_success(self):
         self.assertFalse(self.default_study.easy_enrollment)
-        self.smart_get_redirect(self.session_study.id)
+        self.smart_post_redirect(self.session_study.id)  # POST: the endpoint mutates
         self.default_study.refresh_from_db()
         self.assertTrue(self.default_study.easy_enrollment)
     
@@ -38,7 +38,7 @@ class TestToggleStudyEasyEnrollment(ResearcherSessionTest):
     
     def _test_fail(self):
         self.assertFalse(self.default_study.easy_enrollment)
-        self.easy_get(self.ENDPOINT_NAME, status_code=403, study_id=self.session_study.id).content
+        self.smart_post_status_code(403, self.session_study.id)
         self.default_study.refresh_from_db()
         self.assertFalse(self.default_study.easy_enrollment)
 
