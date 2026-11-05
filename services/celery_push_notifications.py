@@ -8,12 +8,15 @@ from constants.common_constants import RUNNING_TESTS, UTC
 from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import BackendFirebaseAppState
 from libs.push_notification_helpers import ErrorSentryCache
-from libs.sentry import SentryUtils
+from libs.sentry import init_worker_global_sentry, SentryUtils
 from services.heartbeat_push_notifications import (celery_heartbeat_send_push_notification_task,
     heartbeat_query)
 from services.resend_push_notifications import restore_scheduledevents_logic
 from services.survey_push_notifications import (get_surveys_and_schedules,
     send_scheduled_event_survey_push_notification_logic)
+
+
+init_worker_global_sentry(SentryUtils.types.push_notifications)  # default sentry client for this worker process
 
 
 logger = logging.getLogger("push_notifications")

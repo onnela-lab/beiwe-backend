@@ -2,7 +2,7 @@ from sys import argv
 
 from constants.common_constants import CUSTOM_ONDEPLOY_SCRIPT_EB, CUSTOM_ONDEPLOY_SCRIPT_PROCESSING
 from libs.s3 import s3_list_files, s3_retrieve_plaintext
-from libs.sentry import SentryUtils
+from libs.sentry import init_global_sentry, SentryUtils
 
 
 def main():
@@ -11,6 +11,7 @@ def main():
         error_sentry = SentryUtils.report_webserver()
     elif "processing" in argv:
         script_folder = CUSTOM_ONDEPLOY_SCRIPT_PROCESSING
+        init_global_sentry(SentryUtils.types.data_processing)  # uncaught errors go to data processing
         error_sentry = SentryUtils.report_data_processing()
     else:
         raise Exception(f"Must supply either 'elasticbeanstalk' or 'processing' as an argument, found `{argv}`")

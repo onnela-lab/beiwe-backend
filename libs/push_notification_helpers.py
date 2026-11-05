@@ -6,7 +6,7 @@ from functools import reduce
 from threading import Lock
 from time import perf_counter
 
-from cronutils import ErrorSentry, null_error_handler
+from cronutils import null_error_handler
 from dateutil.tz import gettz
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -19,7 +19,7 @@ from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.models import ArchivedEvent, Participant, ParticipantFCMHistory, Study, Survey
-from libs.sentry import SentryUtils
+from libs.sentry import SentryErrorHandler, SentryUtils
 
 
 # same logger as in celery_push_notifications
@@ -80,12 +80,12 @@ class ParticipantCache:
 
 
 class ErrorSentryCache:
-    """ ErrorSentry objects cause IO on creatiion, so we cache them for 10 minutes. """
+    """ Caches a SentryErrorHandler for 10 minutes. (Creating one used to cause IO, it no longer does.) """
     
     lock_time: float | None = None  # None on first call
     timer_timeout = 10 * 60  # 10 minutes in seconds
     lock = Lock()
-    error_sentry: ErrorSentry|None = None  # None on first call
+    error_sentry: SentryErrorHandler|None = None  # None on first call
     
     @classmethod
     def check_populate(cls):
@@ -100,7 +100,7 @@ class ErrorSentryCache:
                     cls.lock_time = perf_counter()
     
     @classmethod
-    def get_sentry_processing(cls) -> ErrorSentry:
+    def get_sentry_processing(cls) -> SentryErrorHandler:
         cls.check_populate()
         assert cls.error_sentry is not None, "ErrorSentryCache failed."
         return cls.error_sentry

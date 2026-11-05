@@ -2,14 +2,11 @@ import os, platform, warnings
 from sys import argv
 from typing import Any
 
-import sentry_sdk
 from django.core.exceptions import ImproperlyConfigured
 from sentry_sdk.integrations import _AUTO_ENABLING_INTEGRATIONS
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
 
 from config.settings import DOMAIN_NAME, FLASK_SECRET_KEY, SENTRY_ELASTIC_BEANSTALK_DSN
-from libs.sentry import normalize_sentry_dsn
+from libs.sentry import init_global_sentry, SentryUtils
 
 
 # before anything else, determine if we are running in debug / development mode based off the domain
@@ -246,27 +243,9 @@ if "sentry_sdk.integrations.starlette.StarletteIntegration" not in _AUTO_ENABLIN
 _AUTO_ENABLING_INTEGRATIONS.remove("sentry_sdk.integrations.starlette.StarletteIntegration")
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="sentry_sdk.client")
-# TODO: get error filtering working, the above never prints
-sentry_sdk.init(
-    dsn=normalize_sentry_dsn(SENTRY_ELASTIC_BEANSTALK_DSN),  # type: ignore - this can take a None
-    enable_tracing=False,
-    ignore_errors=["WorkerLostError", "DisallowedHost"],
-    # auto_enabling_integrations=False,  # this was one of the fixes for the starlette bug that didn't work.
-    # before_send=filter_junk_errors,
-    integrations=[
-        DjangoIntegration(
-            transaction_style='url',
-            middleware_spans=False,
-            signals_spans=False,
-            cache_spans=False,
-        ),
-        CeleryIntegration(
-            propagate_traces=False,
-            monitor_beat_tasks=False,
-            exclude_beat_tasks=True,  # type: ignore - this value seems to work fine
-        )
-    ],
-)
+# auto_enabling_integrations=False was one of the fixes for the starlette bug that didn't work.
+# Client options are in libs/sentry.py, celery workers re-run this with their own sentry type.
+init_global_sentry(SentryUtils.types.webserver)
 ####################################################################################################
 ######################################### Django Logging ###########################################
 ####################################################################################################
