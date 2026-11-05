@@ -30,8 +30,9 @@ def prepare_X509_key_for_java(exported_key) -> bytes:
     return b"".join(exported_key.split(b'\n')[1:-1])
 
 
-def get_RSA_cipher(key: bytes) -> RSA.RsaKey:
-    return RSA.importKey(key)
+def get_RSA_cipher(secret: bytes) -> RSA.RsaKey:
+    # the name `secret` triggers sentry scrubbing, this can be a private key file.
+    return RSA.importKey(secret)
 
 
 ################################################################################
@@ -64,8 +65,8 @@ def get_participant_public_key(patient_id: str, study_id: str) -> RSA.RsaKey:
 def get_participant_private_key(patient_id: str, study_id: str) -> RSA.RsaKey:
     """Grabs a user's private key file from s3."""
     from libs.s3 import s3_retrieve
-    key = s3_retrieve("keys/" + patient_id + "_private", study_id)
-    return get_RSA_cipher(key)
+    private_key = s3_retrieve("keys/" + patient_id + "_private", study_id)  # name triggers sentry scrubbing
+    return get_RSA_cipher(private_key)
 
 
 # pycryptodome: the following is correct for PKCS1_OAEP.
