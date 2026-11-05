@@ -1,40 +1,14 @@
 import json
-from typing import Counter
+from collections import Counter
 
 from Cryptodome.Cipher import AES
 from Cryptodome.PublicKey import RSA
 
+from constants.message_strings import NO_DATA_DECRYPTION_MESSAGE
 from constants.security_constants import URLSAFE_BASE64_CHARACTERS
 from database.models import EncryptionErrorMetadata, Participant
 from libs.sentry import send_sentry_warning
 from libs.utils.base64_utils import Base64LengthException, decode_base64, PaddingException
-
-
-class DecryptionKeyInvalidError(Exception): pass
-class RemoteDeleteFileScenario(Exception): pass
-class UnHandledError(Exception): pass  # for debugging
-class InvalidIV(Exception): pass
-class InvalidData(Exception): pass
-class DefinitelyInvalidFile(Exception): pass
-class DoNotCatchThisErrorType(BaseException): pass
-
-# TODO: there is a circular import due to the database imports in this file and this file being
-# imported in s3, forcing local s3 imports in various files.  Refactor and fix.
-
-
-class LineEncryptionError:
-    AES_KEY_BAD_LENGTH = "AES_KEY_BAD_LENGTH"
-    EMPTY_KEY = "EMPTY_KEY"
-    INVALID_LENGTH = "INVALID_LENGTH"
-    IV_BAD_LENGTH = "IV_BAD_LENGTH"
-    IV_MISSING = "IV_MISSING"
-    LINE_EMPTY = "LINE_EMPTY"
-    LINE_IS_NONE = b"LINE_IS_NONE"
-    MALFORMED_CONFIG = "MALFORMED_CONFIG"
-    MP4_PADDING = "MP4_PADDING"
-    PADDING_ERROR = "PADDING_ERROR"
-
-########################### User/Device Decryption #############################
 
 
 ENABLE_DECRYPTION_LOG = False
@@ -45,7 +19,39 @@ def log(*args, **kwargs):
         print(*args, **kwargs)
 
 
-class DeviceDataDecryptor():
+class DecryptionKeyInvalidError(Exception): pass
+class RemoteDeleteFileScenario(Exception): pass
+class UnHandledError(Exception): pass  # for debugging
+class InvalidIV(Exception): pass
+class InvalidData(Exception): pass
+class DefinitelyInvalidFile(Exception): pass
+class DoNotCatchThisErrorType(BaseException): pass
+
+
+class LineEncryptionError:
+    AES_KEY_BAD_LENGTH = "AES_KEY_BAD_LENGTH"
+    EMPTY_KEY = "EMPTY_KEY"
+    INVALID_LENGTH = "INVALID_LENGTH"
+    IV_BAD_LENGTH = "IV_BAD_LENGTH"
+    IV_MISSING = "IV_MISSING"
+    LINE_EMPTY = "LINE_EMPTY"
+    LINE_IS_NONE = "LINE_IS_NONE"
+    MALFORMED_CONFIG = "MALFORMED_CONFIG"
+    MP4_PADDING = "MP4_PADDING"
+    PADDING_ERROR = "PADDING_ERROR"
+
+
+########################### User/Device Decryption #############################
+
+# SECRET DICT: Sentry error reports include the local variables of every stack frame. Local variables
+# holding decryption keys or decrypted data are stored in a dict named `secret`, with keys that start
+# with "secret_". see https://docs.sentry.io/security-legal-pii/scrubbing/server-side-scrubbing/
+# Ciphertext, IVs, and the RSA-encrypted key line are not sensitive without the keys and are left as
+# plain local variables so they remain available for debugging.
+# The RsaKey's repr function is sanitized in libs/rsa.py
+
+
+class DeviceDataDecryptor:
     
     def __init__(
         self,
@@ -80,7 +86,7 @@ class DeviceDataDecryptor():
     
     def run_decryption(self):
         """ Android has no exciting features, errors are raised as normal. """
-        self.aes_decryption_key = self.extract_aes_key()
+        self.aes_decryption_key: bytes = self.extract_aes_key()
         self.decrypt_device_file()
         # join is optimized and does not cause O(n^2) total memory copies.
         self.decrypted_file = b"\n".join(self.good_lines)
@@ -90,7 +96,7 @@ class DeviceDataDecryptor():
         # can be thousands of lines.  Also, this line is a 2x memcopy with N new bytes objects.
         file_data = [line for line in self.original_data.split(b'\n') if line != b""]
         if not file_data:
-            raise RemoteDeleteFileScenario("The file had no data in it.  Return 200 to delete file from device.")
+            raise RemoteDeleteFileScenario(NO_DATA_DECRYPTION_MESSAGE)
         return file_data
     
     def decrypt_device_file(self):
@@ -105,7 +111,7 @@ class DeviceDataDecryptor():
             if line is None:
                 # this case causes weird behavior inside decrypt_device_line, so we test for it instead.
                 self.error_count += 1
-                self.record_line_error(LineEncryptionError.LINE_IS_NONE, line)
+                self.store_line_error(line, LineEncryptionError.LINE_IS_NONE)
                 # print("encountered empty line of data, ignoring.")
                 continue
             try:
@@ -150,10 +156,14 @@ class DeviceDataDecryptor():
     
     def extract_aes_key(self) -> bytes:
         """ The following code is a bit dumb. The decryption key is encoded as base64 twice,
-        once to wrap output of the RSA encryption, and once wrapping the AES decryption key. 
+        once to wrap output of the RSA encryption, and once wrapping the AES decryption key.
         Code factoring is weird due to the need to create and preserve legible stack traces.
-        ( traceback.format_exc() gets the current stack trace if there is an error.) """
+        ( traceback.format_exc() gets the current stack trace if there is an error.)
+        
+        The decrypted key is held in the `secret` dict, see SECRET DICT note at the top of the file. """
         log("extract_aes_key start")
+        secret: dict[str, bytes] = {}
+        
         try:
             key_base64_raw: bytes = self.file_lines[0]
         except IndexError:
@@ -175,13 +185,13 @@ class DeviceDataDecryptor():
             log("extract_aes_key fail 3")
             raise DecryptionKeyInvalidError(f"Invalid decryption key: {decode_error}")
         
-        base64_key = self.rsa_decrypt(decoded_key)
+        secret["secret_base64_key"] = self.rsa_decrypt(decoded_key)
         
         try:
-            decrypted_key: bytes = decode_base64(base64_key)
-            if not decrypted_key:
+            secret["secret_decrypted_key"] = decode_base64(secret["secret_base64_key"])
+            if not secret["secret_decrypted_key"]:
                 log("extract_aes_key fail 4")
-                raise TypeError(f"decoded key was '{decrypted_key}'")
+                raise TypeError("decoded key was empty")
         except (TypeError, IndexError, PaddingException, Base64LengthException) as decr_error:
             log("extract_aes_key fail 5")
             raise DecryptionKeyInvalidError(f"Invalid decryption key: {decr_error}")
@@ -191,15 +201,14 @@ class DeviceDataDecryptor():
         # zeros.  Apps require an update to solve this (in a future rewrite we should use a correct
         # padding algorithm).
         # March 2024: this can happen when you have the wrong RSA key.
-        if len(decrypted_key) != 16:
+        if (key_length:= len(secret["secret_decrypted_key"])) != 16:
             log("extract_aes_key 6")
-            raise DecryptionKeyInvalidError(f"Decryption key not 128 bits: {decrypted_key}")
+            raise DecryptionKeyInvalidError(f"Decryption key not 128 bits: {key_length} bytes")
         
         log("extract_aes_key success")
-        return decrypted_key
+        return secret["secret_decrypted_key"]
     
     def rsa_decrypt(self, decoded_key: bytes) -> bytes:
-        # TODO: populate with exception case handling
         # PyCryptodome deprecated the old PyCrypto method RSA.decrypt() which could decrypt
         # textbook/raw RSA without key padding, which is what the Android & iOS apps write. This
         # (github.com/Legrandin/pycryptodome/issues/434#issuecomment-660701725) presents a
@@ -211,10 +220,12 @@ class DeviceDataDecryptor():
     
     def decrypt_device_line(self, base64_data: bytes) -> bytes:
         """ Config (the file and its iv; why I named it that is a mystery) is expected to be 3 colon
-            separated values.
-            value 1 is the symmetric key, encrypted with the patient's public key.
-            value 2 is the initialization vector for the AES CBC cipher.
-            value 3 is the config, encrypted using AES CBC, with the provided key and iv. """
+        separated values.
+        value 1 is the symmetric key, encrypted with the patient's public key.
+        value 2 is the initialization vector for the AES CBC cipher.
+        value 3 is the config, encrypted using AES CBC, with the provided key and iv.
+        
+        Decrypted data is held in the `secret` dict, see SECRET DICT note at the top of the file. """
         # this can fail if the line is missing or has extra :'s, the case is handled as line error
         iv, base64_data = base64_data.split(b":")
         iv = decode_base64(iv)
@@ -237,23 +248,13 @@ class DeviceDataDecryptor():
         
         try:
             decipherer = AES.new(self.aes_decryption_key, mode=AES.MODE_CBC, IV=iv)
-            decrypted = decipherer.decrypt(raw_data)
+            secret: dict[str, bytes] = {"secret_decrypted": decipherer.decrypt(raw_data)}
         except Exception:
-            if iv is None:
-                len_iv = "None"
-            else:
-                # trunk-ignore(ruff/F841)
-                len_iv = len(iv)
-            if raw_data is None:
-                len_data = "None"
-            else:
-                # trunk-ignore(ruff/F841)
-                len_data = len(raw_data)
-            if self.aes_decryption_key is None:
-                len_key = "None"
-            else:
-                # trunk-ignore(ruff/F841)
-                len_key = len(self.aes_decryption_key)
+            # useful local variables to see in sentry:
+            len_iv = "None" if iv is None else len(iv)  # noqa
+            len_data = "None" if raw_data is None else len(raw_data)  # noqa
+            len_key = "None" if self.aes_decryption_key is None else len(self.aes_decryption_key)  # noqa
+            
             # these print statements cause problems in getting encryption errors because the print
             # statement will print to an ascii formatted log file on the server, which causes
             # ascii encoding error.  Enable them for debugging only. (leave uncommented for Sentry.)
@@ -264,10 +265,10 @@ class DeviceDataDecryptor():
         # PKCS5 Padding: The last byte of the byte-string contains the number of bytes at the end of the
         # bytestring that are padding.  As string slicing in python are a copy operation we will
         # detect the fast-path case of no change so that we can skip it
-        num_padding_bytes = decrypted[-1]
+        num_padding_bytes = secret["secret_decrypted"][-1]
         if num_padding_bytes:
-            decrypted = decrypted[0: -num_padding_bytes]
-        return decrypted
+            secret["secret_decrypted"] = secret["secret_decrypted"][0: -num_padding_bytes]
+        return secret["secret_decrypted"]
     
     def handle_line_error(self, line: bytes, error: Exception):
         error_string = str(error)
@@ -277,7 +278,7 @@ class DeviceDataDecryptor():
         if isinstance(error, (Base64LengthException, PaddingException)):
             # this case used to also catch IndexError, this probably changed after python3 upgrade
             this_error_message += "Something is wrong with data padding:\n\tline: %s" % line
-            self.record_line_error(line, LineEncryptionError.PADDING_ERROR)
+            self.store_line_error(line, LineEncryptionError.PADDING_ERROR)
             return
         # TODO: untested, error should be caught as a decryption key error
         # elif isinstance(error, ValueError) and "Key cannot be the null string" in error_string:
@@ -289,26 +290,26 @@ class DeviceDataDecryptor():
             # the config is not colon separated correctly, this is a single line error, we can just
             # drop it. implies an interrupted write operation (or read)
             this_error_message += "malformed line of config, dropping it and continuing."
-            self.record_line_error(line, LineEncryptionError.MALFORMED_CONFIG)
+            self.store_line_error(line, LineEncryptionError.MALFORMED_CONFIG)
             return
         if isinstance(error, InvalidData):
             this_error_message += "Line contained no data, skipping: " + str(line)
-            self.record_line_error(line, LineEncryptionError.LINE_EMPTY)
+            self.store_line_error(line, LineEncryptionError.LINE_EMPTY)
             return
         
         if isinstance(error, InvalidIV):
             this_error_message += "Line contained no iv, skipping: " + str(line)
-            self.record_line_error(line, LineEncryptionError.IV_MISSING)
+            self.store_line_error(line, LineEncryptionError.IV_MISSING)
             return
         elif "Incorrect IV length" in error_string or 'IV must be' in error_string:
             # shifted this to an okay-to-proceed line error March 2021
             # Jan 2022: encountered pycryptodome form: "Incorrect IV length"
             this_error_message += "iv has bad length."
-            self.record_line_error(line, LineEncryptionError.IV_BAD_LENGTH)
+            self.store_line_error(line, LineEncryptionError.IV_BAD_LENGTH)
             return
         elif 'Incorrect padding' in error_string:
             this_error_message += "base64 padding error, config is truncated."
-            self.record_line_error(line, LineEncryptionError.MP4_PADDING)
+            self.store_line_error(line, LineEncryptionError.MP4_PADDING)
             # this is only seen in mp4 files. possibilities: upload during write operation. broken
             #  base64 conversion in the app some unanticipated error in the file upload
             if not self.file_name.endswith(".csv"):
@@ -317,7 +318,8 @@ class DeviceDataDecryptor():
         # If none of the above cases returned or errors, raise the error raw.
         raise error
     
-    def record_line_error(self, line: bytes, error_type: str):
+    def store_line_error(self, line: bytes, error_type: str):
+        """ when debugging we need to stash the errors encountered line-by-line """
         self.error_types.append(error_type)
         self.bad_lines.append(line)
     

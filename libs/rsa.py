@@ -3,6 +3,15 @@ from Cryptodome.PublicKey import RSA
 from constants.security_constants import ASYMMETRIC_KEY_LENGTH
 
 
+# RsaKey.__repr__ includes the private key components (d, p, q, u), and Sentry error reports
+# include the repr() of local variables in stack frames. This module is imported by the Participant
+# model, so the patch is applied in any process that can load a key.
+def _sanitized_rsa_key_repr(self: RSA.RsaKey) -> str:
+    return "<SANITIZED RsaKey>"
+
+RSA.RsaKey.__repr__ = _sanitized_rsa_key_repr  # type: ignore[method-assign]
+
+
 # The private keys are stored server-side (S3), and the public key is sent to the device.
 
 
