@@ -124,7 +124,7 @@ SentryUtils = _SentryUtils()  # using singleton to reduce some boilerplate
 # with a new one, discarding the options below and routing all later errors in the process to
 # whichever DSN was used most recently.
 
-_CACHED_CLIENTS: dict[str, BaseClient] = {}
+_CACHED_SENTRY_CLIENTS: dict[str, BaseClient] = {}
 _CACHED_CLIENTS_LOCK = Lock()
 
 
@@ -175,16 +175,16 @@ def get_sentry_client(sentry_type: str) -> BaseClient | None:
         return global_client
 
     with _CACHED_CLIENTS_LOCK:
-        if dsn not in _CACHED_CLIENTS:
-            if not _CACHED_CLIENTS:
-                atexit.register(_flush_cached_clients)
-            _CACHED_CLIENTS[dsn] = sentry_sdk.Client(dsn, **sentry_client_options())
-        return _CACHED_CLIENTS[dsn]
+        if dsn not in _CACHED_SENTRY_CLIENTS:
+            if not _CACHED_SENTRY_CLIENTS:
+                atexit.register(_flush_cached_clients)  # register the atexit hook
+            _CACHED_SENTRY_CLIENTS[dsn] = sentry_sdk.Client(dsn, **sentry_client_options())
+        return _CACHED_SENTRY_CLIENTS[dsn]
 
 
 def _flush_cached_clients():
     """ Sentry's own atexit hook only flushes the global client. """
-    for client in _CACHED_CLIENTS.values():
+    for client in _CACHED_SENTRY_CLIENTS.values():
         client.flush()
 
 
