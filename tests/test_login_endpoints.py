@@ -39,6 +39,11 @@ class TestLoginPages(BasicSessionTestCase):
         # this should uniquely identify the login page
         self.assertIn(b'action="/validate_login"', response.content)
     
+    def test_footer_year_is_current_at_render_time(self):
+        with time_machine.travel(datetime(2031, 6, 1, 12, 0, tzinfo=UTC)):
+            response = self.client_get(reverse("login_endpoints.login_page"))
+        self.assert_present("&copy;2014-2031 Harvard University.", response.content)
+    
     def test_load_login_page_while_logged_in(self):
         # make sure the login page loads without logging you in when it should not
         self.session_researcher  # create the default researcher

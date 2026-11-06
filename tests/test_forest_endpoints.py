@@ -2,6 +2,7 @@ import logging, uuid
 from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
+import time_machine
 from django.http import FileResponse
 
 from constants.celery_constants import ForestTaskStatus
@@ -321,6 +322,17 @@ class TestForestCancelTask(ResearcherSessionTest):
         self.assertEqual(self.default_forest_task.status, ForestTaskStatus.cancelled)
         self.assert_present(
             FOREST_TASK_CANCELLED, self.redirect_get_contents(self.session_study.id)
+        )
+    
+    def test_cancel_records_researcher_and_utc_date(self):
+        # the note uses the server's UTC date; 2026-02-08 02:00 UTC is still Feb 7 in New York.
+        self.set_session_study_relation(ResearcherRole.site_admin)
+        with time_machine.travel(datetime(2026, 2, 8, 2, 0, tzinfo=UTC)):
+            self.smart_post_redirect(self.session_study.id, self.default_forest_task.external_id)
+        self.default_forest_task.refresh_from_db()
+        self.assertEqual(
+            self.default_forest_task.stacktrace,
+            f"Canceled by {self.session_researcher.username} on 2026-02-08",
         )
     
     def test_bad_uuid(self):

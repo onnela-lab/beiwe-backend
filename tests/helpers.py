@@ -33,7 +33,7 @@ Schedule = WeeklySchedule|RelativeSchedule|AbsoluteSchedule
 ABS_STATIC_ROOT = (BEIWE_PROJECT_ROOT + STATIC_ROOT).encode()
 
 # we need this to not be an _instance_ variable in TestDownloadParticipantTreeData
-CURRENT_TEST_DATE = timezone.now().today().date()
+CURRENT_TEST_DATE = timezone.now().date()
 CURRENT_TEST_DATE_TEXT = CURRENT_TEST_DATE.isoformat()
 CURRENT_TEST_DATE_BYTES = CURRENT_TEST_DATE_TEXT.encode()
 
@@ -158,7 +158,7 @@ class DatabaseHelperMixin:
     # this needs to be a dynamic property in order for the time_machine library to work
     @property
     def CURRENT_DATE(self) -> date:
-        return timezone.now().today().date()
+        return timezone.now().date()
     
     @property
     def YESTERDAY(self) -> date:

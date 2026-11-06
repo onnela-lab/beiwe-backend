@@ -345,6 +345,15 @@ class TestWeeklyTimingsSchedules(CommonTestCase):
         with self.assertRaises(NoSchedulesException):
             get_next_weekly_event_and_schedule(self.default_survey)
     
+    def test_next_weekly_event_when_utc_and_study_dates_differ(self):
+        # 2026-02-08 02:00 UTC is Saturday 21:00 in New York; the next sunday-midnight event is 3
+        # hours away (Feb 8), not a week away (Feb 15).
+        schedule = self.generate_weekly_schedule(self.default_survey, day_of_week=0)
+        with time_machine.travel(datetime(2026, 2, 8, 2, 0, tzinfo=UTC)):
+            event_time, event_schedule = get_next_weekly_event_and_schedule(self.default_survey)
+        self.assertEqual(event_time, datetime(2026, 2, 8, 0, 0, tzinfo=EASTERN))
+        self.assertEqual(event_schedule.pk, schedule.pk)
+    
     def test_export_weekly_survey_timings(self):
         # assert that the timings output from no-schedules survey are the empty timings dict
         self.assertEqual(
@@ -557,7 +566,7 @@ class TestRelativeSchedulesCreation(CommonTestCase):
 
 
 class TestAbsoluteSchedulesCreation(CommonTestCase):
-    TODAY = timezone.now().today().date()
+    TODAY = timezone.now().date()
     TOMORROW = TODAY + timedelta(days=1)
     
     @property
@@ -683,7 +692,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         # valid here meaning it should create a scheduled event on a valid participant
         self.default_populated_intervention_date
         self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
-        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # monday
+        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # sunday
         self.generate_absolute_schedule(timezone.now().date())
     
     @property
@@ -695,11 +704,13 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
     
     @property
     def assert_no_scheduled_events(self):
+        
         def info():
             weekly_schedule = ScheduledEvent.objects.filter(weekly_schedule__isnull=False).count()
             relative_schedule = ScheduledEvent.objects.filter(relative_schedule__isnull=False).count()
             absolute_schedule = ScheduledEvent.objects.filter(absolute_schedule__isnull=False).count()
             return f"weekly_schedules: {weekly_schedule}, relative_schedules: {relative_schedule}, absolute_schedules: {absolute_schedule}"
+        
         assert ScheduledEvent.objects.count() == 0, "ASSERT_NO_SCHEDULED_EVENTS: " + info()
     
     @time_machine.travel(THURS_OCT_6_NOON_2022_NY)
@@ -725,24 +736,26 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
         repopulate_relative_survey_schedule_events(self.default_survey, self.default_participant)
         self.assertEqual(RelativeSchedule.objects.count(), 1)  # change
-        self.assert_no_scheduled_events    # no change
+        self.assert_no_scheduled_events  # no change
         self.default_populated_intervention_date
         self.assertEqual(RelativeSchedule.objects.count(), 1)  # no change
-        self.assert_no_scheduled_events    # no change
+        self.assert_no_scheduled_events  # no change
         repopulate_relative_survey_schedule_events(self.default_survey, self.default_participant)
         self.assertEqual(RelativeSchedule.objects.count(), 1)  # no change
-        self.assertEqual(ScheduledEvent.objects.count(), 1)    # change
+        self.assertEqual(ScheduledEvent.objects.count(), 1)  # change
         self.assertEqual(ArchivedEvent.objects.count(), 0)
         self.setup_assert_new_scheduled_events_dont_replace_existing
         repopulate_relative_survey_schedule_events(self.default_survey, self.default_participant)
         self.assert_new_scheduled_events_dont_replace_existing
         self.assertEqual(RelativeSchedule.objects.count(), 1)  # no change
-        self.assertEqual(ScheduledEvent.objects.count(), 1)    # change
+        self.assertEqual(ScheduledEvent.objects.count(), 1)  # change
         self.assertEqual(ArchivedEvent.objects.count(), 0)
     
     def test_relative_survey_basic_event_generation_no_participant_in_call(self):
         self.default_populated_intervention_date
-        self.generate_relative_schedule(self.default_survey, self.default_intervention, days_after=0)
+        self.generate_relative_schedule(
+            self.default_survey, self.default_intervention, days_after=0
+        )
         repopulate_relative_survey_schedule_events(self.default_survey)
         self.assertEqual(ScheduledEvent.objects.count(), 1)
         self.assertEqual(RelativeSchedule.objects.count(), 1)
@@ -759,16 +772,16 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.assert_no_scheduled_events
         self.generate_absolute_schedule(timezone.now().date())
         self.assertEqual(AbsoluteSchedule.objects.count(), 1)  # change
-        self.assert_no_scheduled_events   # no change
+        self.assert_no_scheduled_events  # no change
         repopulate_absolute_survey_schedule_events(self.default_survey, self.default_participant)
         self.assertEqual(AbsoluteSchedule.objects.count(), 1)  # no change
-        self.assertEqual(ScheduledEvent.objects.count(), 1)   # change
+        self.assertEqual(ScheduledEvent.objects.count(), 1)  # change
         self.assertEqual(ArchivedEvent.objects.count(), 0)
         self.setup_assert_new_scheduled_events_dont_replace_existing
         repopulate_absolute_survey_schedule_events(self.default_survey, self.default_participant)
         self.assert_new_scheduled_events_dont_replace_existing
         self.assertEqual(AbsoluteSchedule.objects.count(), 1)  # no change
-        self.assertEqual(ScheduledEvent.objects.count(), 1)   # change
+        self.assertEqual(ScheduledEvent.objects.count(), 1)  # change
         self.assertEqual(ArchivedEvent.objects.count(), 0)
     
     def test_absolute_schedule_basic_event_generation_no_participant_in_call(self):
@@ -783,13 +796,27 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.assertEqual(ScheduledEvent.objects.count(), 1)
         self.assertEqual(ArchivedEvent.objects.count(), 0)
     
-    def test_weekly_schedule_basic_event_generation__broken(self):
-        week = timedelta(days=7)
+    def test_weekly_schedule_event_generation_when_utc_and_study_dates_differ(self):
+        # probably tests the next test - claude opus 5.5 high
+        # Regression: the weekly window used the server's UTC date instead of the study's date.
+        # 2026-02-08 02:00 UTC is Sunday in UTC but Saturday 21:00 in New York, so the window was
+        # shifted forward one week and an extra event (Feb 15) was created.
+        self.assertEqual(self.default_study.timezone_name, "America/New_York")
+        self.default_survey, self.default_participant
+        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # sunday, midnight
+        with time_machine.travel(datetime(2026, 2, 8, 2, 0, tzinfo=UTC)):
+            repopulate_weekly_survey_schedule_events(self.default_survey, self.default_participant)
+        self.assertEqual(ScheduledEvent.objects.count(), 1)
+        self.assertEqual(
+            ScheduledEvent.obj_get().scheduled_time, datetime(2026, 2, 8, 0, 0, tzinfo=EASTERN)
+        )
+    
+    def test_weekly_schedule_basic_event_generation__original_regression_test(self):
         # t = datetime(2026, 2, 8, 1, 30, 26, 50338, tzinfo=UTC)  # baseline, fails
-        t = datetime(2026, 2, 8, 0, 0, 0, 0, tzinfo=UTC)        # fails
+        t = datetime(2026, 2, 8, 0, 0, 0, 0, tzinfo=UTC)          # fails
         # t = datetime(2026, 2, 8, 4, 59, 0, tzinfo=UTC)          # fails
         # t = datetime(2026, 2, 8, 4, 59, 0, tzinfo=UTC) + week   # fails
-        # t = datetime(2026, 2, 8, 5, 0, 0, 0, tzinfo=UTC)       # passes
+        # t = datetime(2026, 2, 8, 5, 0, 0, 0, tzinfo=UTC)        # passes
         # t = datetime(2026, 2, 7, 23, 59, 0, 0, tzinfo=UTC)      # passes
         # t = datetime(2026, 2, 8, 1, 11, 0, 0, tzinfo=UTC)       # fails
         
@@ -797,7 +824,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         # ok, between midnight and [the instant before] 5am on feb 8 2026 UTC it fails
         # that's a 5 hour offset, the study is EDT/EST time shifting..... in one month. not in feb
         
-        # Ug. it fails at friday between [utc offset period in which the date changes due to the
+        # It fails at friday between [utc offset period in which the date changes due to the
         #   offset causing the date to differ in the calculations] - I have to work out the correct
         #   behavior here.
         with time_machine.travel(t):
@@ -808,7 +835,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         # make sure test infrastructure does not have weird database side effects
         self.assertEqual(WeeklySchedule.objects.count(), 0)
         self.assert_no_scheduled_events
-        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # monday
+        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # sunday
         self.assertEqual(WeeklySchedule.objects.count(), 1)  # change
         self.assert_no_scheduled_events  # no change
         repopulate_weekly_survey_schedule_events(self.default_survey, self.default_participant)
@@ -823,7 +850,7 @@ class TestEventCreation(CommonTestCase, SchedulePersistenceCheck):
         self.assertEqual(ArchivedEvent.objects.count(), 0)
     
     def test_weekly_schedule_basic_event_generation_no_participant_in_call(self):
-        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # monday
+        self.generate_weekly_schedule(self.default_survey, day_of_week=0)  # sunday
         self.using_default_participant()
         repopulate_weekly_survey_schedule_events(self.default_survey)
         self.assertEqual(WeeklySchedule.objects.count(), 1)
