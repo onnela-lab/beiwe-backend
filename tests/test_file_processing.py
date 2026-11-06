@@ -146,12 +146,13 @@ class TestFileProcessing(CommonTestCase):
         ftp = self.generate_file_to_process(path=self.raw_fp_good, os_type=ANDROID_API)
         
         ffp = FileForProcessing(ftp, self.default_study)
-        self.assertEqual(ffp.file_contents, compressed_input_power_state_content)
+        # downloads are decrypted in place in the download buffer, a bytearray, until decompressed
+        self.assertEqual(bytes(ffp.file_contents), compressed_input_power_state_content)
         
         # Test basic attribute instantiation
         self.assertEqual(ffp.data_type, POWER_STATE)
         self.assertTrue(ffp.chunkable, "POWER_STATE should be in CHUNKABLE_FILES")
-        self.assertEqual(ffp.file_contents, compressed_input_power_state_content)
+        self.assertEqual(bytes(ffp.file_contents), compressed_input_power_state_content)
         self.assertIsNone(ffp.file_lines, "file_lines should not be populated until prepare_data is called")
         self.assertIsNone(ffp.header, "header should not be populated until prepare_data is called")
         self.assertIsNone(ffp.exception, "exception should be None on successful instantiation")

@@ -24,7 +24,7 @@ from constants.s3_constants import (BAD_FOLDER, BAD_FOLDER_2, BadS3PathException
     S3DeletionException, SMART_GET_ERROR, UNCOMPRESSED_DATA_MISSING_AT_COMPRESSION,
     UNCOMPRESSED_DATA_MISSING_ON_POP, UNCOMPRESSED_DATA_PRESENT_ON_ASSIGNMENT,
     UNCOMPRESSED_DATA_PRESENT_ON_DOWNLOAD, UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD)
-from libs.aes import decrypt_server, encrypt_for_server
+from libs.aes import decrypt_server, decrypt_server_in_place, encrypt_for_server
 from libs.utils.compression import compress, decompress
 
 
@@ -64,9 +64,18 @@ class DataException(Exception): pass
 ## Smart Key and Path Getters
 #
 
+def _get_participant_cached_study(participant: Participant) -> Study | None:
+    """ The participant's study, if it was already loaded on the object (object_id and encryption
+    key never change). """
+    from database.models import Participant
+    return participant.study if Participant.study.is_cached(participant) else None
+
+
 def smart_get_study_encryption_key(obj: StrPartStudy) -> bytes:
     from database.models import Participant, Study
     if isinstance(obj, Participant):
+        if study := _get_participant_cached_study(obj):
+            return study.encryption_key.encode()
         return Study.value_get("encryption_key", pk=obj.study_id).encode()
     elif isinstance(obj, Study):
         return obj.encryption_key.encode()
@@ -83,6 +92,8 @@ def s3_construct_study_key_path(key_path: str, obj: StrPartStudy) -> str:
 def get_just_prefix(obj: StrPartStudy) -> str:
     from database.models import Participant, Study
     if isinstance(obj, Participant):
+        if study := _get_participant_cached_study(obj):
+            return study.object_id
         return Study.value_get("object_id", pk=obj.study_id)
     elif isinstance(obj, Study):
         return obj.object_id
@@ -189,7 +200,7 @@ class S3Storage:
         del self.uncompressed_data
         return uncompressed_data
     
-    def pop_compressed_file_content(self) -> bytes:
+    def pop_compressed_file_content(self) -> bytes | bytearray:
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_ON_POP
         compressed_data = self.compressed_data
         del self.compressed_data
@@ -198,19 +209,18 @@ class S3Storage:
     # Upload API
     
     def compress_and_push_to_storage_then_clear_memory(self):
-        self.compress_and_push_to_storage_retaining_compressed()
-        del self.compressed_data
+        self.compress_data_and_clear_uncompressed()
+        self._s3_upload_zst(retain_compressed=False)
     
     def compress_and_push_to_storage_retaining_compressed(self):
         self.compress_data_and_clear_uncompressed()
-        self._s3_upload_zst()
+        self._s3_upload_zst(retain_compressed=True)
     
     def push_to_storage_precompressed_and_clear_memory(self):
         # when you have populated compressed_data in memory and want to push to s3
         assert hasattr(self, "compressed_data"), COMPRESSED_DATA_MISSING_AT_UPLOAD
         assert not hasattr(self, "uncompressed_data"), UNCOMPRESSED_DATA_PRESENT_WRONG_AT_UPLOAD
-        self._s3_upload_zst()
-        del self.compressed_data
+        self._s3_upload_zst(retain_compressed=False)
     
     ## Compression
     
@@ -332,7 +342,7 @@ class S3Storage:
     
     ## Upload
     
-    def _s3_upload_zst(self):
+    def _s3_upload_zst(self, retain_compressed: bool):
         """ Manually manage these memory/reference count operations.  It matters.
         This is a critical performance path. DO NOT separate into further functions calls without
         profiling memory usage. """
@@ -341,7 +351,12 @@ class S3Storage:
         
         encrypted_compressed_data = encrypt_for_server(self.compressed_data, self.encryption_key)
         
-        _do_upload(self.s3_path_zst, encrypted_compressed_data)  # probable 2x memory usage
+        # The network upload is the slowest step, drop the compressed copy before it unless the
+        # caller needs it, only the encrypted copy is needed for the upload.
+        if not retain_compressed:
+            del self.compressed_data
+        
+        _do_upload(self.s3_path_zst, encrypted_compressed_data)
         del encrypted_compressed_data  # remove copy asap
         
         self.update_s3_table()
@@ -349,9 +364,10 @@ class S3Storage:
     ## Retrieve
     
     def _s3_retrieve_uncompressed(self) -> bytes:
+        # legacy files only, returns bytes because the result is handed back to callers as-is.
         return decrypt_server(self._raw_s3_retrieve(self.s3_path_uncompressed), self.encryption_key)
     
-    def _s3_retrieve_zst_and_profile(self) -> bytes:
+    def _s3_retrieve_zst_and_profile(self) -> bytearray:
         key = self.encryption_key  # may have network/db op
         
         try:
@@ -360,14 +376,13 @@ class S3Storage:
             self.delete_s3_table_entry()  # if it doesn't exist, delete the entry in the database
             raise
         
-        ret = decrypt_server(data, key)
-        self.metadata.size_compressed = len(ret)  # after decryption, no iv or padding
-        del data
-        
-        return ret
+        # decrypting in place means there is never a second copy of the file in memory.
+        data = decrypt_server_in_place(data, key)
+        self.metadata.size_compressed = len(data)  # after decryption, no iv or padding
+        return data
     
-    def _raw_s3_retrieve(self, path: str) -> bytes:
-        return _do_retrieve(path).pop("Body").read()
+    def _raw_s3_retrieve(self, path: str) -> bytearray:
+        return _read_response_body(_do_retrieve(path))
 
 
 #
@@ -418,7 +433,7 @@ def _do_upload(key_path: str, data_string: bytes, number_retries=3):
         conn.put_object(Body=data_string, Bucket=S3_BUCKET, Key=key_path)
     except Exception as e:
         # these boto errors are terrible, in this case all we can do is look at the string.
-        if "Please try again" not in str(e):
+        if "Please try again" not in str(e) or number_retries <= 0:
             raise
         _do_upload(key_path, data_string, number_retries=number_retries - 1)
 
@@ -426,22 +441,49 @@ def _do_upload(key_path: str, data_string: bytes, number_retries=3):
 ## Download
 
 
-def s3_retrieve(key_path: str, obj: StrPartStudy, raw_path: bool = False, number_retries=3) -> bytes:
+def s3_retrieve(key_path: str, obj: StrPartStudy, raw_path: bool = False) -> bytes:
     """ Takes an S3 file path (key_path), and a study ID.  Takes an optional argument, raw_path,
     which defaults to false.  When set to false the path is prepended to place the file in the
-    appropriate study_id folder. """
+    appropriate study_id folder. (Retries on S3 errors are handled in _do_retrieve.) """
     # This reference pattern clears internal references before the return statement.
     return S3Storage(key_path, obj, raw_path).download().pop_uncompressed_file_content()
 
 
-def s3_retrieve_no_decompress(key_path: str, obj: StrPartStudy, raw_path: bool = False) -> bytes:
-    """ As s3_retrieve, but does not decompress the file. """
+def s3_retrieve_no_decompress(key_path: str, obj: StrPartStudy, raw_path: bool = False) -> bytearray:
+    """ As s3_retrieve, but does not decompress the file. Returns a bytearray (the download buffer,
+    decrypted in place), pass it to decompress to get bytes. """
     return S3Storage(key_path, obj, raw_path).download_no_decompress().pop_compressed_file_content()
 
 
 def s3_retrieve_plaintext(key_path: str, number_retries=3) -> bytes:
     """ Retrieves a file as-is as bytes. """
     return _do_retrieve(key_path, number_retries=number_retries).pop("Body").read()
+
+
+_READ_CHUNK_SIZE = 1024 * 1024
+
+
+def _read_response_body(response: Boto3Response) -> bytearray:
+    """ Reads a get_object response body into a single preallocated bytearray.
+    
+    Memory use: StreamingBody.read() with no size peaks at ~1.5x the file size, and returns
+    immutable bytes,, so decryption then needed a second full copy. Reading 1 MB chunks into a
+    buffer of the known size peaks at ~1.07x, and the buffer can be decrypted in place. Reading in
+    chunks still goes through botocore's content length and checksum validation. """
+    body = response["Body"]
+    size = response.get("ContentLength")
+    if size is None:  # S3 always sends a length, but don't depend on it
+        return bytearray().join(iter(lambda: body.read(_READ_CHUNK_SIZE), b""))
+    
+    buffer = bytearray(size)
+    with memoryview(buffer) as view:
+        position = 0
+        while chunk := body.read(_READ_CHUNK_SIZE):
+            view[position:position + len(chunk)] = chunk  # raises ValueError if there is extra data
+            position += len(chunk)
+    if position != size:
+        raise DataException(f"expected {size} bytes from s3, received {position}")
+    return buffer
 
 
 def _do_retrieve(key_path: str, number_retries=3) -> Boto3Response:

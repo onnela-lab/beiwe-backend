@@ -33,7 +33,7 @@ class BadS3PathException(Exception): pass
 ## Types
 # Boto3 doesn't have accessible type hints
 class Readable(Protocol):
-    def read(self) -> bytes: ...
+    def read(self, size: int = None) -> bytes: ...
 
 Boto3Response = dict[str, Readable]
 
