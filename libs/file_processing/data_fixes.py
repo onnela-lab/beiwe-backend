@@ -1,13 +1,33 @@
+from constants.data_processing_constants import REFERENCE_UPLOAD_HEADERS
+from constants.data_stream_constants import SURVEY_TIMINGS
 from libs.file_processing.utility_functions_csvs import insert_timestamp_single_row_csv
 from libs.file_processing.utility_functions_simple import normalize_s3_file_path
 
 
-def fix_survey_timings(header: bytes, rows_list: list[list[bytes]], file_path: str) -> bytes:
-    """ Survey timings need to have a column inserted stating the survey id they come from."""
+def fix_survey_timings(
+    header: bytes, rows_list: list[list[bytes]], file_path: str, os_type: str
+) -> bytes:
+    """ Survey timings need to have a column inserted stating the survey id they come from.
+    
+    The apps occasionally add a trailing column to this file (iOS 2.5.7 added "schedule uuids").
+    Old and new app versions upload side by side for a long time, and the csv merger forces every
+    chunk to the reference header, so a file whose header is a strict prefix of the current
+    reference header is upgraded here: the header is extended and every row is padded with empty
+    values. That keeps rows narrower than the header (harmless to csv readers) from ever becoming
+    rows wider than the header (which breaks them). A header that is not a prefix is left alone so
+    the merger still reports it as a bad header. """
     survey_id = file_path.rsplit("/", 2)[1].encode()
+    header_list = [column.strip() for column in header.split(b",")]
+    reference_list = REFERENCE_UPLOAD_HEADERS[SURVEY_TIMINGS][os_type].split(b",")
+    
+    if len(header_list) < len(reference_list) and reference_list[:len(header_list)] == header_list:
+        missing_count = len(reference_list) - len(header_list)
+        header_list = reference_list
+        for row in rows_list:
+            row.extend([b""] * missing_count)
+    
     for row in rows_list:
         row.insert(2, survey_id)
-    header_list = header.split(b",")
     header_list.insert(2, b"survey id")
     return b",".join(header_list)
 

@@ -94,7 +94,8 @@ REFERENCE_CHUNKREGISTRY_HEADERS = {
     # },
     SURVEY_TIMINGS: {
         ANDROID_API: b'timestamp,UTC time,question id,survey id,question type,question text,question answer options,answer',
-        IOS_API:     b'timestamp,UTC time,question id,survey id,question type,question text,question answer options,answer,event',
+        # "schedule uuids" was added in iOS 2.5.7, older iOS files are padded to this width in fix_survey_timings
+        IOS_API:     b'timestamp,UTC time,question id,survey id,question type,question text,question answer options,answer,event,schedule uuids',
     },
     TEXTS_LOG: {
         ANDROID_API: b'timestamp,UTC time,hashed phone number,sent vs received,message length,time sent',
@@ -166,7 +167,8 @@ REFERENCE_UPLOAD_HEADERS = {
     # },
     SURVEY_TIMINGS: {
         ANDROID_API: b'timestamp,question id,question type,question text,question answer options,answer',
-        IOS_API:     b'timestamp,question id,question type,question text,question answer options,answer,event',
+        # "schedule uuids" was added in iOS 2.5.7, older iOS files are padded to this width in fix_survey_timings
+        IOS_API:     b'timestamp,question id,question type,question text,question answer options,answer,event,schedule uuids',
     },
     TEXTS_LOG: {
         ANDROID_API: b'timestamp,hashed phone number,sent vs received,message length,time sent',
