@@ -193,8 +193,10 @@ class DeviceDataDecryptor:
                 log("extract_aes_key fail 4")
                 raise TypeError("decoded key was empty")
         except (TypeError, IndexError, PaddingException, Base64LengthException) as decr_error:
+            # The error message + stack frames of chained exceptions (decode_base64 and base64
+            # functions) contain the RSA-decrypted key as a plain local variable, so raise from None
             log("extract_aes_key fail 5")
-            raise DecryptionKeyInvalidError(f"Invalid decryption key: {decr_error}")
+            raise DecryptionKeyInvalidError(f"Invalid decryption key: {type(decr_error).__name__}") from None
         
         # If the decoded bits of the key is not exactly 128 bits (16 bytes) that probably means that
         # the RSA encryption failed - this occurs when the first byte of the encrypted blob is all
@@ -246,6 +248,9 @@ class DeviceDataDecryptor:
             # print("\n\n")
             raw_data = raw_data[:-overflow_bytes]
         
+        # Errors from inside AES.new will expose the AES key in stack frames sent to Sentry. We
+        # accept this: the key's length and encoding are validated in extract_aes_key before we get
+        # here, and if a novel malformed key ever gets through we need to see it. The key is broken.
         try:
             decipherer = AES.new(self.aes_decryption_key, mode=AES.MODE_CBC, IV=iv)
             secret: dict[str, bytes] = {"secret_decrypted": decipherer.decrypt(raw_data)}
