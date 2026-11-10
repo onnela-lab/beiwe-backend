@@ -33,7 +33,7 @@ def log(*args, **kwargs):
 # class that we use.
 
 
-class FileForProcessing():
+class FileForProcessing:
     """ This class exists to contain all states of pre-processed files before they are handed off to
     the real logic that handles data manipulation.  This is necessary because Python's garbage
     collection struggles with our code. """
@@ -45,7 +45,7 @@ class FileForProcessing():
         self.file_to_process: FileToProcess = file_to_process
         self.data_type: str = s3_file_path_to_data_type(file_to_process.s3_file_path)
         self.chunkable: bool = self.data_type in CHUNKABLE_FILES
-        self.file_contents: bytes | None = None
+        self.file_contents: bytes | bytearray | None = None  # bytearray until decompressed
         
         # populated later
         self.file_lines: list[list[bytes]] | None = None
