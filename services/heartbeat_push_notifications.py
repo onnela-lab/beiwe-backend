@@ -7,8 +7,9 @@ from constants import action_log_messages
 from constants.common_constants import RUNNING_TESTS
 from database.models import Participant, ParticipantActionLog
 from libs.firebase_config import BackendFirebaseAppState
-from libs.push_notification_helpers import (ErrorSentryCache, fcm_for_pushable_participants,
+from libs.push_notification_helpers import (fcm_for_pushable_participants,
     send_custom_notification_safely)
+from libs.sentry import SentryUtils
 
 
 logger = logging.getLogger("push_notifications")
@@ -93,7 +94,7 @@ def heartbeat_query() -> list[tuple[int, str, str, str]]:
 def celery_heartbeat_send_push_notification_task(
     participant_id: int, fcm_token: str, os_type: str, message: str
 ):
-    with ErrorSentryCache.get_sentry_processing():
+    with SentryUtils.report_push_notifications():
         now = timezone.now()
         if not BackendFirebaseAppState.check():
             loge("Heartbeat - Firebase credentials are not configured.")

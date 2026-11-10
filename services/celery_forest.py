@@ -21,7 +21,7 @@ from libs.celery_control import forest_celery_app, safe_apply_async
 from libs.endpoint_helpers.copy_study_helpers import format_study
 from libs.intervention_utils import intervention_survey_data, survey_history_export
 from libs.s3 import s3_retrieve_no_decompress
-from libs.sentry import SentryUtils
+from libs.sentry import init_worker_global_sentry, SentryUtils
 from libs.utils.date_utils import get_timezone_shortcode, legible_time
 from libs.utils.file_name_utils import determine_base_file_name
 from libs.utils.forest_utils import (save_all_bv_set_bytes, save_jasmine_all_memory_dict_bytes,
@@ -32,6 +32,9 @@ from forest.jasmine.traj2stats import gps_stats_main
 from forest.oak.runners import run as run_oak
 from forest.sycamore.base import compute_survey_stats
 from forest.willow.log_stats import log_stats_main
+
+
+init_worker_global_sentry(SentryUtils.types.forest)  # default sentry client for this worker process
 
 
 """

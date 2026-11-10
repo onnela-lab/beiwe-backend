@@ -127,6 +127,7 @@ API_KEY_NOW_DISABLED = "The API key {key} is now disabled"
 ## Mobile API
 DECRYPTION_KEY_ERROR_MESSAGE = "This file did not contain a valid decryption key and could not be processed."
 DECRYPTION_KEY_ADDITIONAL_MESSAGE = "This is an open bug: github.com/onnela-lab/beiwe-backend/issues/186"
+NO_DATA_DECRYPTION_MESSAGE = "The file had no data in it.  Return 200 to delete file from device."
 S3_FILE_PATH_UNIQUE_CONSTRAINT_ERROR_1 = "File to process with this S3 file path already exists"
 S3_FILE_PATH_UNIQUE_CONSTRAINT_ERROR_2 = "duplicate key value violates unique constraint"
 UNKNOWN_ERROR = "AN UNKNOWN ERROR OCCURRED."

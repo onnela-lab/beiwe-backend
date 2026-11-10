@@ -83,7 +83,7 @@ REQUIRED_PARTICIPANT_PURGE_AGE_MINUTES = 30
 ## Runtime info (potentially unique to individual deployments)
 #
 
-RUNNING_SHELL = any(key in _argv for key in ("shell_plus", "--ipython", "ipython"))
+RUNNING_SHELL = any(key in _argv for key in ("shell", "shell_plus", "--ipython", "ipython"))
 RUNNING_TESTS = "test" in _argv
 RUNNING_RUNSERVER_CLI = "runserver" in _argv
 RUNNING_TEST_OR_FROM_A_SHELL = RUNNING_SHELL or RUNNING_TESTS or RUNNING_RUNSERVER_CLI

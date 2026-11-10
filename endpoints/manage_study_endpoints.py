@@ -291,7 +291,7 @@ def rename_study(request: ResearcherRequest, study_id=None):
     return redirect(f'/edit_study/{study.pk}')
 
 
-@require_GET
+@require_POST
 @authenticate_admin
 def toggle_easy_enrollment_study(request: ResearcherRequest, study_id: int):
     study = Study.objects.get(id=study_id)

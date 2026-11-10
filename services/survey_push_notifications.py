@@ -3,7 +3,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import orjson
-from cronutils.error_handler import ErrorSentry
 from dateutil.tz import gettz
 from django.utils import timezone
 from firebase_admin.exceptions import InvalidArgumentError
@@ -21,7 +20,7 @@ from database.models import (Participant, ParticipantFCMHistory, PushNotificatio
     ScheduledEvent, Survey)
 from libs.firebase_config import BackendFirebaseAppState
 from libs.push_notification_helpers import ParticipantCache, slowly_get_stopped_study_ids
-from libs.sentry import SentryUtils
+from libs.sentry import SentryErrorHandler, SentryUtils
 from services.resend_push_notifications import (
     get_all_unconfirmed_notification_schedules_for_bundling)
 
@@ -176,7 +175,7 @@ def send_scheduled_event_survey_push_notification_logic(
     fcm_token: str,
     survey_obj_ids: list[str],
     schedule_pks: list[int],
-    error_handler: ErrorSentry,
+    error_handler: SentryErrorHandler,
     debug: bool = False
 ):
     """ Sends push notifications. Note that this list of pks may contain duplicates. """

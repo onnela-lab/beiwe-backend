@@ -60,7 +60,7 @@ def environment(**options: dict[str, Any]) -> Environment:
             "ASSETS": CdnAssets,
             "LocalAssets": LocalAssets,
             "SENTRY_JAVASCRIPT_DSN": SENTRY_JAVASCRIPT_DSN,
-            "current_year": date.today().year,
+            "current_year": lambda: date.today().year,  # callable, env is built once per process
             "len": len,
             "min": min,
             "max": max,

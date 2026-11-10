@@ -6,7 +6,8 @@
     <div class="alert alert-danger alert-dismissible" role="alert">
   {% endif %}
     <button  class="close text-mono" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-    {{ message }}
+    {# message.message preserves Django's SafeString (e.g. from format_html), plain strings are still escaped #}
+    {{ message.message }}
   </div>
 {% endfor %}
 

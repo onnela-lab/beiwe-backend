@@ -88,6 +88,7 @@ max_requests = 0
 
 # graceful_timeout - timeout of gunicorn generall upon receiving receiving a restart signal (HUP?
 # TERM?).  Default: 30
+# THIS TIMEOUT is also hit when the max-requests scenario is hit
 graceful_timeout = 5
 
 # keepalive default is 2 - the sync worker does not support this option.

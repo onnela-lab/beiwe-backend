@@ -7,13 +7,15 @@ from constants.celery_constants import PUSH_NOTIFICATION_SEND_QUEUE
 from constants.common_constants import RUNNING_TESTS, UTC
 from libs.celery_control import push_send_celery_app, safe_apply_async
 from libs.firebase_config import BackendFirebaseAppState
-from libs.push_notification_helpers import ErrorSentryCache
-from libs.sentry import SentryUtils
+from libs.sentry import init_worker_global_sentry, SentryUtils
 from services.heartbeat_push_notifications import (celery_heartbeat_send_push_notification_task,
     heartbeat_query)
 from services.resend_push_notifications import restore_scheduledevents_logic
 from services.survey_push_notifications import (get_surveys_and_schedules,
     send_scheduled_event_survey_push_notification_logic)
+
+
+init_worker_global_sentry(SentryUtils.types.push_notifications)  # default sentry client for this worker process
 
 
 logger = logging.getLogger("push_notifications")
@@ -49,7 +51,7 @@ def create_survey_push_notification_tasks():
     log("Schedules:", schedules)
     log("Patient_ids:", patient_ids)
     
-    with ErrorSentryCache.get_sentry_processing():
+    with SentryUtils.report_push_notifications():
         if not BackendFirebaseAppState.check():
             loge("Firebase is not configured, cannot queue notifications.")
             return
@@ -78,7 +80,7 @@ def celery_send_survey_push_notification(
         fcm_token,
         survey_obj_ids,
         schedule_pks,
-        ErrorSentryCache.get_sentry_processing(),
+        SentryUtils.report_push_notifications(),
     )
 
 

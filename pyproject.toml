@@ -122,11 +122,6 @@ known_first_party = [  # Force these libraries to a special spot in import order
 line-length = 105
 indent-width = 4
 
-extend-ignore =[
-  "E701", # multiple statements on one line (colon)
-  "E401",  # for the love of god, why is "combine top-level imports on one line" discouraged.
-]
-
 [tool.ruff.format]
 indent-style = "space"  # use spaces for indentation
 line-ending = "lf"  # use \n for line endings
@@ -157,6 +152,8 @@ select = [
 extend-ignore = [
   "S101",  # assert_used — asserts are used intentionally in this codebase
   "T201",  # print_found — print() calls are used intentionally in this codebase
+  "E401",  # multiple top-level imports on one line - this one has negative value
+  "E701", # multiple statements on one line (colon)
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -6,10 +6,11 @@ from database.models import FileToProcess, Participant
 from libs.celery_control import (CeleryDataProcessingTask, get_processing_active_job_ids,
     safe_apply_async)
 from libs.file_processing.file_processing_core import easy_run
-from libs.sentry import send_sentry_warning, SentryUtils
+from libs.sentry import init_worker_global_sentry, send_sentry_warning, SentryUtils
 
 
 from libs.celery_control import processing_celery_app;  # noqa - required in the file namespace for celery to work.
+init_worker_global_sentry(SentryUtils.types.data_processing)  # default sentry client for this worker process
 
 ################################################################################
 ############################# Data Processing ##################################

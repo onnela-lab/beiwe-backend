@@ -239,7 +239,7 @@ def get_bounded_2_week_window_of_weekly_schedule_pks_and_times(
     # of queued up and deleted schedules by up to one day. That's fine.
     tz = survey.study.timezone
     now = survey.study.now()
-    today = now.today()
+    today = now.date()
     
     # The timings schema peshed to devices mimics the Java.util.Calendar.DayOfWeek specification,
     # which is zero-indexed with day 0 as Sunday.

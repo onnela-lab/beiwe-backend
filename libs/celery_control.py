@@ -411,9 +411,8 @@ class AbstractQueueWrapper:
     def wrap_task_with_sentry_etc(self, *task_args, **task_kwargs):
         # add an error sentry, print statements, and a post-execution slee, self.original_name
         logi(f"Running {self.original_name} as {self.task_frequency} task.")
-        from libs.push_notification_helpers import ErrorSentryCache
         try:
-            with ErrorSentryCache.get_sentry_processing():
+            with SentryUtils.report_push_notifications():
                 self.task_function(*task_args, **task_kwargs)
         finally:
             logi(f"Task {self.original_name} is no longer running, pausing for {self.SLEEP_TIME} seconds.")
@@ -449,11 +448,10 @@ class AbstractQueueWrapper:
     @classmethod
     def enqueue_tasks(cls, task_type: str):  # executes at-RUN-time of task queueuing.
         # get the correct tasks and enqueue them
-        from libs.push_notification_helpers import ErrorSentryCache
         for self in (self for self in cls.queueable_tasks if self.task_frequency == task_type):
             logi(f"Enqueueing {self.original_name} as {task_type} task: " + 
                 ", ".join([str(self.task_function), self.task_frequency]))
-            with ErrorSentryCache.get_sentry_processing():
+            with SentryUtils.report_push_notifications():
                 cls.enqueue_task(self.celery_task_object, task_type)
     
     @classmethod

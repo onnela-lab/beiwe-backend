@@ -2,6 +2,7 @@ from django.utils import timezone
 
 from database.models import DataProcessingStatus
 from libs.celery_control import CeleryScriptTask, DAILY, HOURLY, SIX_MINUTELY
+from libs.sentry import init_worker_global_sentry, SentryUtils
 from scripts import (purge_participant_data, repopulate_push_notifications,
     script_that_compresses_s3_data, script_that_deletes_known_junk_uploads,
     script_that_removes_data_from_invalid_time_sources, update_forest_version, upload_logs)
@@ -15,6 +16,7 @@ reporting, warning of long runs, etc. etc.
 
 
 from libs.celery_control import scripts_celery_app  # must be in the namespace for celery to work.
+init_worker_global_sentry(SentryUtils.types.script_runner)  # default sentry client for this worker process
 
 
 ####################################### Six Minutely ###############################################

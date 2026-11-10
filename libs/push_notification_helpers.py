@@ -6,7 +6,7 @@ from functools import reduce
 from threading import Lock
 from time import perf_counter
 
-from cronutils import ErrorSentry, null_error_handler
+from cronutils import null_error_handler
 from dateutil.tz import gettz
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -19,7 +19,6 @@ from constants.message_strings import MESSAGE_SEND_SUCCESS
 from constants.security_constants import OBJECT_ID_ALLOWED_CHARS
 from constants.user_constants import ACTIVE_PARTICIPANT_FIELDS, ANDROID_API, IOS_API
 from database.models import ArchivedEvent, Participant, ParticipantFCMHistory, Study, Survey
-from libs.sentry import SentryUtils
 
 
 # same logger as in celery_push_notifications
@@ -79,35 +78,10 @@ class ParticipantCache:
         return p
 
 
-class ErrorSentryCache:
-    """ ErrorSentry objects cause IO on creatiion, so we cache them for 10 minutes. """
-    
-    lock_time: float | None = None  # None on first call
-    timer_timeout = 10 * 60  # 10 minutes in seconds
-    lock = Lock()
-    error_sentry: ErrorSentry|None = None  # None on first call
-    
-    @classmethod
-    def check_populate(cls):
-        # "now" is a higher number than the lock time, subtraction yields seconds since lock timeout.
-        cache_invalid = lambda: cls.lock_time is None or (perf_counter() - cls.lock_time) > cls.timer_timeout
-        
-        # check, lock, check again after unlock, 
-        if cache_invalid():
-            with cls.lock:
-                if cache_invalid():
-                    cls.error_sentry = SentryUtils.report_push_notifications()
-                    cls.lock_time = perf_counter()
-    
-    @classmethod
-    def get_sentry_processing(cls) -> ErrorSentry:
-        cls.check_populate()
-        assert cls.error_sentry is not None, "ErrorSentryCache failed."
-        return cls.error_sentry
-
 #
 ## Somewhat common code (regular SURVEY notifications have extra logic)
 #
+
 
 def send_custom_notification_safely(fcm_token: str, os_type: str, logging_tag: str, message: str) -> bool:
     """ Our wrapper around the firebase send_notification function. Returns True if successful,

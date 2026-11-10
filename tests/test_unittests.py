@@ -1,5 +1,5 @@
 import time, uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +17,7 @@ from database.models import (AppHeartbeats, AppVersionHistory, ArchivedEvent, De
     DeviceStatusReportHistory, EncryptionErrorMetadata, Participant, ParticipantActionLog,
     ParticipantDeletionEvent, PushNotificationDisabledEvent, S3File, ScheduledEvent,
     SurveyNotificationReport, UploadTracking)
+from libs.endpoint_helpers.dashboard_helpers import build_participant_data
 from libs.endpoint_helpers.participant_table_helpers import determine_registered_status
 from libs.file_processing.utility_functions_simple import (BadTimecodeError, binify_from_timecode,
     clean_java_timecode, convert_unix_to_human_readable_timestamps, ensure_sorted_by_timestamp,
@@ -53,6 +54,32 @@ def data_purge_mock_s3_calls(func):
         with s3_delete_many_versioned, s3_list_files, s3_list_versions:
             return func(self, *args, **kwargs)
     return wrapper
+
+
+class TestBuildParticipantData(CommonTestCase):
+    
+    def test_no_data(self):
+        self.assertEqual(build_participant_data([]), ({}, None, None))
+    
+    def test_earliest_and_latest_dates_and_null_streams_dropped(self):
+        rows = [
+            {"date": date(2026, 2, 8), "participant__patient_id": "a", GPS: 5, ACCELEROMETER: None},
+            {"date": date(2020, 1, 1), "participant__patient_id": "b", GPS: 7, ACCELEROMETER: 3},
+            {"date": date(2023, 6, 15), "participant__patient_id": "a", GPS: None, ACCELEROMETER: 2},
+        ]
+        data, earliest, latest = build_participant_data(rows)
+        self.assertEqual(earliest, date(2020, 1, 1))
+        self.assertEqual(latest, date(2026, 2, 8))
+        self.assertEqual(data, {
+            "a": [
+                {"data_stream": GPS, "bytes": 5, "date": date(2026, 2, 8)},
+                {"data_stream": ACCELEROMETER, "bytes": 2, "date": date(2023, 6, 15)},
+            ],
+            "b": [
+                {"data_stream": GPS, "bytes": 7, "date": date(2020, 1, 1)},
+                {"data_stream": ACCELEROMETER, "bytes": 3, "date": date(2020, 1, 1)},
+            ],
+        })
 
 
 class TestBinifyFromTimecode(CommonTestCase):
